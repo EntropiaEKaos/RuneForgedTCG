@@ -19,6 +19,28 @@ export function verifyPlayerSession(value: string | null | undefined): { playerI
   return verifyPlayerSessionToken(value);
 }
 
+export interface PreparedPlayerSession {
+  token: string;
+  sessionId: string;
+  playerId: number;
+  expiresAt: Date;
+}
+
+/** Prepare a signed browser token and its durable session-row values together. */
+export function preparePlayerSession(playerId: number, playerName: string): PreparedPlayerSession {
+  const token = createPlayerSession(playerId, playerName);
+  const parsed = parsePlayerSessionToken(token);
+  if (!parsed) throw new Error("Could not create player session");
+  return { token, sessionId: parsed.sessionId, playerId, expiresAt: new Date(parsed.exp * 1000) };
+}
+
+/** Set only the browser cookie for a session that is already durable in the DB. */
+export async function setPlayerSessionCookie(token: string) {
+  if (!parsePlayerSessionToken(token)) throw new Error("Could not set invalid player session");
+  const store = await cookies();
+  store.set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: PLAYER_SESSION_MAX_AGE });
+}
+
 function cookieValue(req: Request | NextRequest): string | null {
   return req.headers.get("cookie")?.match(/(?:^|; )rf_player_session=([^;]+)/)?.[1] ?? null;
 }
@@ -49,12 +71,9 @@ export async function requirePlayerIdentity(req: Request | NextRequest, requeste
 }
 
 export async function setPlayerSession(playerId: number, playerName: string) {
-  const token = createPlayerSession(playerId, playerName);
-  const parsed = parsePlayerSessionToken(token);
-  if (!parsed) throw new Error("Could not create player session");
-  await db.insert(playerSessions).values({ sessionId: parsed.sessionId, playerId, expiresAt: new Date(parsed.exp * 1000) });
-  const store = await cookies();
-  store.set(COOKIE, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: PLAYER_SESSION_MAX_AGE });
+  const prepared = preparePlayerSession(playerId, playerName);
+  await db.insert(playerSessions).values({ sessionId: prepared.sessionId, playerId, expiresAt: prepared.expiresAt });
+  await setPlayerSessionCookie(prepared.token);
 }
 
 export async function clearPlayerSession() {
