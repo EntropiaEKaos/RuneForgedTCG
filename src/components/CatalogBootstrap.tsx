@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { replaceRegisteredCustomCards } from "@/game/custom-registry";
 import { replaceRegisteredCardCollections } from "@/game/card-collections";
 import { replaceRegisteredCardArt } from "@/game/card-art";
-import { hydrateClientGameConfig } from "@/game/settings";
+import { hydrateClientRuntimeConfig } from "@/game/client-game-config";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { CatalogRevisionContext } from "./CatalogContext";
 import { ensurePlayerSession } from "@/lib/client-player-session";
@@ -70,7 +70,7 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
         lastCatalogRevision.current = revision;
         setCatalogRevision((current) => current + 1);
       }
-      if (data.config && typeof data.config === "object") await hydrateClientGameConfig(data.config);
+      if (data.config && typeof data.config === "object") hydrateClientRuntimeConfig(data.config);
       if (data.presentation?.defaultBoard) document.documentElement.dataset.boardTheme = String(data.presentation.defaultBoard);
       const tokens = data.visualTheme?.tokens;
       if (tokens && typeof tokens === "object") {
