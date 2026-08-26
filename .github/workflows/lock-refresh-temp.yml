@@ -1,0 +1,45 @@
+name: Temporary Lock Refresh
+
+on:
+  push:
+    branches:
+      - engineering/dependency-hygiene-2.97.4
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lock-refresh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refresh-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Regenerate lockfile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Verify lockfile install
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Verify ESLint version
+        run: node -e "const p=require('./node_modules/eslint/package.json'); if(p.version!=='10.9.0') throw new Error('Unexpected ESLint '+p.version); console.log('ESLINT_LOCK_VERSION='+p.version)"
+
+      - name: Emit regenerated lockfile
+        run: |
+          echo LOCKFILE_BASE64_BEGIN
+          base64 -w0 package-lock.json
+          echo
+          echo LOCKFILE_BASE64_END
