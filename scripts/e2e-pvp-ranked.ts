@@ -122,16 +122,22 @@ async function verifyRepeatableEconomy(client: BrowserClient, playerId: number) 
 }
 
 async function main() {
+  const oversizedClient = new BrowserClient();
+  const oversized = await oversizedClient.request("/api/player", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ displayName: "x".repeat(20_000) }),
+  });
+  assert.equal(oversized.response.status, 413, `oversized public account body must be rejected: ${JSON.stringify(oversized.body)}`);
+  const oversizedSession = await oversizedClient.request("/api/player");
+  assert.equal(oversizedSession.response.status, 401, "oversized account payload must not create a player session");
+
   const runId = `${Date.now()}-${Math.floor(Math.random() * 10_000)}`;
   const originalHost = new BrowserClient();
   const guest = new BrowserClient();
   const hostIdentity = await register(originalHost, `E2E Host ${runId}`);
   await register(guest, `E2E Guest ${runId}`);
 
-  // Recovery is a security boundary: it revokes every previously issued
-  // session for the account and returns a fresh authenticated browser session.
-  // Verify the old cookie is rejected, then continue every protected action
-  // with the recovered session instead of accidentally testing a revoked one.
   const host = await recover(hostIdentity.recoveryCode, hostIdentity.player.id);
   const revoked = await originalHost.request("/api/player");
   assert.equal(revoked.response.status, 401, `pre-recovery host session must be revoked: ${JSON.stringify(revoked.body)}`);
@@ -166,7 +172,7 @@ async function main() {
     assert.equal("seed" in room, false, "seed must not leak from the public room DTO");
     assert.equal("rng" in room, false, "RNG state must not leak from the public room DTO");
   }
-  console.log(`E2E MVP: PASS — recovery session rotation, final-pack deletion, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);
+  console.log(`E2E MVP: PASS — bounded public account body, recovery session rotation, final-pack deletion, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);
 }
 
 void main();
