@@ -1,12 +1,12 @@
 import crypto from "node:crypto";
 import { NextRequest } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { paymentOrders } from "@/db/schema";
+import { paymentGatewaySettings, paymentOrders } from "@/db/schema";
 import { requireStablePlayerIdentity } from "@/lib/player-session";
 import { runtimeGate } from "@/lib/runtime-gates";
 import { getRuntimePaymentProducts, getRuntimePacks } from "@/lib/control-plane";
-import { getMercadoPagoSettings } from "@/lib/payment-settings";
+import { getMercadoPagoSettings, materializeMercadoPagoSettings } from "@/lib/payment-settings";
 import { createMercadoPagoPreference } from "@/lib/mercado-pago";
 import { sanitizeGameGrants, validateGrantPackIds } from "@/lib/game-grants";
 import { consumeRateLimit } from "@/lib/rate-limit";
@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const productKey = String(body.productKey || "").trim();
     const idempotencyKey = checkoutIdempotencyKey(identity.playerId, req.headers.get("x-idempotency-key"));
-    const [products, settings, packDefs] = await Promise.all([getRuntimePaymentProducts(), getMercadoPagoSettings(true), getRuntimePacks()]);
+    const [products, initialSettings, packDefs] = await Promise.all([getRuntimePaymentProducts(), getMercadoPagoSettings(true), getRuntimePacks()]);
+    let settings = initialSettings;
     const product = products.find((p) => p.key === productKey && p.active !== false);
     if (!product) return Response.json({ ok: false, error: "Payment product not found" }, { status: 404 });
     const amountCents = Math.trunc(Number(product.priceCents));
@@ -69,27 +70,42 @@ export async function POST(req: NextRequest) {
       if (order.status === "preference_failed") return Response.json({ ok: false, error: "The provider preference result was ambiguous. Start a new checkout instead of replaying it.", code: "CHECKOUT_RESTART_REQUIRED" }, { status: 409 });
       return Response.json({ ok: false, error: `Checkout cannot be recreated from status ${order.status}` }, { status: 409 });
     } else {
-      const externalReference = `rf_${Date.now()}_${crypto.randomBytes(8).toString("hex")}`;
-      const inserted = await db.insert(paymentOrders).values({
-        playerId: identity.playerId,
-        provider: "mercadopago",
-        providerEnvironment: settings.environment === "production" ? "production" : "sandbox",
-        externalReference,
-        productKey: product.key,
-        productName: product.name,
-        amountCents,
-        currency,
-        status: "creating",
-        idempotencyKey,
-        grants,
-      }).onConflictDoNothing({ target: paymentOrders.idempotencyKey }).returning();
-      if (inserted[0]) order = inserted[0];
-      else [order] = await db.select().from(paymentOrders).where(and(eq(paymentOrders.idempotencyKey, idempotencyKey), eq(paymentOrders.playerId, identity.playerId))).limit(1);
+      const reservation = await db.transaction(async (tx) => {
+        // The Admin environment switch takes this exact same xact lock. Read the
+        // gateway settings and create the local `creating` order while holding it
+        // so a checkout can never straddle two credential environments.
+        await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))`);
+        const [settingsRow] = await tx.select().from(paymentGatewaySettings).where(eq(paymentGatewaySettings.provider, "mercadopago")).limit(1);
+        const lockedSettings = materializeMercadoPagoSettings(settingsRow, true);
+        if (!lockedSettings?.enabled || !lockedSettings.accessToken || !lockedSettings.webhookSecret) return { unavailable: true as const };
+
+        const externalReference = `rf_${Date.now()}_${crypto.randomBytes(8).toString("hex")}`;
+        const inserted = await tx.insert(paymentOrders).values({
+          playerId: identity.playerId,
+          provider: "mercadopago",
+          providerEnvironment: lockedSettings.environment === "production" ? "production" : "sandbox",
+          externalReference,
+          productKey: product.key,
+          productName: product.name,
+          amountCents,
+          currency,
+          status: "creating",
+          idempotencyKey,
+          grants,
+        }).onConflictDoNothing({ target: paymentOrders.idempotencyKey }).returning();
+        let reservedOrder = inserted[0];
+        if (!reservedOrder) [reservedOrder] = await tx.select().from(paymentOrders).where(and(eq(paymentOrders.idempotencyKey, idempotencyKey), eq(paymentOrders.playerId, identity.playerId))).limit(1);
+        return { unavailable: false as const, settings: lockedSettings, order: reservedOrder, inserted: Boolean(inserted[0]) };
+      });
+
+      if (reservation.unavailable) return Response.json({ ok: false, error: "Mercado Pago is not configured" }, { status: 503 });
+      settings = reservation.settings;
+      order = reservation.order;
       if (!order) return Response.json({ ok: false, error: "Checkout collision; retry safely with the same request key" }, { status: 409, headers: { "retry-after": "1" } });
       if (order.productKey !== productKey) return Response.json({ ok: false, error: "Idempotency key already belongs to a different product" }, { status: 409 });
       const racedUrl = checkoutUrlFromPayload(order.providerPayload);
       if (racedUrl && order.status === "preference_created") return Response.json({ ok: true, order: order.externalReference, checkoutUrl: racedUrl, reused: true });
-      if (!inserted[0] && order.status === "creating") {
+      if (!reservation.inserted && order.status === "creating") {
         const stale = Date.now() - new Date(order.updatedAt).getTime() > CREATING_STALE_MS;
         if (stale) {
           await db.update(paymentOrders).set({ status: "preference_failed", providerPayload: { errorCode: "STALE_CREATING" }, updatedAt: new Date() }).where(and(eq(paymentOrders.id, order.id), eq(paymentOrders.status, "creating")));
@@ -97,8 +113,8 @@ export async function POST(req: NextRequest) {
         }
         return Response.json({ ok: false, error: "Checkout is already being created", code: "CHECKOUT_IN_PROGRESS" }, { status: 409, headers: { "retry-after": "1" } });
       }
-      if (!inserted[0] && order.status === "preference_failed") return Response.json({ ok: false, error: "The provider preference result was ambiguous. Start a new checkout instead of replaying it.", code: "CHECKOUT_RESTART_REQUIRED" }, { status: 409 });
-      if (!inserted[0]) return Response.json({ ok: false, error: `Checkout cannot be recreated from status ${order.status}` }, { status: 409 });
+      if (!reservation.inserted && order.status === "preference_failed") return Response.json({ ok: false, error: "The provider preference result was ambiguous. Start a new checkout instead of replaying it.", code: "CHECKOUT_RESTART_REQUIRED" }, { status: 409 });
+      if (!reservation.inserted) return Response.json({ ok: false, error: `Checkout cannot be recreated from status ${order.status}` }, { status: 409 });
     }
 
     try {
