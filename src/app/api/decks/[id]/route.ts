@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { validateDeck } from "@/game/decks";
 import { ensureConfigLoaded } from "@/game/settings";
 import { requireStablePlayerIdentity } from "@/lib/player-session";
-import { validateFormatDeck } from "@/game/format-rules";
+import { validateFormatDeck } from "@/game/format-rules-server";
 import { ensureCustomCardsLoaded } from "@/game/catalog";
 
 export const dynamic = "force-dynamic";
