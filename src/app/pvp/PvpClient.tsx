@@ -47,7 +47,7 @@ export default function PvpClient() {
     const room = new URLSearchParams(window.location.search).get("room");
     if (room) window.location.replace(`/play?pvpRoom=${encodeURIComponent(room)}`);
   }, []);
-  useEffect(() => { fetch("/api/catalog", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (data.ok && Array.isArray(data.decks) && data.decks.length) { const decks = data.decks.filter((deck: unknown): deck is DeckOption => Boolean(deck && typeof deck === "object" && typeof (deck as DeckOption).id === "string" && typeof (deck as DeckOption).name === "string" && typeof (deck as DeckOption).emoji === "string")); if (!decks.length) return; setPresetDecks(decks); setSelectedDeck((current) => decks.some((deck) => deck.id === current) ? current : decks[0].id); } }).catch(() => {}); }, []);
+  useEffect(() => { fetch("/api/catalog", { cache: "no-store" }).then((response) => response.json()).then((data) => { if (data.ok && Array.isArray(data.decks) && data.decks.length) { const decks: DeckOption[] = (data.decks as unknown[]).filter((deck: unknown): deck is DeckOption => Boolean(deck && typeof deck === "object" && typeof (deck as DeckOption).id === "string" && typeof (deck as DeckOption).name === "string" && typeof (deck as DeckOption).emoji === "string")); if (!decks.length) return; setPresetDecks(decks); setSelectedDeck((current) => decks.some((deck) => deck.id === current) ? current : decks[0].id); } }).catch(() => {}); }, []);
 
   // Once the room transitions from "waiting" to "playing" (the opponent
   // joined), automatically send the player into the actual match. Before
