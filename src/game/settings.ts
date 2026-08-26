@@ -118,13 +118,19 @@ export const DEFAULT_CONFIG: GameConfig = {
 };
 
 async function applyEngineRuntime(config: GameConfig) {
-  const { configureRuntimeEngineRules, configureRuntimeAiRules } = await import("./runtime-config");
+  const { configureRuntimeEngineRules, configureRuntimeAiRules, configureRuntimeDeckRules } = await import("./runtime-config");
   configureRuntimeEngineRules({
     nexusStart: config.nexusStart, maxMana: config.maxMana, maxSpellMana: config.maxSpellMana,
     handCap: config.handCap, startHand: config.startHand, benchCap: config.benchCap, permanentsCap: config.permanentsCap,
     ...config.advanced.engine,
   });
   configureRuntimeAiRules(config.advanced.ai);
+  configureRuntimeDeckRules({
+    deckMin: config.deckMin,
+    deckMax: config.deckMax,
+    maxCopies: config.maxCopies,
+    maxRegions: config.maxRegions,
+  });
 }
 
 let cached: GameConfig = { ...DEFAULT_CONFIG };
