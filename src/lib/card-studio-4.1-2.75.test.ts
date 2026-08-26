@@ -48,7 +48,15 @@ registerCardCollections([{ defId: authored.card.defId, id: 9, key: "eclipse", co
 assert.equal(getCardCollection(authored.card.defId)?.name, "Eclipse");
 clearRegisteredCardCollections();
 
-const studio = source("src/app/admin/studio/cards/CardAuthoringStudio.tsx") + source("src/app/admin/studio/cards/CardAuthoringFields.tsx") + source("src/app/admin/studio/cards/useCardAuthoringModel.ts");
+const studio = [
+  "CardAuthoringStudio.tsx",
+  "CardAuthoringFields.tsx",
+  "useCardAuthoringModel.ts",
+  "CardIdentityTab.tsx",
+  "CardClassificationTab.tsx",
+  "CardRulesTab.tsx",
+  "CardReleaseTab.tsx",
+].map((file) => source(`src/app/admin/studio/cards/${file}`)).join("\n");
 assert.match(studio, /Card Authoring Studio <span className="text-amber-300">4\.2/);
 assert.match(studio, /<CardView defId=\{definition\.defId\} definition=\{definition\} collection=\{collection\}/);
 assert.match(studio, /COLEÇÃO DE LANÇAMENTO/);

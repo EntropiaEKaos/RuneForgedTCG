@@ -46,7 +46,7 @@
     "db:upgrade": "tsx scripts/database-upgrade-2.31.ts",
     "release:preflight": "tsx scripts/release-preflight.ts",
     "test:production-db": "tsx scripts/production-verify.ts",
-    "production:verify": "npm run release:runtime-gate && npm run release:preflight && npm run release:ranked-gate && npm run test:local-imports && npm run audit:test-taxonomy && npm run audit:schema-static && npm run audit:source-contracts && npm run typecheck && npm run lint -- --max-warnings 0 && npm run test:behavior && npm run test:production-db && npm run build",
+    "production:verify": "npm run release:runtime-gate && npm run release:preflight && npm run release:ranked-gate && npm run test:local-imports && npm run audit:test-taxonomy && npm run audit:schema-static && npm run audit:source-contracts && npm run audit:studio-structure && npm run typecheck && npm run lint -- --max-warnings 0 && npm run test:behavior && npm run test:production-db && npm run build",
     "production:verify:ranked": "npm run production:verify && npm run ranked:verify",
     "test:coverage": "node scripts/coverage-runner.mjs",
     "ci:install": "node scripts/ci-install.mjs",
@@ -79,6 +79,7 @@
     "audit:source-contracts": "node scripts/source-contracts-2.97.mjs && npm run audit:legacy-source-contracts",
     "audit:schema-static": "npm run test:schema-parity && npm run test:fresh-schema-static && npm run test:schema-semantic && npm run test:schema-hotfix",
     "audit:engineering-integrity-static": "node scripts/source-contracts-2.97.mjs",
+    "audit:studio-structure": "node scripts/studio-structure-gate.mjs",
     "test:ranked-2.97": "tsx src/lib/ranked-launch-2.97.test.ts",
     "test:pvp-content-2.97": "tsx src/lib/pvp-content-snapshot-2.97.test.ts",
     "test:pvp-public-2.97": "tsx src/lib/pvp-public-state-2.97.test.ts"

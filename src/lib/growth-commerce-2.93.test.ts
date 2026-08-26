@@ -90,7 +90,13 @@ ok(!webhook.includes("settings?.enabled") && !ordersApi.includes("settings?.enab
 ok(checkout.includes("pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))") && paymentSettingsApi.includes("pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))"), "checkout reservation and gateway environment changes share one PostgreSQL configuration lock");
 ok(paymentSettingsApi.includes("status NOT IN ('rejected','cancelled','refunded','charged_back','preference_failed')") && !paymentSettingsApi.includes("provider_preference_id IS NOT NULL AND fulfilled_at IS NULL"), "environment switch blocks in-flight creating orders before a provider preference id exists");
 
-const studio = read("src/app/admin/studio/cards/CardAuthoringStudio.tsx");
+const studio = [
+  "CardAuthoringStudio.tsx",
+  "CardIdentityTab.tsx",
+  "CardClassificationTab.tsx",
+  "CardRulesTab.tsx",
+  "CardReleaseTab.tsx",
+].map((file) => read(`src/app/admin/studio/cards/${file}`)).join("\n");
 ok(studio.includes("Flavor / lore") && studio.includes("Balance Lab"), "Card Studio edits flavor and runs Balance Lab");
 const pipeline = read("src/app/api/admin/studio/pipeline/route.ts");
 ok(pipeline.includes("analyzeCandidateCard") && pipeline.includes("Balance Lab blocked QA/Publish"), "QA/Publish integrates balance simulation");

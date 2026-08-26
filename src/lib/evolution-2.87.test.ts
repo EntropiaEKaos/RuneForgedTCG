@@ -56,7 +56,13 @@ const health = summarizeBalance([{ winRateA: 70, firstPlayerWins: 50, secondPlay
 assert.equal(health.releaseGate, "blocked");
 
 const cardView = readFileSync("src/components/CardView.tsx", "utf8");
-const studio = readFileSync("src/app/admin/studio/cards/CardAuthoringStudio.tsx", "utf8");
+const studio = [
+  "CardAuthoringStudio.tsx",
+  "CardIdentityTab.tsx",
+  "CardClassificationTab.tsx",
+  "CardRulesTab.tsx",
+  "CardReleaseTab.tsx",
+].map((file) => readFileSync(`src/app/admin/studio/cards/${file}`, "utf8")).join("\n");
 const shareApi = readFileSync("src/app/api/decks/share/route.ts", "utf8");
 assert.match(cardView, /card-region-spectrum/);
 assert.match(studio, /Regional identity/);
