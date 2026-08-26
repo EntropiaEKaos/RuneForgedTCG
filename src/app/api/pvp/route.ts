@@ -9,10 +9,9 @@ import { requireStablePlayerIdentity } from "@/lib/player-session";
 import { resolveDeck, snapshotDeck } from "@/game/deck-service";
 import { createGame } from "@/game/engine";
 import { ensureConfigLoaded } from "@/game/settings";
-import { validateFormatDeck } from "@/game/format-rules";
+import { validateFormatDeck } from "@/game/format-rules-server";
 
 export const dynamic = "force-dynamic";
-
 
 function publicRoomSummary(room: typeof pvpRooms.$inferSelect, viewerId?: number) {
   const viewerSide = viewerId == null ? null : room.hostPlayerId === viewerId ? "host" : room.guestPlayerId === viewerId ? "guest" : null;
