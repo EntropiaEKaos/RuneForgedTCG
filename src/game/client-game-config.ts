@@ -1,5 +1,6 @@
 import {
   configureRuntimeAiRules,
+  configureRuntimeDeckRules,
   configureRuntimeEngineRules,
 } from "./runtime-config";
 import type { AiRulesSnapshot, EngineRulesSnapshot } from "./types";
@@ -87,6 +88,16 @@ export function hydrateClientRuntimeConfig(value: unknown): boolean {
   if (phaseSequence) engineRules.phaseSequence = phaseSequence;
 
   configureRuntimeEngineRules(engineRules);
+
+  const deckRules = {
+    deckMin: finiteNumber(config.deckMin),
+    deckMax: finiteNumber(config.deckMax),
+    maxCopies: finiteNumber(config.maxCopies),
+    maxRegions: finiteNumber(config.maxRegions),
+  };
+  configureRuntimeDeckRules(Object.fromEntries(
+    Object.entries(deckRules).filter((entry): entry is [keyof typeof deckRules, number] => entry[1] !== undefined),
+  ));
 
   const aiRules: Partial<AiRulesSnapshot> = {};
   const difficulty = ai.defaultDifficulty;
