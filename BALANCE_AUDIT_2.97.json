@@ -1,0 +1,332 @@
+{
+  "version": "2.97",
+  "rankedRulesVersion": "2026.08.97",
+  "rankedDeckPoolVersion": "season-zero-r1",
+  "methodology": "certified immutable Ranked precon pool; 8 deterministic seed strata; alternating deck side + first player; independent holdout strata included",
+  "gamesPerStratum": 100,
+  "strata": 8,
+  "gamesPerMatchup": 800,
+  "matchups": 6,
+  "totalGames": 4800,
+  "certifiedDecks": [
+    "ranked_tide_control",
+    "ranked_void_shadow",
+    "ranked_tempestade_rush",
+    "ranked_convergence_dual"
+  ],
+  "poolErrors": [],
+  "health": {
+    "target": {
+      "healthyLow": 45,
+      "healthyHigh": 55,
+      "criticalLow": 40,
+      "criticalHigh": 60
+    },
+    "healthScore": 100,
+    "firstPlayerWinRate": 50.4,
+    "healthyMatchups": 6,
+    "watchMatchups": 0,
+    "criticalMatchups": 0,
+    "releaseGate": "pass",
+    "outliers": []
+  },
+  "stability": {
+    "metric": "maximum absolute stratum deviation from pooled matchup win rate",
+    "threshold": 15,
+    "stableMatchups": 6,
+    "unstableMatchups": 0,
+    "maxSeedDeviation": 11.1,
+    "unstable": []
+  },
+  "certifiedGate": "pass",
+  "rows": [
+    {
+      "deckA": "ranked_tide_control",
+      "deckB": "ranked_void_shadow",
+      "requestedGames": 800,
+      "completedGames": 800,
+      "winsA": 386,
+      "winsB": 390,
+      "draws": 24,
+      "avgRounds": 13,
+      "winRateA": 49.7,
+      "winRateB": 50.3,
+      "firstPlayerWins": 426,
+      "secondPlayerWins": 350,
+      "firstPlayerWinRate": 54.9,
+      "winRateA95": {
+        "low": 46.2,
+        "high": 53.3
+      },
+      "seed": 294300,
+      "engineVersion": "2.96.0",
+      "rulesetVersion": "2026.08.96",
+      "roundDistribution": {
+        "min": 4,
+        "max": 31,
+        "median": 12
+      },
+      "seedStrata": [
+        294300,
+        912300,
+        1730300,
+        2719300,
+        4138300,
+        6152300,
+        8010300,
+        10008300
+      ],
+      "seedWinRates": [
+        43.4,
+        43.8,
+        52.5,
+        53.7,
+        54.1,
+        49.5,
+        49.5,
+        51.5
+      ],
+      "maxSeedDeviation": 6.3
+    },
+    {
+      "deckA": "ranked_tide_control",
+      "deckB": "ranked_tempestade_rush",
+      "requestedGames": 800,
+      "completedGames": 800,
+      "winsA": 381,
+      "winsB": 376,
+      "draws": 43,
+      "avgRounds": 13,
+      "winRateA": 50.3,
+      "winRateB": 49.7,
+      "firstPlayerWins": 387,
+      "secondPlayerWins": 370,
+      "firstPlayerWinRate": 51.1,
+      "winRateA95": {
+        "low": 46.8,
+        "high": 53.9
+      },
+      "seed": 294494,
+      "engineVersion": "2.96.0",
+      "rulesetVersion": "2026.08.96",
+      "roundDistribution": {
+        "min": 5,
+        "max": 32,
+        "median": 13
+      },
+      "seedStrata": [
+        294494,
+        912494,
+        1730494,
+        2719494,
+        4138494,
+        6152494,
+        8010494,
+        10008494
+      ],
+      "seedWinRates": [
+        53.2,
+        53.1,
+        53.6,
+        45.8,
+        58.1,
+        50,
+        40.2,
+        48.4
+      ],
+      "maxSeedDeviation": 10.1
+    },
+    {
+      "deckA": "ranked_tide_control",
+      "deckB": "ranked_convergence_dual",
+      "requestedGames": 800,
+      "completedGames": 800,
+      "winsA": 410,
+      "winsB": 352,
+      "draws": 38,
+      "avgRounds": 12,
+      "winRateA": 53.8,
+      "winRateB": 46.2,
+      "firstPlayerWins": 403,
+      "secondPlayerWins": 359,
+      "firstPlayerWinRate": 52.9,
+      "winRateA95": {
+        "low": 50.3,
+        "high": 57.3
+      },
+      "seed": 294591,
+      "engineVersion": "2.96.0",
+      "rulesetVersion": "2026.08.96",
+      "roundDistribution": {
+        "min": 5,
+        "max": 25,
+        "median": 12
+      },
+      "seedStrata": [
+        294591,
+        912591,
+        1730591,
+        2719591,
+        4138591,
+        6152591,
+        8010591,
+        10008591
+      ],
+      "seedWinRates": [
+        53.5,
+        53.1,
+        54.7,
+        53.2,
+        52.6,
+        59.6,
+        50,
+        53.5
+      ],
+      "maxSeedDeviation": 5.8
+    },
+    {
+      "deckA": "ranked_void_shadow",
+      "deckB": "ranked_tempestade_rush",
+      "requestedGames": 800,
+      "completedGames": 800,
+      "winsA": 413,
+      "winsB": 345,
+      "draws": 42,
+      "avgRounds": 13,
+      "winRateA": 54.5,
+      "winRateB": 45.5,
+      "firstPlayerWins": 391,
+      "secondPlayerWins": 367,
+      "firstPlayerWinRate": 51.6,
+      "winRateA95": {
+        "low": 50.9,
+        "high": 58
+      },
+      "seed": 296512,
+      "engineVersion": "2.96.0",
+      "rulesetVersion": "2026.08.96",
+      "roundDistribution": {
+        "min": 3,
+        "max": 34,
+        "median": 12
+      },
+      "seedStrata": [
+        296512,
+        914512,
+        1732512,
+        2721512,
+        4140512,
+        6154512,
+        8012512,
+        10010512
+      ],
+      "seedWinRates": [
+        55.3,
+        55.9,
+        58.9,
+        55.7,
+        48.9,
+        53.1,
+        59.6,
+        47.8
+      ],
+      "maxSeedDeviation": 6.7
+    },
+    {
+      "deckA": "ranked_void_shadow",
+      "deckB": "ranked_convergence_dual",
+      "requestedGames": 800,
+      "completedGames": 800,
+      "winsA": 365,
+      "winsB": 418,
+      "draws": 17,
+      "avgRounds": 12,
+      "winRateA": 46.6,
+      "winRateB": 53.4,
+      "firstPlayerWins": 370,
+      "secondPlayerWins": 413,
+      "firstPlayerWinRate": 47.3,
+      "winRateA95": {
+        "low": 43.1,
+        "high": 50.1
+      },
+      "seed": 296609,
+      "engineVersion": "2.96.0",
+      "rulesetVersion": "2026.08.96",
+      "roundDistribution": {
+        "min": 3,
+        "max": 37,
+        "median": 11
+      },
+      "seedStrata": [
+        296609,
+        914609,
+        1732609,
+        2721609,
+        4140609,
+        6154609,
+        8012609,
+        10010609
+      ],
+      "seedWinRates": [
+        49,
+        46.9,
+        43.4,
+        52.6,
+        45.5,
+        46.4,
+        44.9,
+        44.3
+      ],
+      "maxSeedDeviation": 6
+    },
+    {
+      "deckA": "ranked_tempestade_rush",
+      "deckB": "ranked_convergence_dual",
+      "requestedGames": 800,
+      "completedGames": 800,
+      "winsA": 385,
+      "winsB": 415,
+      "draws": 0,
+      "avgRounds": 12,
+      "winRateA": 48.1,
+      "winRateB": 51.9,
+      "firstPlayerWins": 361,
+      "secondPlayerWins": 439,
+      "firstPlayerWinRate": 45.1,
+      "winRateA95": {
+        "low": 44.7,
+        "high": 51.6
+      },
+      "seed": 298627,
+      "engineVersion": "2.96.0",
+      "rulesetVersion": "2026.08.96",
+      "roundDistribution": {
+        "min": 6,
+        "max": 28,
+        "median": 11
+      },
+      "seedStrata": [
+        298627,
+        916627,
+        1734627,
+        2723627,
+        4142627,
+        6156627,
+        8014627,
+        10012627
+      ],
+      "seedWinRates": [
+        47,
+        41,
+        59,
+        51,
+        50,
+        53,
+        47,
+        37
+      ],
+      "maxSeedDeviation": 11.1
+    }
+  ]
+}

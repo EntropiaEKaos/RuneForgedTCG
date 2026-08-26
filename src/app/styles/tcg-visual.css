@@ -1,0 +1,283 @@
+/* ---------------- Premium TCG visual system ---------------- */
+:root {
+  --arena-ink: #05070d;
+  --arena-panel: rgba(8, 12, 22, .82);
+}
+
+body {
+  background:
+    radial-gradient(circle at 50% -10%, rgba(99,102,241,.18), transparent 34rem),
+    radial-gradient(circle at 8% 50%, rgba(14,165,233,.08), transparent 28rem),
+    #02040a;
+}
+
+.card-shell {
+  isolation: isolate;
+  background: #080b13;
+  box-shadow: 0 12px 28px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.18), inset 0 0 24px rgba(0,0,0,.45);
+  transform-style: preserve-3d;
+  transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s ease, filter .2s ease;
+}
+.card-shell::before { content:""; position:absolute; inset:0; z-index:12; border-radius:inherit; pointer-events:none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3), inset 0 0 0 3px rgba(0,0,0,.25); }
+.card-interactive:hover { transform: translateY(-8px) rotateX(2deg) scale(1.035); box-shadow: 0 20px 42px rgba(0,0,0,.7), 0 0 24px rgba(255,255,255,.12); filter: saturate(1.12); }
+.card-interactive:active { transform: translateY(-3px) scale(.99); }
+.card-art { z-index:0; background-color:#121722; background-size:cover; background-position:center; filter:saturate(1.12) contrast(1.05); transition:transform .5s ease, filter .4s ease; }
+.card-interactive:hover .card-art { transform:scale(1.07); filter:saturate(1.3) contrast(1.08); }
+.card-vignette { z-index:1; background:linear-gradient(180deg, rgba(0,0,0,.12) 0%, rgba(0,0,0,.03) 32%, rgba(2,4,10,.2) 48%, rgba(2,4,10,.96) 100%); }
+.card-sheen { z-index:13; pointer-events:none; opacity:.25; background:linear-gradient(115deg, transparent 15%, rgba(255,255,255,.2) 42%, transparent 55%); transform:translateX(-120%); transition:transform .7s ease; mix-blend-mode:screen; }
+.card-interactive:hover .card-sheen { transform:translateX(120%); }
+.card-inner { min-width:0; }
+.card-topline { display:flex; align-items:center; gap:4px; min-height:22px; }
+.card-cost { width:25px; height:25px; flex:0 0 25px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:2px solid rgba(255,255,255,.85); background:radial-gradient(circle at 35% 25%, #8bdcff, #1769aa 62%, #062846); color:#fff; font-weight:1000; font-size:12px; line-height:1; box-shadow:0 2px 7px rgba(0,0,0,.65), inset 0 1px 2px rgba(255,255,255,.5); font-family: var(--font-display), ui-serif, Georgia, serif; }
+.card-cost-reduced { background:radial-gradient(circle at 35% 25%, #a7f3d0, #059669 62%, #064e3b); }
+.card-region { margin-left:auto; max-width:70%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid rgba(255,255,255,.2); border-radius:999px; padding:2px 6px; background:rgba(0,0,0,.38); color:rgba(255,255,255,.8); font-size:7px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; backdrop-filter:blur(4px); }
+.card-region span { margin-right:2px; }
+
+/* Modo de acessibilidade a cores: o sigilo (🌿🐺☠⚡🔥🌊) vira o
+   diferenciador PRIMÁRIO de região, não só um acompanhamento discreto da
+   cor. Não removemos a cor (ela ainda ajuda quem enxerga normalmente) —
+   só reduzimos a força dela e aumentamos a do símbolo, que já era único
+   por região desde a correção de paleta anterior. */
+.colorblind-mode .card-region-sigil { font-size:15px; filter:drop-shadow(0 0 3px rgba(0,0,0,.9)); }
+.colorblind-mode .card-shell { filter:saturate(.45); }
+.colorblind-mode .card-shell:hover, .colorblind-mode .card-shell.card-targetable, .colorblind-mode .card-shell.card-attacking { filter:saturate(.75); }
+.colorblind-mode .card-region { padding:3px 7px; border-width:2px; }
+.card-champion { width:25px; height:25px; display:flex; align-items:center; justify-content:center; border-radius:50%; color:#ffe58a; font-size:18px; text-shadow:0 0 12px rgba(251,191,36,.9); }
+.card-nameplate { margin-top:7px; padding:4px 7px; border:1px solid rgba(255,255,255,.2); border-radius:6px; background:linear-gradient(90deg, rgba(0,0,0,.75), rgba(0,0,0,.42), rgba(0,0,0,.75)); box-shadow:0 3px 8px rgba(0,0,0,.35); font-family: var(--font-display), ui-serif, Georgia, serif; letter-spacing:.02em; }
+.card-type { margin-top:1px; color:rgba(255,255,255,.52); font-size:7px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+.card-textbox { padding:5px 6px; border:1px solid rgba(255,255,255,.2); border-radius:6px; background:linear-gradient(135deg, rgba(3,6,12,.82), rgba(10,15,25,.62)); box-shadow:inset 0 1px rgba(255,255,255,.08), 0 3px 8px rgba(0,0,0,.35); backdrop-filter:blur(3px); }
+.card-bottom { display:flex; align-items:flex-end; justify-content:space-between; gap:3px; min-height:22px; margin-top:4px; }
+.card-keywords { display:flex; flex-wrap:wrap; gap:2px; max-width:72%; }
+.card-keyword { display:inline-flex; align-items:center; gap:2px; border:1px solid rgba(255,255,255,.16); border-radius:4px; padding:1px 3px; background:rgba(0,0,0,.58); color:rgba(255,255,255,.86); font-size:6px; font-weight:900; letter-spacing:.02em; }
+.card-keyword b { color:#ffe08a; font-size:7px; }
+.card-stats { display:flex; gap:3px; margin-left:auto; }
+.stat-power, .stat-health { min-width:24px; height:24px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:2px solid rgba(255,255,255,.7); font-size:11px; font-weight:1000; box-shadow:0 2px 7px rgba(0,0,0,.55), inset 0 1px rgba(255,255,255,.45); font-family: var(--font-display), ui-serif, Georgia, serif; }
+.stat-power { background:radial-gradient(circle at 35% 25%, #ffe89a, #d08a00 68%, #6b3e00); color:#291700; }
+.stat-health { background:radial-gradient(circle at 35% 25%, #ffd0d7, #d34c61 68%, #641523); color:#fff; }
+.stat-health.damaged { background:radial-gradient(circle at 35% 25%, #ffaaa9, #dc2626 68%, #650d0d); animation:healthPulse 1s ease-in-out infinite; }
+.card-speed { border:1px solid rgba(196,181,253,.5); border-radius:999px; padding:3px 5px; background:rgba(109,40,217,.75); color:white; font-size:6px; font-weight:1000; }
+.card-progress-wrap { margin-bottom:3px; color:#fde68a; font-size:7px; font-weight:900; }
+.card-progress { height:3px; overflow:hidden; margin-top:2px; border-radius:999px; background:rgba(0,0,0,.55); }
+.card-progress div { height:100%; background:linear-gradient(90deg,#f59e0b,#fde68a,#f59e0b); box-shadow:0 0 8px #f59e0b; }
+.card-badge { position:absolute; z-index:20; right:-3px; top:-3px; width:23px; height:23px; display:flex; align-items:center; justify-content:center; border-radius:50%; border:1px solid rgba(255,255,255,.7); color:white; font-size:10px; box-shadow:0 3px 8px rgba(0,0,0,.6); }
+.card-badge-relic { background:linear-gradient(135deg,#f0abfc,#7e22ce); }
+.card-badge-equip { background:linear-gradient(135deg,#67e8f9,#0369a1); }
+.card-equip { display:flex; width:18px; height:18px; align-items:center; justify-content:center; border-radius:5px; border:1px solid rgba(255,255,255,.35); background:rgba(0,0,0,.72); font-size:10px; }
+.card-state { position:absolute; z-index:20; inset:0; border-radius:inherit; pointer-events:none; }
+.card-state-barrier { box-shadow:inset 0 0 0 2px rgba(125,211,252,.95), inset 0 0 18px rgba(56,189,248,.25); }
+.card-state-barrier span { position:absolute; right:3px; top:27px; }
+.card-state-frost { background:rgba(34,211,238,.13); box-shadow:inset 0 0 0 2px rgba(103,232,249,.95), inset 0 0 20px rgba(34,211,238,.25); }
+.card-state-frost span { position:absolute; left:3px; top:27px; }
+.card-state-stun { background:rgba(250,204,21,.08); box-shadow:inset 0 0 0 2px rgba(250,204,21,.9); }
+.card-state-stun span { position:absolute; left:50%; top:30%; animation:orbitStun 1.1s linear infinite; }
+.card-state-ephemeral { position:absolute; right:3px; bottom:28px; font-size:10px; filter:drop-shadow(0 0 4px rgba(255,255,255,.8)); }
+.card-poison { position:absolute; z-index:22; right:3px; bottom:46px; border:1px solid rgba(134,239,172,.6); border-radius:999px; padding:1px 4px; background:rgba(21,128,61,.88); color:#ecfdf5; font-size:8px; font-weight:1000; box-shadow:0 0 8px rgba(34,197,94,.45); }
+.card-count { position:absolute; z-index:25; right:3px; bottom:3px; border:1px solid rgba(255,255,255,.3); border-radius:999px; padding:2px 6px; background:rgba(2,6,23,.9); color:white; font-size:8px; font-weight:1000; }
+
+/* Vitrine de Coleções — flip 3D em CSS puro (sem lib nova). */
+.collection-flip-outer { perspective:1000px; width:100%; aspect-ratio:3/4; cursor:pointer; }
+.collection-flip-inner { position:relative; width:100%; height:100%; transition:transform .6s cubic-bezier(.4,.2,.2,1); transform-style:preserve-3d; }
+.collection-flip-inner.is-flipped { transform:rotateY(180deg); }
+.collection-flip-face { position:absolute; inset:0; -webkit-backface-visibility:hidden; backface-visibility:hidden; border-radius:14px; border-width:2px; border-style:solid; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px; text-align:center; box-shadow:0 14px 30px rgba(0,0,0,.5); }
+.collection-flip-front { background:#0f172a; }
+.collection-flip-back { background:#0b1120; transform:rotateY(180deg); justify-content:center; }
+@media (prefers-reduced-motion:reduce) { .collection-flip-inner { transition:none; } }
+.card-rarity-champion { box-shadow:0 0 0 1px rgba(251,191,36,.65), 0 12px 30px rgba(0,0,0,.55), 0 0 24px rgba(251,191,36,.18); }
+.card-rarity-equipment { box-shadow:0 0 0 1px rgba(34,211,238,.35), 0 12px 30px rgba(0,0,0,.55), 0 0 18px rgba(34,211,238,.12); }
+.card-rarity-relic { box-shadow:0 0 0 1px rgba(232,121,249,.4), 0 12px 30px rgba(0,0,0,.55), 0 0 18px rgba(232,121,249,.12); }
+
+/* Raridade (Common/Rare/Epic/Legend) como identidade visual própria — antes
+   disto, só Campeão/Equipamento/Relíquia tinham QUALQUER acabamento; uma
+   Unidade ou Feitiço Épico ficava idêntico a um Comum do mesmo tipo. */
+.card-tier-rare { box-shadow:0 0 0 1px rgba(148,163,184,.55), 0 10px 24px rgba(0,0,0,.5), 0 0 14px rgba(148,163,184,.16); }
+.card-tier-epic { box-shadow:0 0 0 1px rgba(168,85,247,.6), 0 12px 28px rgba(0,0,0,.55), 0 0 20px rgba(168,85,247,.22); }
+.card-tier-legend { box-shadow:0 0 0 1.5px rgba(251,191,36,.75), 0 14px 32px rgba(0,0,0,.6), 0 0 26px rgba(251,191,36,.28); }
+.card-tier-legend::after {
+  content:""; position:absolute; inset:-30%; z-index:11; pointer-events:none;
+  background:conic-gradient(from 0deg, transparent, rgba(255,255,255,.18), transparent 20%, rgba(251,191,36,.16), transparent 40%);
+  animation:championAura 6s linear infinite; mix-blend-mode:screen;
+}
+@media (prefers-reduced-motion:reduce) { .card-tier-legend::after { animation:none!important; } }
+
+.card-leveled { animation:cardLegendGlow 1.7s ease-in-out infinite; }
+.card-targetable { animation:targetPulse .9s ease-in-out infinite; }
+.card-attacking { animation:attackCard .5s ease; }
+.card-aura-ember { filter:drop-shadow(0 0 5px rgba(249,115,22,.16)); }
+.card-aura-tide { filter:drop-shadow(0 0 5px rgba(34,211,238,.16)); }
+.card-aura-iron { filter:drop-shadow(0 0 5px rgba(45,212,191,.18)); }
+.card-aura-void { filter:drop-shadow(0 0 5px rgba(217,70,239,.18)); }
+.card-aura-forest { filter:drop-shadow(0 0 5px rgba(251,191,36,.18)); }
+.card-aura-storm { filter:drop-shadow(0 0 5px rgba(96,165,250,.18)); }
+
+/* Arena */
+.tcg-arena { position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.12); background:radial-gradient(circle at 50% 50%, rgba(30,41,59,.55), rgba(2,6,23,.97) 72%); box-shadow:0 30px 90px rgba(0,0,0,.55), inset 0 0 80px rgba(15,23,42,.8); }
+.tcg-arena::before { content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px); background-size:32px 32px; mask-image:radial-gradient(circle at center, black, transparent 80%); }
+.tcg-divider { position:relative; height:2px; margin:2px 3%; background:linear-gradient(90deg, transparent, rgba(245,158,11,.18), rgba(255,255,255,.5), rgba(245,158,11,.18), transparent); box-shadow:0 0 16px rgba(245,158,11,.18); }
+.tcg-divider::after { content:"◆"; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); padding:0 10px; color:#fbbf24; background:#080d18; font-size:10px; text-shadow:0 0 10px rgba(251,191,36,.8); }
+.tcg-row { position:relative; min-height:120px; }
+.tcg-row::after { content:""; position:absolute; inset:12px 3%; border:1px solid rgba(255,255,255,.045); border-radius:18px; pointer-events:none; }
+.tcg-row-label { z-index:2; position:absolute; left:14px; top:8px; border:1px solid rgba(255,255,255,.08); border-radius:999px; padding:2px 7px; background:rgba(2,6,23,.6); color:rgba(255,255,255,.28); font-size:7px; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
+.tcg-playerbar { position:relative; z-index:4; border-bottom:1px solid rgba(255,255,255,.1); background:linear-gradient(90deg, rgba(15,23,42,.92), rgba(2,6,23,.72), rgba(15,23,42,.92)); box-shadow:0 8px 24px rgba(0,0,0,.25); }
+.tcg-playerbar-active { box-shadow:inset 0 -2px rgba(251,191,36,.75), 0 8px 24px rgba(251,191,36,.08); }
+.tcg-nexus { min-width:58px; height:38px; display:flex; align-items:center; justify-content:center; gap:4px; border:1px solid rgba(255,255,255,.25); border-radius:12px; background:radial-gradient(circle at 35% 25%, rgba(103,232,249,.3), rgba(2,6,23,.82) 65%); box-shadow:inset 0 1px rgba(255,255,255,.2), 0 0 18px rgba(34,211,238,.08); }
+.tcg-mana-crystal { width:9px; height:14px; border-radius:45% 45% 55% 55%; transform:skewX(-8deg); border:1px solid rgba(255,255,255,.5); background:linear-gradient(160deg,#93c5fd,#2563eb 60%,#0f172a); box-shadow:0 0 6px rgba(59,130,246,.45); }
+.tcg-mana-crystal.empty { background:linear-gradient(160deg,#334155,#0f172a); opacity:.7; box-shadow:none; }
+
+@keyframes healthPulse { 50% { transform:scale(1.08); box-shadow:0 0 12px rgba(239,68,68,.65); } }
+@keyframes orbitStun { 50% { transform:translate(-50%,-10px) rotate(180deg) scale(1.15); } 100% { transform:translate(-50%,0) rotate(360deg); } }
+@keyframes targetPulse { 50% { box-shadow:0 0 0 5px rgba(250,204,21,.18), 0 0 28px rgba(250,204,21,.75); } }
+@keyframes attackCard { 0% { transform:translateY(0) scale(1); } 40% { transform:translateY(-14px) scale(1.06) rotate(-1deg); } 100% { transform:translateY(0) scale(1); } }
+@keyframes cardLegendGlow { 50% { box-shadow:0 0 0 1px rgba(251,191,36,.9), 0 0 28px rgba(251,191,36,.42), 0 18px 40px rgba(0,0,0,.7); } }
+
+@media (max-width: 700px) {
+  .card-keyword { font-size:5px; padding-left:2px; padding-right:2px; }
+  .tcg-row { min-height:108px; }
+}
+
+.tcg-hand { min-height:190px; background:linear-gradient(180deg, rgba(15,23,42,.38), rgba(2,6,23,.96)); box-shadow:inset 0 16px 30px rgba(0,0,0,.28); }
+.tcg-hand::before { content:"SUA MÃO"; position:absolute; left:16px; top:7px; color:rgba(255,255,255,.25); font-size:7px; font-weight:1000; letter-spacing:.2em; }
+.tcg-hand > * { margin-top:12px; transition:transform .2s ease; }
+.tcg-hand > *:hover { transform:translateY(-10px); z-index:10; }
+.tcg-actions { background:linear-gradient(180deg, rgba(15,23,42,.95), rgba(2,6,23,.98)); }
+.tcg-log { border-top:1px solid rgba(255,255,255,.08); }
+.tcg-sentinel { isolation:isolate; background:#090c15; box-shadow:0 14px 34px rgba(0,0,0,.62), 0 0 22px rgba(251,191,36,.08), inset 0 0 0 1px rgba(255,255,255,.18); }
+.tcg-sentinel-art { z-index:0; position:absolute; inset:0; background-position:center; background-size:cover; opacity:.72; filter:saturate(1.15) contrast(1.08); }
+.tcg-sentinel-vignette { z-index:1; position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,.1), rgba(2,6,23,.35) 35%, rgba(2,6,23,.97)); }
+.tcg-sentinel::after { content:"✦"; position:absolute; z-index:2; right:8px; bottom:5px; color:rgba(251,191,36,.7); font-size:14px; text-shadow:0 0 10px rgba(251,191,36,.7); }
+
+/* ---------------- Cinematic polish pass ---------------- */
+body { min-height:100vh; color:#e5e7eb; }
+button { -webkit-font-smoothing:antialiased; }
+
+.tcg-arena { isolation:isolate; border-radius:0; background:
+  radial-gradient(ellipse at 50% 42%, rgba(30,41,59,.42), transparent 42%),
+  radial-gradient(ellipse at 50% 100%, rgba(8,47,73,.28), transparent 48%),
+  linear-gradient(180deg,#02040a 0%,#050814 48%,#02040a 100%); }
+.tcg-arena::after { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; background:radial-gradient(circle at 50% 50%,transparent 30%,rgba(0,0,0,.52) 100%); }
+.arena-ambient { position:absolute; z-index:-1; width:34rem; height:34rem; border-radius:50%; filter:blur(70px); opacity:.18; pointer-events:none; animation:ambientFloat 9s ease-in-out infinite; }
+.arena-ambient-a { left:-12rem; top:18%; background:#0ea5e9; }
+.arena-ambient-b { right:-12rem; bottom:10%; background:#8b5cf6; animation-delay:-4s; }
+.arena-scanlines { position:absolute; inset:0; z-index:30; pointer-events:none; opacity:.035; background:repeating-linear-gradient(180deg,transparent 0,transparent 3px,rgba(255,255,255,.22) 4px); mix-blend-mode:screen; }
+.arena-center-glow { position:absolute; left:50%; top:50%; width:38rem; height:11rem; transform:translate(-50%,-50%); border-radius:50%; background:radial-gradient(ellipse,rgba(245,158,11,.08),transparent 68%); filter:blur(10px); pointer-events:none; }
+.tcg-match-header { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:42px; padding:8px 14px; border-bottom:1px solid rgba(255,255,255,.07); background:linear-gradient(180deg,rgba(2,6,23,.96),rgba(2,6,23,.68)); box-shadow:0 8px 24px rgba(0,0,0,.24); }
+.tcg-match-brand { color:#cbd5e1; font-size:11px; font-weight:900; letter-spacing:.2em; }
+.tcg-match-brand b { color:#fbbf24; text-shadow:0 0 12px rgba(251,191,36,.3); }
+.tcg-match-status { display:flex; align-items:center; gap:6px; color:#86efac; font-size:8px; font-weight:900; letter-spacing:.16em; }
+.tcg-match-status i { width:6px; height:6px; border-radius:50%; background:#4ade80; box-shadow:0 0 10px #4ade80; animation:liveDot 1.5s ease-in-out infinite; }
+.tcg-round-pill { border:1px solid rgba(255,255,255,.1); border-radius:999px; padding:3px 8px; background:rgba(255,255,255,.035); color:#94a3b8; font-size:8px; font-weight:900; letter-spacing:.1em; }
+.tcg-avatar { display:flex; width:32px; height:32px; align-items:center; justify-content:center; border-radius:10px; border:1px solid rgba(255,255,255,.22); font-size:17px; box-shadow:inset 0 1px rgba(255,255,255,.16),0 5px 16px rgba(0,0,0,.4); }
+.tcg-avatar-ai { background:linear-gradient(135deg,#3b0764,#111827); color:#e9d5ff; }
+.tcg-avatar-player { background:linear-gradient(135deg,#064e3b,#0f172a); color:#a7f3d0; }
+.tcg-token { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:linear-gradient(135deg,#fde68a,#f59e0b); color:#451a03; font-size:10px; box-shadow:0 0 12px rgba(251,191,36,.35); }
+.tcg-turn-badge { border:1px solid rgba(74,222,128,.3); border-radius:999px; padding:2px 5px; background:rgba(22,101,52,.22); color:#86efac; font-size:6px; font-weight:1000; letter-spacing:.1em; }
+.tcg-mana-panel { min-width:86px; padding:4px 7px; border:1px solid rgba(56,189,248,.12); border-radius:10px; background:rgba(2,6,23,.45); }
+.tcg-mana-label { display:flex; justify-content:space-between; margin-bottom:3px; color:#64748b; font-size:6px; font-weight:900; letter-spacing:.12em; }
+.tcg-mana-label b { color:#7dd3fc; font-size:8px; }
+.tcg-spell-mana { margin-top:2px; color:#d8b4fe; font-size:6px; font-weight:800; }
+.tcg-nexus { min-width:72px; height:42px; display:flex; align-items:center; gap:7px; padding:0 8px; border:1px solid rgba(103,232,249,.28); border-radius:13px; background:linear-gradient(135deg,rgba(8,47,73,.5),rgba(2,6,23,.9)); box-shadow:inset 0 1px rgba(255,255,255,.12),0 0 20px rgba(34,211,238,.08); }
+.tcg-nexus-danger { border-color:rgba(248,113,113,.65); box-shadow:inset 0 1px rgba(255,255,255,.12),0 0 20px rgba(239,68,68,.16); animation:nexusDanger 1.4s ease-in-out infinite; }
+.tcg-nexus-gem { color:#67e8f9; font-size:18px; text-shadow:0 0 12px rgba(34,211,238,.85); }
+.tcg-nexus-label { display:block; color:#64748b; font-size:6px; font-weight:900; letter-spacing:.16em; }
+.tcg-nexus-value { display:block; font-size:16px; line-height:1; font-weight:1000; }
+
+.tcg-row { min-height:124px; padding-top:14px; padding-bottom:10px; background:linear-gradient(180deg,rgba(15,23,42,.09),transparent); }
+.tcg-row::after { inset:10px 2.5%; border-color:rgba(148,163,184,.055); background:linear-gradient(90deg,transparent,rgba(255,255,255,.012),transparent); }
+.tcg-row-label { top:5px; left:16px; color:rgba(148,163,184,.3); background:rgba(2,6,23,.72); backdrop-filter:blur(6px); }
+.tcg-divider { height:3px; margin:0 5%; background:linear-gradient(90deg,transparent,rgba(56,189,248,.18),rgba(251,191,36,.72),rgba(56,189,248,.18),transparent); box-shadow:0 0 20px rgba(245,158,11,.16); }
+.tcg-divider::after { background:#050814; }
+
+.card-shell { border-radius:14px; box-shadow:0 16px 34px rgba(0,0,0,.62),inset 0 0 0 1px rgba(255,255,255,.2),inset 0 0 28px rgba(0,0,0,.48); }
+.card-shell::before { box-shadow:inset 0 0 0 1px rgba(255,255,255,.38),inset 0 0 0 3px rgba(0,0,0,.35),inset 0 -22px 30px rgba(0,0,0,.16); }
+.card-interactive:hover { transform:translateY(-10px) rotateX(3deg) rotateZ(-.4deg) scale(1.045); box-shadow:0 25px 50px rgba(0,0,0,.75),0 0 30px rgba(255,255,255,.14); }
+.card-art { filter:saturate(1.16) contrast(1.07); }
+.card-vignette { background:linear-gradient(180deg,rgba(0,0,0,.08) 0%,rgba(0,0,0,.02) 26%,rgba(2,4,10,.08) 42%,rgba(2,4,10,.94) 100%); }
+.card-nameplate { border-radius:7px; padding:5px 7px; background:linear-gradient(90deg,rgba(0,0,0,.84),rgba(7,12,22,.56),rgba(0,0,0,.84)); }
+.card-name-line { display:flex; align-items:center; min-width:0; gap:4px; }
+.card-name-gem { flex:none; color:#fbbf24; font-size:7px; text-shadow:0 0 8px rgba(251,191,36,.8); }
+.card-textbox { background:linear-gradient(135deg,rgba(2,6,23,.86),rgba(15,23,42,.62)); }
+.card-keyword { border-color:rgba(255,255,255,.18); background:rgba(0,0,0,.62); box-shadow:inset 0 1px rgba(255,255,255,.06); }
+.card-speed { display:inline-flex; align-items:center; gap:3px; border-color:rgba(196,181,253,.45); box-shadow:0 0 10px rgba(139,92,246,.18); }
+.card-speed b { color:#f5d0fe; }
+.tcg-hand { min-height:204px; border-top:1px solid rgba(255,255,255,.06); background:radial-gradient(ellipse at 50% 0%,rgba(30,41,59,.25),transparent 58%),linear-gradient(180deg,rgba(15,23,42,.46),rgba(2,6,23,.98)); }
+.tcg-hand::after { content:""; position:absolute; left:10%; right:10%; top:10px; height:1px; background:linear-gradient(90deg,transparent,rgba(251,191,36,.18),transparent); }
+.tcg-hand > * { transform-origin:bottom center; }
+.tcg-actions { min-height:58px; background:linear-gradient(180deg,rgba(2,6,23,.82),rgba(2,6,23,.99)); box-shadow:0 -10px 28px rgba(0,0,0,.2); }
+.btn-primary,.btn-attack,.btn-ghost { position:relative; overflow:hidden; }
+.btn-primary::after,.btn-attack::after,.btn-ghost::after { content:""; position:absolute; inset:0; transform:translateX(-120%); background:linear-gradient(100deg,transparent,rgba(255,255,255,.22),transparent); transition:transform .45s ease; }
+.btn-primary:hover::after,.btn-attack:hover::after,.btn-ghost:hover::after { transform:translateX(120%); }
+
+.tcg-sentinel { border-radius:15px; box-shadow:0 18px 40px rgba(0,0,0,.72),0 0 28px rgba(251,191,36,.11),inset 0 0 0 1px rgba(255,255,255,.22);
+  /* Silhueta de "monumento" (topo cortado em ângulo) — reforça, só pela
+     forma, que uma Sentinela é um alvo estratégico diferente de uma
+     criatura, sem depender só de cor/borda pra essa leitura. */
+  clip-path: polygon(12% 0%, 88% 0%, 100% 10%, 100% 100%, 0% 100%, 0% 10%);
+}
+.tcg-sentinel-crown { position:absolute; z-index:6; left:50%; top:-1px; transform:translateX(-50%); width:36%; height:6px; background:linear-gradient(90deg, transparent, rgba(251,191,36,.85), transparent); }
+.tcg-sentinel-topline { position:relative; z-index:5; display:flex; justify-content:space-between; color:rgba(255,255,255,.56); font-size:6px; font-weight:1000; letter-spacing:.16em; }
+.tcg-sentinel-loyalty { box-shadow:0 0 16px rgba(251,191,36,.32),inset 0 1px rgba(255,255,255,.2); }
+.tcg-sentinel-ability { border:1px solid rgba(255,255,255,.08); box-shadow:inset 0 1px rgba(255,255,255,.05); }
+.tcg-sentinel-orbit { position:absolute; z-index:3; left:50%; top:43%; width:74px; height:74px; transform:translate(-50%,-50%); border:1px solid rgba(251,191,36,.18); border-radius:50%; box-shadow:0 0 28px rgba(251,191,36,.08); animation:sentinelOrbit 5s linear infinite; pointer-events:none; }
+.tcg-sentinel-orbit::before,.tcg-sentinel-orbit::after { content:"✦"; position:absolute; color:#fde68a; font-size:8px; text-shadow:0 0 8px #f59e0b; }
+.tcg-sentinel-orbit::before { left:-4px; top:50%; } .tcg-sentinel-orbit::after { right:-4px; top:50%; }
+
+.tcg-log summary { color:#94a3b8; }
+.gameover-card { border:1px solid rgba(251,191,36,.38); background:radial-gradient(circle at 50% 20%,rgba(251,191,36,.12),transparent 38%),linear-gradient(180deg,rgba(15,23,42,.98),rgba(2,6,23,.98)); box-shadow:0 30px 90px rgba(0,0,0,.78),0 0 55px rgba(251,191,36,.12),inset 0 1px rgba(255,255,255,.14); animation:gameoverIn .5s cubic-bezier(.2,.9,.2,1) both; }
+.gameover-crown { color:#fde68a; font-size:30px; text-shadow:0 0 24px rgba(251,191,36,.85); animation:gameoverCrown 1.5s ease-in-out infinite; }
+.gameover-kicker { margin-top:4px; color:#64748b; font-size:8px; font-weight:1000; letter-spacing:.3em; }
+.gameover-title { margin-top:2px; background:linear-gradient(90deg,#fde68a,#fff,#fbbf24); background-clip:text; -webkit-background-clip:text; color:transparent; font-size:42px; font-weight:1000; letter-spacing:.04em; }
+.gameover-subtitle { margin-top:4px; color:#94a3b8; font-size:11px; }
+.gameover-score { display:flex; align-items:center; justify-content:center; gap:18px; margin-top:18px; color:#e2e8f0; font-size:28px; font-weight:1000; }
+.gameover-score b { color:#64748b; font-size:14px; }
+
+@keyframes ambientFloat { 0%,100% { transform:translate3d(0,0,0) scale(1); } 50% { transform:translate3d(18px,-20px,0) scale(1.08); } }
+@keyframes liveDot { 50% { opacity:.45; transform:scale(.75); } }
+@keyframes nexusDanger { 50% { box-shadow:inset 0 1px rgba(255,255,255,.12),0 0 28px rgba(239,68,68,.3); } }
+@keyframes sentinelOrbit { to { transform:translate(-50%,-50%) rotate(360deg); } }
+@keyframes gameoverIn { from { opacity:0; transform:translateY(20px) scale(.94); } to { opacity:1; transform:none; } }
+@keyframes gameoverCrown { 50% { transform:translateY(-4px) scale(1.08); filter:drop-shadow(0 0 10px rgba(251,191,36,.8)); } }
+
+@media (max-width:700px) {
+  .tcg-match-header { min-height:36px; }
+  .tcg-match-brand { font-size:9px; }
+  .tcg-mana-panel { min-width:72px; }
+  .tcg-nexus { min-width:62px; }
+  .tcg-hand { min-height:180px; }
+  .gameover-title { font-size:34px; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { animation-duration:.001ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; }
+}
+
+/* ---------------- Premium Combat FX v2 ---------------- */
+.combat-vignette{position:fixed;inset:0;z-index:35;pointer-events:none;background:radial-gradient(ellipse at center,transparent 45%,rgba(0,0,0,.22) 78%,rgba(0,0,0,.62) 100%);mix-blend-mode:multiply;}
+.combat-screen-flash{position:fixed;inset:0;z-index:70;pointer-events:none;animation:combatFlash .28s ease-out forwards;}
+.combat-screen-flash-red{background:radial-gradient(circle at center,rgba(248,113,113,.18),rgba(127,29,29,.08) 40%,transparent 72%);}
+.combat-screen-flash-cyan{background:radial-gradient(circle at center,rgba(34,211,238,.14),rgba(8,47,73,.05) 42%,transparent 72%);}
+.combat-screen-flash-gold{background:radial-gradient(circle at center,rgba(251,191,36,.22),rgba(120,53,15,.08) 42%,transparent 74%);}
+@keyframes combatFlash{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+.fx-pop{font-family:ui-sans-serif,system-ui,sans-serif;letter-spacing:-.03em;filter:drop-shadow(0 4px 8px rgba(0,0,0,.8));}
+.fx-pop-dmg,.fx-pop-nexushit{font-size:29px;text-shadow:0 0 14px rgba(248,113,113,.75),0 3px 5px rgba(0,0,0,.95);animation:damagePop 1.05s cubic-bezier(.18,.9,.25,1) forwards;}
+.fx-pop-heal{font-size:25px;text-shadow:0 0 14px rgba(74,222,128,.75),0 3px 5px rgba(0,0,0,.95);animation:healPop 1.05s ease-out forwards;}
+.fx-pop-death{font-size:32px;animation:deathPop 1.05s ease-out forwards;}
+.fx-pop-impact{font-size:34px;text-shadow:0 0 18px rgba(251,191,36,.9);animation:impactPop .65s cubic-bezier(.1,.9,.2,1) forwards;}
+.fx-pop-status{font-size:11px;font-weight:1000;letter-spacing:.12em;text-shadow:0 2px 8px rgba(0,0,0,.95);animation:statusPop 1.15s ease-out forwards;}
+.fx-pop-summon{font-size:30px;text-shadow:0 0 20px rgba(253,230,138,.95);animation:summonPop .75s ease-out forwards;}
+.fx-pop-levelup{font-size:15px;font-weight:1000;letter-spacing:.08em;text-shadow:0 0 18px rgba(251,191,36,.95);animation:levelPop 1.35s ease-out forwards;}
+@keyframes damagePop{0%{opacity:0;transform:translate(-50%,14px) scale(.55) rotate(-5deg)}15%{opacity:1;transform:translate(-50%,-10px) scale(1.35) rotate(2deg)}45%{transform:translate(-50%,-22px) scale(1)}100%{opacity:0;transform:translate(-50%,-68px) scale(.9)}}
+@keyframes healPop{0%{opacity:0;transform:translate(-50%,12px) scale(.6)}20%{opacity:1;transform:translate(-50%,-8px) scale(1.25)}100%{opacity:0;transform:translate(-50%,-58px) scale(1)}}
+@keyframes deathPop{0%{opacity:0;transform:translate(-50%,0) scale(.5) rotate(-8deg)}25%{opacity:1;transform:translate(-50%,-8px) scale(1.25) rotate(5deg)}100%{opacity:0;transform:translate(-50%,-50px) scale(1.1) rotate(0)}}
+@keyframes impactPop{0%{opacity:0;transform:translate(-50%,10px) scale(.2) rotate(-20deg)}35%{opacity:1;transform:translate(-50%,-4px) scale(1.5) rotate(0)}100%{opacity:0;transform:translate(-50%,-36px) scale(1)}}
+@keyframes statusPop{0%{opacity:0;transform:translate(-50%,12px) scale(.75)}15%{opacity:1;transform:translate(-50%,-4px) scale(1)}100%{opacity:0;transform:translate(-50%,-42px) scale(.96)}}
+@keyframes summonPop{0%{opacity:0;transform:translate(-50%,8px) scale(.2) rotate(-30deg)}45%{opacity:1;transform:translate(-50%,-4px) scale(1.4) rotate(8deg)}100%{opacity:0;transform:translate(-50%,-42px) scale(1)}}
+@keyframes levelPop{0%{opacity:0;transform:translate(-50%,18px) scale(.65)}20%{opacity:1;transform:translate(-50%,-4px) scale(1.08)}100%{opacity:0;transform:translate(-50%,-72px) scale(1)}}
+
+/* Attack cards briefly carry a directional energy trail. */
+.card-attacking{position:relative;z-index:12;filter:drop-shadow(0 0 14px rgba(251,191,36,.3));}
+.card-attacking::after{content:"";position:absolute;left:8%;right:8%;bottom:-10px;height:18px;border-radius:50%;background:radial-gradient(ellipse,rgba(251,191,36,.34),transparent 70%);filter:blur(5px);animation:attackTrail .5s ease-out infinite alternate;pointer-events:none;}
+@keyframes attackTrail{to{transform:scaleX(1.45);opacity:.25}}
+
+/* Barrier / frozen / stunned states receive immediate readable FX. */
+.card-shell:has(.card-keyword[data-keyword="Barrier"]){box-shadow:0 0 20px rgba(103,232,249,.2),inset 0 0 0 1px rgba(103,232,249,.32);}
+@media (prefers-reduced-motion:reduce){.combat-screen-flash,.fx-pop,.card-attacking::after{animation:none!important}}
+

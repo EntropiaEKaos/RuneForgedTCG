@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: runeforge_ci
+          POSTGRES_USER: runeforge
+          POSTGRES_PASSWORD: runeforge_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U runeforge -d runeforge_ci"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      DATABASE_URL: postgresql://runeforge:runeforge_ci_only@localhost:5432/runeforge_ci
+      NODE_ENV: test
+      PLAYER_SESSION_SECRET: ci-player-session-secret-github-actions-0001
+      ADMIN_SESSION_SECRET: ci-admin-session-secret-github-actions-0002
+      MFA_ENCRYPTION_KEY: ci-mfa-encryption-key-github-actions-000003
+      PAYMENT_ENCRYPTION_KEY: ci-payment-encryption-key-github-actions-0004
+      ADMIN_PASSWORD: ci-only-admin-password-not-for-prod-use
+      TRUST_PROXY: "false"
+      ALLOW_LEGACY_PLAYER_IDENTITY: "false"
+      RANKED_RELEASE_CERTIFIED: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm run ci:install
+
+      - name: Runtime + dependency lock gate
+        run: npm run release:runtime-gate
+
+      - name: Ranked release gate
+        run: npm run release:ranked-gate
+
+      - name: Local import integrity
+        run: npm run test:local-imports
+
+      - name: Test taxonomy guard
+        run: npm run audit:test-taxonomy
+
+      - name: Static source/schema audits (not behavioral certification)
+        run: |
+          npm run audit:schema-static
+          npm run audit:source-contracts
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
+
+      - name: Fresh PostgreSQL bootstrap
+        run: npm run db:bootstrap
+
+      - name: Behavioral test suite
+        run: npm run test:behavior
+
+      - name: Behavioral game-engine coverage gate
+        env:
+          MIN_FUNCTION_COVERAGE: "70"
+        run: npm run test:coverage
+
+      - name: Production PostgreSQL behavior/integrity/concurrency probes
+        run: npm run test:production-db
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_APP_URL: https://ci.placeholder.invalid
+        run: npm run build
+
+      - name: HTTP E2E — recovery, Ranked fail-closed, casual matchmaking and DTO isolation
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3000
+        run: |
+          npm start > /tmp/runeforge-next.log 2>&1 &
+          NEXT_PID=$!
+          trap 'kill $NEXT_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then break; fi
+            if [ "$i" = "45" ]; then cat /tmp/runeforge-next.log; exit 1; fi
+            sleep 1
+          done
+          npm run test:e2e:http

@@ -1,0 +1,3 @@
+export function isValidPvpActionId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{8,80}$/.test(value);
+}
