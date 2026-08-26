@@ -9,8 +9,10 @@ import { consumeRequestRateLimit } from "@/lib/rate-limit";
 import { getRuntimeStarterWallet } from "@/lib/control-plane";
 import { playerSelfDto } from "@/lib/player-public";
 import { recoveryExpiresAt, recoveryHash } from "@/lib/account-recovery";
+import { readBoundedJson, RequestBodyTooLargeError } from "@/lib/request-security";
 
 export const dynamic = "force-dynamic";
+const MAX_PLAYER_BODY_BYTES = 16 * 1024;
 function safeDisplayName(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().replace(/\s+/g, " ").slice(0, 40);
@@ -81,7 +83,13 @@ export async function POST(req: NextRequest) {
     const rate = await consumeRequestRateLimit(req, "player-session", 20, 60_000);
     if (!rate.allowed) return Response.json({ ok: false, error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rate.retryAfterSeconds) } });
 
-    const body = await req.json().catch(() => ({} as Record<string, unknown>));
+    let body: Record<string, unknown>;
+    try {
+      body = await readBoundedJson<Record<string, unknown>>(req, MAX_PLAYER_BODY_BYTES);
+    } catch (error) {
+      if (error instanceof RequestBodyTooLargeError) return Response.json({ ok: false, error: "Payload too large" }, { status: 413 });
+      body = {};
+    }
     const current = await getPlayerSession(req);
     if (current) {
       const [player] = await db.select().from(players).where(eq(players.id, current.playerId)).limit(1);
@@ -123,9 +131,6 @@ export async function POST(req: NextRequest) {
         }).where(and(eq(players.id, candidate.id), eq(players.recoveryKeyHash, oldHash))).returning();
         if (!updated) return null;
 
-        // Recovery is a single DB security transition: rotate the credential,
-        // revoke every prior browser session and persist the replacement session
-        // before any of those changes become visible to another request.
         await tx.update(playerSessions).set({ revokedAt: new Date() }).where(eq(playerSessions.playerId, updated.id));
         await tx.insert(playerSessions).values({ sessionId: prepared.sessionId, playerId: prepared.playerId, expiresAt: prepared.expiresAt });
         return { player: updated, token: prepared.token };
