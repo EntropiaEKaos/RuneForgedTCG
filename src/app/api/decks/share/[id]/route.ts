@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { sharedDeckDownloads, sharedDeckVotes, sharedDecks } from "@/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { requireStablePlayerIdentity } from "@/lib/player-session";
+import { publicSharedDeckDto } from "@/lib/shared-deck-public";
 
 export const dynamic = "force-dynamic";
 
@@ -48,9 +49,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       return { error: "Invalid action", status: 400 as const };
     });
     if ("error" in result) return Response.json({ ok: false, error: result.error }, { status: result.status });
-    return Response.json({ ok: true, deck: result.deck, ...( "changed" in result ? { changed: result.changed } : {} ) });
-
-    return Response.json({ ok: false, error: "Invalid action" }, { status: 400 });
+    return Response.json({ ok: true, deck: publicSharedDeckDto(result.deck), changed: result.changed });
   } catch {
     return Response.json({ ok: false, error: "Internal server error" }, { status: 500 });
   }
