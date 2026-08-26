@@ -7,7 +7,7 @@ import type { CombatPace, FxMode, UiScale } from "@/components/game/GameSettings
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { useGameFx } from "@/hooks/useGameFx";
 import { useFrameHealth } from "@/hooks/useFrameHealth";
-import { getGameConfigSync } from "@/game/settings";
+import { getClientMasterVolume } from "@/game/client-game-config";
 
 export function useGamePresentation({
   state,
@@ -50,7 +50,7 @@ export function useGamePresentation({
       .then(({ isSoundEnabled, isMusicEnabled, getMasterVolume, setMasterVolume }) => {
         setSoundOn(isSoundEnabled());
         setMusicOn(isMusicEnabled());
-        if (localStorage.getItem("runeforge_volume") === null) setMasterVolume(getGameConfigSync().advanced.presentation.masterVolume);
+        if (localStorage.getItem("runeforge_volume") === null) setMasterVolume(getClientMasterVolume());
         setMasterVolumeState(getMasterVolume());
       })
       .catch(() => {});
