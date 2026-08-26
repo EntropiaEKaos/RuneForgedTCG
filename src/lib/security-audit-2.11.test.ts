@@ -16,16 +16,14 @@ for (const file of files) {
 }
 
 const reward = readFileSync("src/app/api/player/update/route.ts", "utf8");
-if (!reward.includes("eq(matches.playerId, player.id)")) throw new Error("Match reward ownership is not playerId-based");
-if (!reward.includes("match.playerId !== player.id")) throw new Error("Match reward ownership guard missing");
+if (!reward.includes("const [fresh] = await tx.select().from(players)")) throw new Error("Match reward does not refresh player state after the row lock");
+if (!reward.includes("eq(matches.playerId, fresh.id)")) throw new Error("Match reward ownership is not post-lock playerId-based");
+if (!reward.includes("match.playerId !== fresh.id")) throw new Error("Match reward ownership guard missing or based on stale player state");
 
 const playerRoute = readFileSync("src/app/api/player/route.ts", "utf8");
 if (!playerRoute.includes("where(eq(matches.playerId, player.id))")) throw new Error("Player stats are still name-based");
 if (!playerRoute.includes("where(eq(customDecks.ownerPlayerId, player.id))")) throw new Error("Deck ownership stats are still name-based");
 
-// Role must be freshly resolved from the current admin_users row on every
-// request (not trusted from the session record), so demotion/disable takes
-// effect immediately in the multi-user model introduced after this audit.
 const admin = readFileSync("src/lib/admin-auth.ts", "utf8");
 if (!admin.includes("from(adminUsers)") || !/eq\(adminUsers\.enabled,\s*true\)/.test(admin)) {
   throw new Error("Admin session does not resolve the current enabled user from the database");
