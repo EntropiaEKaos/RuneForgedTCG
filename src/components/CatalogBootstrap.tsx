@@ -62,15 +62,19 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
       const response = await fetch("/api/catalog", { cache: "no-store" });
       const data = await response.json();
       if (!data.ok) return;
+      let shouldBumpRevision = false;
       const revision = String(data.catalogRevision || "empty");
       if (revision !== lastCatalogRevision.current) {
         if (Array.isArray(data.custom)) replaceRegisteredCustomCards(data.custom);
         if (Array.isArray(data.cardCollections)) replaceRegisteredCardCollections(data.cardCollections);
         if (Array.isArray(data.cardArt)) replaceRegisteredCardArt(data.cardArt);
         lastCatalogRevision.current = revision;
-        setCatalogRevision((current) => current + 1);
+        shouldBumpRevision = true;
       }
-      if (data.config && typeof data.config === "object") hydrateClientRuntimeConfig(data.config);
+      if (data.config && typeof data.config === "object") {
+        shouldBumpRevision = hydrateClientRuntimeConfig(data.config) || shouldBumpRevision;
+      }
+      if (shouldBumpRevision) setCatalogRevision((current) => current + 1);
       if (data.presentation?.defaultBoard) document.documentElement.dataset.boardTheme = String(data.presentation.defaultBoard);
       const tokens = data.visualTheme?.tokens;
       if (tokens && typeof tokens === "object") {
