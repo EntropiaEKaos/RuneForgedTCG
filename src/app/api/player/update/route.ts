@@ -22,14 +22,19 @@ export async function POST(req: NextRequest) {
       const [player] = await tx.select().from(players).where(eq(players.id, identity.playerId)).limit(1);
       if (!player) return null;
       await tx.execute(sql`SELECT id FROM players WHERE id = ${player.id} FOR UPDATE`);
+      // The pre-lock row is identity discovery only. Always re-read after the
+      // lock so concurrent XP/economy mutations cannot be overwritten by a
+      // stale absolute XP/level write and ledger balanceAfter stays truthful.
+      const [fresh] = await tx.select().from(players).where(eq(players.id, player.id)).limit(1);
+      if (!fresh) return null;
 
       let match;
       if (matchId && Number.isFinite(matchId)) {
         [match] = await tx.select().from(matches).where(eq(matches.id, matchId)).limit(1);
       } else {
-        [match] = await tx.select().from(matches).where(and(eq(matches.playerId, player.id), eq(matches.rewardsClaimed, false))).orderBy(sql`${matches.createdAt} DESC`).limit(1);
+        [match] = await tx.select().from(matches).where(and(eq(matches.playerId, fresh.id), eq(matches.rewardsClaimed, false))).orderBy(sql`${matches.createdAt} DESC`).limit(1);
       }
-      if (!match || match.playerId !== player.id || match.rewardsClaimed) return { alreadyClaimed: true };
+      if (!match || match.playerId !== fresh.id || match.rewardsClaimed) return { alreadyClaimed: true };
       await tx.execute(sql`SELECT id FROM matches WHERE id = ${match.id} FOR UPDATE`);
       const [lockedMatch] = await tx.select().from(matches).where(eq(matches.id, match.id)).limit(1);
       if (!lockedMatch || lockedMatch.rewardsClaimed) return { alreadyClaimed: true };
@@ -38,16 +43,16 @@ export async function POST(req: NextRequest) {
       let xpGain = won ? 30 : 10;
       let goldGain = won ? 20 : 5;
       let dustGain = 0;
-      const newXp = player.xp + xpGain;
+      const newXp = fresh.xp + xpGain;
       const newLevel = levelFromXp(newXp);
-      const leveledUp = newLevel > player.level;
+      const leveledUp = newLevel > fresh.level;
       if (leveledUp) { goldGain += 50; dustGain += 25; }
 
       const achievementIds = ACHIEVEMENTS.map((a) => a.id);
       const dailyIds = DAILY_QUESTS.map((q) => q.id);
       const [achRows, dailyRows] = await Promise.all([
-        tx.select().from(playerAchievements).where(and(eq(playerAchievements.playerId, player.id), inArray(playerAchievements.achievementId, achievementIds))),
-        tx.select().from(playerDailies).where(and(eq(playerDailies.playerId, player.id), inArray(playerDailies.questId, dailyIds))),
+        tx.select().from(playerAchievements).where(and(eq(playerAchievements.playerId, fresh.id), inArray(playerAchievements.achievementId, achievementIds))),
+        tx.select().from(playerDailies).where(and(eq(playerDailies.playerId, fresh.id), inArray(playerDailies.questId, dailyIds))),
       ]);
       const achMap = new Map(achRows.map((r) => [r.achievementId, r]));
       const dailyMap = new Map(dailyRows.map((r) => [r.questId, r]));
@@ -63,7 +68,7 @@ export async function POST(req: NextRequest) {
           achievements.push({ achievementId: id, progress, completed });
         } else {
           const completed = req <= 1;
-          await tx.insert(playerAchievements).values({ playerId: player.id, achievementId: id, progress: 1, completed });
+          await tx.insert(playerAchievements).values({ playerId: fresh.id, achievementId: id, progress: 1, completed });
           achievements.push({ achievementId: id, progress: 1, completed });
         }
       };
@@ -86,10 +91,10 @@ export async function POST(req: NextRequest) {
       const nexusDamage = eventLog.reduce((sum, event) => sum + (event.type === "NEXUS_DAMAGED" && event.player === "ai" ? Math.max(0, Number(event.amount) || 0) : 0), 0);
       await bumpDaily("daily_damage", 50, nexusDamage);
 
-      await tx.update(players).set({ xp: newXp, level: newLevel, gold: sql`${players.gold} + ${goldGain}`, dust: sql`${players.dust} + ${dustGain}` }).where(eq(players.id, player.id));
-      await recordEconomyTransaction(tx, { playerId: player.id, currency: "xp", amount: xpGain, balanceAfter: newXp, reason: "match_reward", referenceType: "match", referenceId: String(lockedMatch.id) });
-      await recordEconomyTransaction(tx, { playerId: player.id, currency: "gold", amount: goldGain, balanceAfter: player.gold + goldGain, reason: "match_reward", referenceType: "match", referenceId: String(lockedMatch.id) });
-      if (dustGain) await recordEconomyTransaction(tx, { playerId: player.id, currency: "dust", amount: dustGain, balanceAfter: player.dust + dustGain, reason: "match_reward", referenceType: "match", referenceId: String(lockedMatch.id) });
+      await tx.update(players).set({ xp: newXp, level: newLevel, gold: sql`${players.gold} + ${goldGain}`, dust: sql`${players.dust} + ${dustGain}` }).where(eq(players.id, fresh.id));
+      await recordEconomyTransaction(tx, { playerId: fresh.id, currency: "xp", amount: xpGain, balanceAfter: newXp, reason: "match_reward", referenceType: "match", referenceId: String(lockedMatch.id) });
+      await recordEconomyTransaction(tx, { playerId: fresh.id, currency: "gold", amount: goldGain, balanceAfter: fresh.gold + goldGain, reason: "match_reward", referenceType: "match", referenceId: String(lockedMatch.id) });
+      if (dustGain) await recordEconomyTransaction(tx, { playerId: fresh.id, currency: "dust", amount: dustGain, balanceAfter: fresh.dust + dustGain, reason: "match_reward", referenceType: "match", referenceId: String(lockedMatch.id) });
       const claimed = await tx.update(matches).set({ rewardsClaimed: true }).where(eq(matches.id, lockedMatch.id)).returning({ id: matches.id });
       if (!claimed.length) return { alreadyClaimed: true };
 
