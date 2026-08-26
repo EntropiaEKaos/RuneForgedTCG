@@ -30,30 +30,44 @@ export async function PATCH(req: NextRequest) {
   const accessToken = typeof body.accessToken === "string" ? body.accessToken.trim() : "";
   const webhookSecret = typeof body.webhookSecret === "string" ? body.webhookSecret.trim() : "";
   if (enabled && (!publicKey || (!accessToken && body.accessTokenConfigured !== true) || (!webhookSecret && body.webhookSecretConfigured !== true))) return Response.json({ ok: false, error: "Enabled Mercado Pago requires public key, access token and webhook secret" }, { status: 400 });
-  const [existing] = await db.select().from(paymentGatewaySettings).where(eq(paymentGatewaySettings.provider, "mercadopago")).limit(1);
-  if (!existing) {
-    if (expectedRevision !== 0) return Response.json({ ok: false, error: "Revision conflict" }, { status: 409 });
-    if (!accessToken || !webhookSecret) return Response.json({ ok: false, error: "Access token and webhook secret are required for first configuration" }, { status: 400 });
-    const [row] = await db.insert(paymentGatewaySettings).values({ provider: "mercadopago", enabled, environment, publicKey, accessTokenEncrypted: encryptPaymentSecret(accessToken), webhookSecretEncrypted: encryptPaymentSecret(webhookSecret), statementDescriptor, updatedBy: actor.actorId }).returning();
-    await db.insert(adminAuditLogs).values({ action: "payments.settings.create", resource: "mercadopago", actor: actor.actorId, details: { enabled, environment, publicKeyConfigured: Boolean(publicKey), accessTokenConfigured: true, webhookSecretConfigured: true } });
-    return Response.json({ ok: true, settings: publicRow(row) });
-  }
-  if (!Number.isInteger(expectedRevision)) return Response.json({ ok: false, error: "expectedRevision is required" }, { status: 400 });
-  if (existing.environment !== environment) {
-    const pending = await db.execute(sql`SELECT count(*)::int n FROM payment_orders WHERE provider='mercadopago' AND provider_preference_id IS NOT NULL AND fulfilled_at IS NULL AND status NOT IN ('rejected','cancelled','refunded','charged_back','preference_failed')`);
-    const n = Number((pending as any).rows?.[0]?.n ?? 0);
-    if (n > 0) return Response.json({ ok: false, error: `Cannot switch Mercado Pago environment while ${n} payment order(s) are pending` }, { status: 409 });
-    if (existing.environment === "production" && environment === "sandbox") {
-      const history = await db.execute(sql`SELECT count(*)::int n FROM payment_orders WHERE provider='mercadopago' AND provider_environment='production'`);
-      const productionOrders = Number((history as any).rows?.[0]?.n ?? 0);
-      if (productionOrders > 0) return Response.json({ ok: false, error: "Production Mercado Pago history exists; environment downgrade to Sandbox is refused so late refunds/chargebacks remain reconcilable" }, { status: 409 });
+
+  const result = await db.transaction(async (tx) => {
+    // Checkout creation takes the same transaction-scoped advisory lock before
+    // snapshotting credentials and inserting its order. This closes the TOCTOU
+    // window where an order could be born with the old environment while the
+    // Admin switched the gateway to another credential set.
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))`);
+    const [existing] = await tx.select().from(paymentGatewaySettings).where(eq(paymentGatewaySettings.provider, "mercadopago")).limit(1).for("update");
+    if (!existing) {
+      if (expectedRevision !== 0) return { error: "Revision conflict", status: 409 as const };
+      if (!accessToken || !webhookSecret) return { error: "Access token and webhook secret are required for first configuration", status: 400 as const };
+      const [row] = await tx.insert(paymentGatewaySettings).values({ provider: "mercadopago", enabled, environment, publicKey, accessTokenEncrypted: encryptPaymentSecret(accessToken), webhookSecretEncrypted: encryptPaymentSecret(webhookSecret), statementDescriptor, updatedBy: actor.actorId }).returning();
+      await tx.insert(adminAuditLogs).values({ action: "payments.settings.create", resource: "mercadopago", actor: actor.actorId, details: { enabled, environment, publicKeyConfigured: Boolean(publicKey), accessTokenConfigured: true, webhookSecretConfigured: true } });
+      return { row };
     }
-  }
-  const updates: any = { enabled, environment, publicKey, statementDescriptor, updatedBy: actor.actorId, updatedAt: new Date(), revision: sql`${paymentGatewaySettings.revision} + 1` };
-  if (accessToken) updates.accessTokenEncrypted = encryptPaymentSecret(accessToken);
-  if (webhookSecret) updates.webhookSecretEncrypted = encryptPaymentSecret(webhookSecret);
-  const [row] = await db.update(paymentGatewaySettings).set(updates).where(and(eq(paymentGatewaySettings.provider, "mercadopago"), eq(paymentGatewaySettings.revision, expectedRevision))).returning();
-  if (!row) return Response.json({ ok: false, error: "Revision conflict; reload settings" }, { status: 409 });
-  await db.insert(adminAuditLogs).values({ action: "payments.settings.update", resource: "mercadopago", actor: actor.actorId, details: { enabled, environment, publicKeyConfigured: Boolean(publicKey), rotatedAccessToken: Boolean(accessToken), rotatedWebhookSecret: Boolean(webhookSecret) } });
-  return Response.json({ ok: true, settings: publicRow(row) });
+    if (!Number.isInteger(expectedRevision)) return { error: "expectedRevision is required", status: 400 as const };
+    if (existing.environment !== environment) {
+      // Include `creating`: a checkout reserves its environment before the
+      // external Mercado Pago preference exists. Ignoring those rows permits a
+      // credential switch while that provider request is still in flight.
+      const pending = await tx.execute(sql`SELECT count(*)::int n FROM payment_orders WHERE provider='mercadopago' AND fulfilled_at IS NULL AND status NOT IN ('rejected','cancelled','refunded','charged_back','preference_failed')`);
+      const n = Number((pending as any).rows?.[0]?.n ?? 0);
+      if (n > 0) return { error: `Cannot switch Mercado Pago environment while ${n} payment order(s) are pending`, status: 409 as const };
+      if (existing.environment === "production" && environment === "sandbox") {
+        const history = await tx.execute(sql`SELECT count(*)::int n FROM payment_orders WHERE provider='mercadopago' AND provider_environment='production'`);
+        const productionOrders = Number((history as any).rows?.[0]?.n ?? 0);
+        if (productionOrders > 0) return { error: "Production Mercado Pago history exists; environment downgrade to Sandbox is refused so late refunds/chargebacks remain reconcilable", status: 409 as const };
+      }
+    }
+    const updates: any = { enabled, environment, publicKey, statementDescriptor, updatedBy: actor.actorId, updatedAt: new Date(), revision: sql`${paymentGatewaySettings.revision} + 1` };
+    if (accessToken) updates.accessTokenEncrypted = encryptPaymentSecret(accessToken);
+    if (webhookSecret) updates.webhookSecretEncrypted = encryptPaymentSecret(webhookSecret);
+    const [row] = await tx.update(paymentGatewaySettings).set(updates).where(and(eq(paymentGatewaySettings.provider, "mercadopago"), eq(paymentGatewaySettings.revision, expectedRevision))).returning();
+    if (!row) return { error: "Revision conflict; reload settings", status: 409 as const };
+    await tx.insert(adminAuditLogs).values({ action: "payments.settings.update", resource: "mercadopago", actor: actor.actorId, details: { enabled, environment, publicKeyConfigured: Boolean(publicKey), rotatedAccessToken: Boolean(accessToken), rotatedWebhookSecret: Boolean(webhookSecret) } });
+    return { row };
+  });
+
+  if ("error" in result) return Response.json({ ok: false, error: result.error }, { status: result.status });
+  return Response.json({ ok: true, settings: publicRow(result.row) });
 }
