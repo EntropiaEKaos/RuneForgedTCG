@@ -77,13 +77,18 @@ ok(read("src/lib/mercado-pago.ts").includes('range: "date_created"') && read("sr
 ok(fulfillment.includes("delayed pending/rejected notifications") && fulfillment.includes("fresh.fulfilledAt && !requiresReview"), "delayed provider events cannot downgrade an already fulfilled order");
 
 const checkout = read("src/app/api/payments/checkout/route.ts");
+const paymentSettingsApi = read("src/app/api/admin/payments/settings/route.ts");
 const album = read("src/app/api/collections/[key]/album/route.ts");
-ok(checkout.indexOf("db.insert(paymentOrders).values") >= 0 && checkout.indexOf("db.insert(paymentOrders).values") < checkout.indexOf("createMercadoPagoPreference({"), "local payment order exists before provider preference");
+ok(checkout.indexOf("db.insert(paymentOrders).values") >= 0 || checkout.indexOf("tx.insert(paymentOrders).values") >= 0, "checkout persists a local payment order");
+const insertIndex = Math.max(checkout.indexOf("db.insert(paymentOrders).values"), checkout.indexOf("tx.insert(paymentOrders).values"));
+ok(insertIndex >= 0 && insertIndex < checkout.indexOf("createMercadoPagoPreference({"), "local payment order exists before provider preference");
 ok(checkout.includes("externalReference") && checkout.includes("idempotencyKey"), "checkout carries external reference and local idempotency key");
 ok(checkout.includes("payment-checkout:") && ordersApi.includes("payment-reconcile:"), "checkout and reconciliation are player-rate-limited");
 ok(checkout.includes("providerEnvironment") && fulfillment.includes("order.providerEnvironment"), "payment order snapshots provider environment for later fulfillment");
 ok(checkout.includes("validateGrantPackIds") && album.includes("validateGrantPackIds"), "paid/album grants reject unknown pack ids before fulfillment");
 ok(!webhook.includes("settings?.enabled") && !ordersApi.includes("settings?.enabled"), "disabling checkout does not block fulfillment/reconciliation of existing orders");
+ok(checkout.includes("pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))") && paymentSettingsApi.includes("pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))"), "checkout reservation and gateway environment changes share one PostgreSQL configuration lock");
+ok(paymentSettingsApi.includes("status NOT IN ('rejected','cancelled','refunded','charged_back','preference_failed')") && !paymentSettingsApi.includes("provider_preference_id IS NOT NULL AND fulfilled_at IS NULL"), "environment switch blocks in-flight creating orders before a provider preference id exists");
 
 const studio = read("src/app/admin/studio/cards/CardAuthoringStudio.tsx");
 ok(studio.includes("Flavor / lore") && studio.includes("Balance Lab"), "Card Studio edits flavor and runs Balance Lab");
