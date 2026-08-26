@@ -13,14 +13,18 @@ export async function POST(req: NextRequest) {
   const runtimeBlocked = await runtimeGate("general");
   if (runtimeBlocked) return runtimeBlocked;
   try {
-    const body = await req.json();
     const identity = await requireStablePlayerIdentity(req);
     if (!identity) return Response.json({ ok: false, error: "Player session required" }, { status: 401 });
 
     const result = await db.transaction(async (tx) => {
+      // Serialize all wallet mutations for this player before reading balances.
+      // Reading first and locking afterwards can overwrite XP gained by a
+      // concurrent transaction and produce stale balanceAfter ledger entries.
+      const locked = await tx.execute(sql`SELECT id FROM players WHERE id = ${identity.playerId} FOR UPDATE`);
+      if (!locked.rows.length) return null;
       const [player] = await tx.select().from(players).where(eq(players.id, identity.playerId)).limit(1);
       if (!player) return null;
-      await tx.execute(sql`SELECT id FROM players WHERE id = ${player.id} FOR UPDATE`);
+
       const now = new Date();
       await tx.delete(playerDailies).where(and(eq(playerDailies.playerId, player.id), lt(playerDailies.expiresAt, now)));
       const dailies = await tx.select().from(playerDailies).where(eq(playerDailies.playerId, player.id));
