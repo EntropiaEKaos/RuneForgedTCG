@@ -57,6 +57,7 @@ const queue = (client: BrowserClient, mode: "casual" | "ranked") => client.reque
 
 async function verifyRepeatableEconomy(client: BrowserClient, playerId: number) {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
+  const operationPrefix = `e2e:${playerId}:${Date.now()}`;
   try {
     await pool.query("update players set gold=100000, dust=100000 where id=$1", [playerId]);
 
@@ -66,10 +67,13 @@ async function verifyRepeatableEconomy(client: BrowserClient, playerId: number) 
     assert.ok(pack?.id, "at least one pack must be available");
     for (let i = 0; i < 2; i++) {
       const bought = await client.request("/api/packs", {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "buy", packId: pack.id }),
+        method: "POST",
+        headers: { "content-type": "application/json", "x-operation-id": `${operationPrefix}:pack-buy:${i}` },
+        body: JSON.stringify({ action: "buy", packId: pack.id }),
       });
       assert.equal(bought.response.status, 200, `repeat pack purchase ${i + 1}: ${JSON.stringify(bought.body)}`);
       assert.equal(bought.body.ok, true);
+      assert.equal(bought.body.duplicate, false, "distinct economy operations must execute independently");
     }
 
     const collection = await client.request("/api/collection");
@@ -80,17 +84,23 @@ async function verifyRepeatableEconomy(client: BrowserClient, playerId: number) 
 
     for (let i = 0; i < 2; i++) {
       const crafted = await client.request("/api/collection", {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "craft", defId: card.defId, amount: 1 }),
+        method: "POST",
+        headers: { "content-type": "application/json", "x-operation-id": `${operationPrefix}:craft:${i}` },
+        body: JSON.stringify({ action: "craft", defId: card.defId, amount: 1 }),
       });
       assert.equal(crafted.response.status, 200, `repeat craft ${i + 1}: ${JSON.stringify(crafted.body)}`);
       assert.equal(crafted.body.ok, true);
+      assert.equal(crafted.body.duplicate, false);
     }
     for (let i = 0; i < 2; i++) {
       const disenchanted = await client.request("/api/collection", {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "disenchant", defId: card.defId, amount: 1 }),
+        method: "POST",
+        headers: { "content-type": "application/json", "x-operation-id": `${operationPrefix}:disenchant:${i}` },
+        body: JSON.stringify({ action: "disenchant", defId: card.defId, amount: 1 }),
       });
       assert.equal(disenchanted.response.status, 200, `repeat disenchant ${i + 1}: ${JSON.stringify(disenchanted.body)}`);
       assert.equal(disenchanted.body.ok, true);
+      assert.equal(disenchanted.body.duplicate, false);
     }
   } finally {
     await pool.end();
@@ -138,7 +148,7 @@ async function main() {
     assert.equal("seed" in room, false, "seed must not leak from the public room DTO");
     assert.equal("rng" in room, false, "RNG state must not leak from the public room DTO");
   }
-  console.log(`E2E MVP: PASS — recovery session rotation, repeat economy, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);
+  console.log(`E2E MVP: PASS — recovery session rotation, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);
 }
 
 void main();
