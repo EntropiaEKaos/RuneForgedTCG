@@ -2,14 +2,14 @@ import { memo } from "react";
 import type { CardDef, Keyword, Region, UnitInstance } from "@/game/types";
 import { getCard } from "@/game/cards";
 import type { GameState } from "@/game/types";
-import { championProgress } from "@/game/engine";
+import { championProgressView } from "@/game/champion-progress";
 import { strategicRoleForCard } from "@/game/card-role";
 import { getCardCollection, type CardCollectionIdentity } from "@/game/card-collections";
 import { getCardArt } from "@/game/card-art";
+import { getClientArtFallbackUrl } from "@/game/client-game-config";
 import CollectionSymbolMark from "./CollectionSymbolMark";
 import { useCatalogRevision } from "./CatalogContext";
 import { cardRegions, identityForRegions, REGION_IDENTITY_STYLE, regionalRuleText } from "@/game/region-identity";
-import { getGameConfigSync } from "@/game/settings";
 
 export const REGION_STYLE: Record<Region, { grad: string; border: string; text: string; ring: string; label: string; aura: string; sigil: string; art: string }> = {
   Emberhold: { grad: "from-orange-500 via-red-700 to-slate-950", border: "border-orange-300/80", text: "text-orange-100", ring: "ring-orange-300", label: "Emberhold", aura: "card-aura-ember", sigil: "🔥", art: "/art/regions/emberhold.svg" },
@@ -61,7 +61,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
   const def: CardDef = definition ?? getCard(defId);
   const collection = collectionOverride === undefined ? getCardCollection(def.defId) : collectionOverride;
   const style = REGION_STYLE[def.region];
-  const configuredFallbackArt = getGameConfigSync().advanced.presentation.artFallbackUrl;
+  const configuredFallbackArt = getClientArtFallbackUrl();
   const artAssignment = getCardArt(def.defId);
   const artUrl = artAssignment?.url || def.art || configuredFallbackArt || style.art;
   const artCrop = artAssignment?.crop;
@@ -77,7 +77,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
   const damaged = unit && health !== undefined && maxHealth !== undefined && health < maxHealth;
   const isChamp = Boolean(def.isChampion || unit?.isChampion);
   const leveled = Boolean(unit?.leveled);
-  const prog = state && unit ? championProgress(state, unit) : null;
+  const prog = state && unit ? championProgressView(state, unit) : null;
   const rarity = isChamp ? "card-rarity-champion" : def.type === "Equipment" ? "card-rarity-equipment" : def.type === "Enchantment" || def.type === "Artifact" ? "card-rarity-relic" : "";
   // Antes deste ponto: só Campeão/Equipamento/Relíquia tinham QUALQUER
   // acabamento visual de raridade — uma Unidade ou Feitiço Épico/Lendário
