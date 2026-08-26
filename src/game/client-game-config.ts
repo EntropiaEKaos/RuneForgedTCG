@@ -6,6 +6,8 @@ import type { AiRulesSnapshot, EngineRulesSnapshot } from "./types";
 
 type JsonRecord = Record<string, unknown>;
 
+let clientArtFallbackUrl = "";
+
 function record(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonRecord)
@@ -27,19 +29,31 @@ function stringArray(value: unknown): string[] | undefined {
     : undefined;
 }
 
+export function getClientArtFallbackUrl(): string {
+  return clientArtFallbackUrl;
+}
+
 /**
- * Hydrates only the browser-safe runtime rule stores from the already validated
- * catalog configuration returned by the server.
+ * Hydrates only browser-safe runtime state from the already validated catalog
+ * configuration returned by the server.
  *
- * This module deliberately has no dependency on settings.ts: the latter owns
- * persistence, cache invalidation and control-plane/database reads and must
- * never enter a Client Component bundle.
+ * Returns true when presentation state used directly by rendered cards changed,
+ * allowing the catalog provider to invalidate CardView without polling DB state.
+ * This module deliberately has no dependency on settings.ts: persistence,
+ * control-plane and database reads stay server-only.
  */
-export function hydrateClientRuntimeConfig(value: unknown): void {
+export function hydrateClientRuntimeConfig(value: unknown): boolean {
   const config = record(value);
   const advanced = record(config.advanced);
   const engine = record(advanced.engine);
   const ai = record(advanced.ai);
+  const presentation = record(advanced.presentation);
+
+  const nextArtFallbackUrl = typeof presentation.artFallbackUrl === "string"
+    ? presentation.artFallbackUrl.trim()
+    : "";
+  const presentationChanged = nextArtFallbackUrl !== clientArtFallbackUrl;
+  clientArtFallbackUrl = nextArtFallbackUrl;
 
   const engineRules: Partial<EngineRulesSnapshot> = {};
   const numericEngineKeys = [
@@ -84,4 +98,6 @@ export function hydrateClientRuntimeConfig(value: unknown): void {
     if (parsed !== undefined) aiRules[key] = parsed;
   }
   configureRuntimeAiRules(aiRules);
+
+  return presentationChanged;
 }
