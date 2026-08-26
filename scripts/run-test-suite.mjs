@@ -8,10 +8,20 @@ if (!tests) {
   process.exit(2);
 }
 
-const runner = process.platform === "win32" ? "tsx.cmd" : "tsx";
 let passed = 0;
 for (const file of tests) {
-  const result = spawnSync(runner, [file], { stdio: "inherit", env: process.env });
+  // Use Node's executable directly so the suite behaves the same on Windows,
+  // Linux and macOS. Spawning tsx.cmd relies on Windows shell semantics and
+  // can fail before the first test body is executed.
+  const result = spawnSync(process.execPath, ["--import", "tsx", file], {
+    stdio: "inherit",
+    env: process.env,
+  });
+  if (result.error) {
+    console.error(`${suite.toUpperCase()} SUITE: runner failed before executing ${file}`);
+    console.error(result.error);
+    process.exit(1);
+  }
   if (result.status !== 0) {
     console.error(`${suite.toUpperCase()} SUITE: FAIL at ${file}`);
     process.exit(result.status ?? 1);
