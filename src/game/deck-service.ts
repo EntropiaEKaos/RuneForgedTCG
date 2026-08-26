@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { validateDeck, type DeckDef } from "./decks";
 import type { DeckInput } from "./types";
 import { getRuntimeDecks } from "@/lib/control-plane";
-import { validateFormatDeck } from "./format-rules";
+import { validateFormatDeck } from "./format-rules-server";
 export { snapshotReplayBundle } from "./replay-content-snapshot";
 
 type DB = { select: any };
