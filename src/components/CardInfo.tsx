@@ -1,5 +1,5 @@
 import { getCard } from "@/game/cards";
-import { championProgress } from "@/game/engine";
+import { championProgressView } from "@/game/champion-progress";
 import { KEYWORD_INFO, RACE_INFO } from "@/game/keywords";
 import { REGION_STYLE } from "./CardView";
 import type { GameState, UnitInstance } from "@/game/types";
@@ -16,7 +16,7 @@ export default function CardInfo({ defId, unit, state }: CardInfoProps) {
   const power = unit ? unit.power : def.power;
   const health = unit ? unit.health : def.health;
   const keywords = unit ? unit.keywords : def.keywords ?? [];
-  const prog = state && unit ? championProgress(state, unit) : null;
+  const prog = state && unit ? championProgressView(state, unit) : null;
 
   return (
     <div
