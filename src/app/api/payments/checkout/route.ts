@@ -71,9 +71,6 @@ export async function POST(req: NextRequest) {
       return Response.json({ ok: false, error: `Checkout cannot be recreated from status ${order.status}` }, { status: 409 });
     } else {
       const reservation = await db.transaction(async (tx) => {
-        // The Admin environment switch takes this exact same xact lock. Read the
-        // gateway settings and create the local `creating` order while holding it
-        // so a checkout can never straddle two credential environments.
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))`);
         const [settingsRow] = await tx.select().from(paymentGatewaySettings).where(eq(paymentGatewaySettings.provider, "mercadopago")).limit(1);
         const lockedSettings = materializeMercadoPagoSettings(settingsRow, true);
@@ -117,9 +114,12 @@ export async function POST(req: NextRequest) {
       if (!reservation.inserted) return Response.json({ ok: false, error: `Checkout cannot be recreated from status ${order.status}` }, { status: 409 });
     }
 
+    const providerAccessToken = settings?.accessToken;
+    if (!providerAccessToken) return Response.json({ ok: false, error: "Mercado Pago is not configured" }, { status: 503 });
+
     try {
       const preference = await createMercadoPagoPreference({
-        accessToken: settings.accessToken,
+        accessToken: providerAccessToken,
         title: `RuneForge · ${order.productName}`,
         unitPrice: order.amountCents / 100,
         currency: order.currency,
