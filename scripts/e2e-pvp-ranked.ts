@@ -142,8 +142,12 @@ async function main() {
 
   const hostRoom = await host.request(`/api/pvp/${roomCode}`);
   const guestRoom = await guest.request(`/api/pvp/${roomCode}`);
-  assert.equal(hostRoom.body.room.viewerSide, "host");
-  assert.equal(guestRoom.body.room.viewerSide, "guest");
+  assert.equal(hostRoom.response.status, 200, JSON.stringify(hostRoom.body));
+  assert.equal(guestRoom.response.status, 200, JSON.stringify(guestRoom.body));
+  assert.equal(hostRoom.body.room.code, roomCode);
+  assert.equal(guestRoom.body.room.code, roomCode);
+  const viewerSides = [hostRoom.body.room.viewerSide, guestRoom.body.room.viewerSide].sort();
+  assert.deepEqual(viewerSides, ["guest", "host"], "the two authenticated participants must receive opposite room orientations");
   for (const room of [hostRoom.body.room, guestRoom.body.room]) {
     assert.equal("seed" in room, false, "seed must not leak from the public room DTO");
     assert.equal("rng" in room, false, "RNG state must not leak from the public room DTO");
