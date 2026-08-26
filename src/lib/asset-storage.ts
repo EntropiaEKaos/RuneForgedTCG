@@ -146,6 +146,8 @@ async function putS3Object(key: string, bytes: Buffer, mimeType: string): Promis
   const signingKey = hmac(serviceKey, "aws4_request");
   const signature = crypto.createHmac("sha256", signingKey).update(stringToSign).digest("hex");
   const authorization = `AWS4-HMAC-SHA256 Credential=${accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+  const requestBody = new Uint8Array(bytes.byteLength);
+  requestBody.set(bytes);
 
   const response = await fetch(endpoint, {
     method: "PUT",
@@ -155,7 +157,7 @@ async function putS3Object(key: string, bytes: Buffer, mimeType: string): Promis
       "x-amz-content-sha256": payloadHash,
       "x-amz-date": amzDate,
     },
-    body: bytes,
+    body: requestBody,
     signal: AbortSignal.timeout(Math.max(1_000, Math.min(60_000, Number(process.env.ASSET_STORAGE_TIMEOUT_MS) || 15_000))),
   });
   if (!response.ok) {
