@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { paymentOrders } from "@/db/schema";
 import { applyGameGrants } from "@/lib/game-grants";
+import { canBindApprovedProviderPayment } from "@/lib/payment-provider-link";
 
 export interface MercadoPagoPaymentLike {
   id?: string | number;
@@ -53,9 +54,14 @@ export async function processMercadoPagoPayment(payment: MercadoPagoPaymentLike,
         status: providerStatus,
         statusDetail: payment.status_detail || null,
         preferenceId: bound.providerPreferenceId,
+        eventPaymentId: bound.paymentId,
         requiresReview,
         lastEventAt: new Date().toISOString(),
       };
+      // Non-approved attempts are observations, not canonical payment bindings.
+      // A customer can legitimately retry the same preference and receive a new
+      // payment id. Keep the approved providerPaymentId untouched so a pending or
+      // rejected attempt can never block a later valid approval.
       // Once items were delivered, delayed pending/rejected notifications must never
       // downgrade the authoritative local status. Refund/chargeback is kept visible
       // for manual review because blindly clawing back spent game currency is unsafe.
@@ -63,7 +69,7 @@ export async function processMercadoPagoPayment(payment: MercadoPagoPaymentLike,
         await tx.update(paymentOrders).set({ providerPayload: nextPayload, updatedAt: new Date() }).where(eq(paymentOrders.id, fresh.id));
         return { already: true, fulfilled: true, requiresReview: false };
       }
-      await tx.update(paymentOrders).set({ status: providerStatus, providerPaymentId: bound.paymentId, providerPayload: nextPayload, updatedAt: new Date() }).where(eq(paymentOrders.id, fresh.id));
+      await tx.update(paymentOrders).set({ status: providerStatus, providerPayload: nextPayload, updatedAt: new Date() }).where(eq(paymentOrders.id, fresh.id));
       return { already: Boolean(fresh.fulfilledAt), fulfilled: Boolean(fresh.fulfilledAt), requiresReview };
     }
 
@@ -72,13 +78,13 @@ export async function processMercadoPagoPayment(payment: MercadoPagoPaymentLike,
       // duplicate grants. Keep the original provider payment as the canonical one.
       return { already: true, fulfilled: true, duplicateProviderPayment: Boolean(fresh.providerPaymentId && fresh.providerPaymentId !== bound.paymentId) };
     }
-    if (fresh.providerPaymentId && fresh.providerPaymentId !== bound.paymentId) throw new Error("Order already linked to another provider payment");
+    if (!canBindApprovedProviderPayment(fresh, bound.paymentId)) throw new Error("Order already linked to another approved provider payment");
 
     await applyGameGrants(tx, { playerId: fresh.playerId, grants: fresh.grants as any, reason: "payment_purchase", referenceType: "payment", referenceId: fresh.externalReference });
     await tx.update(paymentOrders).set({
       status: "approved",
       providerPaymentId: bound.paymentId,
-      providerPayload: { status: "approved", statusDetail: payment.status_detail || null, preferenceId: bound.providerPreferenceId, requiresReview: false },
+      providerPayload: { status: "approved", statusDetail: payment.status_detail || null, preferenceId: bound.providerPreferenceId, eventPaymentId: bound.paymentId, requiresReview: false },
       approvedAt: new Date(),
       fulfilledAt: new Date(),
       updatedAt: new Date(),
