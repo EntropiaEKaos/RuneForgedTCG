@@ -64,13 +64,24 @@ export async function POST(req: NextRequest) {
 
       const operation = await runIdempotentEconomyAction(tx, { playerId: fresh.id, operationId, action: actionFingerprint }, async () => {
         if (action === "disenchant") {
-          const updated = await tx.update(playerCards).set({ count: sql`${playerCards.count} - ${amount}` }).where(and(eq(playerCards.playerId, fresh.id), eq(playerCards.defId, defId), sql`${playerCards.count} >= ${amount}`)).returning({ id: playerCards.id, count: playerCards.count });
-          if (!updated.length) return { error: "Not enough copies" };
+          const [ownedCard] = await tx.select({ id: playerCards.id, count: playerCards.count }).from(playerCards).where(and(eq(playerCards.playerId, fresh.id), eq(playerCards.defId, defId))).limit(1);
+          if (!ownedCard || ownedCard.count < amount) return { error: "Not enough copies" };
+
+          let newCount: number;
+          if (ownedCard.count === amount) {
+            const removed = await tx.delete(playerCards).where(and(eq(playerCards.id, ownedCard.id), eq(playerCards.count, ownedCard.count))).returning({ id: playerCards.id });
+            if (!removed.length) return { error: "Not enough copies" };
+            newCount = 0;
+          } else {
+            const [updated] = await tx.update(playerCards).set({ count: sql`${playerCards.count} - ${amount}` }).where(and(eq(playerCards.id, ownedCard.id), sql`${playerCards.count} > ${amount}`)).returning({ count: playerCards.count });
+            if (!updated) return { error: "Not enough copies" };
+            newCount = updated.count;
+          }
+
           const dustValue = dustValues[card.rarity] * amount;
           const [wallet] = await tx.update(players).set({ dust: sql`${players.dust} + ${dustValue}` }).where(eq(players.id, fresh.id)).returning({ dust: players.dust });
           await recordEconomyTransaction(tx, { playerId: fresh.id, currency: "dust", amount: dustValue, balanceAfter: wallet.dust, reason: "disenchant", referenceType: "card", referenceId: `${defId}:${operationId}` });
-          if (updated[0].count === 0) await tx.delete(playerCards).where(eq(playerCards.id, updated[0].id));
-          return { dustGained: dustValue, newCount: updated[0].count };
+          return { dustGained: dustValue, newCount };
         }
 
         const existing = await tx.select().from(playerCards).where(and(eq(playerCards.playerId, fresh.id), eq(playerCards.defId, defId))).limit(1);
