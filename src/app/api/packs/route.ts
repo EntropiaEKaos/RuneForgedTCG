@@ -20,7 +20,6 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
     const identity = await requireStablePlayerIdentity(req);
     if (!identity) return Response.json({ ok: false, error: "Player session required" }, { status: 401 });
     const [player] = await db.select().from(players).where(eq(players.id, identity.playerId)).limit(1);
@@ -74,9 +73,15 @@ export async function POST(req: NextRequest) {
 
         const [pack] = await tx.select().from(playerPacks).where(and(eq(playerPacks.playerId, fresh.id), eq(playerPacks.packType, packId))).limit(1);
         if (!pack || pack.count < 1) return { error: "No packs to open" };
-        const consumed = await tx.update(playerPacks).set({ count: sql`${playerPacks.count} - 1` }).where(and(eq(playerPacks.id, pack.id), sql`${playerPacks.count} >= 1`)).returning({ count: playerPacks.count });
-        if (!consumed.length) return { error: "No packs to open" };
-        if (consumed[0].count === 0) await tx.delete(playerPacks).where(eq(playerPacks.id, pack.id));
+        if (pack.count === 1) {
+          // The schema requires positive pack counts. Deleting the final row
+          // directly avoids ever persisting the forbidden intermediate value 0.
+          const removed = await tx.delete(playerPacks).where(and(eq(playerPacks.id, pack.id), sql`${playerPacks.count} = 1`)).returning({ id: playerPacks.id });
+          if (!removed.length) return { error: "No packs to open" };
+        } else {
+          const consumed = await tx.update(playerPacks).set({ count: sql`${playerPacks.count} - 1` }).where(and(eq(playerPacks.id, pack.id), sql`${playerPacks.count} > 1`)).returning({ count: playerPacks.count });
+          if (!consumed.length) return { error: "No packs to open" };
+        }
 
         const collectibleCards = allCards().filter((c) => c.collectible !== false).filter((c) => !packDef.collectionKey || getCardCollection(c.defId)?.key === packDef.collectionKey);
         const byRarity: Record<Rarity, typeof collectibleCards> = {
