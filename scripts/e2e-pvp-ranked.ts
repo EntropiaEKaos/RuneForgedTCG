@@ -43,6 +43,9 @@ const recover = async (recoveryCode: string, expectedPlayerId: number) => {
   assert.equal(result.response.status, 200, JSON.stringify(result.body));
   assert.equal(result.body.recovered, true);
   assert.equal(result.body.player.id, expectedPlayerId);
+  const current = await client.request("/api/player");
+  assert.equal(current.response.status, 200, JSON.stringify(current.body));
+  assert.equal(current.body.player.id, expectedPlayerId);
   return client;
 };
 
@@ -96,12 +99,19 @@ async function verifyRepeatableEconomy(client: BrowserClient, playerId: number) 
 
 async function main() {
   const runId = `${Date.now()}-${Math.floor(Math.random() * 10_000)}`;
-  const host = new BrowserClient();
+  const originalHost = new BrowserClient();
   const guest = new BrowserClient();
-  const hostIdentity = await register(host, `E2E Host ${runId}`);
+  const hostIdentity = await register(originalHost, `E2E Host ${runId}`);
   await register(guest, `E2E Guest ${runId}`);
 
-  await recover(hostIdentity.recoveryCode, hostIdentity.player.id);
+  // Recovery is a security boundary: it revokes every previously issued
+  // session for the account and returns a fresh authenticated browser session.
+  // Verify the old cookie is rejected, then continue every protected action
+  // with the recovered session instead of accidentally testing a revoked one.
+  const host = await recover(hostIdentity.recoveryCode, hostIdentity.player.id);
+  const revoked = await originalHost.request("/api/player");
+  assert.equal(revoked.response.status, 401, `pre-recovery host session must be revoked: ${JSON.stringify(revoked.body)}`);
+
   await verifyRepeatableEconomy(host, hostIdentity.player.id);
 
   const ranked = await queue(host, "ranked");
@@ -128,7 +138,7 @@ async function main() {
     assert.equal("seed" in room, false, "seed must not leak from the public room DTO");
     assert.equal("rng" in room, false, "RNG state must not leak from the public room DTO");
   }
-  console.log(`E2E MVP: PASS — recovery, repeat economy, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);
+  console.log(`E2E MVP: PASS — recovery session rotation, repeat economy, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);
 }
 
 void main();
