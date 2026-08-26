@@ -20,8 +20,8 @@ const pass = applyAuthoritativePvpSnapshotAction({
   contentSnapshot: snapshot,
   contentHash: snapshot.contentHash,
 });
-assert.equal(pass.ok, true);
 if (!pass.ok) throw new Error(pass.error);
+assert.equal(pass.ok, true);
 assert.notEqual(pass.next, state);
 assert.equal(pass.next.activePlayer, "ai");
 
