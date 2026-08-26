@@ -39,7 +39,7 @@ jobs:
 
       - name: Emit regenerated lockfile
         run: |
-          echo LOCKFILE_BASE64_BEGIN
-          base64 -w0 package-lock.json
+          echo LOCKFILE_GZIP_BASE64_BEGIN
+          gzip -n -9 -c package-lock.json | base64 -w0
           echo
-          echo LOCKFILE_BASE64_END
+          echo LOCKFILE_GZIP_BASE64_END
