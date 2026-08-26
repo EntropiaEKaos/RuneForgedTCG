@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { players, playerCards, playerAchievements, playerDailies, matches, customDecks, sharedDecks, playerSessions } from "@/db/schema";
 import { and, eq, gt, desc, sql } from "drizzle-orm";
 import { ACHIEVEMENTS, DAILY_QUESTS, levelFromXp, xpForLevel } from "@/lib/achievements";
-import { getPlayerSession, setPlayerSession, clearPlayerSession } from "@/lib/player-session";
+import { clearPlayerSession, getPlayerSession, preparePlayerSession, setPlayerSession, setPlayerSessionCookie } from "@/lib/player-session";
 import { consumeRequestRateLimit } from "@/lib/rate-limit";
 import { getRuntimeStarterWallet } from "@/lib/control-plane";
 import { playerSelfDto } from "@/lib/player-public";
@@ -113,20 +113,26 @@ export async function POST(req: NextRequest) {
         const [candidate] = await tx.select().from(players).where(and(
           eq(players.recoveryKeyHash, oldHash),
           gt(players.recoveryKeyExpiresAt, new Date()),
-        )).limit(1);
+        )).limit(1).for("update");
         if (!candidate) return null;
+
+        const prepared = preparePlayerSession(candidate.id, candidate.name);
         const [updated] = await tx.update(players).set({
           recoveryKeyHash: recoveryHash(issuedRecoveryCode),
           recoveryKeyExpiresAt: recoveryExpiresAt(),
         }).where(and(eq(players.id, candidate.id), eq(players.recoveryKeyHash, oldHash))).returning();
-        return updated ?? null;
+        if (!updated) return null;
+
+        // Recovery is a single DB security transition: rotate the credential,
+        // revoke every prior browser session and persist the replacement session
+        // before any of those changes become visible to another request.
+        await tx.update(playerSessions).set({ revokedAt: new Date() }).where(eq(playerSessions.playerId, updated.id));
+        await tx.insert(playerSessions).values({ sessionId: prepared.sessionId, playerId: prepared.playerId, expiresAt: prepared.expiresAt });
+        return { player: updated, token: prepared.token };
       });
       if (!rotated) return Response.json({ ok: false, error: "Recovery code not recognized or expired" }, { status: 401 });
-      // Account recovery is also a security boundary: invalidate every older
-      // browser session before issuing the new recovered session.
-      await db.update(playerSessions).set({ revokedAt: new Date() }).where(eq(playerSessions.playerId, rotated.id));
-      await setPlayerSession(rotated.id, rotated.name);
-      return Response.json({ ...(await profilePayload(rotated)), recovered: true, recoveryCode: issuedRecoveryCode, recoveryRotated: true });
+      await setPlayerSessionCookie(rotated.token);
+      return Response.json({ ...(await profilePayload(rotated.player)), recovered: true, recoveryCode: issuedRecoveryCode, recoveryRotated: true });
     }
 
     const requestedName = safeDisplayName(body.displayName);
