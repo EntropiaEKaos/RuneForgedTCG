@@ -1,6 +1,6 @@
 import { getCard } from "./cards";
 import type { CardRegionIdentity, Region } from "./types";
-import { getGameConfigSync } from "./settings";
+import { getRuntimeDeckRules, type RuntimeDeckRules } from "./runtime-config";
 import { regionsFromCardIds } from "./region-identity";
 
 export interface DeckDef {
@@ -271,11 +271,10 @@ export function deckRegions(cards: string[]): Region[] {
   return regionsFromCardIds(cards);
 }
 
-export interface DeckRules { deckMin: number; deckMax: number; maxCopies: number; maxRegions: number; }
+export type DeckRules = RuntimeDeckRules;
 
 export function currentDeckRules(): DeckRules {
-  const config = getGameConfigSync();
-  return { deckMin: config.deckMin || DECK_MIN, deckMax: config.deckMax || DECK_MAX, maxCopies: config.maxCopies || MAX_COPIES, maxRegions: Math.min(3, config.maxRegions || MAX_REGIONS) };
+  return getRuntimeDeckRules();
 }
 
 export function validateDeck(cards: string[], rules: DeckRules = currentDeckRules()): { ok: boolean; errors: string[]; regions: Region[] } {
