@@ -4,7 +4,7 @@ import { getCard } from "@/game/cards";
 import { canActivateSentinela } from "@/game/engine";
 import { REGION_STYLE } from "./CardView";
 import type { GameState, SentinelaInstance } from "@/game/types";
-import { getGameConfigSync } from "@/game/settings";
+import { getClientArtFallbackUrl } from "@/game/client-game-config";
 
 interface SentinelaViewProps {
   instance: SentinelaInstance;
@@ -23,7 +23,7 @@ export default function SentinelaView({ instance, state, size = "md", onActivate
   const isOwnerTurn = state.activePlayer === instance.owner && state.phase === "main";
   const dims = size === "sm" ? "w-24 min-h-36" : "w-32 min-h-44";
 
-  const configuredFallbackArt = getGameConfigSync().advanced.presentation.artFallbackUrl;
+  const configuredFallbackArt = getClientArtFallbackUrl();
   const artUrl = def.art || configuredFallbackArt;
   return (
     <div
