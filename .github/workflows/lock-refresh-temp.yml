@@ -8,10 +8,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: lock-refresh-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   refresh-lock:
     runs-on: ubuntu-latest
@@ -37,9 +33,10 @@ jobs:
       - name: Verify ESLint version
         run: node -e "const p=require('./node_modules/eslint/package.json'); if(p.version!=='10.9.0') throw new Error('Unexpected ESLint '+p.version); console.log('ESLINT_LOCK_VERSION='+p.version)"
 
-      - name: Emit regenerated lockfile
-        run: |
-          echo LOCKFILE_GZIP_BASE64_BEGIN
-          gzip -n -9 -c package-lock.json | base64 -w0
-          echo
-          echo LOCKFILE_GZIP_BASE64_END
+      - name: Upload regenerated lockfile
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: eslint-10-package-lock
+          path: package-lock.json
+          if-no-files-found: error
+          retention-days: 1
