@@ -32,10 +32,6 @@ export async function PATCH(req: NextRequest) {
   if (enabled && (!publicKey || (!accessToken && body.accessTokenConfigured !== true) || (!webhookSecret && body.webhookSecretConfigured !== true))) return Response.json({ ok: false, error: "Enabled Mercado Pago requires public key, access token and webhook secret" }, { status: 400 });
 
   const result = await db.transaction(async (tx) => {
-    // Checkout creation takes the same transaction-scoped advisory lock before
-    // snapshotting credentials and inserting its order. This closes the TOCTOU
-    // window where an order could be born with the old environment while the
-    // Admin switched the gateway to another credential set.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))`);
     const [existing] = await tx.select().from(paymentGatewaySettings).where(eq(paymentGatewaySettings.provider, "mercadopago")).limit(1).for("update");
     if (!existing) {
@@ -46,19 +42,19 @@ export async function PATCH(req: NextRequest) {
       return { row };
     }
     if (!Number.isInteger(expectedRevision)) return { error: "expectedRevision is required", status: 400 as const };
-    if (existing.environment !== environment) {
-      // Include `creating`: a checkout reserves its environment before the
-      // external Mercado Pago preference exists. Ignoring those rows permits a
-      // credential switch while that provider request is still in flight.
+
+    const changesProviderBinding = existing.environment !== environment || Boolean(accessToken) || Boolean(webhookSecret);
+    if (changesProviderBinding) {
       const pending = await tx.execute(sql`SELECT count(*)::int n FROM payment_orders WHERE provider='mercadopago' AND fulfilled_at IS NULL AND status NOT IN ('rejected','cancelled','refunded','charged_back','preference_failed')`);
       const n = Number((pending as any).rows?.[0]?.n ?? 0);
-      if (n > 0) return { error: `Cannot switch Mercado Pago environment while ${n} payment order(s) are pending`, status: 409 as const };
-      if (existing.environment === "production" && environment === "sandbox") {
-        const history = await tx.execute(sql`SELECT count(*)::int n FROM payment_orders WHERE provider='mercadopago' AND provider_environment='production'`);
-        const productionOrders = Number((history as any).rows?.[0]?.n ?? 0);
-        if (productionOrders > 0) return { error: "Production Mercado Pago history exists; environment downgrade to Sandbox is refused so late refunds/chargebacks remain reconcilable", status: 409 as const };
-      }
+      if (n > 0) return { error: `Cannot change Mercado Pago environment or credentials while ${n} payment order(s) are pending`, status: 409 as const };
     }
+    if (existing.environment !== environment && existing.environment === "production" && environment === "sandbox") {
+      const history = await tx.execute(sql`SELECT count(*)::int n FROM payment_orders WHERE provider='mercadopago' AND provider_environment='production'`);
+      const productionOrders = Number((history as any).rows?.[0]?.n ?? 0);
+      if (productionOrders > 0) return { error: "Production Mercado Pago history exists; environment downgrade to Sandbox is refused so late refunds/chargebacks remain reconcilable", status: 409 as const };
+    }
+
     const updates: any = { enabled, environment, publicKey, statementDescriptor, updatedBy: actor.actorId, updatedAt: new Date(), revision: sql`${paymentGatewaySettings.revision} + 1` };
     if (accessToken) updates.accessTokenEncrypted = encryptPaymentSecret(accessToken);
     if (webhookSecret) updates.webhookSecretEncrypted = encryptPaymentSecret(webhookSecret);
