@@ -8,7 +8,7 @@ import CardTip from "@/components/CardTip";
 import { REGION_STYLE } from "@/components/CardView";
 import { collectibleCards, getCard } from "@/game/cards";
 import { validateDeck } from "@/game/decks";
-import { getGameConfigSync } from "@/game/settings";
+import { getRuntimeDeckRules } from "@/game/runtime-config";
 import type { Region } from "@/game/types";
 import { analyzeDeck, type DeckInsight } from "@/game/deck-insights";
 import { useCatalogRevision } from "@/components/CatalogContext";
@@ -43,7 +43,7 @@ export default function ForgeClient() {
   const [formats, setFormats] = useState<any[]>([{id:"vanilla",name:"Vanilla",collectionKeys:["vanilla"],active:true}]);
   const [focusCard, setFocusCard] = useState<string | null>(null);
   void catalogRevision;
-  const deckRules = getGameConfigSync();
+  const deckRules = getRuntimeDeckRules();
   const deckMin = deckRules.deckMin;
   const deckMax = deckRules.deckMax;
   const maxCopies = deckRules.maxCopies;
