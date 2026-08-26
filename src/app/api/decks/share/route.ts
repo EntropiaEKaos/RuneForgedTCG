@@ -7,7 +7,7 @@ import { encodeDeck } from "@/lib/deck-codec";
 import { validateDeck } from "@/game/decks";
 import { ensureConfigLoaded } from "@/game/settings";
 import { requireStablePlayerIdentity } from "@/lib/player-session";
-import { validateFormatDeck } from "@/game/format-rules";
+import { validateFormatDeck } from "@/game/format-rules-server";
 import { ensureCustomCardsLoaded } from "@/game/catalog";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +19,8 @@ export async function GET(req: NextRequest) {
     const archetype = url.searchParams.get("archetype");
     const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit")) || 20));
 
-    let query = db.select().from(sharedDecks);
-    
+    const query = db.select().from(sharedDecks);
+
     if (region) {
       const decks = await query
         .where(or(eq(sharedDecks.region1, region), eq(sharedDecks.region2, region), eq(sharedDecks.region3, region)))
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
         .limit(limit);
       return Response.json({ ok: true, decks });
     }
-    
+
     if (archetype && archetype !== "All") {
       const decks = await query
         .where(eq(sharedDecks.archetype, archetype))
@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
     if (!identity) return Response.json({ ok: false, error: "Player session required" }, { status: 401 });
     if (identity.playerId == null) return Response.json({ ok: false, error: "Stable player identity required" }, { status: 401 });
     const playerName = identity.playerName;
+    void playerName;
     const name = String(body.name || "Untitled Deck").trim().slice(0, 60);
     const description = String(body.description || "").trim().slice(0, 300);
     const cards = Array.isArray(body.cards) ? body.cards : [];
