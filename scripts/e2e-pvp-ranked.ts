@@ -75,6 +75,20 @@ async function verifyRepeatableEconomy(client: BrowserClient, playerId: number) 
       assert.equal(bought.body.ok, true);
       assert.equal(bought.body.duplicate, false, "distinct economy operations must execute independently");
     }
+    for (let i = 0; i < 2; i++) {
+      const opened = await client.request("/api/packs", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-operation-id": `${operationPrefix}:pack-open:${i}` },
+        body: JSON.stringify({ action: "open", packId: pack.id }),
+      });
+      assert.equal(opened.response.status, 200, `repeat pack opening ${i + 1}: ${JSON.stringify(opened.body)}`);
+      assert.equal(opened.body.ok, true);
+      assert.equal(opened.body.duplicate, false);
+      assert.ok(Array.isArray(opened.body.cards), "pack opening must return its cards");
+    }
+    const packsAfterOpen = await client.request("/api/packs");
+    assert.equal(packsAfterOpen.response.status, 200, JSON.stringify(packsAfterOpen.body));
+    assert.equal(packsAfterOpen.body.packs?.find((item: { id: string }) => item.id === pack.id)?.owned ?? 0, 0, "opening the final pack must remove its ownership row cleanly");
 
     const collection = await client.request("/api/collection");
     assert.equal(collection.response.status, 200, JSON.stringify(collection.body));
@@ -152,7 +166,7 @@ async function main() {
     assert.equal("seed" in room, false, "seed must not leak from the public room DTO");
     assert.equal("rng" in room, false, "RNG state must not leak from the public room DTO");
   }
-  console.log(`E2E MVP: PASS — recovery session rotation, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);
+  console.log(`E2E MVP: PASS — recovery session rotation, final-pack deletion, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);
 }
 
 void main();
