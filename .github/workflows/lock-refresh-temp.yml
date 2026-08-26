@@ -6,7 +6,7 @@ on:
       - engineering/dependency-hygiene-2.97.4
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   refresh-lock:
@@ -16,7 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -30,13 +30,19 @@ jobs:
       - name: Verify lockfile install
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Verify ESLint version
-        run: node -e "const p=require('./node_modules/eslint/package.json'); if(p.version!=='10.9.0') throw new Error('Unexpected ESLint '+p.version); console.log('ESLINT_LOCK_VERSION='+p.version)"
+      - name: Verify exact ESLint lock
+        run: |
+          node -e "const p=require('./node_modules/eslint/package.json'); if(p.version!=='10.9.0') throw new Error('Unexpected ESLint '+p.version); console.log('ESLINT_LOCK_VERSION='+p.version)"
+          echo "09e6ac2d67806c62dbb47a7b38f1da3007f3630ed229403417732dfed60caf27  package-lock.json" | sha256sum --check --strict
 
-      - name: Upload regenerated lockfile
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: eslint-10-package-lock
-          path: package-lock.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Commit exact regenerated lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          if git diff --cached --quiet; then
+            echo "Lockfile already synchronized."
+          else
+            git commit -m "chore(deps): refresh lockfile for ESLint 10"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
