@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createMercadoPagoPreference, getMercadoPagoPayment, searchMercadoPagoPayments } from "@/lib/mercado-pago";
+import { canBindApprovedProviderPayment } from "@/lib/payment-provider-link";
 
 async function main() {
   const originalFetch = globalThis.fetch;
@@ -53,7 +54,11 @@ async function main() {
     const payment = await getMercadoPagoPayment("APP_USR_TEST_293", "293");
     assert.equal(payment.id, 293);
     assert.equal(calls.at(-1)!.url, "https://api.mercadopago.com/v1/payments/293");
-    console.log("MERCADO PAGO 2.93 API CONTRACT: 15/15 PASS");
+
+    assert.equal(canBindApprovedProviderPayment({ providerPaymentId: "pending-1", status: "pending", fulfilledAt: null }, "approved-2"), true, "a retry approval may replace a non-approved attempt id");
+    assert.equal(canBindApprovedProviderPayment({ providerPaymentId: "approved-1", status: "approved", fulfilledAt: null }, "approved-2"), false, "an approved binding must not be replaced by another payment id");
+    assert.equal(canBindApprovedProviderPayment({ providerPaymentId: "approved-1", status: "approved", fulfilledAt: new Date() }, "approved-2"), false, "a fulfilled order must never rebind its canonical provider payment");
+    console.log("MERCADO PAGO 2.93 API CONTRACT: 18/18 PASS");
   } finally {
     globalThis.fetch = originalFetch;
   }
