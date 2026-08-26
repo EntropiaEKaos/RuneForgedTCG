@@ -87,7 +87,7 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
     } catch {}
   }, []);
 
-  useEffect(() => {
+  useDeferredEffect(() => {
     void refreshCatalog();
     const catalogTimer = window.setInterval(() => void refreshCatalog(), 15_000);
     fetch("/api/active-promotions")

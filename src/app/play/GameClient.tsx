@@ -136,7 +136,7 @@ export default function GameClient() {
       if (data.ok && data.visualTheme?.tokens && typeof data.visualTheme.tokens === "object") for (const [key, value] of Object.entries(data.visualTheme.tokens)) if (typeof value === "string" && /^#[0-9a-f]{3,8}$/i.test(value)) document.documentElement.style.setProperty(`--runtime-${key.replace(/[^a-z0-9-]/gi, "-")}`, value);
       if (data.ok && data.presentation && localStorage.getItem("runeforge_fx_mode") == null && (data.presentation.reduceMotionDefault || Number(data.presentation.fxIntensity) < .5)) setFxMode("reduced");
     }).catch(() => {});
-  }, []);
+  }, [setFxMode]);
 
   const startMatch = useMatchLauncher({
     screen, playerName, deckKey, customDecks, presetDecks, aiDifficulty,

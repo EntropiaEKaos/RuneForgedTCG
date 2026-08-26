@@ -199,7 +199,7 @@ export function useMatchLauncher({
         setScreen("game");
       })
       .catch(() => { setFirstInfo("Não foi possível preparar a partida autoritativa."); setScreen("select"); });
-  }, [actionLogRef, aiDifficulty, modeAttemptTokenRef, modePlayerFirstRef, playerName, resetTransientMatchState, resolvePlayerDeck, savedRef, seedRef, setActiveEncounter, setFirstInfo, setMatchReward, setMatchToken, setPvpConnection, setPvpGuest, setPvpMessage, setPvpRoomCode, setPvpVersion, setScreen, setState]);
+  }, [actionLogRef, aiDifficulty, modeAttemptTokenRef, modePlayerFirstRef, playerName, presetDecks, resetTransientMatchState, resolvePlayerDeck, savedRef, seedRef, setActiveEncounter, setFirstInfo, setMatchReward, setMatchToken, setPvpConnection, setPvpGuest, setPvpMessage, setPvpRoomCode, setPvpVersion, setScreen, setState]);
 
   useDeferredEffect(() => {
     const room = new URLSearchParams(window.location.search).get("pvpRoom");

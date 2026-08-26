@@ -76,8 +76,8 @@ export default function ForgeClient() {
 
   const check = useMemo(() => { void catalogRevision; return validateDeck(list); }, [list, catalogRevision]);
   const insight = useMemo(() => { void catalogRevision; return analyzeDeck(list); }, [list, catalogRevision]);
-  const synergy = useMemo(() => analyzeDeckSynergy(list), [list, catalogRevision]);
-  const suggestions = useMemo(() => focusCard ? recommendSynergies(focusCard, 6).filter(x=>!counts.has(x.defId)) : [], [focusCard, counts, catalogRevision]);
+  const synergy = useMemo(() => { void catalogRevision; return analyzeDeckSynergy(list); }, [list, catalogRevision]);
+  const suggestions = useMemo(() => { void catalogRevision; return focusCard ? recommendSynergies(focusCard, 6).filter(x=>!counts.has(x.defId)) : []; }, [focusCard, counts, catalogRevision]);
   const selectedFormat = formats.find((f:any)=>f.id===formatId) || formats[0];
 
   const pool = useMemo(() => {
