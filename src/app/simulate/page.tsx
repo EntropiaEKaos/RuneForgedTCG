@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { DECKS } from "@/game/decks";
+import { PRESET_DECK_OPTIONS } from "@/game/preset-deck-options";
 import { ensurePlayerSession } from "@/lib/client-player-session";
 
 type SimResult = {
@@ -30,6 +30,8 @@ const REGION_GRADIENTS: Record<string, string> = {
   Ironwood: "from-emerald-400 to-green-900",
   Voidborn: "from-fuchsia-500 to-purple-950",
 };
+
+const DECKS = PRESET_DECK_OPTIONS;
 
 function regionColor(deckId: string): string {
   const deck = DECKS.find((d) => d.id === deckId);
