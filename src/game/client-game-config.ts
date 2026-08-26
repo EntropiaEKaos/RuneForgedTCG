@@ -8,6 +8,7 @@ import type { AiRulesSnapshot, EngineRulesSnapshot } from "./types";
 type JsonRecord = Record<string, unknown>;
 
 let clientArtFallbackUrl = "";
+let clientMasterVolume = 1;
 
 function record(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -34,6 +35,10 @@ export function getClientArtFallbackUrl(): string {
   return clientArtFallbackUrl;
 }
 
+export function getClientMasterVolume(): number {
+  return clientMasterVolume;
+}
+
 /**
  * Hydrates only browser-safe runtime state from the already validated catalog
  * configuration returned by the server.
@@ -55,6 +60,9 @@ export function hydrateClientRuntimeConfig(value: unknown): boolean {
     : "";
   const presentationChanged = nextArtFallbackUrl !== clientArtFallbackUrl;
   clientArtFallbackUrl = nextArtFallbackUrl;
+
+  const nextMasterVolume = finiteNumber(presentation.masterVolume);
+  if (nextMasterVolume !== undefined) clientMasterVolume = Math.max(0, Math.min(1, nextMasterVolume));
 
   const engineRules: Partial<EngineRulesSnapshot> = {};
   const numericEngineKeys = [
