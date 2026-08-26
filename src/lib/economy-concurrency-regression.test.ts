@@ -14,7 +14,9 @@ const friends = fs.readFileSync(path.join(root, "src/app/api/friends/route.ts"),
 if (!collection.includes("currentCount + amount > duplicateCap")) throw new Error("Craft must enforce the configured collection cap atomically.");
 if (!packs.includes("FOR UPDATE")) throw new Error("Pack purchases/openings must lock the player row.");
 if (!packs.includes("pack.count === 1") || !packs.includes("tx.delete(playerPacks)")) throw new Error("Opening the final pack must delete the ownership row instead of persisting count=0.");
-if (!daily.includes("FOR UPDATE")) throw new Error("Daily reward claims must lock the player row.");
+const dailyLock = daily.indexOf("FOR UPDATE");
+const dailyRead = daily.indexOf("const [player] = await tx.select().from(players)");
+if (dailyLock < 0 || dailyRead < dailyLock) throw new Error("Daily rewards must read wallet state only after locking the player row.");
 if (!login.includes("FOR UPDATE")) throw new Error("Login rewards must lock the player row.");
 if (!playerUpdate.includes("FOR UPDATE")) throw new Error("Match reward settlement must lock the player row.");
 if (!playerUpdate.includes("const [fresh] = await tx.select().from(players)")) throw new Error("Match rewards must re-read player state after acquiring the lock.");
