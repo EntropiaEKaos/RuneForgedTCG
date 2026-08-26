@@ -3,8 +3,10 @@ import { db } from "@/db";
 import { paymentGatewaySettings } from "@/db/schema";
 import { decryptPaymentSecret } from "@/lib/payment-crypto";
 
-export async function getMercadoPagoSettings(includeSecrets = false) {
-  const [row] = await db.select().from(paymentGatewaySettings).where(eq(paymentGatewaySettings.provider, "mercadopago")).limit(1);
+export function materializeMercadoPagoSettings(
+  row: typeof paymentGatewaySettings.$inferSelect | null | undefined,
+  includeSecrets = false,
+) {
   if (!row) return null;
   return {
     ...row,
@@ -13,4 +15,9 @@ export async function getMercadoPagoSettings(includeSecrets = false) {
     accessTokenConfigured: Boolean(row.accessTokenEncrypted),
     webhookSecretConfigured: Boolean(row.webhookSecretEncrypted),
   };
+}
+
+export async function getMercadoPagoSettings(includeSecrets = false) {
+  const [row] = await db.select().from(paymentGatewaySettings).where(eq(paymentGatewaySettings.provider, "mercadopago")).limit(1);
+  return materializeMercadoPagoSettings(row, includeSecrets);
 }
