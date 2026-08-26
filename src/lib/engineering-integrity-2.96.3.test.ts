@@ -65,13 +65,14 @@ async function main() {
   }
 
   const originalCwd = process.cwd();
-  const originalMode = process.env.ASSET_STORAGE_MODE;
-  const originalNodeEnv = process.env.NODE_ENV;
+  const mutableEnv = process.env as Record<string, string | undefined>;
+  const originalMode = mutableEnv.ASSET_STORAGE_MODE;
+  const originalNodeEnv = mutableEnv.NODE_ENV;
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "runeforge-asset-dedup-"));
   try {
     process.chdir(temp);
-    process.env.ASSET_STORAGE_MODE = "local";
-    process.env.NODE_ENV = "test";
+    mutableEnv.ASSET_STORAGE_MODE = "local";
+    mutableEnv.NODE_ENV = "test";
     const bytes = Buffer.from("deduplicated-asset-payload");
     const first = await storeAdminAsset("same.bin", bytes, "application/octet-stream");
     const second = await storeAdminAsset("same.bin", bytes, "application/octet-stream");
@@ -80,8 +81,8 @@ async function main() {
     await deleteAdminAsset("same.bin");
   } finally {
     process.chdir(originalCwd);
-    if (originalMode === undefined) delete process.env.ASSET_STORAGE_MODE; else process.env.ASSET_STORAGE_MODE = originalMode;
-    if (originalNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = originalNodeEnv;
+    if (originalMode === undefined) delete mutableEnv.ASSET_STORAGE_MODE; else mutableEnv.ASSET_STORAGE_MODE = originalMode;
+    if (originalNodeEnv === undefined) delete mutableEnv.NODE_ENV; else mutableEnv.NODE_ENV = originalNodeEnv;
     await fs.rm(temp, { recursive: true, force: true });
   }
 
