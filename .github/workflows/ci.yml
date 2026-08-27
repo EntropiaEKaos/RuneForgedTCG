@@ -90,6 +90,8 @@ jobs:
         run: npm run db:bootstrap
 
       - name: Studio functional certification — persisted publish, catalog, deck and engine lifecycle
+        env:
+          NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
         run: node --import tsx scripts/studio-functional-certification-2.97.6.ts
 
       - name: Behavioral test suite
