@@ -2,12 +2,13 @@ import crypto from "node:crypto";
 import { NextRequest } from "next/server";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { paymentGatewaySettings, paymentOrders } from "@/db/schema";
+import { paymentGatewaySettings, paymentOrders, type PaymentOrder } from "@/db/schema";
 import { requireStablePlayerIdentity } from "@/lib/player-session";
 import { runtimeGate } from "@/lib/runtime-gates";
 import { getRuntimePaymentProducts, getRuntimePacks } from "@/lib/control-plane";
 import { getMercadoPagoSettings, materializeMercadoPagoSettings } from "@/lib/payment-settings";
 import { createMercadoPagoPreference } from "@/lib/mercado-pago";
+import { markPaymentPreferenceAmbiguous, recoverMercadoPagoPreference } from "@/lib/payment-preference-recovery";
 import { sanitizeGameGrants, validateGrantPackIds } from "@/lib/game-grants";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { apiRequestId } from "@/lib/request-security";
@@ -25,6 +26,21 @@ function checkoutUrlFromPayload(payload: unknown): string | null {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return null;
   const value = (payload as Record<string, unknown>).checkoutUrl;
   return typeof value === "string" && /^https:\/\//i.test(value) ? value : null;
+}
+
+async function recoverExistingCheckout(order: PaymentOrder, accessToken: string | undefined, requestId: string) {
+  if (!accessToken) return Response.json({ ok: false, error: "Payment gateway unavailable", code: "PAYMENT_GATEWAY_UNAVAILABLE" }, { status: 503 });
+  const recovery = await recoverMercadoPagoPreference(order, { accessToken, requestId });
+  if (recovery.recovered && recovery.checkoutUrl) {
+    return Response.json({ ok: true, order: order.externalReference, checkoutUrl: recovery.checkoutUrl, reused: true, recovered: true });
+  }
+  return Response.json({
+    ok: false,
+    error: recovery.matches > 1
+      ? "Multiple provider preferences were found for this order. Financial review is required before another checkout can be created."
+      : "The provider preference result is being reconciled. Retry this same checkout instead of creating another one.",
+    code: recovery.matches > 1 ? "CHECKOUT_REVIEW_REQUIRED" : "CHECKOUT_RECOVERY_PENDING",
+  }, { status: 409, headers: { "retry-after": "3" } });
 }
 
 export async function POST(req: NextRequest) {
@@ -59,15 +75,13 @@ export async function POST(req: NextRequest) {
       if (order.playerId !== identity.playerId || order.productKey !== productKey) return Response.json({ ok: false, error: "Idempotency key already belongs to a different checkout" }, { status: 409 });
       const existingUrl = checkoutUrlFromPayload(order.providerPayload);
       if (existingUrl && order.status === "preference_created") return Response.json({ ok: true, order: order.externalReference, checkoutUrl: existingUrl, reused: true });
+      if (order.status === "preference_ambiguous") return recoverExistingCheckout(order, settings.accessToken, requestId);
       if (order.status === "creating") {
         const stale = Date.now() - new Date(order.updatedAt).getTime() > CREATING_STALE_MS;
-        if (stale) {
-          await db.update(paymentOrders).set({ status: "preference_failed", providerPayload: { errorCode: "STALE_CREATING" }, updatedAt: new Date() }).where(and(eq(paymentOrders.id, order.id), eq(paymentOrders.status, "creating")));
-          return Response.json({ ok: false, error: "The previous checkout attempt expired before it could be confirmed. Start a new checkout.", code: "CHECKOUT_RESTART_REQUIRED" }, { status: 409 });
-        }
+        if (stale) return recoverExistingCheckout(order, settings.accessToken, requestId);
         return Response.json({ ok: false, error: "Checkout is already being created", code: "CHECKOUT_IN_PROGRESS" }, { status: 409, headers: { "retry-after": "1" } });
       }
-      if (order.status === "preference_failed") return Response.json({ ok: false, error: "The provider preference result was ambiguous. Start a new checkout instead of replaying it.", code: "CHECKOUT_RESTART_REQUIRED" }, { status: 409 });
+      if (order.status === "preference_failed") return Response.json({ ok: false, error: "The provider rejected the previous preference. Start a new checkout.", code: "CHECKOUT_RESTART_REQUIRED" }, { status: 409 });
       return Response.json({ ok: false, error: `Checkout cannot be recreated from status ${order.status}` }, { status: 409 });
     } else {
       const reservation = await db.transaction(async (tx) => {
@@ -102,15 +116,13 @@ export async function POST(req: NextRequest) {
       if (order.productKey !== productKey) return Response.json({ ok: false, error: "Idempotency key already belongs to a different product" }, { status: 409 });
       const racedUrl = checkoutUrlFromPayload(order.providerPayload);
       if (racedUrl && order.status === "preference_created") return Response.json({ ok: true, order: order.externalReference, checkoutUrl: racedUrl, reused: true });
+      if (!reservation.inserted && order.status === "preference_ambiguous") return recoverExistingCheckout(order, settings.accessToken, requestId);
       if (!reservation.inserted && order.status === "creating") {
         const stale = Date.now() - new Date(order.updatedAt).getTime() > CREATING_STALE_MS;
-        if (stale) {
-          await db.update(paymentOrders).set({ status: "preference_failed", providerPayload: { errorCode: "STALE_CREATING" }, updatedAt: new Date() }).where(and(eq(paymentOrders.id, order.id), eq(paymentOrders.status, "creating")));
-          return Response.json({ ok: false, error: "The previous checkout attempt expired before it could be confirmed. Start a new checkout.", code: "CHECKOUT_RESTART_REQUIRED" }, { status: 409 });
-        }
+        if (stale) return recoverExistingCheckout(order, settings.accessToken, requestId);
         return Response.json({ ok: false, error: "Checkout is already being created", code: "CHECKOUT_IN_PROGRESS" }, { status: 409, headers: { "retry-after": "1" } });
       }
-      if (!reservation.inserted && order.status === "preference_failed") return Response.json({ ok: false, error: "The provider preference result was ambiguous. Start a new checkout instead of replaying it.", code: "CHECKOUT_RESTART_REQUIRED" }, { status: 409 });
+      if (!reservation.inserted && order.status === "preference_failed") return Response.json({ ok: false, error: "The provider rejected the previous preference. Start a new checkout.", code: "CHECKOUT_RESTART_REQUIRED" }, { status: 409 });
       if (!reservation.inserted) return Response.json({ ok: false, error: `Checkout cannot be recreated from status ${order.status}` }, { status: 409 });
     }
 
@@ -134,11 +146,15 @@ export async function POST(req: NextRequest) {
       if (!preferenceId) throw new Error("Mercado Pago preference returned no id");
       const url = settings.environment === "sandbox" ? (preference.sandbox_init_point || preference.init_point) : preference.init_point;
       if (!url || !/^https:\/\//i.test(String(url))) throw new Error("Mercado Pago preference returned no secure checkout URL");
-      await db.update(paymentOrders).set({ status: "preference_created", providerPreferenceId: preferenceId, providerPayload: { preferenceId, checkoutUrl: String(url) }, updatedAt: new Date() }).where(eq(paymentOrders.id, order.id));
+      const linked = await db.update(paymentOrders).set({ status: "preference_created", providerPreferenceId: preferenceId, providerPayload: { preferenceId, checkoutUrl: String(url) }, updatedAt: new Date() }).where(and(eq(paymentOrders.id, order.id), eq(paymentOrders.status, "creating"))).returning({ id: paymentOrders.id });
+      if (linked.length !== 1) {
+        await markPaymentPreferenceAmbiguous(order, { errorCode: "PREFERENCE_LINK_RACE", preferenceId, checkoutUrl: String(url), requestId });
+        return Response.json({ ok: false, error: "The provider preference was created while the local order changed state. Reconcile this same checkout before retrying.", code: "CHECKOUT_RECOVERY_PENDING" }, { status: 409, headers: { "retry-after": "3" } });
+      }
       return Response.json({ ok: true, order: order.externalReference, checkoutUrl: String(url), reused: false });
     } catch (error) {
-      console.error(`[payments.checkout][${requestId}] Mercado Pago preference failed`, error);
-      await db.update(paymentOrders).set({ status: "preference_failed", providerPayload: { errorCode: "PREFERENCE_CREATE_FAILED", requestId }, updatedAt: new Date() }).where(eq(paymentOrders.id, order.id));
+      console.error(`[payments.checkout][${requestId}] Mercado Pago preference result ambiguous`, error);
+      await markPaymentPreferenceAmbiguous(order, { errorCode: "PREFERENCE_CREATE_AMBIGUOUS", requestId }).catch(() => undefined);
       throw error;
     }
   } catch (error) {
