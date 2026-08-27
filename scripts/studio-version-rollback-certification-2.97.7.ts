@@ -136,33 +136,35 @@ async function main() {
       description: "Historical collection version one",
       metadata: { certification: "2.97.7", revision: 1 },
     }), { params: Promise.resolve({ resource: "collections" }) }), "create rollback collection");
-    collectionId = collection.row.id;
-    await certifyAndPublish({ resource: "collections", id: collectionId }, authorToken, reviewerToken, "collection v1");
-    const collectionV1 = (await history("collections", collectionId)).find((version) => version.status === "published");
+    const activeCollectionId = Number(collection.row.id);
+    assert.ok(Number.isInteger(activeCollectionId), "created collection must return an integer id");
+    collectionId = activeCollectionId;
+    await certifyAndPublish({ resource: "collections", id: activeCollectionId }, authorToken, reviewerToken, "collection v1");
+    const collectionV1 = (await history("collections", activeCollectionId)).find((version) => version.status === "published");
     assert.ok(collectionV1, "collection v1 published snapshot must exist");
 
     await ok(await pipeline(req("/api/admin/studio/pipeline", "POST", reviewerToken, {
-      resource: "collections", resourceId: collectionId, action: "archive",
+      resource: "collections", resourceId: activeCollectionId, action: "archive",
     })), "archive collection before v2 edit");
-    await ok(await updateResource(req(`/api/admin/studio/collections/${collectionId}`, "PATCH", authorToken, {
+    await ok(await updateResource(req(`/api/admin/studio/collections/${activeCollectionId}`, "PATCH", authorToken, {
       name: "Rollback Collection V2",
       description: "Historical collection version two",
       metadata: { certification: "2.97.7", revision: 2 },
-    }), { params: Promise.resolve({ resource: "collections", id: String(collectionId) }) }), "edit collection v2");
-    await certifyAndPublish({ resource: "collections", id: collectionId }, authorToken, reviewerToken, "collection v2");
+    }), { params: Promise.resolve({ resource: "collections", id: String(activeCollectionId) }) }), "edit collection v2");
+    await certifyAndPublish({ resource: "collections", id: activeCollectionId }, authorToken, reviewerToken, "collection v2");
 
-    const collectionLatest = (await history("collections", collectionId))[0];
+    const collectionLatest = (await history("collections", activeCollectionId))[0];
     assert.ok(collectionLatest.version > collectionV1.version, "collection v2 history must advance");
     await rejected(await rollbackVersion(req("/api/admin/studio/versions/rollback", "POST", reviewerToken, {
       resource: "collections",
-      resourceId: collectionId,
+      resourceId: activeCollectionId,
       version: collectionV1.version,
       expectedLatestVersion: collectionLatest.version - 1,
     })), 409, "collection rollback stale-history guard");
 
     const collectionRollback = await ok(await rollbackVersion(req("/api/admin/studio/versions/rollback", "POST", reviewerToken, {
       resource: "collections",
-      resourceId: collectionId,
+      resourceId: activeCollectionId,
       version: collectionV1.version,
       expectedLatestVersion: collectionLatest.version,
       changeNote: "2.97.7 collection rollback certification",
@@ -187,17 +189,19 @@ async function main() {
         art: "/certification/rollback-2977-v1.webp",
       },
       metadata: {
-        collectionId,
+        collectionId: activeCollectionId,
         tags: ["rollback-v1", "certification"],
         classKeys: [], raceKeys: [], notes: "2.97.7 metadata v1",
       },
     })), "create rollback card");
-    cardId = createdCard.card.dbId;
+    const activeCardId = Number(createdCard.card.dbId);
+    assert.ok(Number.isInteger(activeCardId), "created card must return an integer dbId");
+    cardId = activeCardId;
 
     const baseUnits = baseCardsOnly().filter((card) => card.type === "Unit");
     assert.ok(baseUnits.length >= 2, "two base units are required for card regression fixture");
     await ok(await createCardTest(req("/api/admin/studio/card-tests", "POST", authorToken, {
-      cardId,
+      cardId: activeCardId,
       name: "2.97.7 rollback engine smoke",
       scenario: {
         sourceDefId: baseUnits[0].defId,
@@ -214,34 +218,34 @@ async function main() {
       enabled: true,
     })), "create rollback card regression test");
 
-    await certifyAndPublish({ resource: "cards", id: cardId }, authorToken, reviewerToken, "card v1");
-    const cardV1 = (await history("cards", cardId)).find((version) => version.status === "published");
+    await certifyAndPublish({ resource: "cards", id: activeCardId }, authorToken, reviewerToken, "card v1");
+    const cardV1 = (await history("cards", activeCardId)).find((version) => version.status === "published");
     assert.ok(cardV1, "card v1 published snapshot must exist");
     assert.ok((cardV1.snapshot as any)?.card, "2.97.7 card snapshot must contain the card row");
     assert.ok((cardV1.snapshot as any)?.metadata, "2.97.7 card snapshot must contain catalog metadata");
 
     await ok(await pipeline(req("/api/admin/studio/pipeline", "POST", reviewerToken, {
-      resource: "cards", resourceId: cardId, action: "archive",
+      resource: "cards", resourceId: activeCardId, action: "archive",
     })), "archive card before v2 edit");
-    const edited = await ok(await updateCard(req(`/api/admin/cards/${cardId}`, "PUT", authorToken, {
+    const edited = await ok(await updateCard(req(`/api/admin/cards/${activeCardId}`, "PUT", authorToken, {
       card: {
         description: "Card rollback version two",
         flavor: "Version two should disappear after rollback.",
         art: "/certification/rollback-2977-v2.webp",
       },
       metadata: {
-        collectionId,
+        collectionId: activeCollectionId,
         tags: ["rollback-v2", "certification"],
         classKeys: [], raceKeys: [], notes: "2.97.7 metadata v2",
       },
-    }), { params: Promise.resolve({ id: String(cardId) }) }), "edit rollback card v2");
+    }), { params: Promise.resolve({ id: String(activeCardId) }) }), "edit rollback card v2");
     assert.equal(edited.card.description, "Card rollback version two");
-    await certifyAndPublish({ resource: "cards", id: cardId }, authorToken, reviewerToken, "card v2");
+    await certifyAndPublish({ resource: "cards", id: activeCardId }, authorToken, reviewerToken, "card v2");
 
-    const cardLatest = (await history("cards", cardId))[0];
+    const cardLatest = (await history("cards", activeCardId))[0];
     const cardRollback = await ok(await rollbackVersion(req("/api/admin/studio/versions/rollback", "POST", reviewerToken, {
       resource: "cards",
-      resourceId: cardId,
+      resourceId: activeCardId,
       version: cardV1.version,
       expectedLatestVersion: cardLatest.version,
       changeNote: "2.97.7 coupled card rollback certification",
@@ -268,8 +272,8 @@ async function main() {
       eq(adminAuditLogs.action, "rollback"),
       eq(adminAuditLogs.actor, `admin:${reviewer.id}`),
     ));
-    assert.ok(rollbackAudits.some((entry) => entry.resource === "collections" && entry.resourceId === collectionId));
-    assert.ok(rollbackAudits.some((entry) => entry.resource === "cards" && entry.resourceId === cardId));
+    assert.ok(rollbackAudits.some((entry) => entry.resource === "collections" && entry.resourceId === activeCollectionId));
+    assert.ok(rollbackAudits.some((entry) => entry.resource === "cards" && entry.resourceId === activeCardId));
 
     console.log("STUDIO VERSION ROLLBACK 2.97.7: PASS");
     console.log("  immutable history: v1 → v2 → rollback-as-new-version");
