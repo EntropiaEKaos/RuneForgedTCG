@@ -67,6 +67,7 @@ ok(migration.includes("INSERT INTO runeforge_schema_meta(version) VALUES ('2.93'
 
 const webhook = read("src/app/api/payments/webhook/route.ts");
 const fulfillment = read("src/lib/payment-fulfillment.ts");
+const financialState = read("src/lib/payment-financial-state.ts");
 const ordersApi = read("src/app/api/payments/orders/route.ts");
 ok(webhook.includes("verifyMercadoPagoWebhookSignature") && webhook.includes("getMercadoPagoPayment") && webhook.includes("processMercadoPagoPayment"), "webhook verifies signature, confirms provider payment and delegates fulfillment");
 ok(webhook.includes('topic!=="payment"'), "non-payment webhook topics are ignored before provider lookup");
@@ -74,7 +75,12 @@ ok(fulfillment.includes("providerPreferenceId") && fulfillment.includes("payment
 ok(fulfillment.includes("FOR UPDATE") && fulfillment.includes("fresh.fulfilledAt") && fulfillment.includes("applyGameGrants"), "payment fulfillment is row-locked and exactly-once guarded");
 ok(ordersApi.includes("searchMercadoPagoPayments") && ordersApi.includes("processMercadoPagoPayment"), "player order reconciliation confirms provider state before fulfillment");
 ok(read("src/lib/mercado-pago.ts").includes('range: "date_created"') && read("src/lib/mercado-pago.ts").includes("begin_date") && read("src/lib/mercado-pago.ts").includes("end_date"), "payment reconciliation uses Mercado Pago documented date range parameters");
-ok(fulfillment.includes("delayed pending/rejected notifications") && fulfillment.includes("fresh.fulfilledAt && !requiresReview"), "delayed provider events cannot downgrade an already fulfilled order");
+ok(
+  fulfillment.includes("if (fresh.fulfilledAt)") &&
+  financialState.includes("requiresReview: input.previousRequiresReview") &&
+  financialState.includes("preserveOrderStatus: true"),
+  "delayed provider events cannot downgrade an already fulfilled order"
+);
 
 const checkout = read("src/app/api/payments/checkout/route.ts");
 const paymentSettingsApi = read("src/app/api/admin/payments/settings/route.ts");
