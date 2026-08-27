@@ -25,7 +25,7 @@ interface Fixture {
   amountCents: number;
 }
 
-async function createFixture(goldGrant = 137): Promise<Fixture> {
+async function createFixture(goldGrant = 137, status = "preference_created", persistPreference = true): Promise<Fixture> {
   const externalReference = `rf_mp_cert_${randomUUID()}`;
   const preferenceId = `pref_${randomUUID()}`;
   const player = await pool.query<{ id: number; gold: number }>(
@@ -36,8 +36,17 @@ async function createFixture(goldGrant = 137): Promise<Fixture> {
   const beforeGold = Number(player.rows[0]?.gold ?? 0);
   const amountCents = 990;
   await pool.query(
-    "insert into payment_orders(player_id,provider,provider_environment,external_reference,product_key,product_name,amount_cents,currency,status,idempotency_key,provider_preference_id,grants) values($1,'mercadopago','sandbox',$2,'mp-cert','Mercado Pago Certification',$3,'BRL','preference_created',$4,$5,$6::jsonb)",
-    [playerId, externalReference, amountCents, randomUUID(), preferenceId, JSON.stringify({ gold: goldGrant })],
+    "insert into payment_orders(player_id,provider,provider_environment,external_reference,product_key,product_name,amount_cents,currency,status,idempotency_key,provider_preference_id,grants,provider_payload) values($1,'mercadopago','sandbox',$2,'mp-cert','Mercado Pago Certification',$3,'BRL',$4,$5,$6,$7::jsonb,$8::jsonb)",
+    [
+      playerId,
+      externalReference,
+      amountCents,
+      status,
+      randomUUID(),
+      persistPreference ? preferenceId : null,
+      JSON.stringify({ gold: goldGrant }),
+      JSON.stringify(status === "preference_ambiguous" ? { requiresReview: true, errorCode: "CERTIFICATION_AMBIGUOUS" } : {}),
+    ],
   );
   return { playerId, externalReference, preferenceId, beforeGold, amountCents };
 }
@@ -58,11 +67,12 @@ async function snapshot(fixture: Fixture) {
   const player = await pool.query<{ gold: number }>("select gold from players where id=$1", [fixture.playerId]);
   const order = await pool.query<{
     status: string;
+    provider_preference_id: string | null;
     provider_payment_id: string | null;
     provider_payload: Record<string, unknown>;
     fulfilled_at: Date | null;
   }>(
-    "select status,provider_payment_id,provider_payload,fulfilled_at from payment_orders where external_reference=$1",
+    "select status,provider_preference_id,provider_payment_id,provider_payload,fulfilled_at from payment_orders where external_reference=$1",
     [fixture.externalReference],
   );
   const ledger = await pool.query<{ n: string }>(
@@ -119,6 +129,25 @@ async function competingApprovedPaymentsProbe() {
     assert.equal(Boolean(state.order?.provider_payload?.requiresReview), true, "second approved payment raises sticky financial review");
     assert.equal(Boolean(state.order?.provider_payload?.duplicateProviderPayment), true, "second approved payment is identified as duplicate provider payment");
     console.log("PASS Mercado Pago PostgreSQL: competing approved payment ids grant once and raise review");
+  } finally {
+    await cleanup(fixture);
+  }
+}
+
+async function ambiguousPreferencePaymentProbe() {
+  const fixture = await createFixture(73, "preference_ambiguous", false);
+  const paymentId = `pay_${randomUUID()}`;
+  try {
+    const result = await processMercadoPagoPayment(payment(fixture, paymentId, "approved"), { expectedPlayerId: fixture.playerId });
+    const state = await snapshot(fixture);
+    assert.equal(result.fulfilled, true, "provider-confirmed payment fulfills an ambiguous preference order");
+    assert.equal(state.order?.provider_preference_id, fixture.preferenceId, "provider-confirmed payment recovers the missing preference binding");
+    assert.equal(state.order?.provider_payment_id, paymentId, "recovered preference binds the canonical payment id");
+    assert.equal(state.order?.status, "approved", "recovered ambiguous order becomes approved");
+    assert.equal(Boolean(state.order?.provider_payload?.requiresReview), true, "recovered ambiguous order remains visible for financial review");
+    assert.equal(state.gold, fixture.beforeGold + 73, "recovered ambiguous order grants exactly once");
+    assert.equal(state.ledger, 1, "recovered ambiguous order creates exactly one ledger entry");
+    console.log("PASS Mercado Pago PostgreSQL: provider-confirmed payment recovers ambiguous preference binding safely");
   } finally {
     await cleanup(fixture);
   }
@@ -181,9 +210,10 @@ async function main() {
   try {
     await duplicateSamePaymentProbe();
     await competingApprovedPaymentsProbe();
+    await ambiguousPreferencePaymentProbe();
     await adverseEventStateProbe();
     await validationRollbackProbe();
-    console.log("MERCADO PAGO POSTGRESQL CERTIFICATION: 4/4 PASS");
+    console.log("MERCADO PAGO POSTGRESQL CERTIFICATION: 5/5 PASS");
   } finally {
     await pool.end();
   }
