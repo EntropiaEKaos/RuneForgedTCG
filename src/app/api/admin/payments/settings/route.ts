@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { adminAuditLogs, paymentGatewaySettings } from "@/db/schema";
 import { getAdminSessionContext, unauthorized } from "@/lib/admin-auth";
+import { requireAdminStepUp } from "@/lib/admin-step-up";
 import { encryptPaymentSecret, paymentSecretFingerprint } from "@/lib/payment-crypto";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,12 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const actor = await admin(req); if (!actor) return unauthorized();
   const body = await req.json();
+  const stepUp = await requireAdminStepUp(req, actor, body, {
+    scope: "admin-payment-settings",
+    actionLabel: "payment gateway changes",
+  });
+  if (stepUp) return stepUp;
+
   const expectedRevision = Math.trunc(Number(body.expectedRevision));
   const enabled = body.enabled === true;
   const environment = body.environment === "production" ? "production" : "sandbox";
@@ -38,7 +45,7 @@ export async function PATCH(req: NextRequest) {
       if (expectedRevision !== 0) return { error: "Revision conflict", status: 409 as const };
       if (!accessToken || !webhookSecret) return { error: "Access token and webhook secret are required for first configuration", status: 400 as const };
       const [row] = await tx.insert(paymentGatewaySettings).values({ provider: "mercadopago", enabled, environment, publicKey, accessTokenEncrypted: encryptPaymentSecret(accessToken), webhookSecretEncrypted: encryptPaymentSecret(webhookSecret), statementDescriptor, updatedBy: actor.actorId }).returning();
-      await tx.insert(adminAuditLogs).values({ action: "payments.settings.create", resource: "mercadopago", actor: actor.actorId, details: { enabled, environment, publicKeyConfigured: Boolean(publicKey), accessTokenConfigured: true, webhookSecretConfigured: true } });
+      await tx.insert(adminAuditLogs).values({ action: "payments.settings.create", resource: "mercadopago", actor: actor.actorId, details: { enabled, environment, publicKeyConfigured: Boolean(publicKey), accessTokenConfigured: true, webhookSecretConfigured: true, stepUp: true } });
       return { row };
     }
     if (!Number.isInteger(expectedRevision)) return { error: "expectedRevision is required", status: 400 as const };
@@ -60,7 +67,7 @@ export async function PATCH(req: NextRequest) {
     if (webhookSecret) updates.webhookSecretEncrypted = encryptPaymentSecret(webhookSecret);
     const [row] = await tx.update(paymentGatewaySettings).set(updates).where(and(eq(paymentGatewaySettings.provider, "mercadopago"), eq(paymentGatewaySettings.revision, expectedRevision))).returning();
     if (!row) return { error: "Revision conflict; reload settings", status: 409 as const };
-    await tx.insert(adminAuditLogs).values({ action: "payments.settings.update", resource: "mercadopago", actor: actor.actorId, details: { enabled, environment, publicKeyConfigured: Boolean(publicKey), rotatedAccessToken: Boolean(accessToken), rotatedWebhookSecret: Boolean(webhookSecret) } });
+    await tx.insert(adminAuditLogs).values({ action: "payments.settings.update", resource: "mercadopago", actor: actor.actorId, details: { enabled, environment, publicKeyConfigured: Boolean(publicKey), rotatedAccessToken: Boolean(accessToken), rotatedWebhookSecret: Boolean(webhookSecret), stepUp: true } });
     return { row };
   });
 
