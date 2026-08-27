@@ -5,6 +5,7 @@ import { adminAuditLogs, paymentGatewaySettings } from "@/db/schema";
 import { getAdminSessionContext, unauthorized } from "@/lib/admin-auth";
 import { requireAdminStepUp } from "@/lib/admin-step-up";
 import { encryptPaymentSecret, paymentSecretFingerprint } from "@/lib/payment-crypto";
+import { MERCADO_PAGO_ROTATION_BLOCKERS_SQL, mercadoPagoRotationBlockerCount } from "@/lib/payment-gateway-rotation";
 
 export const dynamic = "force-dynamic";
 
@@ -52,9 +53,9 @@ export async function PATCH(req: NextRequest) {
 
     const changesProviderBinding = existing.environment !== environment || Boolean(accessToken) || Boolean(webhookSecret);
     if (changesProviderBinding) {
-      const pending = await tx.execute(sql`SELECT count(*)::int n FROM payment_orders WHERE provider='mercadopago' AND fulfilled_at IS NULL AND status NOT IN ('rejected','cancelled','refunded','charged_back','preference_failed')`);
-      const n = Number((pending as any).rows?.[0]?.n ?? 0);
-      if (n > 0) return { error: `Cannot change Mercado Pago environment or credentials while ${n} payment order(s) are pending`, status: 409 as const };
+      const blockers = await tx.execute(sql.raw(MERCADO_PAGO_ROTATION_BLOCKERS_SQL));
+      const n = mercadoPagoRotationBlockerCount(blockers);
+      if (n > 0) return { error: `Cannot change Mercado Pago environment or credentials while ${n} unfulfilled order(s) may still receive provider events`, status: 409 as const };
     }
     if (existing.environment !== environment && existing.environment === "production" && environment === "sandbox") {
       const history = await tx.execute(sql`SELECT count(*)::int n FROM payment_orders WHERE provider='mercadopago' AND provider_environment='production'`);
