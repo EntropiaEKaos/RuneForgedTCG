@@ -1,0 +1,47 @@
+name: Apply PvP 2.98.0 exclusivity hardening
+
+on:
+  push:
+    branches: ['engineering/pvp-production-certification-2.98.0']
+    paths:
+      - '.github/workflows/apply-pvp-2.98.0.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Apply PvP exclusivity and E2E coverage
+        shell: python
+        run: |
+          from pathlib import Path
+
+          route = Path('src/app/api/pvp/[code]/route.ts')
+          source = route.read_text(encoding='utf-8')
+          old = '''          const [activeElsewhere] = await tx.select({ id: pvpRooms.id }).from(pvpRooms).where(and(or(eq(pvpRooms.hostPlayerId, identity.playerId!), eq(pvpRooms.guestPlayerId, identity.playerId!)), eq(pvpRooms.state, "playing"))).limit(1);\n          if (activeElsewhere) return [];'''
+          new = '''          // The player row lock above serializes join/create for this identity.\n          // A player must explicitly cancel an existing waiting lobby before\n          // joining another room, and can never join while already playing.\n          const [activeElsewhere] = await tx.select({ id: pvpRooms.id }).from(pvpRooms).where(and(\n            or(eq(pvpRooms.hostPlayerId, identity.playerId!), eq(pvpRooms.guestPlayerId, identity.playerId!)),\n            or(eq(pvpRooms.state, "waiting"), eq(pvpRooms.state, "playing")),\n          )).limit(1);\n          if (activeElsewhere) return [];'''
+          assert source.count(old) == 1, 'PvP join exclusivity anchor changed'
+          route.write_text(source.replace(old, new, 1), encoding='utf-8')
+
+          e2e = Path('scripts/e2e-pvp-ranked.ts')
+          source = e2e.read_text(encoding='utf-8')
+          anchor = '''  for (const room of [hostRoom.body.room, guestRoom.body.room]) {\n    assert.equal("seed" in room, false, "seed must not leak from the public room DTO");\n    assert.equal("rng" in room, false, "RNG state must not leak from the public room DTO");\n  }\n  console.log(`E2E MVP: PASS — bounded public account body, recovery session rotation, final-pack deletion, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);'''
+          replacement = '''  for (const room of [hostRoom.body.room, guestRoom.body.room]) {\n    assert.equal("seed" in room, false, "seed must not leak from the public room DTO");\n    assert.equal("rng" in room, false, "RNG state must not leak from the public room DTO");\n  }\n\n  // Direct-room lifecycle: one authenticated player may participate in at most\n  // one waiting/playing PvP room. This covers the manual lobby API in addition\n  // to the matchmaking flow above.\n  const lobbyA = new BrowserClient();\n  const lobbyB = new BrowserClient();\n  await register(lobbyA, `E2E Lobby A ${runId}`);\n  await register(lobbyB, `E2E Lobby B ${runId}`);\n  const createLobby = (client: BrowserClient) => client.request("/api/pvp", {\n    method: "POST",\n    headers: { "content-type": "application/json" },\n    body: JSON.stringify({ hostDeck: DECKS[0].id }),\n  });\n  const joinLobby = (client: BrowserClient, code: string) => client.request(`/api/pvp/${code}`, {\n    method: "POST",\n    headers: { "content-type": "application/json" },\n    body: JSON.stringify({ action: "join", guestDeck: DECKS[0].id }),\n  });\n  const leaveLobby = (client: BrowserClient, code: string) => client.request(`/api/pvp/${code}`, {\n    method: "POST",\n    headers: { "content-type": "application/json" },\n    body: JSON.stringify({ action: "leave" }),\n  });\n\n  const ownWaiting = await createLobby(lobbyA);\n  assert.equal(ownWaiting.response.status, 200, JSON.stringify(ownWaiting.body));\n  const ownWaitingCode = String(ownWaiting.body.room?.code || "");\n  assert.match(ownWaitingCode, /^[A-Z2-9]{6}$/);\n  const otherWaiting = await createLobby(lobbyB);\n  assert.equal(otherWaiting.response.status, 200, JSON.stringify(otherWaiting.body));\n  const otherWaitingCode = String(otherWaiting.body.room?.code || "");\n  assert.match(otherWaitingCode, /^[A-Z2-9]{6}$/);\n\n  const blockedJoin = await joinLobby(lobbyA, otherWaitingCode);\n  assert.equal(blockedJoin.response.status, 409, `player hosting a waiting room must not join another room: ${JSON.stringify(blockedJoin.body)}`);\n  const cancelled = await leaveLobby(lobbyA, ownWaitingCode);\n  assert.equal(cancelled.response.status, 200, JSON.stringify(cancelled.body));\n  assert.equal(cancelled.body.cancelled, true);\n\n  const joined = await joinLobby(lobbyA, otherWaitingCode);\n  assert.equal(joined.response.status, 200, JSON.stringify(joined.body));\n  assert.equal(joined.body.room?.state, "playing");\n  const blockedCreate = await createLobby(lobbyA);\n  assert.equal(blockedCreate.response.status, 409, `player already playing must not create a second lobby: ${JSON.stringify(blockedCreate.body)}`);\n  const currentPvp = await lobbyA.request("/api/pvp");\n  assert.equal(currentPvp.response.status, 200, JSON.stringify(currentPvp.body));\n  assert.equal(currentPvp.body.myRoom?.code, otherWaitingCode, "active match must remain the canonical myRoom");\n  assert.equal(currentPvp.body.myRoom?.state, "playing");\n  const forfeited = await leaveLobby(lobbyA, otherWaitingCode);\n  assert.equal(forfeited.response.status, 200, JSON.stringify(forfeited.body));\n  assert.equal(forfeited.body.forfeited, true);\n\n  console.log(`E2E MVP: PASS — bounded public account body, recovery session rotation, final-pack deletion, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation and single-active-room invariant (${roomCode})`);'''
+          assert source.count(anchor) == 1, 'PvP E2E anchor changed'
+          e2e.write_text(source.replace(anchor, replacement, 1), encoding='utf-8')
+
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'src/app/api/pvp/[code]/route.ts' scripts/e2e-pvp-ranked.ts
+          git diff --cached --check
+          git commit -m 'fix(pvp): enforce one active room per player'
+          git push origin HEAD:${GITHUB_REF_NAME}
