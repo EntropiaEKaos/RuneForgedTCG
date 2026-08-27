@@ -117,7 +117,8 @@ async function main() {
     .orderBy(desc(adminContentReleases.id)).limit(1))[0]?.id ?? 0;
 
   try {
-    const credentials = hashAdminPassword(`CI-${suffix}-rollback-password-42!`);
+    const adminPassword = `CI-${suffix}-rollback-password-42!`;
+    const credentials = hashAdminPassword(adminPassword);
     const [author, reviewer] = await db.insert(adminUsers).values([
       { username: `${prefix}_author`, passwordSalt: credentials.salt, passwordHash: credentials.hash, role: "admin", enabled: true },
       { username: `${prefix}_reviewer`, passwordSalt: credentials.salt, passwordHash: credentials.hash, role: "admin", enabled: true },
@@ -126,6 +127,7 @@ async function main() {
     actorAuditIds.push(`admin:${author.id}`, `admin:${reviewer.id}`);
     const authorToken = await createAdminSession({ id: author.id, username: author.username, role: "admin" });
     const reviewerToken = await createAdminSession({ id: reviewer.id, username: reviewer.username, role: "admin" });
+    const stepUp = { currentPassword: adminPassword };
 
     // Collection: v1 -> v2 -> rollback to v1 as a new immutable publication.
     const collection = await ok(await createResource(req("/api/admin/studio/collections", "POST", authorToken, {
@@ -160,6 +162,7 @@ async function main() {
       resourceId: activeCollectionId,
       version: collectionV1.version,
       expectedLatestVersion: collectionLatest.version - 1,
+      ...stepUp,
     })), 409, "collection rollback stale-history guard");
 
     const collectionRollback = await ok(await rollbackVersion(req("/api/admin/studio/versions/rollback", "POST", reviewerToken, {
@@ -168,6 +171,7 @@ async function main() {
       version: collectionV1.version,
       expectedLatestVersion: collectionLatest.version,
       changeNote: "2.97.7 collection rollback certification",
+      ...stepUp,
     })), "rollback collection to v1");
     assert.equal(collectionRollback.row.name, "Rollback Collection V1");
     assert.equal(collectionRollback.row.description, "Historical collection version one");
@@ -249,6 +253,7 @@ async function main() {
       version: cardV1.version,
       expectedLatestVersion: cardLatest.version,
       changeNote: "2.97.7 coupled card rollback certification",
+      ...stepUp,
     })), "rollback card to v1");
     assert.equal(cardRollback.row.data?.description, "Card rollback version one", "card definition must restore from v1");
     assert.equal(cardRollback.row.data?.art, "/certification/rollback-2977-v1.webp", "card art must restore from v1");
@@ -277,7 +282,7 @@ async function main() {
 
     console.log("STUDIO VERSION ROLLBACK 2.97.7: PASS");
     console.log("  immutable history: v1 → v2 → rollback-as-new-version");
-    console.log("  guards: publisher auth + stale expectedLatestVersion CAS + published-only targets");
+    console.log("  guards: publisher auth + admin step-up + stale expectedLatestVersion CAS + published-only targets");
     console.log("  card rollback: definition + catalog metadata + live catalog restored atomically");
     console.log("  release: new active release with rollback provenance; prior history preserved");
   } finally {
