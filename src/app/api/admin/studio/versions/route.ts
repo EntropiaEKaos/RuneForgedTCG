@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { adminContentVersions, adminAuditLogs } from "@/db/schema";
 import { desc, eq, and } from "drizzle-orm";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
-import { fetchContent, validateContent, validateContentReferences } from "@/lib/content-pipeline";
+import { approvalSnapshot, fetchContent, validateContent, validateContentReferences } from "@/lib/content-pipeline";
 import { ENGINE_VERSION, RULESET_VERSION } from "@/game/version";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +45,8 @@ export async function POST(req: NextRequest) {
 
   const last = await db.select().from(adminContentVersions).where(and(eq(adminContentVersions.resource, resource), eq(adminContentVersions.resourceId, id))).orderBy(desc(adminContentVersions.version)).limit(1);
   const version = (last[0]?.version || 0) + 1;
-  const [created] = await db.insert(adminContentVersions).values({ resource, resourceId: id, version, status, snapshot: row as any, changeNote: String(body.changeNote || ""), author: actor.actorId, engineVersion: ENGINE_VERSION, rulesetVersion: RULESET_VERSION }).returning();
+  const snapshot = await approvalSnapshot(resource, row);
+  const [created] = await db.insert(adminContentVersions).values({ resource, resourceId: id, version, status, snapshot: snapshot as any, changeNote: String(body.changeNote || ""), author: actor.actorId, engineVersion: ENGINE_VERSION, rulesetVersion: RULESET_VERSION }).returning();
   await db.insert(adminAuditLogs).values({ action: `version_${status}`, resource, resourceId: id, actor: actor.actorId, details: { version, changeNote: body.changeNote || "" } });
   return Response.json({ ok: true, row: created, validation });
 }
