@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { and, desc, eq, gt, inArray, or } from "drizzle-orm";
 
-import { db } from "@/db";
+import { db, pool } from "@/db";
 import {
   adminApprovalRequests,
   adminAuditLogs,
@@ -447,7 +447,10 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error("STUDIO FUNCTIONAL CERTIFICATION 2.97.6: FAIL", error);
-  process.exitCode = 1;
-});
+main()
+  .then(async () => { await pool.end(); })
+  .catch(async (error) => {
+    console.error("STUDIO FUNCTIONAL CERTIFICATION 2.97.6: FAIL", error);
+    await pool.end().catch(() => undefined);
+    process.exitCode = 1;
+  });

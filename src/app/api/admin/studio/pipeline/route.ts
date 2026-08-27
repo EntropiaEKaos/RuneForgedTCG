@@ -91,10 +91,12 @@ export async function POST(req: NextRequest) {
       const currentHash = contentHash(await approvalSnapshot(resource, currentRow));
       if (currentHash !== approvals.contentHash) return Response.json({ ok: false, error: "Content changed after approval; new validation/approval is required." }, { status: 409 });
       const patch: any = resource === "card-meta" ? { releaseState: "published", updatedAt: new Date() } : ["collections", "events", "promotions"].includes(resource) ? { status: "published", updatedAt: new Date() } : { enabled: true, updatedAt: new Date() };
-      const updatedAtColumn = (table as any).updatedAt;
-      const publishWhere = updatedAtColumn && row.updatedAt
-        ? and(eq((table as any).id, id), eq(updatedAtColumn, row.updatedAt))
-        : eq((table as any).id, id);
+      // The row is locked FOR UPDATE below and its approved content hash is
+    // recomputed inside the same transaction before mutation. Do not compare a
+    // PostgreSQL timestamp to a round-tripped JavaScript Date here: PostgreSQL
+    // retains sub-millisecond precision that JS Date discards, which can reject
+    // unchanged approved rows. The lock + exact hash is the authoritative CAS.
+    const publishWhere = eq((table as any).id, id);
 
       // Content state, immutable version, active release and audit record are a
       // single atomic publication. Any failure rolls every write back.
