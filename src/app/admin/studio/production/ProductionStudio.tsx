@@ -3,7 +3,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { StudioCommandPalette, StudioBreadcrumb } from "../StudioChrome";
-import { Audit, Bulk, Collections, Pipeline, Qa, Simulator, Validator, Versions, type Row } from "./ProductionPanels";
+import { Audit, Bulk, Collections, Pipeline, Qa, Simulator, Validator, type Row } from "./ProductionPanels";
+import Versions from "./VersionsPanel";
 
 type Module = "pipeline" | "simulator" | "validator" | "versions" | "qa" | "audit" | "bulk" | "collections";
 
