@@ -6,6 +6,7 @@ import { adminAuditLogs, adminContentVersions, adminContentReleases, adminApprov
 import { eq, and, desc, isNull, or, sql } from "drizzle-orm";
 import { getAdminSessionContext, isAdminAuthorized, adminRoleAllowed, unauthorized } from "@/lib/admin-auth";
 import { approvalSnapshot, fetchContent, validateContent, validateContentReferences, tableFor, requiredApprovalStages } from "@/lib/content-pipeline";
+import { buildVersionSnapshot } from "@/lib/content-version-snapshot";
 import { ENGINE_VERSION, RULESET_VERSION } from "@/game/version";
 import { runCardTest } from "@/lib/card-test-runner";
 import { ensureCustomCardsLoaded, refreshCustomCardCache } from "@/game/catalog";
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
       if (!adminRoleAllowed(actor.role, "qa")) return Response.json({ ok: false, error: `Role ${actor.role} cannot certify QA` }, { status: 403 });
       const last = await db.select().from(adminContentVersions).where(and(eq(adminContentVersions.resource, resource), eq(adminContentVersions.resourceId, id))).orderBy(desc(adminContentVersions.version)).limit(1);
       const version = (last[0]?.version || 0) + 1;
-      await db.insert(adminContentVersions).values({ resource, resourceId: id, version, status: "qa", snapshot: row as any, changeNote: String(b.changeNote || "QA certified from Content Studio"), author: actor.actorId, engineVersion: ENGINE_VERSION, rulesetVersion: RULESET_VERSION });
+      await db.insert(adminContentVersions).values({ resource, resourceId: id, version, status: "qa", snapshot: approvalTarget as any, changeNote: String(b.changeNote || "QA certified from Content Studio"), author: actor.actorId, engineVersion: ENGINE_VERSION, rulesetVersion: RULESET_VERSION });
       await db.insert(adminAuditLogs).values({ action: "qa", resource, resourceId: id, actor: actor.actorId, details: { version, contentHash: contentHash(approvalTarget) } });
       return Response.json({ ok: true, row, validation, version });
     }
@@ -85,26 +86,18 @@ export async function POST(req: NextRequest) {
       if (!adminRoleAllowed(actor.role, "publisher")) return Response.json({ ok: false, error: `Role ${actor.role} cannot publish content` }, { status: 403 });
       const approvals = await approvedStages(resource, id, approvalTarget);
       if (approvals.missing.length) return Response.json({ ok: false, error: "Required approvals are missing", missingApprovals: approvals.missing, requiredApprovals: approvals.required }, { status: 409 });
-      // Publish must be compare-and-swap against the exact approved content hash.
-      // Otherwise an editor could modify the row after approval but before this update.
       const currentRow = await fetchContent(resource as any, id);
       const currentHash = contentHash(await approvalSnapshot(resource, currentRow));
       if (currentHash !== approvals.contentHash) return Response.json({ ok: false, error: "Content changed after approval; new validation/approval is required." }, { status: 409 });
       const patch: any = resource === "card-meta" ? { releaseState: "published", updatedAt: new Date() } : ["collections", "events", "promotions"].includes(resource) ? { status: "published", updatedAt: new Date() } : { enabled: true, updatedAt: new Date() };
       // The row is locked FOR UPDATE below and its approved content hash is
-    // recomputed inside the same transaction before mutation. Do not compare a
-    // PostgreSQL timestamp to a round-tripped JavaScript Date here: PostgreSQL
-    // retains sub-millisecond precision that JS Date discards, which can reject
-    // unchanged approved rows. The lock + exact hash is the authoritative CAS.
-    const publishWhere = eq((table as any).id, id);
+      // recomputed inside the same transaction before mutation. Do not compare a
+      // PostgreSQL timestamp to a round-tripped JavaScript Date here: PostgreSQL
+      // retains sub-millisecond precision that JS Date discards, which can reject
+      // unchanged approved rows. The lock + exact hash is the authoritative CAS.
+      const publishWhere = eq((table as any).id, id);
 
-      // Content state, immutable version, active release and audit record are a
-      // single atomic publication. Any failure rolls every write back.
       const published = await db.transaction(async (tx) => {
-        // Serialize publishing of this resource row and lock the approved snapshot.
-        // The card metadata row is part of a card approval hash, so it must be
-        // locked too; otherwise collection metadata could change in the small
-        // window between approval verification and commit.
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${resource}), ${id})`);
         const [lockedCurrent] = await tx.select().from(table)
           .where(eq((table as any).id, id)).limit(1).for("update");
@@ -118,7 +111,7 @@ export async function POST(req: NextRequest) {
             [lockedMetadata] = await tx.select().from(cardCatalogMeta)
               .where(eq(cardCatalogMeta.defId, defId)).limit(1).for("update");
           }
-          lockedApprovalSnapshot = { card: lockedCurrent, metadata: lockedMetadata ?? null };
+          lockedApprovalSnapshot = buildVersionSnapshot(resource, lockedCurrent as any, lockedMetadata ?? null);
         }
         if (contentHash(lockedApprovalSnapshot) !== approvals.contentHash) return null;
 
@@ -136,17 +129,15 @@ export async function POST(req: NextRequest) {
           .where(and(eq(adminContentVersions.resource, resource), eq(adminContentVersions.resourceId, id)))
           .orderBy(desc(adminContentVersions.version)).limit(1);
         const version = (last[0]?.version || 0) + 1;
-        await tx.insert(adminContentVersions).values({ resource, resourceId: id, version, status: "published", snapshot: updated as any, changeNote: String(b.changeNote || "Published from Content Studio"), author: actor.actorId, engineVersion: ENGINE_VERSION, rulesetVersion: RULESET_VERSION });
+        const releaseSnapshot = buildVersionSnapshot(resource, updated as any, lockedMetadata ?? null);
+        await tx.insert(adminContentVersions).values({ resource, resourceId: id, version, status: "published", snapshot: releaseSnapshot as any, changeNote: String(b.changeNote || "Published from Content Studio"), author: actor.actorId, engineVersion: ENGINE_VERSION, rulesetVersion: RULESET_VERSION });
 
-        // Release numbers are global, so serialize this tiny critical section
-        // across concurrent publications of different resources.
         await tx.execute(sql`SELECT pg_advisory_xact_lock(1381320261)`);
         const latestRelease = await tx.select({ version: adminContentReleases.version }).from(adminContentReleases).orderBy(desc(adminContentReleases.version)).limit(1);
         const releaseVersion = (latestRelease[0]?.version || 0) + 1;
-        const releaseSnapshot = resource === "cards" ? { card: updated, metadata: lockedMetadata ?? null } : updated;
         const releaseHash = contentHash({ resource, resourceId: id, version, snapshot: releaseSnapshot });
         await tx.update(adminContentReleases).set({ active: false }).where(eq(adminContentReleases.active, true));
-        await tx.insert(adminContentReleases).values({ version: releaseVersion, contentHash: releaseHash, manifest: { resource, resourceId: id, resourceVersion: version, engineVersion: ENGINE_VERSION, rulesetVersion: RULESET_VERSION }, actor: actor.actorId, active: true });
+        await tx.insert(adminContentReleases).values({ version: releaseVersion, contentHash: releaseHash, manifest: { resource, resourceId: id, resourceVersion: version, engineVersion: ENGINE_VERSION, rulesetVersion: RULESET_VERSION, snapshotFormat: resource === "cards" ? "coupled-v2" : "row-v1" }, actor: actor.actorId, active: true });
         await tx.insert(adminAuditLogs).values({ action: "publish", resource, resourceId: id, actor: actor.actorId, details: { version, releaseVersion, releaseHash, approvals } });
         return { updated, version, releaseVersion, releaseHash };
       });
