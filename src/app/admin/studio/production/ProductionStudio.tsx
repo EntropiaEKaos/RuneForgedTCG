@@ -23,7 +23,10 @@ export default function ProductionStudio() {
     check();
   }, []);
   useDeferredEffect(() => {
-    if (auth && ["pipeline", "collections", "bulk"].includes(tab)) load();
+    setSelected(null);
+  }, [resource]);
+  useDeferredEffect(() => {
+    if (auth && ["pipeline", "collections", "bulk", "validator", "versions"].includes(tab)) load();
   }, [auth, resource, tab]);
   async function load() {
     setBusy(true);
@@ -185,7 +188,17 @@ export default function ProductionStudio() {
               setSelected={setSelected}
             />
           )}{" "}
-          {tab === "versions" && <Versions resource={resource} rows={rows} />}{" "}
+          {tab === "versions" && (
+            <Versions
+              resource={resource}
+              setResource={setResource}
+              rows={rows}
+              selected={selected}
+              setSelected={setSelected}
+              reload={load}
+              setMessage={setMessage}
+            />
+          )}{" "}
           {tab === "qa" && <Qa resource={resource} rows={rows} />} {tab === "audit" && <Audit />}
           {tab === "bulk" && <Bulk resource={resource} setResource={setResource} rows={rows} reload={load} />}{" "}
           {tab === "collections" && (
