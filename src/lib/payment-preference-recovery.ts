@@ -85,8 +85,10 @@ export async function recoverMercadoPagoPreference(order: PaymentOrder, input: {
 }): Promise<PreferenceRecoveryResult> {
   try {
     const search = await searchMercadoPagoPreferences(input.accessToken, order.externalReference);
-    const elements = Array.isArray(search?.elements) ? search.elements : [];
-    const ids = [...new Set(elements.map((element: Record<string, unknown>) => String(element?.id || "").trim()).filter(Boolean))].slice(0, 10);
+    const elements: Array<Record<string, unknown>> = Array.isArray(search?.elements) ? search.elements : [];
+    const ids: string[] = [...new Set<string>(
+      elements.map((element) => String(element.id || "").trim()).filter((id): id is string => id.length > 0),
+    )].slice(0, 10);
     const details = await Promise.all(ids.map((id) => getMercadoPagoPreference(input.accessToken, id)));
     const candidates = details.filter((preference: MercadoPagoPreferenceLike) =>
       preferenceBelongsToOrder(preference, order.externalReference)
