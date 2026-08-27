@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createMercadoPagoPreference, getMercadoPagoPayment, searchMercadoPagoPayments } from "@/lib/mercado-pago";
+import { createMercadoPagoPreference, getMercadoPagoPayment, getMercadoPagoPreference, searchMercadoPagoPayments, searchMercadoPagoPreferences } from "@/lib/mercado-pago";
 import { decideFulfilledPaymentEvent } from "@/lib/payment-financial-state";
 import { canBindApprovedProviderPayment } from "@/lib/payment-provider-link";
 
@@ -9,11 +9,15 @@ async function main() {
   globalThis.fetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
     const url = String(input);
     calls.push({ url, init });
-    const payload = url.includes("/checkout/preferences")
-      ? { id: "pref-293", init_point: "https://www.mercadopago.com/checkout/v1/redirect?pref_id=pref-293", sandbox_init_point: "https://sandbox.mercadopago.com/checkout/v1/redirect?pref_id=pref-293" }
-      : url.includes("/v1/payments/search")
-        ? { paging: { total: 1 }, results: [{ id: 293, external_reference: "rf_test_293", status: "approved" }] }
-        : { id: 293, external_reference: "rf_test_293", status: "approved" };
+    const payload = url.includes("/checkout/preferences/search")
+      ? { total: 1, elements: [{ id: "pref-recovered-293" }] }
+      : url.includes("/checkout/preferences/pref-recovered-293")
+        ? { id: "pref-recovered-293", external_reference: "rf_test_293", init_point: "https://www.mercadopago.com/checkout/v1/redirect?pref_id=pref-recovered-293", sandbox_init_point: "https://sandbox.mercadopago.com/checkout/v1/redirect?pref_id=pref-recovered-293", items: [{ id: "rf_test_293" }] }
+        : url.endsWith("/checkout/preferences")
+          ? { id: "pref-293", init_point: "https://www.mercadopago.com/checkout/v1/redirect?pref_id=pref-293", sandbox_init_point: "https://sandbox.mercadopago.com/checkout/v1/redirect?pref_id=pref-293" }
+          : url.includes("/v1/payments/search")
+            ? { paging: { total: 1 }, results: [{ id: 293, external_reference: "rf_test_293", status: "approved" }] }
+            : { id: 293, external_reference: "rf_test_293", status: "approved" };
     return new Response(JSON.stringify(payload), { status: 200, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
 
@@ -40,6 +44,18 @@ async function main() {
     assert.equal(body.back_urls.success, "https://runeforge.example.com/store?payment=success");
     assert.equal(body.items[0].currency_id, "BRL");
     assert.equal(body.items[0].unit_price, 9.9);
+
+    const preferenceSearch = await searchMercadoPagoPreferences("APP_USR_TEST_293", "rf_test_293");
+    assert.equal(preferenceSearch.elements[0].id, "pref-recovered-293");
+    const preferenceSearchCall = calls.at(-1)!;
+    const preferenceSearchUrl = new URL(preferenceSearchCall.url);
+    assert.equal(preferenceSearchUrl.pathname, "/checkout/preferences/search");
+    assert.equal(preferenceSearchUrl.searchParams.get("external_reference"), "rf_test_293");
+    assert.equal((preferenceSearchCall.init.headers as Record<string,string>).Authorization, "Bearer APP_USR_TEST_293");
+
+    const recoveredPreference = await getMercadoPagoPreference("APP_USR_TEST_293", "pref-recovered-293");
+    assert.equal(recoveredPreference.id, "pref-recovered-293");
+    assert.equal(calls.at(-1)!.url, "https://api.mercadopago.com/checkout/preferences/pref-recovered-293");
 
     const search = await searchMercadoPagoPayments("APP_USR_TEST_293", "rf_test_293");
     assert.equal(search.results[0].id, 293);
@@ -79,7 +95,7 @@ async function main() {
     assert.equal(duplicateRefund.preserveOrderStatus, true, "refund of a non-canonical payment must not mark the canonical purchase refunded");
     assert.equal(duplicateRefund.requiresReview, true, "refund of a duplicate payment still requires review");
 
-    console.log("MERCADO PAGO 2.93 API + 2.97.9 FINANCIAL STATE: 29/29 PASS");
+    console.log("MERCADO PAGO 2.93 API + 2.97.9 FINANCIAL STATE: 35/35 PASS");
   } finally {
     globalThis.fetch = originalFetch;
   }
