@@ -84,6 +84,7 @@ ok(
 
 const checkout = read("src/app/api/payments/checkout/route.ts");
 const paymentSettingsApi = read("src/app/api/admin/payments/settings/route.ts");
+const rotationPolicy = read("src/lib/payment-gateway-rotation.ts");
 const album = read("src/app/api/collections/[key]/album/route.ts");
 ok(checkout.indexOf("db.insert(paymentOrders).values") >= 0 || checkout.indexOf("tx.insert(paymentOrders).values") >= 0, "checkout persists a local payment order");
 const insertIndex = Math.max(checkout.indexOf("db.insert(paymentOrders).values"), checkout.indexOf("tx.insert(paymentOrders).values"));
@@ -94,7 +95,13 @@ ok(checkout.includes("providerEnvironment") && fulfillment.includes("order.provi
 ok(checkout.includes("validateGrantPackIds") && album.includes("validateGrantPackIds"), "paid/album grants reject unknown pack ids before fulfillment");
 ok(!webhook.includes("settings?.enabled") && !ordersApi.includes("settings?.enabled"), "disabling checkout does not block fulfillment/reconciliation of existing orders");
 ok(checkout.includes("pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))") && paymentSettingsApi.includes("pg_advisory_xact_lock(hashtext('runeforge:mercadopago-config'))"), "checkout reservation and gateway environment changes share one PostgreSQL configuration lock");
-ok(paymentSettingsApi.includes("status NOT IN ('rejected','cancelled','refunded','charged_back','preference_failed')") && !paymentSettingsApi.includes("provider_preference_id IS NOT NULL AND fulfilled_at IS NULL"), "environment switch blocks in-flight creating orders before a provider preference id exists");
+ok(
+  paymentSettingsApi.includes("MERCADO_PAGO_ROTATION_BLOCKERS_SQL") &&
+  rotationPolicy.includes("provider_preference_id IS NOT NULL") &&
+  rotationPolicy.includes("status IN ('creating','preference_ambiguous')") &&
+  rotationPolicy.includes("fulfilled_at IS NULL"),
+  "gateway rotation blocks provider-bound orders and in-flight creating/ambiguous orders before preference binding"
+);
 
 const studio = [
   "CardAuthoringStudio.tsx",
