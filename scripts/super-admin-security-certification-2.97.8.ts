@@ -4,11 +4,14 @@ import { NextRequest } from "next/server";
 import { eq, inArray } from "drizzle-orm";
 
 import { db, pool } from "@/db";
-import { adminSessions, adminUsers, paymentGatewaySettings } from "@/db/schema";
+import { adminGameDefinitions, adminSessions, adminUsers, paymentGatewaySettings } from "@/db/schema";
 import { createAdminSession } from "@/lib/admin-auth";
 import { hashAdminPassword } from "@/lib/admin-credentials";
+import { loadGameConfig } from "@/game/settings";
 import { POST as rollbackVersion } from "@/app/api/admin/studio/versions/rollback/route";
 import { PATCH as patchPaymentSettings } from "@/app/api/admin/payments/settings/route";
+import { PATCH as patchControlDefinition } from "@/app/api/admin/control/[id]/route";
+import { PUT as putGameSettings } from "@/app/api/admin/settings/route";
 
 const ORIGIN = "http://localhost:3000";
 type Json = Record<string, any>;
@@ -27,9 +30,9 @@ function req(path: string, token: string, body: unknown): NextRequest {
   });
 }
 
-function paymentReq(token: string, body: unknown): NextRequest {
-  return new NextRequest(`${ORIGIN}/api/admin/payments/settings`, {
-    method: "PATCH",
+function mutationReq(path: string, method: "PATCH" | "PUT", token: string, body: unknown): NextRequest {
+  return new NextRequest(`${ORIGIN}${path}`, {
+    method,
     headers: {
       host: "localhost:3000",
       origin: ORIGIN,
@@ -39,6 +42,10 @@ function paymentReq(token: string, body: unknown): NextRequest {
     },
     body: JSON.stringify(body),
   });
+}
+
+function paymentReq(token: string, body: unknown): NextRequest {
+  return mutationReq("/api/admin/payments/settings", "PATCH", token, body);
 }
 
 async function json(response: Response): Promise<Json> {
@@ -64,6 +71,7 @@ async function main() {
   const password = `CI-${suffix}-admin-step-up-42!`;
   const hashed = hashAdminPassword(password);
   const actorIds: number[] = [];
+  let controlDefinitionId: number | null = null;
 
   try {
     const [actor] = await db.insert(adminUsers).values({
@@ -128,6 +136,55 @@ async function main() {
       .where(eq(paymentGatewaySettings.provider, "mercadopago")).limit(1))[0] ?? null;
     assert.equal(stable(paymentAfter), stable(paymentBefore), "step-up certification must not mutate payment gateway settings");
 
+    const [criticalControl] = await db.insert(adminGameDefinitions).values({
+      domain: "engine-actions",
+      key: `cert2978-${suffix}`.slice(0, 120),
+      name: "2.97.8 Critical Step-up Fixture",
+      description: "Disposable critical control used only to certify re-authentication boundaries.",
+      dangerLevel: "critical",
+      schemaVersion: 1,
+      payload: { runtimeAction: "custom", allowedPhases: ["main"], enabled: true, runtimeAdapter: "metadata" },
+      status: "draft",
+      enabled: false,
+    }).returning();
+    controlDefinitionId = criticalControl.id;
+    const controlParams = { params: Promise.resolve({ id: String(criticalControl.id) }) };
+    const criticalArchive = { action: "archive", expectedRevision: criticalControl.revision };
+
+    await expectStepUpRequired(
+      await patchControlDefinition(mutationReq(`/api/admin/control/${criticalControl.id}`, "PATCH", token, criticalArchive), controlParams),
+      "critical control archive without current credentials",
+    );
+    await expectStepUpRequired(
+      await patchControlDefinition(mutationReq(`/api/admin/control/${criticalControl.id}`, "PATCH", token, { ...criticalArchive, currentPassword: "wrong-password" }), controlParams),
+      "critical control archive with wrong current credentials",
+    );
+    const controlPassedGate = await patchControlDefinition(
+      mutationReq(`/api/admin/control/${criticalControl.id}`, "PATCH", token, { ...criticalArchive, currentPassword: password }),
+      controlParams,
+    );
+    const controlPassedBody = await json(controlPassedGate);
+    assert.equal(controlPassedGate.status, 200, `valid critical control step-up must allow the fixture transition: ${JSON.stringify(controlPassedBody)}`);
+    assert.equal(controlPassedBody.row?.status, "archived", "critical control fixture must archive only after successful step-up");
+    assert.equal(controlPassedBody.row?.enabled, false, "archived critical control must remain disabled");
+
+    const gameSettingsBefore = await loadGameConfig();
+    const settingsBase = { ...gameSettingsBefore, expectedRevision: -1 };
+    await expectStepUpRequired(
+      await putGameSettings(mutationReq("/api/admin/settings", "PUT", token, settingsBase)),
+      "global game settings without current credentials",
+    );
+    await expectStepUpRequired(
+      await putGameSettings(mutationReq("/api/admin/settings", "PUT", token, { ...settingsBase, currentPassword: "wrong-password" })),
+      "global game settings with wrong current credentials",
+    );
+    const settingsPassedGate = await putGameSettings(mutationReq("/api/admin/settings", "PUT", token, { ...settingsBase, currentPassword: password }));
+    const settingsPassedBody = await json(settingsPassedGate);
+    assert.equal(settingsPassedGate.status, 409, `valid settings step-up must reach revision CAS without mutating configuration: ${JSON.stringify(settingsPassedBody)}`);
+    assert.match(String(settingsPassedBody.error || ""), /revision/i, "valid settings step-up must pass re-authentication and reach revision protection");
+    const gameSettingsAfter = await loadGameConfig();
+    assert.equal(stable(gameSettingsAfter), stable(gameSettingsBefore), "step-up certification must not mutate global game settings");
+
     const helperSource = fs.readFileSync("src/lib/admin-step-up.ts", "utf8");
     assert.match(helperSource, /consumeRequestRateLimit/, "step-up gate must retain request-scoped brute-force protection");
     assert.match(helperSource, /consumeRateLimit/, "step-up gate must retain actor-scoped brute-force protection");
@@ -142,12 +199,20 @@ async function main() {
     assert.match(paymentUi, /autoComplete="current-password"/, "payment UI must use current-password semantics for step-up");
     assert.match(paymentUi, /currentTotp/, "payment UI must support MFA/TOTP step-up");
 
+    const controlUi = fs.readFileSync("src/app/admin/studio/control/TotalControlStudio.tsx", "utf8");
+    assert.match(controlUi, /autoComplete="current-password"/, "Total Control UI must collect current credentials in a masked field");
+    assert.match(controlUi, /currentTotp/, "Total Control UI must support MFA/TOTP step-up");
+    assert.match(controlUi, /row\.dangerLevel === "critical"/, "Total Control UI must distinguish critical transitions from normal draft work");
+
     console.log("SUPER ADMIN SECURITY 2.97.8: PASS");
     console.log("  rollback: missing/wrong step-up blocked; valid credentials reach immutable-history guard");
     console.log("  payments: missing/wrong step-up blocked; valid credentials reach revision CAS without side effects");
+    console.log("  Total Control: critical runtime transition blocked until step-up; draft workflow remains separate");
+    console.log("  global settings: missing/wrong step-up blocked; valid credentials reach revision CAS without side effects");
     console.log("  brute force: request + actor rate limits remain mandatory");
-    console.log("  UI: password is masked; MFA/TOTP is wired for both sensitive surfaces");
+    console.log("  UI: masked password + MFA/TOTP wired across all sensitive admin surfaces");
   } finally {
+    if (controlDefinitionId !== null) await db.delete(adminGameDefinitions).where(eq(adminGameDefinitions.id, controlDefinitionId));
     if (actorIds.length) {
       await db.delete(adminSessions).where(inArray(adminSessions.actorId, actorIds.map(String)));
       await db.delete(adminUsers).where(inArray(adminUsers.id, actorIds));
