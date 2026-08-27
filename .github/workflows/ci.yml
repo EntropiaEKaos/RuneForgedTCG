@@ -89,6 +89,11 @@ jobs:
       - name: Fresh PostgreSQL bootstrap
         run: npm run db:bootstrap
 
+      - name: Mercado Pago PostgreSQL certification — exactly-once grants and financial state machine
+        env:
+          NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
+        run: node --import tsx scripts/mercado-pago-postgres-certification.ts
+
       - name: Studio functional certification — persisted publish, catalog, deck and engine lifecycle
         env:
           NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
