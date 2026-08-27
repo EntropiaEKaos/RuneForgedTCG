@@ -46,8 +46,11 @@ export async function GET(req: NextRequest) {
     const publicRooms = await db.select().from(pvpRooms).where(eq(pvpRooms.state, "waiting")).orderBy(desc(pvpRooms.createdAt)).limit(20);
     let myRoom = null;
     if (session?.playerId != null) {
-      const [room] = await db.select().from(pvpRooms).where(or(eq(pvpRooms.hostPlayerId, session.playerId), eq(pvpRooms.guestPlayerId, session.playerId))).orderBy(desc(pvpRooms.createdAt)).limit(1);
-      if (room && room.state !== "finished") myRoom = room;
+      const [room] = await db.select().from(pvpRooms).where(and(
+        or(eq(pvpRooms.hostPlayerId, session.playerId), eq(pvpRooms.guestPlayerId, session.playerId)),
+        or(eq(pvpRooms.state, "playing"), eq(pvpRooms.state, "waiting")),
+      )).orderBy(desc(pvpRooms.updatedAt)).limit(1);
+      if (room) myRoom = room;
     }
     return Response.json({ ok: true, playerName: session?.playerName ?? null, rooms: publicRooms.map((room) => publicRoomSummary(room)), myRoom: myRoom ? publicRoomSummary(myRoom, session?.playerId) : null });
   } catch (error) {
@@ -77,8 +80,17 @@ export async function POST(req: NextRequest) {
     } catch { return Response.json({ ok: false, error: "Invalid or unauthorized deck" }, { status: 400 }); }
 
     const result = await db.transaction(async (tx) => {
+      // Every room lifecycle entry point locks the player row first. This makes
+      // concurrent create/join requests for one player serialize across replicas.
       const [lockedPlayer] = await tx.select({ id: players.id, name: players.name }).from(players).where(eq(players.id, identity.playerId!)).limit(1).for("update");
       if (!lockedPlayer) return { error: "Player not found", status: 404 as const };
+      const [activeMatch] = await tx.select({ id: pvpRooms.id }).from(pvpRooms).where(and(
+        or(eq(pvpRooms.hostPlayerId, lockedPlayer.id), eq(pvpRooms.guestPlayerId, lockedPlayer.id)),
+        eq(pvpRooms.state, "playing"),
+      )).limit(1);
+      if (activeMatch) return { error: "Player already has an active PvP match", status: 409 as const };
+      // Re-creating a lobby replaces only the player's own waiting room. A
+      // playing match is never deleted or masked by a new lobby.
       await tx.delete(pvpRooms).where(and(eq(pvpRooms.hostPlayerId, lockedPlayer.id), eq(pvpRooms.state, "waiting")));
       for (let attempt = 0; attempt < 20; attempt++) {
         const code = generateRoomCode();
