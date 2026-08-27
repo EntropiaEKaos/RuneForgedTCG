@@ -94,6 +94,11 @@ jobs:
           NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
         run: node --import tsx scripts/studio-functional-certification-2.97.6.ts
 
+      - name: Studio version rollback certification — immutable history and coupled card metadata
+        env:
+          NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
+        run: node --import tsx scripts/studio-version-rollback-certification-2.97.7.ts
+
       - name: Behavioral test suite
         run: npm run test:behavior
 
