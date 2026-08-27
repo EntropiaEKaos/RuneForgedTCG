@@ -5,6 +5,7 @@ import { baseCardsOnly } from "@/game/cards";
 import { sanitizeKeywordBehavior, sanitizeCompositeEffectDefinition, sanitizeArchetypeDefinition } from "@/game/mechanics-authoring";
 import { CARD_KEYWORDS, CARD_EFFECT_KINDS } from "@/game/card-authoring";
 import { dependenciesForCard } from "@/game/content-dependency-graph";
+import { buildVersionSnapshot } from "./content-version-snapshot";
 import type { ContentResource } from "./content-validation";
 export {
   APPROVAL_STAGES,
@@ -24,23 +25,24 @@ export const contentTables: Record<ContentResource, any> = {
 export function tableFor(resource: string) { return contentTables[resource as ContentResource]; }
 
 /** Card approvals include launch metadata so changing the collection invalidates stale approvals. */
-export async function approvalSnapshot(resource: string, row: any): Promise<unknown> {
+export async function approvalSnapshot(resource: string, row: any, executor: any = db): Promise<unknown> {
   if (resource !== "cards") return row;
   const defId = String(row?.defId || row?.data?.defId || "");
   const [metadata] = defId
-    ? await db.select().from(cardCatalogMeta).where(eq(cardCatalogMeta.defId, defId)).limit(1)
+    ? await executor.select().from(cardCatalogMeta).where(eq(cardCatalogMeta.defId, defId)).limit(1)
     : [];
-  return { card: row, metadata: metadata ?? null };
+  return buildVersionSnapshot(resource, row, metadata ?? null);
 }
 
-export async function validateContentReferences(resource: ContentResource, row: any) {
+export async function validateContentReferences(resource: ContentResource, row: any, executor: any = db) {
   const errors: string[] = [];
+  const queryDb = executor;
   if (resource === "card-meta") {
-    const [card] = await db.select().from(customCards).where(eq(customCards.defId, String(row?.defId || ""))).limit(1);
+    const [card] = await queryDb.select().from(customCards).where(eq(customCards.defId, String(row?.defId || ""))).limit(1);
     const baseExists = baseCardsOnly().some((item) => item.defId === String(row?.defId || ""));
     if (!card && !baseExists) errors.push(`Card definition ${String(row?.defId || "") || "<empty>"} does not exist.`);
     if (row?.collectionId != null) {
-      const [collection] = await db.select().from(adminCollections).where(eq(adminCollections.id, Number(row.collectionId))).limit(1);
+      const [collection] = await queryDb.select().from(adminCollections).where(eq(adminCollections.id, Number(row.collectionId))).limit(1);
       if (!collection) errors.push(`Collection ${Number(row.collectionId)} does not exist.`);
     }
   }
@@ -61,21 +63,21 @@ export async function validateContentReferences(resource: ContentResource, row: 
   }
   if (resource === "cards") {
     const defId = String(row?.defId || row?.data?.defId || "");
-    if (defId && (await db.select().from(customCards).where(eq(customCards.defId, defId)).limit(1)).length === 0) {
+    if (defId && (await queryDb.select().from(customCards).where(eq(customCards.defId, defId)).limit(1)).length === 0) {
       errors.push(`Card ${defId} is not persisted.`);
     }
     const card = row?.data ?? row;
-    const [metadata] = await db.select().from(cardCatalogMeta).where(eq(cardCatalogMeta.defId, defId)).limit(1);
+    const [metadata] = await queryDb.select().from(cardCatalogMeta).where(eq(cardCatalogMeta.defId, defId)).limit(1);
     if (!metadata?.collectionId) errors.push("Card must be assigned to a published launch collection.");
     else {
-      const [collection] = await db.select({ status: adminCollections.status, name: adminCollections.name }).from(adminCollections).where(eq(adminCollections.id, metadata.collectionId)).limit(1);
+      const [collection] = await queryDb.select({ status: adminCollections.status, name: adminCollections.name }).from(adminCollections).where(eq(adminCollections.id, metadata.collectionId)).limit(1);
       if (!collection) errors.push(`Collection ${metadata.collectionId} does not exist.`);
       else if (collection.status !== "published") errors.push(`Collection ${collection.name} must be published before this card can enter QA or Live.`);
     }
     const refs = dependenciesForCard(card).filter((ref) => ref.kind === "card" || ref.kind === "token" || ref.kind === "equipment");
     for (const ref of refs) {
       const value = String(ref.to);
-      const [custom] = await db.select({ defId: customCards.defId, enabled: customCards.enabled, data: customCards.data }).from(customCards).where(eq(customCards.defId, value)).limit(1);
+      const [custom] = await queryDb.select({ defId: customCards.defId, enabled: customCards.enabled, data: customCards.data }).from(customCards).where(eq(customCards.defId, value)).limit(1);
       const base = baseCardsOnly().find((candidate) => candidate.defId === value);
       const target = custom?.data as any ?? base;
       if (!target) {
@@ -88,7 +90,7 @@ export async function validateContentReferences(resource: ContentResource, row: 
     }
 
     for (const key of Array.isArray(card?.customKeywords) ? card.customKeywords : []) {
-      const [keyword] = await db.select({ id: adminKeywords.id, enabled: adminKeywords.enabled, behavior: adminKeywords.behavior }).from(adminKeywords).where(eq(adminKeywords.key, String(key))).limit(1);
+      const [keyword] = await queryDb.select({ id: adminKeywords.id, enabled: adminKeywords.enabled, behavior: adminKeywords.behavior }).from(adminKeywords).where(eq(adminKeywords.key, String(key))).limit(1);
       if (!keyword) { errors.push(`Custom keyword ${String(key)} does not exist.`); continue; }
       if (!keyword.enabled) { errors.push(`Custom keyword ${String(key)} is not published.`); continue; }
       const published = sanitizeKeywordBehavior(keyword.behavior);
@@ -97,7 +99,7 @@ export async function validateContentReferences(resource: ContentResource, row: 
       if (!published || !embeddedNormalized || JSON.stringify(published) !== JSON.stringify(embeddedNormalized)) errors.push(`Custom keyword ${String(key)} does not match its published mechanic contract.`);
     }
     if (card?.archetypeKey) {
-      const [archetype] = await db.select({ id: adminCardArchetypes.id, enabled: adminCardArchetypes.enabled, baseType: adminCardArchetypes.baseType }).from(adminCardArchetypes).where(eq(adminCardArchetypes.key, String(card.archetypeKey))).limit(1);
+      const [archetype] = await queryDb.select({ id: adminCardArchetypes.id, enabled: adminCardArchetypes.enabled, baseType: adminCardArchetypes.baseType }).from(adminCardArchetypes).where(eq(adminCardArchetypes.key, String(card.archetypeKey))).limit(1);
       if (!archetype) errors.push(`Card archetype ${String(card.archetypeKey)} does not exist.`);
       else if (!archetype.enabled) errors.push(`Card archetype ${String(card.archetypeKey)} is not published.`);
       else if (String(archetype.baseType) !== String(card?.type)) errors.push(`Card archetype ${String(card.archetypeKey)} requires structural base type ${String(archetype.baseType)}.`);
@@ -106,8 +108,8 @@ export async function validateContentReferences(resource: ContentResource, row: 
   return errors;
 }
 
-export async function fetchContent(resource: ContentResource, id: number) {
+export async function fetchContent(resource: ContentResource, id: number, executor: any = db) {
   const table = tableFor(resource);
-  const [row] = await db.select().from(table).where(eq((table as any).id, id)).limit(1);
+  const [row] = await executor.select().from(table).where(eq((table as any).id, id)).limit(1);
   return row;
 }
