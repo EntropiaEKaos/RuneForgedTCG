@@ -12,6 +12,7 @@ import {
   customCards,
 } from "@/db/schema";
 import { getAdminSessionContext, isAdminAuthorized, adminRoleAllowed, unauthorized } from "@/lib/admin-auth";
+import { requireAdminStepUp } from "@/lib/admin-step-up";
 import { stableJson } from "@/lib/match-integrity";
 import { tableFor, validateContent, validateContentReferences } from "@/lib/content-pipeline";
 import {
@@ -54,6 +55,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
+    const stepUp = await requireAdminStepUp(req, actor, body, {
+      scope: "admin-content-rollback",
+      actionLabel: "published content rollback",
+    });
+    if (stepUp) return stepUp;
+
     const resource = String(body.resource || "");
     const resourceId = Number(body.resourceId);
     const targetVersion = Number(body.version);
@@ -259,6 +266,7 @@ export async function POST(req: NextRequest) {
           releaseHash,
           targetEngineVersion: target.engineVersion,
           targetRulesetVersion: target.rulesetVersion,
+          stepUp: true,
         },
       });
 
