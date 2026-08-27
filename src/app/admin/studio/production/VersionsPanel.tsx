@@ -38,6 +38,8 @@ export function Versions(props: Props) {
   const [diffResult, setDiffResult] = useState<any>(null);
   const [diffError, setDiffError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [currentTotp, setCurrentTotp] = useState("");
   const resourceId = Number(props.selected?.id || 0);
 
   async function loadVersions() {
@@ -76,7 +78,7 @@ export function Versions(props: Props) {
   }
 
   async function rollback(version: VersionRow) {
-    if (!resourceId || !data.length) return;
+    if (!resourceId || !data.length || !currentPassword) return;
     const currentLatest = data[0]?.version;
     if (!currentLatest) return;
     const name = String(props.selected?.name || props.selected?.key || props.selected?.defId || `#${resourceId}`);
@@ -95,6 +97,8 @@ export function Versions(props: Props) {
           version: version.version,
           expectedLatestVersion: currentLatest,
           changeNote: `Rollback from Production Studio to published v${version.version}`,
+          currentPassword,
+          currentTotp,
         }),
       });
       const payload = await response.json();
@@ -107,11 +111,17 @@ export function Versions(props: Props) {
       await props.reload();
       await loadVersions();
     } finally {
+      setCurrentPassword("");
+      setCurrentTotp("");
       setBusy(false);
     }
   }
 
   const latestPublished = data.find((version) => version.status === "published");
+  const hasRollbackCandidate = data.some((version) => {
+    const legacyCardSnapshot = props.resource === "cards" && !cardSnapshotComplete(version);
+    return version.status === "published" && latestPublished?.version !== version.version && !legacyCardSnapshot;
+  });
 
   return (
     <div>
@@ -146,6 +156,17 @@ export function Versions(props: Props) {
         </div>
       </div>
 
+      {hasRollbackCandidate && (
+        <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/5 p-4">
+          <div className="text-xs font-black uppercase tracking-wider text-red-200">Sensitive action re-authentication</div>
+          <p className="mt-1 text-xs text-slate-400">Published rollback changes live content. Enter your current administrator credentials before choosing a historical version.</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <label><span className="label">Current administrator password</span><input className="input" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label>
+            <label><span className="label">MFA / TOTP code (if enabled)</span><input className="input" inputMode="numeric" autoComplete="one-time-code" value={currentTotp} onChange={(event) => setCurrentTotp(event.target.value.replace(/\D/g, "").slice(0, 8))} /></label>
+          </div>
+        </div>
+      )}
+
       {!resourceId ? (
         <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center text-sm text-slate-500">
           Select a content item to inspect its immutable version history.
@@ -174,7 +195,7 @@ export function Versions(props: Props) {
                     {version.changeNote && <div className="mt-2 text-xs text-slate-400">{version.changeNote}</div>}
                   </div>
                   {rollbackEligible && (
-                    <button className="btn-ghost text-xs" disabled={busy} onClick={() => void rollback(version)}>
+                    <button className="btn-ghost text-xs" disabled={busy || !currentPassword} onClick={() => void rollback(version)}>
                       {busy ? "Working…" : `Rollback to v${version.version}`}
                     </button>
                   )}
