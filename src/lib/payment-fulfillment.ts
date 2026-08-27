@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { paymentOrders } from "@/db/schema";
 import { applyGameGrants } from "@/lib/game-grants";
+import { decideFulfilledPaymentEvent } from "@/lib/payment-financial-state";
 import { canBindApprovedProviderPayment } from "@/lib/payment-provider-link";
 
 export interface MercadoPagoPaymentLike {
@@ -48,36 +49,61 @@ export async function processMercadoPagoPayment(payment: MercadoPagoPaymentLike,
     if (!fresh) throw new Error("Order disappeared");
     const bound = validateProviderPaymentAgainstOrder(payment, fresh, options.expectedPlayerId);
 
-    if (providerStatus !== "approved") {
-      const requiresReview = Boolean(fresh.fulfilledAt && ["refunded", "charged_back"].includes(providerStatus));
+    // Once grants have been delivered the original approved provider payment is
+    // canonical. Later provider events may raise a sticky financial-review flag,
+    // but they must never cause another grant or let an unrelated retry downgrade
+    // the canonical purchase status.
+    if (fresh.fulfilledAt) {
+      const previousRequiresReview = Boolean((fresh.providerPayload as Record<string, unknown> | null)?.requiresReview);
+      const decision = decideFulfilledPaymentEvent({
+        providerStatus,
+        eventPaymentId: bound.paymentId,
+        canonicalPaymentId: fresh.providerPaymentId,
+        previousRequiresReview,
+      });
       const nextPayload = {
         status: providerStatus,
         statusDetail: payment.status_detail || null,
         preferenceId: bound.providerPreferenceId,
         eventPaymentId: bound.paymentId,
-        requiresReview,
+        canonicalPaymentId: fresh.providerPaymentId,
+        duplicateProviderPayment: decision.duplicateProviderPayment,
+        requiresReview: decision.requiresReview,
+        lastEventAt: new Date().toISOString(),
+      };
+
+      if (decision.preserveOrderStatus) {
+        await tx.update(paymentOrders).set({ providerPayload: nextPayload, updatedAt: new Date() }).where(eq(paymentOrders.id, fresh.id));
+      } else {
+        // Only an adverse event from the canonical approved payment may change
+        // the authoritative order status to refunded/charged_back.
+        await tx.update(paymentOrders).set({ status: providerStatus, providerPayload: nextPayload, updatedAt: new Date() }).where(eq(paymentOrders.id, fresh.id));
+      }
+      return {
+        already: true,
+        fulfilled: true,
+        requiresReview: decision.requiresReview,
+        duplicateProviderPayment: decision.duplicateProviderPayment,
+      };
+    }
+
+    if (providerStatus !== "approved") {
+      const nextPayload = {
+        status: providerStatus,
+        statusDetail: payment.status_detail || null,
+        preferenceId: bound.providerPreferenceId,
+        eventPaymentId: bound.paymentId,
+        requiresReview: false,
         lastEventAt: new Date().toISOString(),
       };
       // Non-approved attempts are observations, not canonical payment bindings.
       // A customer can legitimately retry the same preference and receive a new
       // payment id. Keep the approved providerPaymentId untouched so a pending or
       // rejected attempt can never block a later valid approval.
-      // Once items were delivered, delayed pending/rejected notifications must never
-      // downgrade the authoritative local status. Refund/chargeback is kept visible
-      // for manual review because blindly clawing back spent game currency is unsafe.
-      if (fresh.fulfilledAt && !requiresReview) {
-        await tx.update(paymentOrders).set({ providerPayload: nextPayload, updatedAt: new Date() }).where(eq(paymentOrders.id, fresh.id));
-        return { already: true, fulfilled: true, requiresReview: false };
-      }
       await tx.update(paymentOrders).set({ status: providerStatus, providerPayload: nextPayload, updatedAt: new Date() }).where(eq(paymentOrders.id, fresh.id));
-      return { already: Boolean(fresh.fulfilledAt), fulfilled: Boolean(fresh.fulfilledAt), requiresReview };
+      return { already: false, fulfilled: false, requiresReview: false, duplicateProviderPayment: false };
     }
 
-    if (fresh.fulfilledAt) {
-      // A second approved payment attempt for the same preference/order must not
-      // duplicate grants. Keep the original provider payment as the canonical one.
-      return { already: true, fulfilled: true, duplicateProviderPayment: Boolean(fresh.providerPaymentId && fresh.providerPaymentId !== bound.paymentId) };
-    }
     if (!canBindApprovedProviderPayment(fresh, bound.paymentId)) throw new Error("Order already linked to another approved provider payment");
 
     await applyGameGrants(tx, { playerId: fresh.playerId, grants: fresh.grants as any, reason: "payment_purchase", referenceType: "payment", referenceId: fresh.externalReference });
@@ -89,7 +115,7 @@ export async function processMercadoPagoPayment(payment: MercadoPagoPaymentLike,
       fulfilledAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(paymentOrders.id, fresh.id));
-    return { already: false, fulfilled: true };
+    return { already: false, fulfilled: true, requiresReview: false, duplicateProviderPayment: false };
   });
 
   return {
@@ -97,7 +123,8 @@ export async function processMercadoPagoPayment(payment: MercadoPagoPaymentLike,
     status: providerStatus,
     fulfilled: result.fulfilled,
     alreadyFulfilled: result.already,
-    requiresReview: "requiresReview" in result ? result.requiresReview : false,
+    requiresReview: result.requiresReview,
+    duplicateProviderPayment: result.duplicateProviderPayment,
     externalReference,
   };
 }
