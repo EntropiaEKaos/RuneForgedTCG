@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createMercadoPagoPreference, getMercadoPagoPayment, searchMercadoPagoPayments } from "@/lib/mercado-pago";
+import { decideFulfilledPaymentEvent } from "@/lib/payment-financial-state";
 import { canBindApprovedProviderPayment } from "@/lib/payment-provider-link";
 
 async function main() {
@@ -58,7 +59,27 @@ async function main() {
     assert.equal(canBindApprovedProviderPayment({ providerPaymentId: "pending-1", status: "pending", fulfilledAt: null }, "approved-2"), true, "a retry approval may replace a non-approved attempt id");
     assert.equal(canBindApprovedProviderPayment({ providerPaymentId: "approved-1", status: "approved", fulfilledAt: null }, "approved-2"), false, "an approved binding must not be replaced by another payment id");
     assert.equal(canBindApprovedProviderPayment({ providerPaymentId: "approved-1", status: "approved", fulfilledAt: new Date() }, "approved-2"), false, "a fulfilled order must never rebind its canonical provider payment");
-    console.log("MERCADO PAGO 2.93 API CONTRACT: 18/18 PASS");
+
+    const duplicateApproval = decideFulfilledPaymentEvent({ providerStatus: "approved", eventPaymentId: "approved-2", canonicalPaymentId: "approved-1", previousRequiresReview: false });
+    assert.equal(duplicateApproval.duplicateProviderPayment, true, "a second approved payment must be identified");
+    assert.equal(duplicateApproval.requiresReview, true, "a second approved payment must require financial review");
+    assert.equal(duplicateApproval.preserveOrderStatus, true, "a second approved payment must not replace canonical order status");
+
+    const canonicalRefund = decideFulfilledPaymentEvent({ providerStatus: "refunded", eventPaymentId: "approved-1", canonicalPaymentId: "approved-1", previousRequiresReview: false });
+    assert.equal(canonicalRefund.canonicalAdverseEvent, true, "canonical refund must be authoritative");
+    assert.equal(canonicalRefund.preserveOrderStatus, false, "canonical refund may transition the order to refunded");
+    assert.equal(canonicalRefund.requiresReview, true, "canonical refund must require review");
+
+    const delayedPending = decideFulfilledPaymentEvent({ providerStatus: "pending", eventPaymentId: "retry-3", canonicalPaymentId: "approved-1", previousRequiresReview: true });
+    assert.equal(delayedPending.preserveOrderStatus, true, "delayed pending must not downgrade a fulfilled order");
+    assert.equal(delayedPending.requiresReview, true, "a later benign event must not clear an existing financial review");
+
+    const duplicateRefund = decideFulfilledPaymentEvent({ providerStatus: "refunded", eventPaymentId: "approved-2", canonicalPaymentId: "approved-1", previousRequiresReview: false });
+    assert.equal(duplicateRefund.duplicateProviderPayment, true, "adverse event on a second payment must retain duplicate identity");
+    assert.equal(duplicateRefund.preserveOrderStatus, true, "refund of a non-canonical payment must not mark the canonical purchase refunded");
+    assert.equal(duplicateRefund.requiresReview, true, "refund of a duplicate payment still requires review");
+
+    console.log("MERCADO PAGO 2.93 API + 2.97.9 FINANCIAL STATE: 29/29 PASS");
   } finally {
     globalThis.fetch = originalFetch;
   }
