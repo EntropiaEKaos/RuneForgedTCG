@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { adminAuditLogs, adminGameDefinitions, rankedSeasons } from "@/db/schema";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized } from "@/lib/admin-auth";
+import { requireAdminStepUp } from "@/lib/admin-step-up";
 import { CONTROL_DOMAINS, CONTROL_DOMAIN_INFO, validateControlDefinition, type ControlDomain, type DangerLevel } from "@/lib/control-plane";
 import { ensureCustomCardsLoaded } from "@/game/catalog";
 
@@ -23,10 +24,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const [current] = await db.select().from(adminGameDefinitions).where(eq(adminGameDefinitions.id, id)).limit(1);
   if (!current) return Response.json({ ok: false, error: "Definition not found" }, { status: 404 });
 
+  const criticalTransition = current.dangerLevel === "critical" && (body.action === "publish" || body.action === "archive");
+  if (criticalTransition) {
+    const stepUp = await requireAdminStepUp(req, actor, body, {
+      scope: "admin-control-critical",
+      actionLabel: "critical runtime control changes",
+    });
+    if (stepUp) return stepUp;
+  }
+
   if (body.action === "archive") {
     const [row] = await db.update(adminGameDefinitions).set({ status: "archived", enabled: false, revision: sql`${adminGameDefinitions.revision} + 1`, updatedAt: new Date() }).where(and(eq(adminGameDefinitions.id, id), eq(adminGameDefinitions.revision, Number(body.expectedRevision) || current.revision))).returning();
     if (!row) return Response.json({ ok: false, error: "Revision conflict; reload before archiving" }, { status: 409 });
-    await db.insert(adminAuditLogs).values({ action: "control.archive", resource: current.domain, resourceId: id, actor: actor.actorId, details: { key: current.key, previousRevision: current.revision } });
+    await db.insert(adminAuditLogs).values({ action: "control.archive", resource: current.domain, resourceId: id, actor: actor.actorId, details: { key: current.key, previousRevision: current.revision, stepUp: criticalTransition } });
     return Response.json({ ok: true, row });
   }
 
@@ -58,7 +68,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         }
       }
 
-      await tx.insert(adminAuditLogs).values({ action: "control.publish", resource: current.domain, resourceId: id, actor: actor.actorId, details: { key: current.key, dangerLevel: current.dangerLevel, warnings: validation.warnings } });
+      await tx.insert(adminAuditLogs).values({ action: "control.publish", resource: current.domain, resourceId: id, actor: actor.actorId, details: { key: current.key, dangerLevel: current.dangerLevel, warnings: validation.warnings, stepUp: criticalTransition } });
       return row;
     });
     if (!published) return Response.json({ ok: false, error: "Revision conflict; reload before publishing" }, { status: 409 });
