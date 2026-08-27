@@ -29,9 +29,11 @@ function validateProviderPaymentAgainstOrder(payment: MercadoPagoPaymentLike, or
   const currency = String(payment.currency_id || "");
   if (!Number.isFinite(providerCents) || providerCents !== order.amountCents || currency !== order.currency) throw new Error("Payment amount/currency mismatch");
   const providerPreferenceId = String(payment.preference_id || "").trim();
-  if (!order.providerPreferenceId) throw new Error("Local order has no Mercado Pago preference");
-  if (!providerPreferenceId || providerPreferenceId !== order.providerPreferenceId) throw new Error("Payment preference does not belong to this order");
-  return { paymentId, providerPreferenceId };
+  if (!providerPreferenceId) throw new Error("Mercado Pago payment has no preference id");
+  const recoveredPreferenceBinding = !order.providerPreferenceId && order.status === "preference_ambiguous";
+  if (!order.providerPreferenceId && !recoveredPreferenceBinding) throw new Error("Local order has no Mercado Pago preference");
+  if (order.providerPreferenceId && providerPreferenceId !== order.providerPreferenceId) throw new Error("Payment preference does not belong to this order");
+  return { paymentId, providerPreferenceId, recoveredPreferenceBinding };
 }
 
 /** Provider-confirmed order processing. Safe to call repeatedly from webhook or reconciliation. */
@@ -93,15 +95,21 @@ export async function processMercadoPagoPayment(payment: MercadoPagoPaymentLike,
         statusDetail: payment.status_detail || null,
         preferenceId: bound.providerPreferenceId,
         eventPaymentId: bound.paymentId,
-        requiresReview: false,
+        recoveredPreferenceBinding: bound.recoveredPreferenceBinding,
+        requiresReview: bound.recoveredPreferenceBinding || Boolean((fresh.providerPayload as Record<string, unknown> | null)?.requiresReview),
         lastEventAt: new Date().toISOString(),
       };
       // Non-approved attempts are observations, not canonical payment bindings.
       // A customer can legitimately retry the same preference and receive a new
       // payment id. Keep the approved providerPaymentId untouched so a pending or
       // rejected attempt can never block a later valid approval.
-      await tx.update(paymentOrders).set({ status: providerStatus, providerPayload: nextPayload, updatedAt: new Date() }).where(eq(paymentOrders.id, fresh.id));
-      return { already: false, fulfilled: false, requiresReview: false, duplicateProviderPayment: false };
+      await tx.update(paymentOrders).set({
+        status: providerStatus,
+        providerPreferenceId: bound.providerPreferenceId,
+        providerPayload: nextPayload,
+        updatedAt: new Date(),
+      }).where(eq(paymentOrders.id, fresh.id));
+      return { already: false, fulfilled: false, requiresReview: nextPayload.requiresReview, duplicateProviderPayment: false };
     }
 
     if (!canBindApprovedProviderPayment(fresh, bound.paymentId)) throw new Error("Order already linked to another approved provider payment");
@@ -109,13 +117,21 @@ export async function processMercadoPagoPayment(payment: MercadoPagoPaymentLike,
     await applyGameGrants(tx, { playerId: fresh.playerId, grants: fresh.grants as any, reason: "payment_purchase", referenceType: "payment", referenceId: fresh.externalReference });
     await tx.update(paymentOrders).set({
       status: "approved",
+      providerPreferenceId: bound.providerPreferenceId,
       providerPaymentId: bound.paymentId,
-      providerPayload: { status: "approved", statusDetail: payment.status_detail || null, preferenceId: bound.providerPreferenceId, eventPaymentId: bound.paymentId, requiresReview: false },
+      providerPayload: {
+        status: "approved",
+        statusDetail: payment.status_detail || null,
+        preferenceId: bound.providerPreferenceId,
+        eventPaymentId: bound.paymentId,
+        recoveredPreferenceBinding: bound.recoveredPreferenceBinding,
+        requiresReview: bound.recoveredPreferenceBinding || Boolean((fresh.providerPayload as Record<string, unknown> | null)?.requiresReview),
+      },
       approvedAt: new Date(),
       fulfilledAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(paymentOrders.id, fresh.id));
-    return { already: false, fulfilled: true, requiresReview: false, duplicateProviderPayment: false };
+    return { already: false, fulfilled: true, requiresReview: bound.recoveredPreferenceBinding || Boolean((fresh.providerPayload as Record<string, unknown> | null)?.requiresReview), duplicateProviderPayment: false };
   });
 
   return {
