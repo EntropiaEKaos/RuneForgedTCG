@@ -52,6 +52,10 @@ export default function TotalControlStudio() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [importText, setImportText] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [currentTotp, setCurrentTotp] = useState("");
+
+  const clearStepUp = () => { setCurrentPassword(""); setCurrentTotp(""); };
 
   const loadDefinitions = useCallback(async () => {
     if (tab === "settings") return;
@@ -66,7 +70,7 @@ export default function TotalControlStudio() {
     if (!data.ok) throw new Error(data.error);
     setConfig(data.config); setConfigRevision(Number(data.revision || 0)); setAdvancedText(JSON.stringify(data.config.advanced, null, 2));
   }, []);
-  useDeferredEffect(() => { setError(""); setNotice(""); setEditing(null); (tab === "settings" ? loadSettings() : loadDefinitions()).catch((e) => setError(e instanceof Error ? e.message : "Load failed")); }, [tab, loadDefinitions, loadSettings]);
+  useDeferredEffect(() => { setError(""); setNotice(""); setEditing(null); clearStepUp(); (tab === "settings" ? loadSettings() : loadDefinitions()).catch((e) => setError(e instanceof Error ? e.message : "Load failed")); }, [tab, loadDefinitions, loadSettings]);
 
   const begin = (row?: Row) => {
     const info = domains[tab];
@@ -86,15 +90,23 @@ export default function TotalControlStudio() {
     } catch (e) { setError(e instanceof Error ? e.message : "Save failed"); } finally { setBusy(false); }
   };
   const transition = async (row: Row, action: "publish" | "archive") => {
+    const critical = row.dangerLevel === "critical";
+    if (critical && !currentPassword) return setError("Definições críticas exigem a senha atual do operador.");
     let confirmation = "";
-    if (action === "publish" && row.dangerLevel === "critical") {
+    if (action === "publish" && critical) {
       const expected = `PUBLICAR ${row.domain}/${row.key}`;
       confirmation = prompt(`Definição crítica. Digite exatamente:\n${expected}`) || "";
       if (confirmation !== expected) return;
     }
-    const response = await fetch(`/api/admin/control/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ action, expectedRevision: row.revision, confirmation }) });
-    const data = await response.json(); if (!data.ok) return setError(data.validation?.errors?.join(" · ") || data.error);
-    setNotice(action === "publish" ? "Definição publicada e disponível ao runtime." : "Definição arquivada e retirada do runtime."); await loadDefinitions();
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(`/api/admin/control/${row.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ action, expectedRevision: row.revision, confirmation, ...(critical ? { currentPassword, currentTotp } : {}) }) });
+      const data = await response.json(); if (!data.ok) return setError(data.validation?.errors?.join(" · ") || data.error);
+      setNotice(action === "publish" ? "Definição publicada e disponível ao runtime." : "Definição arquivada e retirada do runtime."); await loadDefinitions();
+    } finally {
+      if (critical) clearStepUp();
+      setBusy(false);
+    }
   };
   const remove = async (row: Row) => {
     if (!confirm(`Excluir definitivamente ${row.name}?`)) return;
@@ -123,29 +135,38 @@ export default function TotalControlStudio() {
   };
   const saveSettings = async () => {
     if (!config) return;
+    if (!currentPassword) return setError("Configuração global exige reautenticação com a senha atual.");
     let advanced: any; try { advanced = JSON.parse(advancedText); } catch { return setError("Configuração avançada contém JSON inválido."); }
-    setBusy(true); const response = await fetch("/api/admin/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ...config, advanced, expectedRevision: configRevision }) }); const data = await response.json(); setBusy(false);
-    if (!data.ok) { if (response.status === 409) await loadSettings(); setError(data.error); } else { setConfig(data.config); setConfigRevision(Number(data.revision || configRevision + 1)); setAdvancedText(JSON.stringify(data.config.advanced, null, 2)); setNotice("Configuração global salva e auditada."); }
+    setBusy(true); setError("");
+    try {
+      const response = await fetch("/api/admin/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ...config, advanced, expectedRevision: configRevision, currentPassword, currentTotp }) }); const data = await response.json();
+      if (!data.ok) { if (response.status === 409) await loadSettings(); setError(data.error); } else { setConfig(data.config); setConfigRevision(Number(data.revision || configRevision + 1)); setAdvancedText(JSON.stringify(data.config.advanced, null, 2)); setNotice("Configuração global salva, auditada e protegida por step-up."); }
+    } finally {
+      clearStepUp();
+      setBusy(false);
+    }
   };
 
   const counts = useMemo(() => ({ live: rows.filter((row) => row.status === "published" && row.enabled).length, draft: rows.filter((row) => row.status === "draft").length, critical: rows.filter((row) => row.dangerLevel === "critical").length }), [rows]);
+  const needsStepUp = tab === "settings" || rows.some((row) => row.dangerLevel === "critical");
   return <div className="studio-shell"><StudioCommandPalette /><header className="studio-topbar"><div className="studio-topbar-inner flex items-center justify-between"><div className="studio-brand"><div className="studio-brand-mark">⌘</div><div><div className="studio-kicker">RUNEFORGE // {pkg.version}</div><div className="studio-title">Total Game Control</div></div></div><div className="flex gap-2"><Link href="/admin/studio/art" className="btn-ghost">Art Pipeline</Link><button className="btn-ghost" onClick={bootstrap} disabled={busy}>Importar padrões</button><Link href="/admin/studio" className="btn-ghost">Control Room</Link></div></div></header>
     <div className="studio-layout"><aside className="studio-sidebar"><div className="studio-nav-label">Runtime</div><button className={`studio-nav-item ${tab === "settings" ? "active" : ""}`} onClick={() => setTab("settings")}><span>⚙</span>Configuração global</button><div className="studio-nav-label mt-5">Definições</div><div className="studio-nav-list">{domainOrder.map((id) => <button key={id} className={`studio-nav-item ${tab === id ? "active" : ""}`} onClick={() => setTab(id)}><span>{domains[id]?.icon || "◆"}</span>{domains[id]?.label || id}</button>)}</div></aside>
       <main className="studio-main"><StudioBreadcrumb section="Total Control" current={tab === "settings" ? "Configuração global" : domains[tab]?.label || tab} />
         {notice && <div className="mb-4 rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-xs text-emerald-200">{notice}</div>}{error && <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 p-3 text-xs text-red-200">{error}</div>}
-        {tab === "settings" ? <SettingsEditor config={config} setConfig={setConfig} advancedText={advancedText} setAdvancedText={setAdvancedText} save={saveSettings} busy={busy} /> : <>
+        {needsStepUp && <section className="mb-4 rounded-xl border border-red-400/20 bg-red-400/5 p-4"><div className="text-xs font-black uppercase tracking-wider text-red-200">Step-up para mudanças de alto impacto</div><p className="mt-1 text-xs text-slate-400">Configuração global e transições de definições críticas exigem sua credencial atual. Rascunhos, imports e edições comuns não usam estes campos.</p><div className="mt-3 grid gap-3 md:grid-cols-2"><label><span className="label">Senha atual</span><input className="input" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} /></label><label><span className="label">MFA / TOTP (se habilitado)</span><input className="input" inputMode="numeric" autoComplete="one-time-code" value={currentTotp} onChange={(e) => setCurrentTotp(e.target.value.replace(/\D/g, "").slice(0, 8))} /></label></div></section>}
+        {tab === "settings" ? <SettingsEditor config={config} setConfig={setConfig} advancedText={advancedText} setAdvancedText={setAdvancedText} save={saveSettings} busy={busy} canSave={Boolean(currentPassword)} /> : <>
           <section className="studio-hero mb-5"><p className="studio-kicker">VERSIONED RUNTIME DOMAIN</p><h2>{domains[tab]?.icon} {domains[tab]?.label || tab}</h2><p>{domains[tab]?.description}</p><div className="mt-4 flex flex-wrap gap-2"><span className="studio-pill live">{counts.live} live</span><span className="studio-pill">{counts.draft} drafts</span><span className="studio-pill">{counts.critical} critical</span></div></section>
           <div className="mb-4 flex flex-wrap gap-2"><button className="btn-primary" onClick={() => begin()}>+ Nova definição</button><button className="btn-ghost" onClick={exportRows}>Exportar JSON</button>{tab === "asset-library" && <label className="btn-ghost cursor-pointer">Upload de mídia<input className="hidden" type="file" accept="image/png,image/jpeg,image/webp,image/gif,audio/mpeg,audio/ogg,audio/wav" onChange={(e) => uploadAsset(e.target.files?.[0])}/></label>}</div>
-          <div className="grid gap-5 xl:grid-cols-[1fr_470px]"><section className="studio-section overflow-hidden"><div className="divide-y divide-white/5">{rows.map((row) => <div key={row.id} className="p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="font-black">{row.name}</div><div className="text-[10px] text-slate-500">{row.domain}/{row.key} · rev {row.revision}</div></div><div className="flex flex-wrap gap-1"><span className={`studio-pill ${row.status === "published" ? "live" : ""}`}>{row.status}</span><span className={`studio-pill ${row.dangerLevel === "critical" ? "!border-red-400/30 !text-red-300" : ""}`}>{row.dangerLevel}</span><button className="btn-ghost !px-2 !py-1 text-[10px]" onClick={() => begin(row)}>Editar</button>{row.status !== "published" && <button className="btn-primary !px-2 !py-1 text-[10px]" onClick={() => transition(row,"publish")}>Publicar</button>}{row.status === "published" && <button className="btn-ghost !px-2 !py-1 text-[10px]" onClick={() => transition(row,"archive")}>Arquivar</button>}{row.status !== "published" && <button className="btn-ghost !px-2 !py-1 text-[10px] text-red-300" onClick={() => remove(row)}>Excluir</button>}</div></div><p className="mt-2 text-xs text-slate-400">{row.description}</p></div>)}{!rows.length && <div className="p-10 text-center text-sm text-slate-500">Nenhuma definição persistida. Importe os padrões ou crie uma nova.</div>}</div></section>
+          <div className="grid gap-5 xl:grid-cols-[1fr_470px]"><section className="studio-section overflow-hidden"><div className="divide-y divide-white/5">{rows.map((row) => <div key={row.id} className="p-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><div className="font-black">{row.name}</div><div className="text-[10px] text-slate-500">{row.domain}/{row.key} · rev {row.revision}</div></div><div className="flex flex-wrap gap-1"><span className={`studio-pill ${row.status === "published" ? "live" : ""}`}>{row.status}</span><span className={`studio-pill ${row.dangerLevel === "critical" ? "!border-red-400/30 !text-red-300" : ""}`}>{row.dangerLevel}</span><button className="btn-ghost !px-2 !py-1 text-[10px]" onClick={() => begin(row)}>Editar</button>{row.status !== "published" && <button className="btn-primary !px-2 !py-1 text-[10px]" disabled={busy || (row.dangerLevel === "critical" && !currentPassword)} onClick={() => transition(row,"publish")}>Publicar</button>}{row.status === "published" && <button className="btn-ghost !px-2 !py-1 text-[10px]" disabled={busy || (row.dangerLevel === "critical" && !currentPassword)} onClick={() => transition(row,"archive")}>Arquivar</button>}{row.status !== "published" && <button className="btn-ghost !px-2 !py-1 text-[10px] text-red-300" onClick={() => remove(row)}>Excluir</button>}</div></div><p className="mt-2 text-xs text-slate-400">{row.description}</p></div>)}{!rows.length && <div className="p-10 text-center text-sm text-slate-500">Nenhuma definição persistida. Importe os padrões ou crie uma nova.</div>}</div></section>
             <DefinitionEditor row={editing} setRow={setEditing} payloadText={payloadText} setPayloadText={setPayloadText} save={saveDefinition} busy={busy} importText={importText} setImportText={setImportText} importRows={importRows} /></div></>}
       </main></div></div>;
 }
 
-function SettingsEditor({ config, setConfig, advancedText, setAdvancedText, save, busy }: { config: Config | null; setConfig: (value: Config) => void; advancedText: string; setAdvancedText: (value: string) => void; save: () => void; busy: boolean }) {
+function SettingsEditor({ config, setConfig, advancedText, setAdvancedText, save, busy, canSave }: { config: Config | null; setConfig: (value: Config) => void; advancedText: string; setAdvancedText: (value: string) => void; save: () => void; busy: boolean; canSave: boolean }) {
   if (!config) return <div className="studio-section p-8 text-slate-400">Carregando configuração…</div>;
   const numberFields = [["nexusStart","Vida do Nexus"],["maxMana","Mana máxima"],["maxSpellMana","Mana de feitiço"],["handCap","Limite da mão"],["startHand","Mão inicial"],["benchCap","Limite do banco"],["permanentsCap","Permanentes"],["deckMin","Deck mínimo"],["deckMax","Deck máximo"],["maxCopies","Máx. cópias"],["maxRegions","Máx. regiões"],["reactionMs","Reação (ms)"]];
   return <div className="grid gap-5 xl:grid-cols-[.9fr_1.1fr]"><section className="studio-section p-5"><div className="studio-kicker">SAFE RUNTIME KNOBS</div><h2 className="mt-1 text-xl font-black">Regras globais</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">{numberFields.map(([key,label]) => <label key={key}><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span><input className="input" type="number" value={config[key]} onChange={(e) => setConfig({ ...config, [key]: Number(e.target.value) })} /></label>)}</div><div className="mt-4 grid gap-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={config.aiEnabled} onChange={(e) => setConfig({ ...config, aiEnabled: e.target.checked })} /> IA habilitada</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={config.rankedEnabled} onChange={(e) => setConfig({ ...config, rankedEnabled: e.target.checked })} /> Ranked configurado (ainda exige certificação do release)</label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={config.maintenanceMode} onChange={(e) => setConfig({ ...config, maintenanceMode: e.target.checked })} /> Modo manutenção</label><label><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Anúncio global</span><textarea className="input min-h-24" value={config.announcement} onChange={(e) => setConfig({ ...config, announcement: e.target.value })} /></label></div></section>
-    <section className="studio-section p-5"><div className="flex items-center justify-between"><div><div className="studio-kicker text-red-300">CRITICAL RUNTIME OVERRIDES</div><h2 className="mt-1 text-xl font-black">Motor, IA e economia</h2></div><span className="studio-pill !border-red-400/30 !text-red-300">advanced</span></div><p className="mt-2 text-xs leading-5 text-slate-400">Contrato completo de motor, IA, matchmaking, ranked, economia, apresentação, idioma e moderação. O backend limita valores extremos e registra cada alteração.</p><textarea className="input mt-4 min-h-[560px] font-mono text-[11px] leading-5" spellCheck={false} value={advancedText} onChange={(e) => setAdvancedText(e.target.value)} /><div className="mt-4 flex justify-end"><button className="btn-primary" disabled={busy} onClick={save}>{busy ? "Salvando…" : "Salvar configuração completa"}</button></div></section></div>;
+    <section className="studio-section p-5"><div className="flex items-center justify-between"><div><div className="studio-kicker text-red-300">CRITICAL RUNTIME OVERRIDES</div><h2 className="mt-1 text-xl font-black">Motor, IA e economia</h2></div><span className="studio-pill !border-red-400/30 !text-red-300">advanced</span></div><p className="mt-2 text-xs leading-5 text-slate-400">Contrato completo de motor, IA, matchmaking, ranked, economia, apresentação, idioma e moderação. O backend limita valores extremos e registra cada alteração.</p><textarea className="input mt-4 min-h-[560px] font-mono text-[11px] leading-5" spellCheck={false} value={advancedText} onChange={(e) => setAdvancedText(e.target.value)} /><div className="mt-4 flex justify-end"><button className="btn-primary" disabled={busy || !canSave} onClick={save}>{busy ? "Salvando…" : "Salvar configuração completa"}</button></div></section></div>;
 }
 
 function DefinitionEditor({ row, setRow, payloadText, setPayloadText, save, busy, importText, setImportText, importRows }: { row: Row | null; setRow: (row: Row | null) => void; payloadText: string; setPayloadText: (value: string) => void; save: () => void; busy: boolean; importText: string; setImportText: (value: string) => void; importRows: () => void }) {
