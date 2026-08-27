@@ -99,6 +99,11 @@ jobs:
           NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
         run: node --import tsx scripts/studio-version-rollback-certification-2.97.7.ts
 
+      - name: Super Admin security certification — step-up, rate limits and sensitive surfaces
+        env:
+          NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
+        run: node --import tsx scripts/super-admin-security-certification-2.97.8.ts
+
       - name: Behavioral test suite
         run: npm run test:behavior
 
