@@ -172,7 +172,59 @@ async function main() {
     assert.equal("seed" in room, false, "seed must not leak from the public room DTO");
     assert.equal("rng" in room, false, "RNG state must not leak from the public room DTO");
   }
-  console.log(`E2E MVP: PASS — bounded public account body, recovery session rotation, final-pack deletion, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation (${roomCode})`);
+
+  // Direct-room lifecycle: one authenticated player may participate in at most
+  // one waiting/playing PvP room. This covers the manual lobby API in addition
+  // to the matchmaking flow above.
+  const lobbyA = new BrowserClient();
+  const lobbyB = new BrowserClient();
+  await register(lobbyA, `E2E Lobby A ${runId}`);
+  await register(lobbyB, `E2E Lobby B ${runId}`);
+  const createLobby = (client: BrowserClient) => client.request("/api/pvp", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ hostDeck: DECKS[0].id }),
+  });
+  const joinLobby = (client: BrowserClient, code: string) => client.request(`/api/pvp/${code}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "join", guestDeck: DECKS[0].id }),
+  });
+  const leaveLobby = (client: BrowserClient, code: string) => client.request(`/api/pvp/${code}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "leave" }),
+  });
+
+  const ownWaiting = await createLobby(lobbyA);
+  assert.equal(ownWaiting.response.status, 200, JSON.stringify(ownWaiting.body));
+  const ownWaitingCode = String(ownWaiting.body.room?.code || "");
+  assert.match(ownWaitingCode, /^[A-Z2-9]{6}$/);
+  const otherWaiting = await createLobby(lobbyB);
+  assert.equal(otherWaiting.response.status, 200, JSON.stringify(otherWaiting.body));
+  const otherWaitingCode = String(otherWaiting.body.room?.code || "");
+  assert.match(otherWaitingCode, /^[A-Z2-9]{6}$/);
+
+  const blockedJoin = await joinLobby(lobbyA, otherWaitingCode);
+  assert.equal(blockedJoin.response.status, 409, `player hosting a waiting room must not join another room: ${JSON.stringify(blockedJoin.body)}`);
+  const cancelled = await leaveLobby(lobbyA, ownWaitingCode);
+  assert.equal(cancelled.response.status, 200, JSON.stringify(cancelled.body));
+  assert.equal(cancelled.body.cancelled, true);
+
+  const joined = await joinLobby(lobbyA, otherWaitingCode);
+  assert.equal(joined.response.status, 200, JSON.stringify(joined.body));
+  assert.equal(joined.body.room?.state, "playing");
+  const blockedCreate = await createLobby(lobbyA);
+  assert.equal(blockedCreate.response.status, 409, `player already playing must not create a second lobby: ${JSON.stringify(blockedCreate.body)}`);
+  const currentPvp = await lobbyA.request("/api/pvp");
+  assert.equal(currentPvp.response.status, 200, JSON.stringify(currentPvp.body));
+  assert.equal(currentPvp.body.myRoom?.code, otherWaitingCode, "active match must remain the canonical myRoom");
+  assert.equal(currentPvp.body.myRoom?.state, "playing");
+  const forfeited = await leaveLobby(lobbyA, otherWaitingCode);
+  assert.equal(forfeited.response.status, 200, JSON.stringify(forfeited.body));
+  assert.equal(forfeited.body.forfeited, true);
+
+  console.log(`E2E MVP: PASS — bounded public account body, recovery session rotation, final-pack deletion, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation and single-active-room invariant (${roomCode})`);
 }
 
 void main();

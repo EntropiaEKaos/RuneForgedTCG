@@ -126,7 +126,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
           if (!guestPlayer) return [];
           const [locked] = await tx.select().from(pvpRooms).where(eq(pvpRooms.id, room.id)).limit(1).for("update");
           if (!locked || locked.version !== room.version || locked.guestPlayerId != null || locked.state !== "waiting") return [];
-          const [activeElsewhere] = await tx.select({ id: pvpRooms.id }).from(pvpRooms).where(and(or(eq(pvpRooms.hostPlayerId, identity.playerId!), eq(pvpRooms.guestPlayerId, identity.playerId!)), eq(pvpRooms.state, "playing"))).limit(1);
+          // The player row lock above serializes join/create for this identity.
+          // A player must explicitly cancel an existing waiting lobby before
+          // joining another room, and can never join while already playing.
+          const [activeElsewhere] = await tx.select({ id: pvpRooms.id }).from(pvpRooms).where(and(
+            or(eq(pvpRooms.hostPlayerId, identity.playerId!), eq(pvpRooms.guestPlayerId, identity.playerId!)),
+            or(eq(pvpRooms.state, "waiting"), eq(pvpRooms.state, "playing")),
+          )).limit(1);
           if (activeElsewhere) return [];
           if (locked.hostPlayerId == null) return [];
           const host: DeckInput = locked.hostDeckSnapshot ? snapshotDeck(locked.hostDeckSnapshot as DeckInput) : hostPreview;
