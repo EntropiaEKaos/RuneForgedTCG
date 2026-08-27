@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
+import { requireAdminStepUp } from "@/lib/admin-step-up";
 import { DEFAULT_CONFIG, GameConfigConflictError, GameConfigValidationError, getGameConfigRevision, loadGameConfig, saveGameConfig, validateGameConfig, type AdvancedGameConfig, type GameConfig } from "@/game/settings";
 import { adminAuditLogs } from "@/db/schema";
 import { db } from "@/db";
@@ -26,6 +27,12 @@ export async function PUT(req: NextRequest) {
   if (!adminRoleAllowed(actor.role, "liveops")) return Response.json({ ok: false, error: `Role ${actor.role} cannot modify game settings` }, { status: 403 });
   try {
     const body = await req.json();
+    const stepUp = await requireAdminStepUp(req, actor, body, {
+      scope: "admin-game-settings",
+      actionLabel: "global game settings changes",
+    });
+    if (stepUp) return stepUp;
+
     const partial: Partial<GameConfig> = {};
 
     const num = (k: keyof GameConfig, min: number, max: number) => {
@@ -113,7 +120,7 @@ export async function PUT(req: NextRequest) {
     const expectedRevision = body.expectedRevision === undefined ? undefined : Number(body.expectedRevision);
     if (expectedRevision !== undefined && !Number.isInteger(expectedRevision)) return Response.json({ ok: false, error: "expectedRevision must be an integer" }, { status: 400 });
     const config = await saveGameConfig(partial, expectedRevision);
-    await db.insert(adminAuditLogs).values({ action: "settings.update", resource: "game-settings", actor: actor.actorId, details: { role: actor.role, fields: Object.keys(partial), advancedRuntimeOverrides: config.advanced.engine.runtimeOverridesEnabled } });
+    await db.insert(adminAuditLogs).values({ action: "settings.update", resource: "game-settings", actor: actor.actorId, details: { role: actor.role, fields: Object.keys(partial), advancedRuntimeOverrides: config.advanced.engine.runtimeOverridesEnabled, stepUp: true } });
     return Response.json({ ok: true, config, revision: getGameConfigRevision() });
   } catch (error) {
     if (error instanceof GameConfigConflictError) return Response.json({ ok: false, error: error.message, currentRevision: error.currentRevision }, { status: 409 });
