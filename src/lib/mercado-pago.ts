@@ -38,6 +38,16 @@ export async function createMercadoPagoPreference(input: {
   });
 }
 
+/** Official Checkout Pro preference lookup used to recover ambiguous POST results. */
+export async function searchMercadoPagoPreferences(accessToken: string, externalReference: string) {
+  const q = new URLSearchParams({ external_reference: externalReference, limit: "10", offset: "0" });
+  return mpFetch(`/checkout/preferences/search?${q.toString()}`, accessToken, { method: "GET" });
+}
+
+export async function getMercadoPagoPreference(accessToken: string, preferenceId: string) {
+  return mpFetch(`/checkout/preferences/${encodeURIComponent(preferenceId)}`, accessToken, { method: "GET" });
+}
+
 export async function getMercadoPagoPayment(accessToken: string, paymentId: string) {
   return mpFetch(`/v1/payments/${encodeURIComponent(paymentId)}`, accessToken, { method: "GET" });
 }
