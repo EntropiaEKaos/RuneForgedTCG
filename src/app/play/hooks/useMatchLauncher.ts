@@ -6,6 +6,7 @@ import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { DECKS, type DeckDef } from "@/game/decks";
 import { createCustomGame, createGame } from "@/game/engine";
 import { AI_DIFFICULTIES } from "@/game/ai-personality";
+import { buildModeMission, setActiveModeMission } from "@/game/client/mode-mission";
 import type { AiDifficulty, DeckInput, GameState } from "@/game/types";
 import type { GameAction } from "@/game/reducer";
 import type { ReactionPending, PendingSpell } from "@/game/client/match-model";
@@ -87,6 +88,7 @@ export function useMatchLauncher({
     const playerDeck = resolvePlayerDeck();
     setMatchReward(null);
     setActiveEncounter(null);
+    setActiveModeMission(null);
     resetTransientMatchState();
     const params = new URLSearchParams(window.location.search);
     const mode = params.get("mode");
@@ -166,10 +168,11 @@ export function useMatchLauncher({
             setActiveEncounter(encounter);
             setState(createCustomGame(playerName, authoritativePlayerDeck, authoritativeOpponent, { aiName: encounter.name, playerNexus: encounter.playerNexus, aiNexus: encounter.aiNexus, playerStartingMana: encounter.playerMana ?? 1, aiStartingMana: encounter.aiMana ?? 1, playerStartingHand: encounter.playerHand, aiStartingHand: encounter.aiHand, aiBench: encounter.aiBench, playerGoesFirst: true, skipMulligan: true, aiDifficulty: "overlord", logPrefix: `🧭 ${encounter.chapter} — `, seed: authoritativeSeed, rules: attempt.engineRules, aiRules: attempt.aiRules }));
           }
+          setActiveModeMission(buildModeMission(mode, definition));
           setFirstInfo(mode === "puzzle" ? "🧩 Puzzle mode — win this turn!" : mode === "boss" ? "👹 Boss battle — survive and destroy the Boss!" : mode === "expedition" ? `🧭 ${encounter?.chapter} — ${encounter?.mutator.label}` : "⚔️ Brawl — special rules active!");
           setScreen("game");
         })
-        .catch((error) => { console.error(error); setFirstInfo("Não foi possível preparar a tentativa autoritativa."); setScreen("select"); });
+        .catch((error) => { console.error(error); setActiveModeMission(null); setFirstInfo("Não foi possível preparar a tentativa autoritativa."); setScreen("select"); });
       return;
     }
 
