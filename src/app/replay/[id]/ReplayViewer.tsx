@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import SiteNav from "@/components/SiteNav";
+import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import type { GameEvent } from "@/game/events";
 import { presentGameEvent } from "@/game/event-presentation";
 
@@ -146,7 +147,7 @@ export default function ReplayViewer({ id }: { id: string }) {
     }
   }, [id]);
 
-  useEffect(() => {
+  useDeferredEffect(() => {
     const controller = new AbortController();
     void loadReplay(controller.signal);
     return () => controller.abort();
