@@ -36,7 +36,7 @@ const LIFECYCLE_LABEL: Record<Lifecycle, string> = {
 
 const LIFECYCLE_COPY: Record<Lifecycle, string> = {
   upcoming: "Ainda não liberada para o ambiente competitivo ativo.",
-  active: "Legal no Standard enquanto permanecer dentro da janela publicada.",
+  active: "Integra o Standard enquanto permanecer dentro da janela publicada.",
   rotated: "Saiu do Standard e continua disponível nos formatos Eternal.",
 };
 
