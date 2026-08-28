@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import SiteNav from "@/components/SiteNav";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import type { Rarity } from "@/game/types";
 import type { LoginReward, PackDef } from "@/lib/packs";
@@ -29,11 +30,28 @@ interface RevealedCard {
   cost: number;
 }
 
+interface PaidProduct {
+  key: string;
+  name: string;
+  priceCents: number | string;
+  currency?: string;
+  grants?: {
+    gold?: number;
+    dust?: number;
+    packs?: Array<{ count?: number | string }>;
+  };
+}
+
+interface PaidData {
+  gateway: { enabled: boolean; environment?: string };
+  products: PaidProduct[];
+}
+
 const RARITY_COLOR: Record<Rarity, string> = {
-  Common: "border-slate-500 bg-slate-500/10",
-  Rare: "border-blue-400 bg-blue-500/20",
-  Epic: "border-purple-400 bg-purple-500/20 shadow-lg shadow-purple-500/30",
-  Legend: "border-amber-400 bg-amber-500/20 shadow-lg shadow-amber-500/40 animate-pulse",
+  Common: "border-slate-500/50 bg-slate-500/10",
+  Rare: "border-blue-400/60 bg-blue-500/15",
+  Epic: "border-purple-400/60 bg-purple-500/15 shadow-lg shadow-purple-500/15",
+  Legend: "border-amber-400/70 bg-amber-500/15 shadow-lg shadow-amber-500/20",
 };
 
 const RARITY_TEXT: Record<Rarity, string> = {
@@ -41,6 +59,13 @@ const RARITY_TEXT: Record<Rarity, string> = {
   Rare: "text-blue-300",
   Epic: "text-purple-300",
   Legend: "text-amber-300",
+};
+
+const RARITY_LABEL: Record<Rarity, string> = {
+  Common: "Comum",
+  Rare: "Rara",
+  Epic: "Épica",
+  Legend: "Lendária",
 };
 
 export default function StoreClient() {
@@ -51,57 +76,71 @@ export default function StoreClient() {
   const [reveal, setReveal] = useState<RevealedCard[] | null>(null);
   const [dustBonus, setDustBonus] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [paid, setPaid] = useState<any>({ gateway: { enabled: false }, products: [] });
-
-  useDeferredEffect(() => {
-    const saved = localStorage.getItem("runeforge_playername");
-    if (saved) setPlayerName(saved);
-  }, []);
+  const [paid, setPaid] = useState<PaidData>({ gateway: { enabled: false }, products: [] });
 
   const load = useCallback(async (name: string) => {
     try {
       const profile = await ensurePlayerSession(name);
-      if (profile.player?.name) setPlayerName(String(profile.player.name));
+      const resolvedName = profile.player?.name ? String(profile.player.name) : name;
+      if (resolvedName) setPlayerName(resolvedName);
       const [pRes, lRes, payRes] = await Promise.all([
-        fetch(`/api/packs?name=${encodeURIComponent(name)}`),
-        fetch(`/api/login-reward?name=${encodeURIComponent(name)}`),
-        fetch(`/api/payments/products`),
+        fetch(`/api/packs?name=${encodeURIComponent(resolvedName)}`),
+        fetch(`/api/login-reward?name=${encodeURIComponent(resolvedName)}`),
+        fetch("/api/payments/products"),
       ]);
       const p = await pRes.json();
       const l = await lRes.json();
       const pay = await payRes.json();
-      if (pay.ok) setPaid(pay);
-      if (p.ok) setPacks(p);
-      if (l.ok) setLoginData(l);
-    } catch {}
+      if (pay.ok) setPaid(pay as PaidData);
+      if (p.ok) setPacks(p as PacksData);
+      if (l.ok) setLoginData(l as LoginData);
+    } catch {
+      // Individual actions surface their own messages; keep passive refresh quiet.
+    }
   }, []);
 
   useDeferredEffect(() => {
-    load(playerName);
-  }, [playerName, load]);
+    void load(localStorage.getItem("runeforge_playername") || "");
+  }, [load]);
 
   useDeferredEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const order = params.get("order");
     const payment = params.get("payment");
-    if (!order) return;
+    if (!order || !playerName) return;
     let cancelled = false;
     let attempts = 0;
     const poll = async () => {
       attempts += 1;
       try {
         if (attempts === 1 || attempts % 5 === 0) {
-          await fetch("/api/payments/orders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order }) }).catch(() => null);
+          await fetch("/api/payments/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order }),
+          }).catch(() => null);
         }
-        const r = await fetch(`/api/payments/orders?order=${encodeURIComponent(order)}`, { cache: "no-store" });
-        const d = await r.json();
-        const row = d.ok ? d.orders?.[0] : null;
+        const response = await fetch(`/api/payments/orders?order=${encodeURIComponent(order)}`, { cache: "no-store" });
+        const data = await response.json();
+        const row = data.ok ? data.orders?.[0] : null;
         if (cancelled) return;
-        if (row?.status === "approved" && row?.fulfilledAt) { setMessage(`✅ Pagamento confirmado · ${row.productName} entregue.`); await load(playerName); return; }
-        if (["rejected","cancelled","refunded","charged_back"].includes(String(row?.status))) { setMessage(`❌ Pagamento ${row.status}. Nenhum item foi entregue.`); return; }
-        if (attempts < 30) { window.setTimeout(poll, 2000); }
-        else setMessage(payment === "success" ? "⏳ Pagamento recebido; aguardando confirmação segura do Mercado Pago." : `⏳ Pagamento ${payment || "pendente"}.`);
-      } catch { if (!cancelled && attempts < 30) window.setTimeout(poll, 2000); }
+        if (row?.status === "approved" && row?.fulfilledAt) {
+          setMessage(`✅ Pagamento confirmado · ${row.productName} entregue.`);
+          await load(playerName);
+          return;
+        }
+        if (["rejected", "cancelled", "refunded", "charged_back"].includes(String(row?.status))) {
+          setMessage(`❌ Pagamento ${row.status}. Nenhum item foi entregue.`);
+          return;
+        }
+        if (attempts < 30) {
+          window.setTimeout(poll, 2000);
+        } else {
+          setMessage(payment === "success" ? "⏳ Pagamento recebido; aguardando confirmação segura do Mercado Pago." : `⏳ Pagamento ${payment || "pendente"}.`);
+        }
+      } catch {
+        if (!cancelled && attempts < 30) window.setTimeout(poll, 2000);
+      }
     };
     void poll();
     return () => { cancelled = true; };
@@ -122,10 +161,14 @@ export default function StoreClient() {
       if (data.ok) {
         setMessage(data.duplicate ? "✅ Compra já confirmada; estado sincronizado." : "✅ Pacote comprado!");
         await load(playerName);
-      } else setMessage(`❌ ${data.error}`);
+      } else {
+        setMessage(`❌ ${data.error}`);
+      }
     } catch {
       setMessage("⏳ Não foi possível confirmar a compra. Tente novamente; a mesma operação será reutilizada com segurança.");
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const openPack = async (packId: string) => {
@@ -145,14 +188,19 @@ export default function StoreClient() {
         setDustBonus(data.dustBonus);
         if (data.duplicate) setMessage("✅ Abertura já confirmada; resultado recuperado sem consumir outro pacote.");
         await load(playerName);
-      } else setMessage(`❌ ${data.error}`);
+      } else {
+        setMessage(`❌ ${data.error}`);
+      }
     } catch {
       setMessage("⏳ Não foi possível confirmar a abertura. Tente novamente; o mesmo resultado será recuperado com segurança.");
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const checkout = async (productKey: string) => {
-    setBusy(true); setMessage("");
+    setBusy(true);
+    setMessage("");
     const requestKey = crypto.randomUUID();
     try {
       for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -163,8 +211,14 @@ export default function StoreClient() {
             body: JSON.stringify({ productKey }),
           });
           const data = await res.json();
-          if (data.ok && data.checkoutUrl) { window.location.assign(data.checkoutUrl); return; }
-          if (data.code === "CHECKOUT_IN_PROGRESS" && attempt < 2) { await new Promise((resolve) => window.setTimeout(resolve, 650)); continue; }
+          if (data.ok && data.checkoutUrl) {
+            window.location.assign(data.checkoutUrl);
+            return;
+          }
+          if (data.code === "CHECKOUT_IN_PROGRESS" && attempt < 2) {
+            await new Promise((resolve) => window.setTimeout(resolve, 650));
+            continue;
+          }
           setMessage(`❌ ${data.error || "Falha ao iniciar Mercado Pago"}`);
           return;
         } catch {
@@ -172,212 +226,266 @@ export default function StoreClient() {
           await new Promise((resolve) => window.setTimeout(resolve, 650));
         }
       }
-    } catch (error) { setMessage(`❌ ${error instanceof Error ? error.message : "Falha ao iniciar Mercado Pago"}`); }
-    finally { setBusy(false); }
+    } catch (error) {
+      setMessage(`❌ ${error instanceof Error ? error.message : "Falha ao iniciar Mercado Pago"}`);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const claimLogin = async () => {
     setBusy(true);
-    const res = await fetch("/api/login-reward", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: playerName }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      setMessage(`🎉 Recompensa Dia ${data.streak}: +${data.reward.gold}🪙 +${data.reward.dust}💠${data.reward.pack ? " + Pacote" : ""}`);
-      await load(playerName);
-    } else if (data.currentStreak !== undefined) {
-      setMessage(`⏳ Volte em ${data.nextClaimIn}h. Streak atual: ${data.currentStreak}`);
-    } else {
-      setMessage(`❌ ${data.error}`);
+    try {
+      const res = await fetch("/api/login-reward", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: playerName }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMessage(`🎉 Recompensa Dia ${data.streak}: +${data.reward.gold}🪙 +${data.reward.dust}💠${data.reward.pack ? " + Pacote" : ""}`);
+        await load(playerName);
+      } else if (data.currentStreak !== undefined) {
+        setMessage(`⏳ Volte em ${data.nextClaimIn}h. Sequência atual: ${data.currentStreak}`);
+      } else {
+        setMessage(`❌ ${data.error}`);
+      }
+    } catch {
+      setMessage("❌ Não foi possível sincronizar a recompensa diária.");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,#1e293b,#0f172a_55%,#020617)] px-4 py-6 text-slate-100">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-4">
-            <Link href="/" className="text-sm text-slate-400 hover:text-white">← Home</Link>
-            <Link href="/collection" className="text-sm text-slate-400 hover:text-white">Coleção</Link>
-            <Link href="/album" className="text-sm text-slate-400 hover:text-white">Álbum</Link>
-            <Link href="/profile" className="text-sm text-slate-400 hover:text-white">Perfil</Link>
-            <Link href="/ranked" className="text-sm text-slate-400 hover:text-white">Ranked</Link>
+    <main className="rf-app-page">
+      <SiteNav />
+      <div className="rf-app-shell max-w-6xl">
+        <header className="rf-app-heading">
+          <div>
+            <p className="rf-eyebrow"><span /> CÂMARA DE SUPRIMENTOS</p>
+            <h1>Loja da Forja</h1>
+            <p>Converta progresso em pacotes, resgate recompensas e acesse conteúdo premium com confirmação financeira autoritativa.</p>
           </div>
-          <div className="flex items-center gap-3">
-            {packs && (
-              <>
-                <span className="rounded bg-amber-500/20 px-3 py-1 text-sm font-bold text-amber-300">
-                  🪙 {packs.player.gold}
-                </span>
-                <span className="rounded bg-cyan-500/20 px-3 py-1 text-sm font-bold text-cyan-300">
-                  💠 {packs.player.dust}
-                </span>
-              </>
-            )}
-            <input
-              className="input max-w-[180px]"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              onBlur={() => { void ensurePlayerSession(playerName).then((profile) => { if (profile.player?.name) setPlayerName(String(profile.player.name)); }); }}
-            />
+          <div className="flex flex-wrap gap-2">
+            <Link href="/collection" className="rf-button rf-button-secondary">▦ COLEÇÃO</Link>
+            <Link href="/album" className="rf-button rf-button-primary">◇ ÁLBUM</Link>
           </div>
-        </div>
-
-        <h1 className="mb-4 text-3xl font-black text-amber-300">🎁 Loja</h1>
+        </header>
 
         {message && (
-          <div className="mb-4 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-sm text-amber-100">
-            {message}
-            <button className="ml-3 text-xs underline" onClick={() => setMessage("")}>dismiss</button>
+          <div className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] px-4 py-3 text-sm text-amber-100" role="status" aria-live="polite">
+            <span>{message}</span>
+            <button className="text-xs font-bold text-amber-200 underline underline-offset-4" onClick={() => setMessage("")}>Fechar</button>
           </div>
         )}
 
+        <section className="mb-8 grid gap-3 sm:grid-cols-3" aria-label="Carteira e identidade">
+          <WalletCard label="Ouro" value={packs?.player.gold ?? "—"} icon="🪙" tone="text-amber-200" />
+          <WalletCard label="Pó arcano" value={packs?.player.dust ?? "—"} icon="💠" tone="text-cyan-200" />
+          <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-600">Identidade de compra</p>
+            <p className="mt-2 truncate text-lg font-black text-slate-100">{playerName || "Sincronizando…"}</p>
+            <Link href="/profile" className="mt-1 inline-block text-[10px] font-black uppercase tracking-[0.1em] text-amber-200 hover:text-amber-100">GERENCIAR PERFIL →</Link>
+          </div>
+        </section>
 
-        {paid?.gateway?.enabled && paid.products?.length > 0 && (
-          <section className="mb-6 rounded-2xl border border-cyan-400/30 bg-cyan-400/[.05] p-4">
-            <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-black text-cyan-200">💳 Conteúdo premium · Mercado Pago</h2><p className="text-xs text-slate-400">A entrega ocorre somente após confirmação assinada do pagamento.</p></div><span className="rounded bg-white/5 px-2 py-1 text-[10px] uppercase text-slate-400">{paid.gateway.environment}</span></div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">{paid.products.map((p:any)=><div key={p.key} className="rounded-xl border border-white/10 bg-slate-950/40 p-4"><h3 className="font-black">{p.name}</h3><p className="mt-1 text-xs text-slate-400">{p.grants?.gold?`+${p.grants.gold} gold · `:""}{p.grants?.dust?`+${p.grants.dust} dust · `:""}{Array.isArray(p.grants?.packs)?`${p.grants.packs.reduce((a:number,x:any)=>a+Number(x.count||0),0)} packs`:""}</p><div className="mt-3 flex items-center justify-between"><b className="text-xl text-cyan-200">{new Intl.NumberFormat("pt-BR",{style:"currency",currency:p.currency||"BRL"}).format(Number(p.priceCents)/100)}</b><button className="btn-primary" disabled={busy} onClick={()=>checkout(p.key)}>Comprar</button></div></div>)}</div>
-          </section>
-        )}
-
-        {/* Login Rewards */}
-        {loginData && (
-          <section className="mb-6 rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-transparent p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-black text-emerald-300">📅 Recompensa Diária</h2>
-                <p className="text-xs text-slate-400">
-                  Streak atual: {loginData.streak} dia(s)
-                </p>
+        {paid.gateway.enabled && paid.products.length > 0 && (
+          <section className="mb-8 rounded-2xl border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,.07),rgba(3,5,8,.62))] p-5 sm:p-6" aria-labelledby="premium-heading">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300/65">CHECKOUT SEGURO</p>
+                <h2 id="premium-heading" className="mt-1 text-xl font-black text-slate-100">Conteúdo premium · Mercado Pago</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-400">A entrega acontece somente após confirmação assinada do pagamento. Retentativas de checkout reutilizam a mesma chave de idempotência da tentativa.</p>
               </div>
-              <button
-                onClick={claimLogin}
-                disabled={!loginData.canClaim || busy}
-                className={`rounded-xl px-6 py-2 font-black transition ${
-                  loginData.canClaim
-                    ? "bg-emerald-500 text-white hover:bg-emerald-400 animate-pulse"
-                    : "bg-slate-700 text-slate-500 cursor-not-allowed"
-                }`}
-              >
-                {loginData.canClaim ? "🎁 Coletar Recompensa" : "⏳ Já coletado hoje"}
-              </button>
+              <span className="self-start rounded-full border border-cyan-300/15 bg-cyan-300/[0.06] px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-cyan-200">{paid.gateway.environment || "gateway ativo"}</span>
             </div>
-            <div className="mt-4 grid grid-cols-7 gap-1">
-              {loginData.allRewards.map((r) => {
-                const done = r.day <= ((loginData.streak - 1) % 7) + (loginData.canClaim ? 0 : 1);
-                const isNext = r.day === (loginData.streak % 7) + 1 && loginData.canClaim;
-                return (
-                  <div
-                    key={r.day}
-                    className={`rounded-lg border p-2 text-center text-xs ${
-                      done ? "border-emerald-400 bg-emerald-500/20"
-                        : isNext ? "border-amber-400 bg-amber-500/20 animate-pulse"
-                        : "border-white/10 bg-white/5 opacity-60"
-                    }`}
-                  >
-                    <p className="text-[10px] font-bold text-slate-400">Dia {r.day}</p>
-                    <p className="text-lg">{r.icon}</p>
-                    <p className="text-[10px] font-bold">{r.gold}🪙</p>
-                    {r.dust > 0 && <p className="text-[10px]">{r.dust}💠</p>}
-                    {r.pack && <p className="text-[10px] font-bold text-purple-300">Pack</p>}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
 
-        {/* Packs */}
-        {packs && (
-          <section>
-            <h2 className="mb-3 text-xl font-black text-amber-200">📦 Pacotes de Cartas</h2>
-            <div className="grid gap-4 md:grid-cols-3">
-              {packs.packs.map((p) => (
-                <div key={p.id} className={`rounded-2xl border-2 border-white/10 bg-gradient-to-br ${p.color} p-4`}>
-                  <div className="text-center">
-                    <div className="text-5xl">{p.icon}</div>
-                    <h3 className="mt-2 text-lg font-black text-white">{p.name}</h3>
-                    <p className="mt-1 text-xs text-white/80">{p.description}</p>
-                    <p className="mt-2 text-xs text-white/70">
-                      {p.cardsCount} cartas
-                    </p>
-                    <div className="mt-3 space-y-0.5 text-[10px] text-white/70">
-                      {(["Common", "Rare", "Epic", "Legend"] as Rarity[]).map((r) => (
-                        <p key={r}>{r}: {(p.dropRates[r] * 100).toFixed(0)}%</p>
-                      ))}
-                    </div>
-                    {p.guaranteedRarity && (
-                      <p className="mt-1 text-xs font-bold text-amber-200">
-                        ⭐ Garantido: {p.guaranteedRarity}+
-                      </p>
-                    )}
-                  </div>
-                  <div className="mt-4 space-y-2">
-                    {p.owned > 0 && (
-                      <div className="rounded bg-white/20 py-1 text-center text-xs font-bold text-white">
-                        Você possui: {p.owned}
-                      </div>
-                    )}
-                    <button
-                      onClick={() => buyPack(p.id)}
-                      disabled={packs.player.gold < p.price || busy}
-                      className="w-full rounded-lg bg-black/40 py-2 text-sm font-black text-white hover:bg-black/60 disabled:opacity-30"
-                    >
-                      💰 Comprar ({p.price} 🪙)
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {paid.products.map((product) => (
+                <article key={product.key} className="rounded-xl border border-white/10 bg-black/25 p-4">
+                  <h3 className="font-black text-slate-100">{product.name}</h3>
+                  <p className="mt-1 min-h-5 text-xs leading-5 text-slate-500">{grantSummary(product)}</p>
+                  <div className="mt-4 flex items-end justify-between gap-3 border-t border-white/[0.07] pt-3">
+                    <strong className="text-xl text-cyan-200">{formatMoney(product.priceCents, product.currency || "BRL")}</strong>
+                    <button className="rf-button rf-button-primary min-h-9 !px-4" disabled={busy || !playerName} onClick={() => void checkout(product.key)}>
+                      {busy ? "PROCESSANDO…" : "COMPRAR"}
                     </button>
-                    {p.owned > 0 && (
-                      <button
-                        onClick={() => openPack(p.id)}
-                        disabled={busy}
-                        className="w-full rounded-lg bg-amber-500 py-2 text-sm font-black text-slate-950 hover:bg-amber-400 disabled:opacity-30"
-                      >
-                        🎉 Abrir Pacote
-                      </button>
-                    )}
                   </div>
-                </div>
+                </article>
               ))}
             </div>
           </section>
         )}
 
-        {/* Pack Reveal Modal */}
-        {reveal && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4" onClick={() => setReveal(null)}>
-            <div className="max-w-3xl rounded-2xl bg-slate-900 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <h2 className="mb-4 text-center text-2xl font-black text-amber-300">✨ Cartas Reveladas!</h2>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-                {reveal.map((c, i) => (
-                  <div
-                    key={i}
-                    className={`animate-pop rounded-xl border-2 p-3 text-center ${RARITY_COLOR[c.rarity]}`}
-                    style={{ animationDelay: `${i * 150}ms` }}
-                  >
-                    <div className="text-3xl">{c.emoji}</div>
-                    <p className="mt-2 truncate text-sm font-bold">{c.name}</p>
-                    <p className={`text-xs font-bold ${RARITY_TEXT[c.rarity]}`}>{c.rarity}</p>
-                    <p className="text-[10px] text-slate-400">{c.region} • {c.cost}⚡</p>
-                  </div>
-                ))}
+        {loginData && (
+          <section className="mb-8 overflow-hidden rounded-2xl border border-emerald-300/20 bg-[linear-gradient(135deg,rgba(16,185,129,.075),rgba(3,5,8,.58))] p-5 sm:p-6" aria-labelledby="daily-reward-heading">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-300/65">RITUAL DE RETORNO</p>
+                <h2 id="daily-reward-heading" className="mt-1 text-xl font-black text-slate-100">Recompensa diária</h2>
+                <p className="mt-2 text-sm text-slate-400">Sequência atual: <span className="font-bold text-emerald-200">{loginData.streak} dia(s)</span></p>
               </div>
-              {dustBonus > 0 && (
-                <p className="mt-4 text-center text-sm text-cyan-300">
-                  💠 +{dustBonus} dust bônus (duplicatas convertidas)
-                </p>
-              )}
-              <button
-                onClick={() => setReveal(null)}
-                className="btn-primary mx-auto mt-4 block"
-              >
-                Continuar
+              <button onClick={() => void claimLogin()} disabled={!loginData.canClaim || busy} className="rf-button rf-button-secondary min-h-10 disabled:cursor-not-allowed disabled:opacity-45">
+                {loginData.canClaim ? "🎁 COLETAR RECOMPENSA" : "✓ COLETADO HOJE"}
               </button>
             </div>
-          </div>
+
+            <div className="mt-5 overflow-x-auto pb-1">
+              <div className="grid min-w-[620px] grid-cols-7 gap-2">
+                {loginData.allRewards.map((reward) => {
+                  const done = reward.day <= ((loginData.streak - 1) % 7) + (loginData.canClaim ? 0 : 1);
+                  const isNext = reward.day === (loginData.streak % 7) + 1 && loginData.canClaim;
+                  return (
+                    <div key={reward.day} className={`rounded-xl border p-3 text-center ${done ? "border-emerald-300/20 bg-emerald-500/[0.08]" : isNext ? "border-amber-300/30 bg-amber-300/[0.08] shadow-[0_0_24px_rgba(251,191,36,.08)]" : "border-white/[0.07] bg-white/[0.025] opacity-60"}`}>
+                      <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-500">Dia {reward.day}</p>
+                      <p className="mt-2 text-2xl" aria-hidden="true">{reward.icon}</p>
+                      <p className="mt-2 text-[10px] font-bold text-slate-300">{reward.gold}🪙</p>
+                      {reward.dust > 0 && <p className="text-[10px] text-cyan-300">{reward.dust}💠</p>}
+                      {reward.pack && <p className="mt-1 text-[9px] font-black uppercase text-purple-300">Pacote</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
         )}
+
+        <section aria-labelledby="packs-heading">
+          <div className="mb-4 flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300/65">ARSENAL COLECIONÁVEL</p>
+              <h2 id="packs-heading" className="mt-1 text-2xl font-black text-slate-100">Pacotes de cartas</h2>
+            </div>
+            <p className="max-w-lg text-xs leading-5 text-slate-500">Compras com ouro e aberturas usam IDs de operação reaproveitáveis para impedir consumo duplicado em retentativas.</p>
+          </div>
+
+          {!packs ? (
+            <EmptyState busy title="Sincronizando a loja…" copy="Carregando carteira, inventário de pacotes e probabilidades." />
+          ) : packs.packs.length === 0 ? (
+            <EmptyState title="Nenhum pacote disponível" copy="O catálogo de pacotes ainda não possui ofertas ativas." />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {packs.packs.map((pack) => (
+                <article key={pack.id} className={`relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br ${pack.color} p-5 shadow-[0_22px_55px_rgba(0,0,0,.2)]`}>
+                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" aria-hidden="true" />
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-4xl" aria-hidden="true">{pack.icon}</div>
+                      <h3 className="mt-2 text-lg font-black text-white">{pack.name}</h3>
+                      <p className="mt-1 text-xs leading-5 text-white/65">{pack.description}</p>
+                    </div>
+                    {pack.owned > 0 && <span className="rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[10px] font-black text-white">×{pack.owned}</span>}
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border border-white/[0.08] bg-black/20 p-3 text-xs">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[0.1em] text-white/45">Conteúdo</p>
+                      <p className="mt-1 font-black text-white">{pack.cardsCount} cartas</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[0.1em] text-white/45">Preço</p>
+                      <p className="mt-1 font-black text-amber-100">{pack.price} 🪙</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-1.5">
+                    {(["Common", "Rare", "Epic", "Legend"] as Rarity[]).map((rarity) => (
+                      <div key={rarity} className="flex items-center justify-between text-[10px]">
+                        <span className={RARITY_TEXT[rarity]}>{RARITY_LABEL[rarity]}</span>
+                        <span className="font-bold text-white/70">{(pack.dropRates[rarity] * 100).toFixed(0)}%</span>
+                      </div>
+                    ))}
+                    {pack.guaranteedRarity && <p className="pt-1 text-[10px] font-black uppercase tracking-[0.08em] text-amber-100">Garantia: {RARITY_LABEL[pack.guaranteedRarity]}+</p>}
+                  </div>
+
+                  <div className="mt-5 grid gap-2">
+                    <button onClick={() => void buyPack(pack.id)} disabled={packs.player.gold < pack.price || busy || !playerName} className="rounded-lg border border-white/10 bg-black/30 px-3 py-2.5 text-xs font-black text-white transition hover:bg-black/45 disabled:cursor-not-allowed disabled:opacity-35">
+                      COMPRAR · {pack.price} 🪙
+                    </button>
+                    {pack.owned > 0 && (
+                      <button onClick={() => void openPack(pack.id)} disabled={busy || !playerName} className="rf-button rf-button-primary min-h-10 w-full">
+                        ✦ ABRIR PACOTE
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
+
+      {reveal && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-sm" onClick={() => setReveal(null)}>
+          <section
+            className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-amber-300/20 bg-[#090d14] p-5 shadow-[0_40px_120px_rgba(0,0,0,.65)] sm:p-7"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pack-reveal-heading"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300/65">ABERTURA CONFIRMADA</p>
+                <h2 id="pack-reveal-heading" className="mt-1 text-2xl font-black text-amber-100">Cartas reveladas</h2>
+              </div>
+              <button className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-slate-300 hover:bg-white/[0.08]" onClick={() => setReveal(null)} aria-label="Fechar cartas reveladas">✕</button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+              {reveal.map((card, index) => (
+                <article key={`${card.defId}-${index}`} className={`motion-safe:animate-pop rounded-xl border p-3 text-center ${RARITY_COLOR[card.rarity]}`} style={{ animationDelay: `${index * 120}ms` }}>
+                  <div className="text-3xl" aria-hidden="true">{card.emoji}</div>
+                  <p className="mt-2 truncate text-sm font-bold text-slate-100" title={card.name}>{card.name}</p>
+                  <p className={`mt-1 text-[10px] font-black uppercase tracking-[0.08em] ${RARITY_TEXT[card.rarity]}`}>{RARITY_LABEL[card.rarity]}</p>
+                  <p className="mt-1 text-[10px] text-slate-500">{card.region} · {card.cost}⚡</p>
+                </article>
+              ))}
+            </div>
+
+            {dustBonus > 0 && <p className="mt-5 rounded-xl border border-cyan-300/15 bg-cyan-500/[0.06] px-4 py-3 text-center text-sm font-bold text-cyan-200">💠 +{dustBonus} pó arcano de duplicatas convertidas</p>}
+            <button onClick={() => setReveal(null)} className="rf-button rf-button-primary mx-auto mt-5">CONTINUAR</button>
+          </section>
+        </div>
+      )}
     </main>
   );
+}
+
+function WalletCard({ label, value, icon, tone }: { label: string; value: string | number; icon: string; tone: string }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.025] p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-600">{label}</p>
+        <span aria-hidden="true">{icon}</span>
+      </div>
+      <p className={`mt-2 text-2xl font-black ${tone}`}>{value}</p>
+    </div>
+  );
+}
+
+function EmptyState({ title, copy, busy = false }: { title: string; copy: string; busy?: boolean }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-6 py-12 text-center" aria-busy={busy || undefined}>
+      {busy ? <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-white/10 border-t-amber-300" aria-hidden="true" /> : <div className="text-3xl text-amber-200/65" aria-hidden="true">◇</div>}
+      <p className="mt-3 font-bold text-slate-300">{title}</p>
+      <p className="mx-auto mt-1 max-w-md text-xs leading-5 text-slate-500">{copy}</p>
+    </div>
+  );
+}
+
+function formatMoney(priceCents: number | string, currency: string) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(priceCents) / 100);
+}
+
+function grantSummary(product: PaidProduct) {
+  const parts: string[] = [];
+  if (product.grants?.gold) parts.push(`+${product.grants.gold} ouro`);
+  if (product.grants?.dust) parts.push(`+${product.grants.dust} pó arcano`);
+  if (Array.isArray(product.grants?.packs)) {
+    const count = product.grants.packs.reduce((sum, pack) => sum + Number(pack.count || 0), 0);
+    if (count > 0) parts.push(`${count} pacote${count === 1 ? "" : "s"}`);
+  }
+  return parts.join(" · ") || "Conteúdo premium da Forja";
 }
