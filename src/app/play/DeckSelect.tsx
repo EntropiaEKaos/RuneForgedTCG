@@ -2,7 +2,9 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import CardTip from "@/components/CardTip";
+import SiteNav from "@/components/SiteNav";
 import { REGION_STYLE } from "@/components/CardView";
 import { getCard } from "@/game/cards";
 import { DECKS, type DeckDef } from "@/game/decks";
@@ -73,38 +75,27 @@ export default function DeckSelect({
   }, [deckKey, doctrines, previewCards, selectedPresetId]);
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,#1e293b,#0f172a_60%,#020617)] px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center justify-between">
-          <Link href="/" className="text-sm text-slate-400 hover:text-white">
-            ← Home
-          </Link>
-          <div className="flex gap-4 text-sm text-slate-400">
-            <Link href="/forge" className="hover:text-white">🔨 Forge</Link>
-            <Link href="/codex" className="hover:text-white">📖 Codex</Link>
-            <Link href="/leaderboard" className="hover:text-white">🏆 Leaderboard</Link>
-          </div>
-        </div>
-        <h1 className="text-center text-3xl font-black tracking-tight text-amber-300 drop-shadow">
-          Escolha Seu Deck
-        </h1>
-        <p className="mt-1 text-center text-sm text-slate-400">
-          Escolha um arquétipo — ou um deck forjado — e batalhe contra o Adversário.
-        </p>
+    <div className="rf-app-page deck-select-page">
+      <SiteNav />
+      <div className="rf-app-shell">
+        <header className="rf-app-heading">
+          <div><p className="rf-eyebrow"><span /> PREPARAÇÃO DE BATALHA</p><h1>Escolha seu deck</h1><p>Selecione uma doutrina oficial ou leve uma criação própria para enfrentar o Adversário.</p></div>
+          <Link href="/forge" className="rf-button rf-button-secondary">◆ FORJAR DECK</Link>
+        </header>
 
-        <div className="mx-auto mt-6 max-w-sm">
-          <label className="mb-1 block text-xs font-semibold text-slate-400">Seu Nome</label>
+        <div className="deck-player-name">
+          <label>IDENTIDADE DO DESAFIANTE</label>
           <input
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             onBlur={() => { void ensurePlayerSession(playerName).then((profile) => { if (profile.player?.name) setPlayerName(String(profile.player.name)); }); }}
             maxLength={40}
-            className="w-full rounded-lg border border-white/15 bg-slate-800 px-3 py-2 text-sm outline-none focus:border-amber-400"
+            className="input"
             placeholder="Challenger"
           />
         </div>
 
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="deck-choice-grid">
           {presetDecks.map((d) => {
             const style = REGION_STYLE[d.regions[0]];
             const selected = deckKey === `preset:${d.id}`;
@@ -112,18 +103,17 @@ export default function DeckSelect({
             return (
               <button
                 key={d.id}
+                data-region={d.regions[0].toLowerCase()}
                 onClick={() => setDeckKey(`preset:${d.id}`)}
                 className={[
-                  "flex flex-col rounded-2xl border-2 bg-gradient-to-br p-4 text-left transition-transform hover:-translate-y-1",
-                  style.grad,
-                  style.border,
-                  selected ? `ring-4 ${style.ring} -translate-y-1` : "opacity-90",
+                  "deck-choice flex flex-col text-left",
+                  selected ? "is-selected" : "",
                 ].join(" ")}
               >
-                <div className="text-4xl drop-shadow">{d.emoji}</div>
-                <h3 className="mt-2 text-lg font-black text-white drop-shadow">{d.name}</h3>
-                <p className="mt-1 flex-1 text-xs text-white/85">{d.description}</p>
-                <span className="mt-3 inline-block rounded-full bg-black/30 px-2 py-1 text-[10px] font-bold text-white/90">
+                <div className="deck-choice-mark"><Image src={style.art} alt="" width={64} height={64} /></div>
+                <h3>{d.name}</h3>
+                <p className="mt-1 flex-1">{d.description}</p>
+                <span className="mt-3 inline-block px-2 py-1 font-bold">
                   {deckProfile.identity} · {d.regions.join(" · ")}
                 </span>
               </button>
@@ -184,12 +174,12 @@ export default function DeckSelect({
           </div>
         </div>
 
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
+        <div className="deck-start-actions flex flex-wrap justify-center gap-3">
           <button onClick={onStart} className="btn-primary text-base">
-            ⚔️ Entrar no Nexus
+            ⚔ ENTRAR NO NEXUS
           </button>
           <Link href="/forge" className="btn-ghost">
-            🔨 Forjar um Deck
+            ◆ FORJAR UM DECK
           </Link>
         </div>
       </div>

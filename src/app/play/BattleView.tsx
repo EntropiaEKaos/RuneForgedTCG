@@ -160,7 +160,7 @@ export function BattleView(props: BattleViewProps) {
       <CombatChoreography events={fx} pace={combatPace} />
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col">
         <div className="tcg-match-header">
-          <span className="tcg-match-brand">NEXUS <b>CLASH</b></span>
+          <span className="tcg-match-brand">RUNE<b>FORGE</b><small>ARENA DO NEXUS</small></span>
           {isPvp ? <PvpStatus state={pvpConnection} message={pvpMessage} version={pvpVersion} latency={pvpLatency} /> : <span className="tcg-match-status"><i /> PARTIDA AO VIVO</span>}
           <span className="tcg-round-pill">RODADA {state.round}</span>
         </div>

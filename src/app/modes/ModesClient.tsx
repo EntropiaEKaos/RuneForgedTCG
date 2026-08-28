@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
+import SiteNav from "@/components/SiteNav";
 import type { Puzzle, Boss, BrawlMode, Encounter } from "@/lib/game-modes";
 import { ensurePlayerSession } from "@/lib/client-player-session";
 
@@ -40,19 +41,12 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
     : BRAWLS;
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,#1e293b,#0f172a_55%,#020617)] px-4 py-6 text-slate-100">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex gap-4">
-            <Link href="/" className="text-sm text-slate-400 hover:text-white">← Home</Link>
-            <Link href="/play" className="text-sm text-slate-400 hover:text-white">Play</Link>
-            <Link href="/ranked" className="text-sm text-slate-400 hover:text-white">Ranked</Link>
-          </div>
-        </div>
+    <main className="rf-app-page modes-page">
+      <SiteNav />
+      <div className="rf-app-shell">
+        <header className="rf-app-heading"><div><p className="rf-eyebrow"><span /> ARQUIVOS DO NEXUS</p><h1>Modos de jogo</h1><p>Campanhas autoritativas, desafios táticos e regras especiais para colocar cada doutrina à prova.</p></div></header>
 
-        <h1 className="mb-4 text-3xl font-black text-amber-300">🎯 Modos de Jogo</h1>
-
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mode-tabs" role="tablist" aria-label="Modos disponíveis">
           {([
             ["expedition", "🧭 Expedição"],
             ["puzzle", "🧩 Puzzles"],
@@ -62,9 +56,9 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`rounded-lg px-4 py-2 font-bold ${
-                tab === id ? "bg-amber-400 text-slate-950" : "bg-white/5 text-slate-300"
-              }`}
+              className={`mode-tab ${tab === id ? "active" : ""}`}
+              role="tab"
+              aria-selected={tab === id}
             >
               {label}
             </button>

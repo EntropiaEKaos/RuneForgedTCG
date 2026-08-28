@@ -45,7 +45,7 @@ assert.ok(mastery.highlights.length <= 3);
 
 const gameClient = ["GameClient.tsx","BattleView.tsx","MulliganView.tsx","hooks/useGamePresentation.ts","hooks/useMatchLauncher.ts","hooks/useMatchLifecycle.ts"].map((f) => readFileSync(`src/app/play/${f}`, "utf8")).join("\n");
 const cardView = readFileSync("src/components/CardView.tsx", "utf8");
-const css = ["globals.css","styles/tcg-visual.css","styles/site-polish.css","styles/studio.css","styles/arena-regions.css","styles/gameplay-extensions.css"].map((f) => readFileSync(`src/app/${f}`, "utf8")).join("\n");
+const css = ["globals.css","styles/tcg-visual.css","styles/site-polish.css","styles/studio.css","styles/arena-regions.css","styles/gameplay-extensions.css","styles/runeforge-brand.css"].map((f) => readFileSync(`src/app/${f}`, "utf8")).join("\n");
 const tokenRoute = readFileSync("src/app/api/matches/token/route.ts", "utf8");
 const migration = readFileSync("drizzle/0027_gameplay_visual_2_65.sql", "utf8");
 

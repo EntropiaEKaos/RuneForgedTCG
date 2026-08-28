@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { ARCHETYPES, archetypeMomentum, mulliganPlan } from "@/game/archetypes";
 import { analyzeDeck } from "@/game/deck-insights";
 import { DECKS } from "@/game/decks";
@@ -53,7 +53,9 @@ const attempt = readFileSync("src/app/api/modes/attempt/route.ts", "utf8");
 const forge = readFileSync("src/app/forge/ForgeClient.tsx", "utf8");
 const replay = readFileSync("src/app/replay/[id]/ReplayViewer.tsx", "utf8");
 const spectator = readFileSync("src/app/spectate/[code]/SpectatorClient.tsx", "utf8");
-const css = ["globals.css","styles/tcg-visual.css","styles/site-polish.css","styles/studio.css","styles/arena-regions.css","styles/gameplay-extensions.css"].map((f) => readFileSync(`src/app/${f}`, "utf8")).join("\n");
+const css = ["globals.css","styles/tcg-visual.css","styles/site-polish.css","styles/studio.css","styles/arena-regions.css","styles/gameplay-extensions.css","styles/runeforge-brand.css"].map((f) => readFileSync(`src/app/${f}`, "utf8")).join("\n");
+const home = readFileSync("src/app/page.tsx", "utf8");
+const hero = statSync("public/art/brand/runeforge-nexus-hero.webp");
 
 for (const integration of ["ArchetypeTracker", "EncounterBanner", "CombatChoreography", "useFrameHealth", "mulliganPlan"]) assert.ok(game.includes(integration));
 assert.ok(modes.includes('modeType === "expedition"') || modes.includes('modeType') && modes.includes('expedition'));
@@ -62,5 +64,8 @@ assert.ok(forge.includes("DeckInsightPanel") && forge.includes("analyzeDeck"));
 assert.ok(replay.includes("ReplayFilter") && replay.includes("keyMoments"));
 assert.ok(spectator.includes("latency") && spectator.includes("paused"));
 for (const selector of [".arena-backdrop", ".archetype-doctrine", ".encounter-banner", ".combat-choreography", ".forge-insight", ".replay-director"]) assert.ok(css.includes(selector));
+for (const selector of [".rf-hero", ".rf-command-grid", ".rf-champion-grid", ".deck-choice-grid"]) assert.ok(css.includes(selector));
+assert.ok(home.includes("/art/brand/runeforge-nexus-hero.webp") && !home.includes("/images/champs/"), "home must use the shipped hero instead of missing champion art");
+assert.ok(hero.size > 50_000 && hero.size < 500_000, "hero art must be present and web-optimized");
 
 console.log("GAMEPLAY & ART COMPLETE 2.74: PASS");

@@ -8,6 +8,7 @@ import "./styles/site-polish.css";
 import "./styles/studio.css";
 import "./styles/arena-regions.css";
 import "./styles/gameplay-extensions.css";
+import "./styles/runeforge-brand.css";
 
 // A strict nonce-based CSP requires request-time rendering so Next.js can
 // attach the request nonce to framework and page scripts.
@@ -33,9 +34,12 @@ const bodyFont = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Runeforge: Legends of the Nexus",
+  title: {
+    default: "RuneForge — Legends of the Nexus",
+    template: "%s · RuneForge",
+  },
   description:
-    "A tactical collectible card battler. Ramp mana, seize the Attack Token, and shatter the enemy Nexus.",
+    "Um card battler tático de fantasia sombria. Forje seu deck, domine o Token de Ataque e destrua o Nexus rival.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
