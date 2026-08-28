@@ -67,7 +67,7 @@ export default async function LeaderboardPage() {
 
         <div className="mt-10 grid gap-8 xl:grid-cols-[minmax(0,1.05fr)_minmax(340px,.65fr)]">
           <section aria-labelledby="ranking-heading">
-            <SectionHeading eyebrow="CLASSIFICAÇÃO" title="Top forjadores" count={leaderboard.length} />
+            <SectionHeading id="ranking-heading" eyebrow="CLASSIFICAÇÃO" title="Top forjadores" count={leaderboard.length} />
             {leaderboard.length === 0 ? (
               <Empty title="O Hall ainda aguarda seu primeiro nome" copy="Conclua uma batalha para começar a formar a classificação desta instalação." />
             ) : (
@@ -109,7 +109,7 @@ export default async function LeaderboardPage() {
           </section>
 
           <section aria-labelledby="recent-heading">
-            <SectionHeading eyebrow="TELEMETRIA" title="Batalhas recentes" count={recent.length} />
+            <SectionHeading id="recent-heading" eyebrow="TELEMETRIA" title="Batalhas recentes" count={recent.length} />
             {recent.length === 0 ? (
               <Empty title="Nenhuma batalha registrada" copy="Os resultados recentes aparecerão aqui após as primeiras partidas." />
             ) : (
@@ -191,12 +191,12 @@ export default async function LeaderboardPage() {
   );
 }
 
-function SectionHeading({ eyebrow, title, count }: { eyebrow: string; title: string; count: number }) {
+function SectionHeading({ id, eyebrow, title, count }: { id: string; eyebrow: string; title: string; count: number }) {
   return (
     <div className="mb-4 flex items-end justify-between gap-3 border-b border-white/10 pb-3">
       <div>
         <p className="text-[9px] font-black uppercase tracking-[0.18em] text-slate-600">{eyebrow}</p>
-        <h2 className="mt-1 text-xl font-black text-slate-100">{title}</h2>
+        <h2 id={id} className="mt-1 text-xl font-black text-slate-100">{title}</h2>
       </div>
       <span className="rounded-full border border-white/10 bg-white/[0.035] px-3 py-1 text-xs font-bold text-slate-400">{count}</span>
     </div>
