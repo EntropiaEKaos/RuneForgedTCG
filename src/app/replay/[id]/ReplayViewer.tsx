@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import SiteNav from "@/components/SiteNav";
+import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import type { GameEvent } from "@/game/events";
 import { presentGameEvent } from "@/game/event-presentation";
 
@@ -19,10 +21,46 @@ interface Replay {
   rulesetVersion?: string;
   contentVersion?: string;
   aiDifficulty?: "apprentice" | "tactician" | "overlord";
+  matchMode?: string | null;
+  perspective?: string | null;
   eventLog?: GameEvent[];
 }
 
 type ReplayFilter = "all" | "combat" | "cards" | "status" | "nexus";
+type VerificationStatus = "idle" | "loading" | "valid" | "invalid" | "unverifiable" | "error";
+
+interface VerificationSnapshot {
+  authoritative?: boolean;
+  consistent?: boolean;
+  hashesMatch?: boolean;
+  rulesSnapshot?: boolean;
+  winner?: "player" | "ai" | null;
+  rounds?: number;
+  appliedActions?: number;
+  engineVersion?: string | null;
+  rulesetVersion?: string | null;
+  contentVersion?: string | null;
+  historicalSnapshot?: boolean;
+  matchMode?: string | null;
+}
+
+interface VerificationState {
+  status: VerificationStatus;
+  message: string;
+  snapshot?: VerificationSnapshot;
+}
+
+type ReplayPayload = { ok?: boolean; replay?: Replay; error?: string };
+type VerificationPayload = VerificationSnapshot & { ok?: boolean; error?: string };
+
+const filterLabels: Record<ReplayFilter, string> = {
+  all: "Todos",
+  combat: "Combate",
+  cards: "Cartas",
+  status: "Estados",
+  nexus: "Nexus",
+};
+
 function eventFilter(type: string): ReplayFilter {
   if (["UNIT_DAMAGED", "UNIT_DIED", "UNIT_ATTACK_STARTED"].includes(type)) return "combat";
   if (["UNIT_SUMMONED", "UNIT_LEVELLED_UP"].includes(type)) return "cards";
@@ -45,231 +83,414 @@ function parseLegacyEvent(line: string) {
   return { icon: "•", color: "text-slate-300" };
 }
 
+function isReplay(value: unknown): value is Replay {
+  if (!value || typeof value !== "object") return false;
+  const replay = value as Partial<Replay>;
+  return typeof replay.id === "number"
+    && typeof replay.playerName === "string"
+    && typeof replay.deckName === "string"
+    && typeof replay.opponentName === "string"
+    && typeof replay.won === "boolean"
+    && typeof replay.rounds === "number"
+    && typeof replay.playerFirst === "boolean"
+    && Array.isArray(replay.log)
+    && typeof replay.createdAt === "string";
+}
+
+function payloadError(value: unknown, fallback: string): string {
+  if (value && typeof value === "object" && "error" in value && typeof (value as { error?: unknown }).error === "string") {
+    return String((value as { error: string }).error);
+  }
+  return fallback;
+}
+
+function formatReplayDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "data indisponível";
+  return date.toLocaleString("pt-BR", { dateStyle: "medium", timeStyle: "short" });
+}
+
 export default function ReplayViewer({ id }: { id: string }) {
   const [replay, setReplay] = useState<Replay | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [currentStep, setCurrentStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1000);
-  const [error, setError] = useState("");
-  const [verification, setVerification] = useState<"idle" | "loading" | "valid" | "invalid">("idle");
+  const [verification, setVerification] = useState<VerificationState>({ status: "idle", message: "Integridade ainda não verificada." });
   const [filter, setFilter] = useState<ReplayFilter>("all");
+  const [shareFeedback, setShareFeedback] = useState("");
 
-  useEffect(() => {
-    fetch(`/api/replays/${id}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.ok) {
-          setReplay(d.replay);
-          setCurrentStep(0);
-        } else {
-          setError(d.error || "Replay not found");
-        }
-      });
+  const loadReplay = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true);
+    setLoadError("");
+    setPlaying(false);
+    try {
+      const response = await fetch(`/api/replays/${id}`, { cache: "no-store", signal });
+      const payload = await response.json() as unknown;
+      const data = payload as ReplayPayload;
+      if (!response.ok || data.ok !== true || !isReplay(data.replay)) {
+        setReplay(null);
+        setLoadError(payloadError(payload, response.status === 404 ? "Replay não encontrado." : "Não foi possível carregar este replay."));
+        return;
+      }
+      setReplay(data.replay);
+      setCurrentStep(0);
+      setFilter("all");
+      setVerification({ status: "idle", message: "Integridade ainda não verificada." });
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      setReplay(null);
+      setLoadError("Falha de rede ao carregar o replay. Verifique a conexão e tente novamente.");
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   }, [id]);
+
+  useDeferredEffect(() => {
+    const controller = new AbortController();
+    void loadReplay(controller.signal);
+    return () => controller.abort();
+  }, [loadReplay]);
 
   useEffect(() => {
     if (!playing || !replay) return;
     const length = replay.eventLog?.length || replay.log.length;
     if (!length) return;
-    const timer = setTimeout(() => {
-      setCurrentStep((s) => {
-        if (s + 1 >= length) {
+    const timer = window.setTimeout(() => {
+      setCurrentStep((step) => {
+        if (step + 1 >= length) {
           setPlaying(false);
-          return s;
+          return step;
         }
-        return s + 1;
+        return step + 1;
       });
     }, speed);
-    return () => clearTimeout(timer);
+    return () => window.clearTimeout(timer);
   }, [playing, currentStep, replay, speed]);
 
   const timeline = useMemo(() => {
     if (!replay) return [];
-    if (replay.eventLog?.length) return replay.eventLog.map((event, originalIndex) => ({ ...presentGameEvent(event), type: event.type, originalIndex }));
+    if (replay.eventLog?.length) {
+      return replay.eventLog.map((event, originalIndex) => ({ ...presentGameEvent(event), type: event.type, originalIndex }));
+    }
     return replay.log.map((line, originalIndex) => ({ ...parseLegacyEvent(line), label: line, type: "LEGACY", originalIndex }));
   }, [replay]);
-  const visibleTimeline = useMemo(() => filter === "all" ? timeline : timeline.filter((event) => eventFilter(event.type) === filter), [timeline, filter]);
-  const keyMoments = useMemo(() => timeline.filter((event) => ["UNIT_DIED", "UNIT_LEVELLED_UP", "NEXUS_DAMAGED", "NEXUS_POISONED"].includes(event.type)).map((event) => event.originalIndex), [timeline]);
+
+  const visibleTimeline = useMemo(
+    () => filter === "all" ? timeline : timeline.filter((event) => eventFilter(event.type) === filter),
+    [timeline, filter],
+  );
+  const keyMoments = useMemo(
+    () => timeline.filter((event) => ["UNIT_DIED", "UNIT_LEVELLED_UP", "NEXUS_DAMAGED", "NEXUS_POISONED"].includes(event.type)).map((event) => event.originalIndex),
+    [timeline],
+  );
+  const filterCounts = useMemo(() => {
+    const counts: Record<ReplayFilter, number> = { all: timeline.length, combat: 0, cards: 0, status: 0, nexus: 0 };
+    for (const event of timeline) {
+      const category = eventFilter(event.type);
+      if (category !== "all") counts[category] += 1;
+    }
+    return counts;
+  }, [timeline]);
+
   const jumpMoment = (direction: -1 | 1) => {
-    const candidates = direction > 0 ? keyMoments.filter((step) => step > currentStep) : keyMoments.filter((step) => step < currentStep).reverse();
-    if (candidates[0] !== undefined) setCurrentStep(candidates[0]);
+    const candidates = direction > 0
+      ? keyMoments.filter((step) => step > currentStep)
+      : keyMoments.filter((step) => step < currentStep).reverse();
+    if (candidates[0] !== undefined) {
+      setPlaying(false);
+      setCurrentStep(candidates[0]);
+    }
   };
 
-  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/replay/${id}` : "";
-
-  const copyUrl = () => {
-    navigator.clipboard.writeText(shareUrl).catch(() => {});
+  const copyUrl = async () => {
+    setShareFeedback("");
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/replay/${id}`);
+      setShareFeedback("Link copiado.");
+    } catch {
+      setShareFeedback("Não foi possível copiar automaticamente.");
+    }
   };
 
   const verifyReplay = async () => {
-    setVerification("loading");
+    if (verification.status === "loading") return;
+    setVerification({ status: "loading", message: "Reexecutando o replay no servidor…" });
     try {
-      const r = await fetch(`/api/replays/${id}/verify`, { cache: "no-store" });
-      const d = await r.json();
-      setVerification(d.ok && d.consistent ? "valid" : "invalid");
-    } catch { setVerification("invalid"); }
+      const response = await fetch(`/api/replays/${id}/verify`, { cache: "no-store" });
+      const payload = await response.json() as unknown;
+      const data = payload as VerificationPayload;
+
+      if (response.status === 409) {
+        setVerification({
+          status: "unverifiable",
+          message: payloadError(payload, "Este replay não possui snapshot autoritativo suficiente para verificação determinística."),
+        });
+        return;
+      }
+
+      if (!response.ok || data.ok !== true) {
+        setVerification({ status: "error", message: payloadError(payload, "A verificação não pôde ser concluída agora.") });
+        return;
+      }
+
+      const snapshot: VerificationSnapshot = {
+        authoritative: data.authoritative,
+        consistent: data.consistent,
+        hashesMatch: data.hashesMatch,
+        rulesSnapshot: data.rulesSnapshot,
+        winner: data.winner,
+        rounds: data.rounds,
+        appliedActions: data.appliedActions,
+        engineVersion: data.engineVersion,
+        rulesetVersion: data.rulesetVersion,
+        contentVersion: data.contentVersion,
+        historicalSnapshot: data.historicalSnapshot,
+        matchMode: data.matchMode,
+      };
+
+      if (data.consistent === true) {
+        setVerification({ status: "valid", message: "Reexecução autoritativa consistente com o resultado armazenado.", snapshot });
+      } else {
+        setVerification({ status: "invalid", message: "A reexecução autoritativa encontrou divergência no resultado, estado ou hashes armazenados.", snapshot });
+      }
+    } catch {
+      setVerification({ status: "error", message: "Falha de rede durante a verificação. Nenhuma conclusão de integridade foi assumida." });
+    }
   };
 
-  if (error) {
+  if (loading) {
     return (
-      <main className="grid min-h-screen place-items-center bg-slate-950 text-slate-100">
-        <div className="text-center">
-          <p className="text-xl text-red-400">❌ {error}</p>
-          <Link href="/leaderboard" className="btn-primary mt-4 inline-block">
-            Ver Replays
-          </Link>
+      <main className="rf-app-page">
+        <SiteNav />
+        <div className="rf-app-shell">
+          <ReplayState title="Sincronizando replay" text="Carregando o registro público e preparando a linha do tempo." />
         </div>
       </main>
     );
   }
 
-  if (!replay) return <div className="grid min-h-screen place-items-center bg-slate-950 text-slate-100">Carregando…</div>;
+  if (loadError || !replay) {
+    return (
+      <main className="rf-app-page">
+        <SiteNav />
+        <div className="rf-app-shell">
+          <ReplayState
+            title="Replay indisponível"
+            text={loadError || "O servidor não retornou um replay público válido."}
+            action={<button type="button" className="rf-button rf-button-secondary" onClick={() => void loadReplay()}>TENTAR NOVAMENTE</button>}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  const progress = timeline.length ? ((currentStep + 1) / timeline.length) * 100 : 0;
+  const currentEvent = timeline[currentStep];
+  const verificationTone = verification.status === "valid"
+    ? "border-emerald-400/25 bg-emerald-400/[.07] text-emerald-100"
+    : verification.status === "invalid"
+      ? "border-red-400/25 bg-red-400/[.07] text-red-100"
+      : verification.status === "unverifiable"
+        ? "border-amber-400/25 bg-amber-400/[.07] text-amber-100"
+        : verification.status === "error"
+          ? "border-orange-400/25 bg-orange-400/[.07] text-orange-100"
+          : "border-white/10 bg-slate-950/45 text-slate-200";
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(ellipse_at_top,#1e293b,#0f172a_55%,#020617)] px-4 py-6 text-slate-100">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <Link href="/leaderboard" className="text-sm text-slate-400 hover:text-white">← Voltar</Link>
-          <div className="flex gap-2">
-            <button onClick={verifyReplay} className="btn-ghost !px-3 !py-1 text-xs">
-              {verification === "loading" ? "Verificando…" : verification === "valid" ? "✓ Replay íntegro" : verification === "invalid" ? "⚠ Replay inválido" : "🔐 Verificar integridade"}
+    <main className="rf-app-page">
+      <SiteNav />
+      <div className="rf-app-shell">
+        <header className="rf-app-heading">
+          <div>
+            <p className="rf-eyebrow"><span /> ARQUIVO DE BATALHA</p>
+            <h1>Replay #{replay.id}</h1>
+            <p>Analise a partida evento por evento. A reprodução visual é pública; a conclusão de integridade só existe quando o servidor consegue reexecutar o registro autoritativo.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/leaderboard" className="rf-button rf-button-secondary">HALL DO NEXUS</Link>
+            <button type="button" className="rf-button rf-button-secondary" onClick={() => void copyUrl()}>COPIAR LINK</button>
+          </div>
+        </header>
+
+        {shareFeedback && <p className="mb-4 text-right text-xs text-slate-400" role="status">{shareFeedback}</p>}
+
+        <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumo do replay">
+          <MetricCard label="Resultado" value={replay.won ? "Vitória" : "Derrota"} detail={`${replay.rounds} rodada${replay.rounds === 1 ? "" : "s"}`} tone={replay.won ? "good" : "bad"} />
+          <MetricCard label="Invocador" value={replay.playerName} detail={replay.deckName} />
+          <MetricCard label="Oponente" value={replay.opponentName} detail={replay.aiDifficulty ? `IA · ${replay.aiDifficulty}` : replay.matchMode || "partida registrada"} />
+          <MetricCard label="Iniciativa" value={replay.playerFirst ? "Jogador" : "Oponente"} detail="primeiro turno" />
+          <MetricCard label="Registro" value={`${timeline.length} eventos`} detail={formatReplayDate(replay.createdAt)} />
+        </section>
+
+        <section className={`mb-5 rounded-2xl border p-4 ${verificationTone}`} aria-labelledby="replay-verification-heading">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[.18em] opacity-65">Integridade autoritativa</p>
+              <h2 id="replay-verification-heading" className="mt-1 text-lg font-black">
+                {verification.status === "valid" ? "✓ Replay consistente"
+                  : verification.status === "invalid" ? "⚠ Divergência detectada"
+                    : verification.status === "unverifiable" ? "◌ Replay não verificável"
+                      : verification.status === "error" ? "Verificação indisponível"
+                        : verification.status === "loading" ? "Verificando no servidor…"
+                          : "Verificação ainda não executada"}
+              </h2>
+              <p className="mt-1 text-sm leading-6 opacity-80">{verification.message}</p>
+            </div>
+            <button type="button" onClick={() => void verifyReplay()} disabled={verification.status === "loading"} className="rf-button rf-button-secondary disabled:cursor-not-allowed disabled:opacity-50">
+              {verification.status === "loading" ? "VERIFICANDO…" : "VERIFICAR INTEGRIDADE"}
             </button>
-            <button onClick={copyUrl} className="btn-ghost !px-3 !py-1 text-xs">📋 Copiar Link</button>
           </div>
-        </div>
+          {verification.snapshot && (
+            <div className="mt-4 grid gap-2 border-t border-current/10 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+              <VerificationFact label="Hashes" value={verification.snapshot.hashesMatch ? "Coincidem" : "Divergem"} />
+              <VerificationFact label="Regras" value={verification.snapshot.rulesSnapshot ? "Snapshot imutável" : "Compatibilidade legacy"} />
+              <VerificationFact label="Ações aplicadas" value={String(verification.snapshot.appliedActions ?? "—")} />
+              <VerificationFact label="Resultado refeito" value={`${verification.snapshot.winner ?? "—"} · ${verification.snapshot.rounds ?? "—"} rod.`} />
+            </div>
+          )}
+        </section>
 
-        <div className={`mb-4 rounded-2xl border-2 p-4 ${replay.won ? "border-emerald-500/40 bg-emerald-500/10" : "border-red-500/40 bg-red-500/10"}`}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <section className="mb-5 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/45" aria-labelledby="replay-timeline-heading">
+          <div className="border-b border-white/10 p-4 md:p-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">Direção do replay</p>
+                <h2 id="replay-timeline-heading" className="mt-1 text-xl font-black text-white">Linha do tempo</h2>
+                <p className="mt-1 text-xs text-slate-400">Evento {timeline.length ? currentStep + 1 : 0} de {timeline.length} · {keyMoments.length} momento(s)-chave</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="rf-button rf-button-secondary !px-3 !py-2" onClick={() => jumpMoment(-1)} disabled={!keyMoments.some((step) => step < currentStep)}>← MOMENTO</button>
+                <button type="button" className="rf-button rf-button-secondary !px-3 !py-2" onClick={() => jumpMoment(1)} disabled={!keyMoments.some((step) => step > currentStep)}>MOMENTO →</button>
+              </div>
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10" aria-label={`${Math.round(progress)}% do replay percorrido`}>
+              <div className="h-full bg-gradient-to-r from-amber-500 to-orange-400 transition-[width] duration-200" style={{ width: `${progress}%` }} />
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Filtros de evento">
+              {(Object.keys(filterLabels) as ReplayFilter[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  aria-pressed={filter === item}
+                  onClick={() => setFilter(item)}
+                  className={`rounded-full border px-3 py-1.5 text-[11px] font-black uppercase tracking-wider transition ${filter === item ? "border-amber-300/45 bg-amber-300/10 text-amber-100" : "border-white/10 bg-white/[.03] text-slate-400 hover:border-white/20 hover:text-white"}`}
+                >
+                  {filterLabels[item]} · {filterCounts[item]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-5 p-4 md:p-5 xl:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)]">
             <div>
-              <h1 className="text-2xl font-black">
-                {replay.won ? "🏆" : "💀"} Replay #{replay.id}
-              </h1>
-              <p className="text-sm text-slate-300">
-                {replay.playerName} · {replay.deckName} vs {replay.opponentName}
-              </p>
-              <p className="text-xs text-slate-500">
-                {replay.rounds} rounds · {replay.playerFirst ? "Player primeiro" : "Oponente primeiro"} · IA {replay.aiDifficulty ?? "n/a"}
-              </p>
-              <p className="mt-1 text-[11px] text-slate-600">Engine {replay.engineVersion ?? "legacy"} · Ruleset {replay.rulesetVersion ?? "legacy"} · Content {replay.contentVersion ?? "legacy"}</p>
+              <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[.16em] text-slate-500">Evento em foco</p>
+                {currentEvent ? (
+                  <div className="mt-3 flex gap-3">
+                    <span className="text-2xl" aria-hidden="true">{currentEvent.icon}</span>
+                    <div><p className={`font-bold leading-6 ${currentEvent.color}`}>{currentEvent.label}</p><p className="mt-1 text-[10px] font-mono text-slate-600">#{String(currentStep + 1).padStart(3, "0")} · {currentEvent.type}</p></div>
+                  </div>
+                ) : <p className="mt-3 text-sm text-slate-500">Este replay não possui eventos reproduzíveis.</p>}
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-black/20 p-3">
+                <PlaybackButton label="⏮ INÍCIO" disabled={currentStep === 0} onClick={() => { setPlaying(false); setCurrentStep(0); }} />
+                <PlaybackButton label="◀ ANTERIOR" disabled={currentStep === 0} onClick={() => { setPlaying(false); setCurrentStep((step) => Math.max(0, step - 1)); }} />
+                <button type="button" onClick={() => timeline.length && setPlaying((value) => !value)} disabled={!timeline.length} className="rf-button rf-button-primary flex-1 disabled:cursor-not-allowed disabled:opacity-40">{playing ? "PAUSAR" : "REPRODUZIR"}</button>
+                <PlaybackButton label="PRÓXIMO ▶" disabled={!timeline.length || currentStep >= timeline.length - 1} onClick={() => { setPlaying(false); setCurrentStep((step) => Math.min(Math.max(0, timeline.length - 1), step + 1)); }} />
+                <PlaybackButton label="FIM ⏭" disabled={!timeline.length || currentStep >= timeline.length - 1} onClick={() => { setPlaying(false); setCurrentStep(Math.max(0, timeline.length - 1)); }} />
+                <select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="input !w-auto !py-2" aria-label="Velocidade do replay">
+                  <option value={2000}>0.5x</option>
+                  <option value={1000}>1x</option>
+                  <option value={500}>2x</option>
+                  <option value={250}>4x</option>
+                </select>
+              </div>
+
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <VersionCard label="Engine" value={replay.engineVersion || "legacy"} />
+                <VersionCard label="Ruleset" value={replay.rulesetVersion || "legacy"} />
+                <VersionCard label="Content" value={replay.contentVersion || "legacy"} />
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-slate-400">Evento</p>
-              <p className="text-2xl font-black">
-                {timeline.length ? currentStep + 1 : 0} / {timeline.length}
-              </p>
+
+            <div className="min-w-0 rounded-xl border border-white/10 bg-black/20 p-3">
+              <div className="flex items-center justify-between gap-3 px-1 pb-3">
+                <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-slate-500">Log navegável</p><h3 className="mt-1 font-black text-white">Histórico Completo</h3></div>
+                <span className="text-xs text-slate-500">{visibleTimeline.length} visível(is)</span>
+              </div>
+              <ol className="max-h-[470px] space-y-1 overflow-y-auto pr-1 text-sm">
+                {visibleTimeline.map((event) => {
+                  const eventIndex = event.originalIndex;
+                  const isCurrent = eventIndex === currentStep;
+                  const isPast = eventIndex < currentStep;
+                  return (
+                    <li key={eventIndex}>
+                      <button
+                        type="button"
+                        onClick={() => { setPlaying(false); setCurrentStep(eventIndex); }}
+                        aria-current={isCurrent ? "step" : undefined}
+                        className={`flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-left transition ${isCurrent ? "border-amber-300/35 bg-amber-300/[.08]" : isPast ? "border-transparent bg-white/[.025] opacity-75 hover:border-white/10 hover:opacity-100" : "border-transparent opacity-45 hover:border-white/10 hover:bg-white/[.025] hover:opacity-80"}`}
+                      >
+                        <span className="w-8 shrink-0 font-mono text-[10px] text-slate-600">{String(eventIndex + 1).padStart(3, "0")}</span>
+                        <span aria-hidden="true">{event.icon}</span>
+                        <span className={`min-w-0 leading-5 ${event.color}`}>{event.label}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+                {!visibleTimeline.length && <li className="rounded-lg border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">Nenhum evento corresponde ao filtro atual.</li>}
+              </ol>
             </div>
           </div>
-
-          {/* Progress bar */}
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-800">
-            <div
-              className="h-full bg-gradient-to-r from-amber-500 to-orange-400 transition-all"
-              style={{ width: `${timeline.length ? ((currentStep + 1) / timeline.length) * 100 : 0}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="replay-director" aria-label="Direção do replay">
-          <div><small>FILTRO DE EVENTOS</small>{(["all", "combat", "cards", "status", "nexus"] as ReplayFilter[]).map((item) => <button key={item} className={filter === item ? "active" : ""} onClick={() => setFilter(item)}>{item === "all" ? "Todos" : item === "combat" ? "Combate" : item === "cards" ? "Cartas" : item === "status" ? "Estados" : "Nexus"}</button>)}</div>
-          <div><small>MOMENTOS-CHAVE · {keyMoments.length}</small><button onClick={() => jumpMoment(-1)}>← Anterior</button><button onClick={() => jumpMoment(1)}>Próximo →</button></div>
-        </div>
-
-        {/* Controls */}
-        <div className="mb-4 flex flex-wrap items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 p-3">
-          <button
-            onClick={() => setCurrentStep(0)}
-            disabled={currentStep === 0}
-            className="rounded bg-slate-700 px-3 py-1 text-sm font-bold hover:bg-slate-600 disabled:opacity-30"
-          >
-            ⏮️ Início
-          </button>
-          <button
-            onClick={() => setCurrentStep((s) => Math.max(0, s - 1))}
-            disabled={currentStep === 0}
-            className="rounded bg-slate-700 px-3 py-1 text-sm font-bold hover:bg-slate-600 disabled:opacity-30"
-          >
-            ◀ Anterior
-          </button>
-          <button
-            onClick={() => timeline.length && setPlaying(!playing)}
-            disabled={!timeline.length}
-            className={`rounded px-6 py-1.5 text-sm font-black ${playing ? "bg-red-600 hover:bg-red-500" : "bg-emerald-600 hover:bg-emerald-500"}`}
-          >
-            {playing ? "⏸️ Pausar" : "▶️ Reproduzir"}
-          </button>
-          <button
-            onClick={() => setCurrentStep((s) => Math.min(timeline.length - 1, s + 1))}
-            disabled={!timeline.length || currentStep >= timeline.length - 1}
-            className="rounded bg-slate-700 px-3 py-1 text-sm font-bold hover:bg-slate-600 disabled:opacity-30"
-          >
-            Próximo ▶
-          </button>
-          <button
-            onClick={() => setCurrentStep(Math.max(0, timeline.length - 1))}
-            disabled={!timeline.length || currentStep >= timeline.length - 1}
-            className="rounded bg-slate-700 px-3 py-1 text-sm font-bold hover:bg-slate-600 disabled:opacity-30"
-          >
-            Fim ⏭️
-          </button>
-          <select
-            value={speed}
-            onChange={(e) => setSpeed(Number(e.target.value))}
-            className="input max-w-[100px] !py-1"
-          >
-            <option value={2000}>0.5x</option>
-            <option value={1000}>1x</option>
-            <option value={500}>2x</option>
-            <option value={250}>4x</option>
-          </select>
-        </div>
-
-        {/* Current Event Highlight */}
-        {timeline[currentStep] && (
-          <div className="mb-4 rounded-xl border-2 border-amber-400/40 bg-amber-500/10 p-4 text-center">
-            <p className="text-lg font-bold">
-              <span className="mr-2">{timeline[currentStep].icon}</span>
-              {timeline[currentStep].label}
-            </p>
-          </div>
-        )}
+        </section>
 
         {replay.eventLog?.length ? (
-          <section className="mb-4 rounded-xl border border-violet-400/15 bg-violet-400/[.04] p-4">
-            <h3 className="text-xs font-black tracking-[.2em] text-violet-300">ENGINE EVENTS</h3>
-            <div className="mt-3 max-h-44 space-y-1 overflow-auto text-xs">{replay.eventLog.map((event, i) => <div key={i} className="rounded bg-black/20 px-2 py-1"><b>#{i + 1}</b> · {presentGameEvent(event).label}</div>)}</div>
+          <section className="rounded-2xl border border-violet-400/15 bg-violet-400/[.04] p-4" aria-labelledby="engine-events-heading">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300/70">Telemetria estruturada</p><h3 id="engine-events-heading" className="mt-1 text-lg font-black text-violet-100">ENGINE EVENTS</h3></div><span className="text-xs text-violet-200/50">{replay.eventLog.length} evento(s)</span></div>
+            <div className="mt-3 max-h-48 space-y-1 overflow-auto text-xs">{replay.eventLog.map((event, index) => <div key={index} className="rounded-lg border border-white/5 bg-black/20 px-3 py-2"><b className="mr-2 text-violet-300">#{index + 1}</b>{presentGameEvent(event).label}</div>)}</div>
           </section>
-        ) : null}
-
-        {/* Full Log */}
-        <div className="rounded-xl border border-white/10 bg-black/40 p-4">
-          <h3 className="mb-2 text-sm font-bold text-slate-400">Histórico Completo</h3>
-          <ul className="max-h-[400px] space-y-1 overflow-y-auto text-sm">
-            {visibleTimeline.map((event) => {
-              const i = event.originalIndex;
-              const isCurrent = i === currentStep;
-              const isPast = i < currentStep;
-              return (
-                <li
-                  key={i}
-                  onClick={() => setCurrentStep(i)}
-                  className={`cursor-pointer rounded px-2 py-1 transition-all ${
-                    isCurrent
-                      ? "bg-amber-500/20 ring-1 ring-amber-400 font-bold"
-                      : isPast
-                        ? "opacity-70 hover:bg-white/5"
-                        : "opacity-40 hover:opacity-70 hover:bg-white/5"
-                  }`}
-                >
-                  <span className="mr-2 font-mono text-xs text-slate-600">{String(i + 1).padStart(3, "0")}</span>
-                  <span className="mr-2">{event.icon}</span>
-                  <span className={event.color}>{event.label}</span>
-                </li>
-              );
-            })}
-            {!timeline.length && <li className="rounded-lg border border-white/10 p-6 text-center text-slate-500">Este replay não possui eventos reproduzíveis.</li>}
-          </ul>
-        </div>
+        ) : (
+          <section className="rounded-2xl border border-white/10 bg-slate-950/35 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">Compatibilidade histórica</p>
+            <p className="mt-1 text-sm leading-6 text-slate-400">Este registro usa o log textual legado. Ele continua reproduzível visualmente, mas a disponibilidade de verificação autoritativa depende dos snapshots preservados pelo servidor.</p>
+          </section>
+        )}
       </div>
     </main>
+  );
+}
+
+function MetricCard({ label, value, detail, tone = "neutral" }: { label: string; value: string; detail: string; tone?: "good" | "bad" | "neutral" }) {
+  const valueClass = tone === "good" ? "text-emerald-300" : tone === "bad" ? "text-red-300" : "text-slate-100";
+  return <div className="rounded-xl border border-white/10 bg-slate-950/45 p-4"><p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">{label}</p><p className={`mt-1 truncate text-xl font-black ${valueClass}`} title={value}>{value}</p><p className="mt-1 truncate text-xs text-slate-400" title={detail}>{detail}</p></div>;
+}
+
+function VerificationFact({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-[9px] font-black uppercase tracking-[.15em] opacity-55">{label}</p><p className="mt-1 text-xs font-bold">{value}</p></div>;
+}
+
+function VersionCard({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-lg border border-white/10 bg-white/[.025] p-2 text-center"><p className="text-[9px] font-black uppercase tracking-[.14em] text-slate-600">{label}</p><p className="mt-1 truncate text-[11px] font-bold text-slate-300" title={value}>{value}</p></div>;
+}
+
+function PlaybackButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+  return <button type="button" disabled={disabled} onClick={onClick} className="rounded-lg border border-white/10 bg-white/[.04] px-3 py-2 text-[10px] font-black text-slate-300 transition hover:border-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-30">{label}</button>;
+}
+
+function ReplayState({ title, text, action }: { title: string; text: string; action?: React.ReactNode }) {
+  return (
+    <section className="grid min-h-[55vh] place-items-center">
+      <div className="max-w-xl rounded-2xl border border-white/10 bg-slate-950/45 p-6 text-center shadow-2xl shadow-black/20">
+        <p className="rf-eyebrow justify-center"><span /> ARQUIVO DE BATALHA</p>
+        <h1 className="mt-3 text-2xl font-black text-white">{title}</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-400">{text}</p>
+        {action && <div className="mt-5 flex justify-center">{action}</div>}
+      </div>
+    </section>
   );
 }
