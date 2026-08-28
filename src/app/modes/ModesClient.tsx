@@ -268,7 +268,7 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
                     <div className="text-center"><div className="text-5xl">{brawl.emoji}</div><p className={`mt-3 text-[10px] font-black uppercase tracking-[.16em] ${featured ? "text-amber-300" : "text-cyan-300"}`}>Brawl especial</p><h3 className="mt-1 text-lg font-black text-white">{brawl.name}</h3></div>
                     <p className="mt-3 text-sm leading-6 text-slate-400">{brawl.description}</p>
                     <BrawlRules rules={brawl.rules} />
-                    <RewardStrip reward={{ gold: 60, dust: 30, xp: 50 }} completed={completed} />
+                    {completed && <div className="mt-4 rounded-xl border border-emerald-300/25 bg-emerald-300/[.07] p-3 text-[10px] font-black uppercase tracking-[.16em] text-emerald-300">✓ Vitória e recompensa registradas</div>}
                     <Link href={playHref("brawl", brawl.id)} className="rf-button rf-button-primary mt-4 w-full text-center">{completed ? "JOGAR NOVAMENTE" : "JOGAR BRAWL"}</Link>
                   </article>
                 );
