@@ -450,7 +450,7 @@ export default function ReplayViewer({ id }: { id: string }) {
 
         {replay.eventLog?.length ? (
           <section className="rounded-2xl border border-violet-400/15 bg-violet-400/[.04] p-4" aria-labelledby="engine-events-heading">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300/70">Telemetria estruturada</p><h3 id="engine-events-heading" className="mt-1 text-lg font-black text-violet-100">Engine events</h3></div><span className="text-xs text-violet-200/50">{replay.eventLog.length} evento(s)</span></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300/70">Telemetria estruturada</p><h3 id="engine-events-heading" className="mt-1 text-lg font-black text-violet-100">ENGINE EVENTS</h3></div><span className="text-xs text-violet-200/50">{replay.eventLog.length} evento(s)</span></div>
             <div className="mt-3 max-h-48 space-y-1 overflow-auto text-xs">{replay.eventLog.map((event, index) => <div key={index} className="rounded-lg border border-white/5 bg-black/20 px-3 py-2"><b className="mr-2 text-violet-300">#{index + 1}</b>{presentGameEvent(event).label}</div>)}</div>
           </section>
         ) : (
