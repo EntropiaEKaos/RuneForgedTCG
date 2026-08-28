@@ -68,6 +68,7 @@ export const CONTROL_DOMAIN_INFO: Record<ControlDomain, { label: string; icon: s
 
 const keyPattern = /^[a-z0-9][a-z0-9_-]{1,79}$/;
 const finiteNumber = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
+const finiteInteger = (value: unknown, min: number, max: number) => finiteNumber(value, min, max) && Number.isInteger(value);
 const strings = (value: unknown, max = 500) => Array.isArray(value) && value.length <= max && value.every((item) => typeof item === "string" && item.length <= 120);
 
 export const DEFAULT_STARTER_WALLET = { type: "grant", gold: 100, dust: 0, xp: 0, limit: 1 } as const;
@@ -113,6 +114,21 @@ export function validateControlDefinition(input: ControlDefinitionInput): { pass
     if (!reward || !finiteNumber(reward.gold, 0, 1_000_000) || !finiteNumber(reward.dust, 0, 1_000_000) || !finiteNumber(reward.xp, 0, 1_000_000)) errors.push("Recompensa precisa de gold, dust e xp não negativos.");
   }
   if (input.domain === "bosses" && !strings(p.aiDeck, 120)) errors.push("Chefe precisa de um deck de IA válido.");
+  if (input.domain === "brawls") {
+    if (p.id !== input.key) errors.push("O id do Brawl precisa ser igual à chave administrativa.");
+    if (typeof p.name !== "string" || !p.name.trim()) errors.push("O payload do Brawl precisa de um nome.");
+    if (!p.rules || typeof p.rules !== "object" || Array.isArray(p.rules)) {
+      errors.push("Brawl precisa de um objeto rules válido.");
+    } else {
+      const rules = p.rules as Record<string, unknown>;
+      const supported = new Set(["startingMana", "startingHand", "startingNexus"]);
+      const unsupported = Object.keys(rules).filter((key) => !supported.has(key));
+      if (unsupported.length) errors.push(`Brawl contém regra(s) não suportada(s) pelo runtime: ${unsupported.join(", ")}.`);
+      if (rules.startingMana != null && !finiteInteger(rules.startingMana, 0, 10)) errors.push("Brawl startingMana deve ser um inteiro entre 0 e 10.");
+      if (rules.startingHand != null && !finiteInteger(rules.startingHand, 0, 10)) errors.push("Brawl startingHand deve ser um inteiro entre 0 e 10.");
+      if (rules.startingNexus != null && !finiteInteger(rules.startingNexus, 1, 100)) errors.push("Brawl startingNexus deve ser um inteiro entre 1 e 100.");
+    }
+  }
   if (input.domain === "packs") {
     if (!finiteNumber(p.price, 0, 10_000_000) || !finiteNumber(p.cardsCount, 1, 100)) errors.push("Preço ou quantidade de cartas inválido.");
     if (p.collectionKey != null && (typeof p.collectionKey !== "string" || !keyPattern.test(p.collectionKey))) errors.push("collectionKey do pacote é inválida.");
