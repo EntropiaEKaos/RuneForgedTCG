@@ -187,6 +187,12 @@ export interface BrawlMode {
     startingMana?: number;
     startingHand?: number;
     startingNexus?: number;
+    /** Legacy UI compatibility sentinel. This rule is not supported or publishable. */
+    spellsOnly?: never;
+    /** Legacy UI compatibility sentinel. This rule is not supported or publishable. */
+    unitsOnly?: never;
+    /** Legacy UI compatibility sentinel. This rule is not supported or publishable. */
+    doubleMana?: never;
   };
 }
 
