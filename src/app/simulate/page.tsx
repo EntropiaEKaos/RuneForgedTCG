@@ -75,7 +75,10 @@ export default function SimulatePage() {
   const [error, setError] = useState("");
 
   const playerDeck = useMemo(() => DECKS.find((deck) => deck.id === deckId) ?? DECKS[0], [deckId]);
-  const opponentDeck = useMemo(() => DECKS.find((deck) => deck.id === aiDeckId) ?? DECKS.find((deck) => deck.id !== deckId) ?? DECKS[0], [aiDeckId, deckId]);
+  const opponentDeck = useMemo(
+    () => DECKS.find((deck) => deck.id === aiDeckId) ?? DECKS.find((deck) => deck.id !== deckId) ?? DECKS[0],
+    [aiDeckId, deckId],
+  );
 
   useDeferredEffect(async () => {
     setSessionLoading(true);
@@ -130,7 +133,7 @@ export default function SimulatePage() {
 
   return (
     <main className="rf-app-page min-h-screen text-slate-100">
-      <SiteNav active="play" />
+      <SiteNav />
       <div className="rf-app-shell mx-auto max-w-6xl px-4 py-8 sm:py-10">
         <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/65 shadow-2xl shadow-black/30 backdrop-blur-xl">
           <div className="border-b border-white/10 bg-gradient-to-br from-amber-400/10 via-slate-950/20 to-cyan-400/10 px-5 py-7 sm:px-8 sm:py-9">
@@ -150,7 +153,7 @@ export default function SimulatePage() {
                   <p className="font-black uppercase tracking-wider text-emerald-200">Autoridade</p>
                   <p className="mt-1 text-emerald-50">Execução server-side</p>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                <div aria-label="Player Name" className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
                   <p className="font-black uppercase tracking-wider text-slate-400">Identidade</p>
                   <p className="mt-1 font-semibold text-white">{sessionLoading ? "Sincronizando…" : playerName || "Indisponível"}</p>
                 </div>
