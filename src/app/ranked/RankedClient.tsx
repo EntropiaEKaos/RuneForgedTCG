@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { rankTierFor, type RankTier } from "@/lib/ranked";
 import { ensurePlayerSession } from "@/lib/client-player-session";
@@ -50,6 +51,7 @@ interface RankedData {
 
 
 export default function RankedClient() {
+  const router = useRouter();
   const [playerName, setPlayerName] = useState("");
   const [data, setData] = useState<RankedData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -125,7 +127,7 @@ export default function RankedClient() {
         }
         if (d.status === "matched" && d.opponent?.isHuman) {
           setSearchMsg(`🎮 Oponente humano encontrado: ${d.opponent.name}! Redirecionando...`);
-          window.location.href = `/play?pvpRoom=${encodeURIComponent(d.opponent.roomCode)}`;
+          router.push(`/play?pvpRoom=${encodeURIComponent(d.opponent.roomCode)}`);
           return;
         }
         if (d.status === "queued") {

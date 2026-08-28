@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
+import { useRouter } from "next/navigation";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { DECKS, type DeckDef } from "@/game/decks";
 import { createCustomGame, createGame } from "@/game/engine";
@@ -56,6 +57,7 @@ export function useMatchLauncher({
   setPvpConnection: Dispatch<SetStateAction<import("@/game/client/match-model").PvpConnectionState>>;
   setPvpMessage: Dispatch<SetStateAction<string>>;
 }) {
+  const router = useRouter();
   const resolvePlayerDeck = useCallback((): DeckInput => {
     if (deckKey.startsWith("custom:")) {
       const id = Number(deckKey.slice(7));
@@ -171,7 +173,7 @@ export function useMatchLauncher({
       return;
     }
 
-    if (ranked) { window.location.href = "/ranked"; return; }
+    if (ranked) { router.push("/ranked"); return; }
     setMatchToken(null);
     modeAttemptTokenRef.current = null;
     setFirstInfo("Preparing an authoritative match…");
@@ -199,7 +201,7 @@ export function useMatchLauncher({
         setScreen("game");
       })
       .catch(() => { setFirstInfo("Não foi possível preparar a partida autoritativa."); setScreen("select"); });
-  }, [actionLogRef, aiDifficulty, modeAttemptTokenRef, modePlayerFirstRef, playerName, presetDecks, resetTransientMatchState, resolvePlayerDeck, savedRef, seedRef, setActiveEncounter, setFirstInfo, setMatchReward, setMatchToken, setPvpConnection, setPvpGuest, setPvpMessage, setPvpRoomCode, setPvpVersion, setScreen, setState]);
+  }, [actionLogRef, aiDifficulty, modeAttemptTokenRef, modePlayerFirstRef, playerName, presetDecks, resetTransientMatchState, resolvePlayerDeck, router, savedRef, seedRef, setActiveEncounter, setFirstInfo, setMatchReward, setMatchToken, setPvpConnection, setPvpGuest, setPvpMessage, setPvpRoomCode, setPvpVersion, setScreen, setState]);
 
   useDeferredEffect(() => {
     const room = new URLSearchParams(window.location.search).get("pvpRoom");

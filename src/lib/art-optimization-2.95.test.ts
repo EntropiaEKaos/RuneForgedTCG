@@ -37,7 +37,7 @@ async function main() {
   pass(upload.includes("generateImageDerivatives") && upload.includes("preferredUrl") && upload.includes("variants: { original: originalVariant"), "upload persists original plus optimized variant metadata");
   pass(artApi.includes('choice === "avif"') && artApi.includes('choice === "webp" || choice === "auto"'), "art publication supports AVIF and WebP with auto preference");
   pass(artUi.includes("Auto · WebP preferido") && artUi.includes("Economia"), "Studio exposes codec selection and byte savings");
-  pass(read("package.json").includes('"sharp": "0.34.1"'), "sharp encoder is exact-pinned");
+  pass(read("package.json").includes('"sharp": "0.35.4"'), "sharp encoder is exact-pinned");
 
   console.log(`ART OPTIMIZATION 2.95: ${checks.length}/${checks.length} PASS`);
 }

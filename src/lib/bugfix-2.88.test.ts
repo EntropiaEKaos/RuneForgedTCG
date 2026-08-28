@@ -81,8 +81,8 @@ assert.match(community, /parseDeckCards/);
 assert.match(readFileSync("src/app/api/decks/share\/\[id\]\/route.ts", "utf8"), /sharedDeckDownloads/);
 
 const packageJson = JSON.parse(readFileSync("package.json", "utf8"));
-assert.equal(packageJson.dependencies.next, "16.2.11");
-assert.equal(packageJson.devDependencies["eslint-config-next"], "16.2.11");
+assert.equal(packageJson.dependencies.next, "16.3.3");
+assert.equal(packageJson.devDependencies["eslint-config-next"], "16.3.3");
 const ciInstall = readFileSync("scripts/ci-install.mjs", "utf8");
 assert.match(ciInstall, /package-lock\.json/);
 assert.match(ciInstall, /\["ci"/);

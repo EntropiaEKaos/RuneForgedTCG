@@ -1,12 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { StudioBreadcrumb, StudioCommandPalette } from "../StudioChrome";
 
 type Op = { id: number; username: string; role: string; enabled: boolean; mfaEnabled: boolean };
 const roles = ["designer", "qa", "liveops", "publisher", "admin"];
 
 export default function OperatorsClient() {
+  const router = useRouter();
   const [rows, setRows] = useState<Op[]>([]), [currentUserId, setCurrentUserId] = useState(0), [form, setForm] = useState({ username: "", password: "", role: "designer", requireMfa: true }), [secret, setSecret] = useState(""), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const load = () => fetch("/api/admin/operators", { credentials: "include" }).then((response) => response.json()).then((data) => { if (!data.ok) throw new Error(data.error); setRows(data.rows || []); setCurrentUserId(data.currentUserId || 0); });
   useEffect(() => { load().catch((e) => setError(e.message)); }, []);
@@ -21,7 +23,7 @@ export default function OperatorsClient() {
     const data = await response.json();
     if (!data.ok) return setError(data.error);
     if (data.mfaSecret) setSecret(data.mfaSecret);
-    if (data.reauthRequired) { setNotice("Credenciais alteradas. Todas as sessões foram revogadas; faça login novamente."); window.setTimeout(() => { window.location.href = "/admin"; }, 700); return; }
+    if (data.reauthRequired) { setNotice("Credenciais alteradas. Todas as sessões foram revogadas; faça login novamente."); window.setTimeout(() => { router.push("/admin"); }, 700); return; }
     setNotice("Operador atualizado; sessões antigas foram revogadas quando necessário.");
     await load();
   }

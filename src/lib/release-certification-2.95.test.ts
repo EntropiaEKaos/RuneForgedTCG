@@ -11,7 +11,7 @@ const pkg = JSON.parse(read("package.json"));
 const [pkgMajor, pkgMinor] = String(pkg.version).split(".").map(Number);
 ok(pkgMajor > 2 || (pkgMajor === 2 && pkgMinor >= 95), "package is 2.95.0 or newer");
 assert.equal(pkg.engines.node, ">=22.0.0 <25"); checks.push("production Node range is explicit");
-assert.equal(pkg.dependencies.sharp, "0.34.1"); checks.push("art encoder dependency is exact-pinned");
+assert.equal(pkg.dependencies.sharp, "0.35.4"); checks.push("art encoder dependency is exact-pinned");
 
 const balance = read("scripts/balance-audit-2.95.ts");
 ok(balance.includes("STRATUM_BASES") && balance.includes("gamesPerStratum") && balance.includes("strata"), "balance certification samples multiple deterministic seed strata");
