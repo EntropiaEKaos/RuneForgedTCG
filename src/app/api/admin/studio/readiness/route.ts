@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
         engineVersion: adminContentVersions.engineVersion,
         rulesetVersion: adminContentVersions.rulesetVersion,
         createdAt: adminContentVersions.createdAt,
-      }).from(adminContentVersions).orderBy(desc(adminContentVersions.createdAt)).limit(1000),
+      }).from(adminContentVersions).orderBy(desc(adminContentVersions.createdAt)),
       db.select({
         version: adminContentReleases.version,
         contentHash: adminContentReleases.contentHash,
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
         stage: adminApprovalRequests.stage,
         requestedBy: adminApprovalRequests.requestedBy,
         createdAt: adminApprovalRequests.createdAt,
-      }).from(adminApprovalRequests).where(eq(adminApprovalRequests.status, "pending")).orderBy(desc(adminApprovalRequests.createdAt)).limit(100),
+      }).from(adminApprovalRequests).where(eq(adminApprovalRequests.status, "pending")).orderBy(desc(adminApprovalRequests.createdAt)),
       db.select({
         resource: adminQaRuns.resource,
         resourceId: adminQaRuns.resourceId,
@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
         rulesetVersion: adminCardLabRuns.rulesetVersion,
         contentVersion: adminCardLabRuns.contentVersion,
         createdAt: adminCardLabRuns.createdAt,
-      }).from(adminCardLabRuns).orderBy(desc(adminCardLabRuns.createdAt)).limit(120),
+      }).from(adminCardLabRuns).orderBy(desc(adminCardLabRuns.createdAt)),
       Promise.all(CONTENT_RESOURCES.map(async (resource) => ({
         resource,
         rows: await db.select().from(tableFor(resource)),
@@ -143,19 +143,17 @@ export async function GET(req: NextRequest) {
 
     const latestLabByCard = new Map<string, (typeof labRuns)[number]>();
     for (const run of labRuns) if (!latestLabByCard.has(run.defId)) latestLabByCard.set(run.defId, run);
-    const labRegressions = [...latestLabByCard.values()]
-      .filter((run) => run.failed > 0)
-      .slice(0, 8)
-      .map((run) => ({
-        defId: run.defId,
-        iterations: run.iterations,
-        passed: run.passed,
-        failed: run.failed,
-        engineVersion: run.engineVersion,
-        rulesetVersion: run.rulesetVersion,
-        contentVersion: run.contentVersion,
-        createdAt: run.createdAt.toISOString(),
-      }));
+    const allLabRegressions = [...latestLabByCard.values()].filter((run) => run.failed > 0);
+    const labRegressions = allLabRegressions.slice(0, 8).map((run) => ({
+      defId: run.defId,
+      iterations: run.iterations,
+      passed: run.passed,
+      failed: run.failed,
+      engineVersion: run.engineVersion,
+      rulesetVersion: run.rulesetVersion,
+      contentVersion: run.contentVersion,
+      createdAt: run.createdAt.toISOString(),
+    }));
 
     const recentQaFailures = qaRuns
       .filter((run) => !run.passed)
@@ -193,7 +191,7 @@ export async function GET(req: NextRequest) {
         ...totals,
         pendingApprovals: pendingApprovals.length,
         recentQaFailures: recentQaFailures.length,
-        labRegressions: labRegressions.length,
+        labRegressions: allLabRegressions.length,
       },
       resources,
       activeRelease: activeRelease ? {
