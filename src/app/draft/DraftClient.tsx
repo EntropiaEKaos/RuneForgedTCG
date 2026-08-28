@@ -39,7 +39,7 @@ export default function DraftClient() {
   const [isBombPick, setIsBombPick] = useState(false);
 
   const applySnapshot = useCallback((payload: DraftPayload) => {
-    const nextTotal = typeof payload.total === "number" && payload.total > 0 ? payload.total : total;
+    const nextTotal = typeof payload.total === "number" && payload.total > 0 ? payload.total : 40;
     const nextStep = typeof payload.step === "number" ? payload.step : 0;
     setStep(nextStep);
     setTotal(nextTotal);
@@ -48,7 +48,7 @@ export default function DraftClient() {
     setPool(Array.isArray(payload.pool) ? payload.pool.filter(isCardDef) : []);
     setComplete(Boolean(payload.complete) || nextStep >= nextTotal);
     setIsBombPick(Boolean(payload.isBombPick));
-  }, [total]);
+  }, []);
 
   const loadDraft = useCallback(async () => {
     setLoading(true);
@@ -108,7 +108,8 @@ export default function DraftClient() {
         setMessage("🎉 Draft completo! O deck foi validado e salvo em seus decks customizados.");
       }
     } catch {
-      setMessage("❌ Não foi possível confirmar essa escolha. O draft não foi avançado no cliente.");
+      await loadDraft();
+      setMessage("⏳ A resposta da escolha foi interrompida; o estado autoritativo do Draft foi ressincronizado.");
     } finally {
       setSelectingCardId(null);
     }
