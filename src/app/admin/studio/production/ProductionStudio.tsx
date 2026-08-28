@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { StudioCommandPalette, StudioBreadcrumb } from "../StudioChrome";
 import { Audit, Bulk, Collections, Pipeline, Qa, Simulator, Validator, type Row } from "./ProductionPanels";
+import ReleaseReadinessPanel from "./ReleaseReadinessPanel";
 import Versions from "./VersionsPanel";
 
-type Module = "pipeline" | "simulator" | "validator" | "versions" | "qa" | "audit" | "bulk" | "collections";
+type Module = "readiness" | "pipeline" | "simulator" | "validator" | "versions" | "qa" | "audit" | "bulk" | "collections";
 
 export default function ProductionStudio() {
   const [auth, setAuth] = useState(false),
-    [tab, setTab] = useState<Module>("pipeline"),
+    [tab, setTab] = useState<Module>("readiness"),
     [resource, setResource] = useState("collections"),
     [rows, setRows] = useState<Row[]>([]),
     [selected, setSelected] = useState<Row | null>(null),
@@ -139,6 +140,7 @@ export default function ProductionStudio() {
           <div className="space-y-1">
             {(
               [
+                ["readiness", "📡 Release Readiness"],
                 ["pipeline", "🚀 Pipeline"],
                 ["simulator", "🧪 Simulator Lab"],
                 ["validator", "✓ Validator"],
@@ -160,12 +162,13 @@ export default function ProductionStudio() {
           </div>
         </aside>
         <main className="min-w-0 p-5">
-          <StudioBreadcrumb section="Production" current="Publishing Pipeline" />
+          <StudioBreadcrumb section="Production" current={tab === "readiness" ? "Release Readiness" : "Publishing Pipeline"} />
           {message && (
             <div className="mb-4 rounded-lg border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-100">
               {message}
             </div>
           )}
+          {tab === "readiness" && <ReleaseReadinessPanel />}
           {tab === "pipeline" && (
             <Pipeline
               resource={resource}
