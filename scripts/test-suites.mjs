@@ -7,6 +7,7 @@ export const behavioralTests = [
   "src/game/ci.test.ts",
   "src/game/client/match-model.test.ts",
   "src/game/content-dependency-graph.test.ts",
+  "src/game/content-dependency-impact.test.ts",
   "src/game/content-versioning.test.ts",
   "src/game/engine-hardening-2.17.test.ts",
   "src/game/engine.test.ts",
