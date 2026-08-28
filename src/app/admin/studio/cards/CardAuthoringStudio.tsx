@@ -2,17 +2,17 @@
 import Link from "next/link";
 import { StudioCommandPalette, StudioBreadcrumb } from "../StudioChrome";
 import { useCardAuthoringModel } from "./useCardAuthoringModel";
-import { CardCatalogSidebar, CardStudioHeader, CardTests, CardWorkspaceHeader, Panel, Preview } from "./CardAuthoringFields";
+import { CardCatalogSidebar, CardStudioHeader, CardWorkspaceHeader, Panel, Preview } from "./CardAuthoringFields";
 import CardIdentityTab from "./CardIdentityTab";
 import CardClassificationTab from "./CardClassificationTab";
 import CardRulesTab from "./CardRulesTab";
 import CardReleaseTab from "./CardReleaseTab";
+import CardQaStudio from "./CardQaStudio";
 
 export default function CardAuthoringStudio() {
 const model = useCardAuthoringModel();
 const {
-  auth, rows, card, cm, id, tab, setTab, tests, testBusy, setTestBusy, testName, setTestName,
-  testResult, setTestResult, msg, busy, val, edit, loadTests, reset, save, sandbox, impact, balance,
+  auth, rows, card, cm, id, tab, setTab, msg, busy, val, edit, reset, save, sandbox, impact, balance,
   validate, pipe, status, powerBudget, collectionIdentity, collectionForDefId, progress,
 } = model;
   if (!auth)
@@ -76,19 +76,7 @@ const {
           {tab === "identity" && <CardIdentityTab model={model} />}
           {tab === "classification" && <CardClassificationTab model={model} />}
           {tab === "rules" && <CardRulesTab model={model} />}
-          {tab === "tests" && (
-            <CardTests
-              cardId={id}
-              tests={tests}
-              busy={testBusy}
-              setBusy={setTestBusy}
-              name={testName}
-              setName={setTestName}
-              result={testResult}
-              setResult={setTestResult}
-              reload={() => loadTests(id)}
-            />
-          )}
+          {tab === "tests" && <CardQaStudio model={model} />}
           {tab === "collection" && <CardReleaseTab model={model} />}
           {tab === "preview" && (
             <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
