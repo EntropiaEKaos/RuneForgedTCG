@@ -1,8 +1,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) throw new Error("DATABASE_URL is required");
+const databaseUrl = process.env.DATABASE_URL?.trim();
 
 const globalForDb = globalThis as typeof globalThis & {
   __runeforgePostgresqlPool?: Pool;
@@ -22,7 +21,11 @@ function intEnv(name: string, fallback: number, min: number, max: number): numbe
 export const pool =
   globalForDb.__runeforgePostgresqlPool ??
   new Pool({
-    connectionString: databaseUrl,
+    // node-postgres opens connections lazily. Keeping the URL optional here
+    // allows Next.js to import route modules while producing a build artifact;
+    // readiness and database-backed requests still fail closed when PostgreSQL
+    // is not configured or reachable.
+    ...(databaseUrl ? { connectionString: databaseUrl } : {}),
     max: intEnv("DB_POOL_MAX", process.env.NODE_ENV === "production" ? 5 : 10, 1, 50),
     idleTimeoutMillis: intEnv("DB_POOL_IDLE_TIMEOUT_MS", 30_000, 1_000, 300_000),
     connectionTimeoutMillis: intEnv("DB_POOL_CONNECTION_TIMEOUT_MS", 5_000, 500, 60_000),
