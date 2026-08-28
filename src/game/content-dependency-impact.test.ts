@@ -18,7 +18,7 @@ const base = (id: string): CardDef => ({
 const mechanicCard: CardDef = { ...base("mechanic-card"), customKeywords: ["blood"] };
 const tokenConsumer: CardDef = {
   ...base("token-consumer"),
-  spell: { kind: "summon", target: "none", amount: 1, tokenDefId: "mechanic-card" },
+  spell: { kind: "summonToken", target: "none", amount: 1, tokenDefId: "mechanic-card" },
 };
 const chainedConsumer: CardDef = {
   ...base("chained-consumer"),
