@@ -1,0 +1,4 @@
+import { NextRequest } from "next/server";
+import { getAdminSessionContext, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
+import { analyzeCandidateCard } from "@/lib/card-balance-analysis";
+export async function POST(req:NextRequest){const actor=await getAdminSessionContext(req);if(!actor)return unauthorized();if(!adminRoleAllowed(actor.role,"qa"))return Response.json({ok:false,error:"QA role required"},{status:403});try{const body=await req.json();const games=Math.max(10,Math.min(100,Math.trunc(Number(body.games)||40)));const seed=Math.max(1,Math.trunc(Number(body.seed)||293000));return Response.json({ok:true,analysis:await analyzeCandidateCard(body.card,games,seed)});}catch(e){return Response.json({ok:false,error:e instanceof Error?e.message:"Card analysis failed"},{status:400});}}

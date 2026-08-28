@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+@layer components {
+  .btn-primary {
+    @apply rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition-colors hover:bg-amber-400 active:scale-95;
+  }
+  .btn-attack {
+    @apply rounded-xl bg-red-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-colors hover:bg-red-500 active:scale-95;
+  }
+  .btn-ghost {
+    @apply rounded-xl border border-white/20 px-5 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/10 active:scale-95;
+  }
+  .input {
+    @apply w-full rounded-lg border border-white/15 bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:border-amber-400;
+  }
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display), ui-serif, Georgia, serif;
+}
+
+/* thin scrollbars for the game rows */
+::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+
+/* ---------------- Combat FX ---------------- */
+
+@keyframes floatFade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.7);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -8px) scale(1.25);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -52px) scale(1);
+  }
+}
+
+.fx-pop {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  font-size: 24px;
+  font-weight: 900;
+  transform: translate(-50%, 0);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  animation: floatFade 1.2s ease-out forwards;
+}
+
+@keyframes shakeX {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-7px) translateY(2px);
+  }
+  35% {
+    transform: translateX(7px) translateY(-2px);
+  }
+  55% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+.animate-shake {
+  animation: shakeX 0.45s ease;
+}
+
+@keyframes popIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-pop {
+  animation: popIn 0.35s ease-out;
+}
+
+@keyframes lungeUp {
+  0% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-12px) rotate(-2deg) scale(1.06);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.animate-lunge {
+  animation: lungeUp 0.5s ease;
+}
+
+@keyframes nexusFlashRing {
+  0% {
+    box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.95);
+  }
+  100% {
+    box-shadow: 0 0 0 20px rgba(248, 113, 113, 0);
+  }
+}
+
+.nexus-hit {
+  animation: nexusFlashRing 0.65s ease-out;
+}
+
+@keyframes levelGlow {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(251, 191, 36, 0));
+  }
+  40% {
+    filter: drop-shadow(0 0 20px rgba(251, 191, 36, 1));
+  }
+  100% {
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.5));
+  }
+}
+
+.animate-level {
+  animation: levelGlow 1.5s ease;
+}
+
+@keyframes cardGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(251, 191, 36, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(251, 191, 36, 0.85);
+  }
+}
+
+.glow-playable {
+  animation: cardGlow 1.6s ease-in-out infinite;
+}
+
+@keyframes levelBannerIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  20% {
+    transform: scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+}
+
+.level-banner {
+  animation: levelBannerIn 2s ease forwards;
+}
+
+.level-banner-text {
+  background: linear-gradient(90deg, #fbbf24, #fde68a, #fbbf24);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmerText 1.2s linear infinite;
+}
+
+@keyframes shimmerText {
+  to {
+    background-position: 200% center;
+  }
+}
+

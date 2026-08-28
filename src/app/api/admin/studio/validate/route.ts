@@ -1,0 +1,3 @@
+import { NextRequest } from "next/server"; import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth"; import { validateContent } from "@/lib/content-pipeline";
+export const dynamic="force-dynamic";
+export async function POST(req:NextRequest){if(!(await isAdminAuthorized(req)))return unauthorized(); const actor=await getAdminSessionContext(req);if(!actor)return unauthorized();if(!adminRoleAllowed(actor.role,["designer","qa"]))return Response.json({ok:false,error:`Role ${actor.role} cannot validate content`},{status:403}); const b=await req.json(); const result=validateContent(String(b.resource||""),b.row||{}); return Response.json({ok:result.passed,...result},{status:result.passed?200:400});}

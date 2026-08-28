@@ -1,0 +1,36 @@
+RuneForge 2.97.0 — FINAL LOCAL VALIDATION
+
+EVIDENCE CLASSES
+- Behavioral targets: PASS 35/35
+- Legacy source-contract audits: PASS 41/41 (STATIC; not behavioral)
+- Current 2.97 source contracts: PASS 28/28 (STATIC; not behavioral)
+- Test taxonomy: PASS 35 behavioral / 41 source-contract
+- Local imports: PASS 432 source/script files
+- TS syntax/transpile: PASS 418/418 src+scripts files (TypeScript 5.8.3; NOT full typecheck)
+
+SCHEMA STATIC GUARDS
+- Historical parity: PASS 92 indexes / 32 FK contracts
+- Fresh static model: PASS 60 tables / 627 columns / 41 SQL FKs / 19 bootstrap files
+- Semantic static model: PASS 6 Drizzle FKs / 14 named CHECKs / 10 named indexes
+- Legacy 2.96.1 schema source contracts: PASS 14/14
+
+RANKED 2.97 BALANCE
+- Pool: season-zero-r1
+- Rules: 2026.08.97
+- Certified decks: 4
+- Pairwise matchups: 6
+- Games per matchup: 800
+- Seed strata: 8
+- Total games: 4800
+- Health score: 100
+- First-player WR: 50.4%
+- Healthy/watch/critical: 6 / 0 / 0
+- Stable/unstable: 6 / 0
+- Max seed deviation: 11.1 pp (threshold 15)
+- Certified balance gate: PASS
+
+PRODUCTION BOUNDARY
+- release-runtime-gate: FAIL-CLOSED as designed because package-lock.json is absent
+- npm run lock:refresh: could not complete in this environment (registry/network timeout)
+- Therefore exact dependency typecheck, ESLint, Next build, real PostgreSQL migration/runtime verification and HTTP E2E are NOT claimed here.
+- Keep RANKED_RELEASE_CERTIFIED=false until those gates pass on the deploy artifact.

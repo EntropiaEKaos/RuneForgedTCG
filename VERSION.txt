@@ -1,0 +1,2 @@
+RuneForge 2.97.0 · Ranked Certification & Production Hardening
+Database schema 2.97 · Engine 2.96.0 · Ranked pool season-zero-r1 certified

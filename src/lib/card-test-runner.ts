@@ -1,0 +1,19 @@
+import { getCard, allCards } from "@/game/cards";
+import { createCustomGame, applyCardEffectForSandbox } from "@/game/engine";
+import { deriveGameEvents } from "@/game/events";
+import { compileRuleDsl } from "@/lib/rule-dsl";
+import type { CardDef, GameState } from "@/game/types";
+
+export type CardTestCase = { scenario?: any; expected?: any };
+function snapshot(state: GameState) { const p=state.players.player; return { nexus:p.nexusHealth, mana:p.mana, board:p.bench.map(u=>({defId:u.defId,power:u.power,health:u.health,maxHealth:u.maxHealth,keywords:u.keywords,classes:u.classes,races:u.races})) }; }
+function compare(actual:any, expected:any): string[] { const errors:string[]=[]; if(expected?.nexus!==undefined&&actual.nexus!==expected.nexus)errors.push(`Expected nexus ${expected.nexus}, got ${actual.nexus}.`); if(expected?.mana!==undefined&&actual.mana!==expected.mana)errors.push(`Expected mana ${expected.mana}, got ${actual.mana}.`); for(const e of expected?.board||[]){const a=actual.board.find((x:any)=>x.defId===e.defId);if(!a){errors.push(`Expected ${e.defId} on board.`);continue;}for(const k of ["power","health","maxHealth"] as const)if(e[k]!==undefined&&a[k]!==e[k])errors.push(`${e.defId}: expected ${k} ${e[k]}, got ${a[k]}.`);} if(expected?.eventTypes){const types=actual.events.map((e:any)=>e.type);for(const t of expected.eventTypes)if(!types.includes(t))errors.push(`Expected event ${t}.`);} return errors; }
+export function runCardTest(card: CardDef, test: CardTestCase) {
+  const s=test.scenario||{}, units=allCards().filter(c=>c.type==="Unit"), fallback=units[0];
+  const sourceDefId=String(s.sourceDefId||card.defId||fallback?.defId), targetDefId=String(s.targetDefId||sourceDefId), enemyDefId=String(s.enemyDefId||units.find(c=>c.defId!==sourceDefId)?.defId||sourceDefId);
+  if(!getCard(sourceDefId)||!getCard(targetDefId)||!getCard(enemyDefId))return{passed:false,actual:{},errors:["Scenario references an unknown card."]};
+  const before=createCustomGame("Card Test",{id:"fixture",name:"Fixture",cards:[sourceDefId,targetDefId,enemyDefId]},{id:"fixture",name:"Fixture",cards:[sourceDefId,targetDefId,enemyDefId]},{seed:Number(s.seed)||424242,playerGoesFirst:true,skipMulligan:true,playerStartingHand:0,aiStartingHand:0,playerStartingMana:Number(s.mana)||5,aiStartingMana:Number(s.mana)||5,playerBench:[sourceDefId,targetDefId],aiBench:[enemyDefId]});
+  const rule=s.rule||(card.trigger?{sourceType:"card",sourceKey:card.defId,event:card.trigger.when,targetType:"anyUnit",targetKey:"",effectKind:card.trigger.effect.kind,amount:card.trigger.effect.amount,buffPower:card.trigger.effect.buffPower||0,buffHealth:card.trigger.effect.buffHealth||0,target:card.trigger.effect.target,keyword:card.trigger.effect.keyword}:card.spell?{sourceType:"card",sourceKey:card.defId,event:"onPlay",targetType:"anyUnit",targetKey:"",effectKind:card.spell.kind,amount:card.spell.amount,buffPower:card.spell.buffPower||0,buffHealth:card.spell.buffHealth||0,target:card.spell.target,keyword:card.spell.keyword}:null);
+  if(!rule)return{passed:false,actual:{},errors:["Card has no trigger/spell rule and no scenario.rule override."]}; const compiled=compileRuleDsl(rule); if(!compiled.ok)return{passed:false,actual:{},errors:[compiled.error]};
+  const target=before.players.player.bench.find(u=>u.defId===targetDefId)||before.players.player.bench[0], self=before.players.player.bench.find(u=>u.defId===sourceDefId)||before.players.player.bench[0]; if(!target||!self)return{passed:false,actual:{},errors:["Could not build fixture units."]};
+  const after=applyCardEffectForSandbox(before,"player",compiled.effect,target.instanceId,self), events=deriveGameEvents(before,after), actual={...snapshot(after),events}, errors=compare(actual,test.expected||{}); return {passed:errors.length===0,actual,errors};
+}
