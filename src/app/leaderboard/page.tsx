@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata = {
   title: "Leaderboard — RuneForge",
-  description: "Classificação, atividade recente e replays autoritativos do Nexus.",
+  description: "Classificação, atividade recente e replays registrados do Nexus.",
 };
 
 export default async function LeaderboardPage() {
@@ -51,7 +51,7 @@ export default async function LeaderboardPage() {
           <div>
             <p className="rf-eyebrow"><span /> REGISTRO COMPETITIVO</p>
             <h1>Hall do Nexus</h1>
-            <p>Vitórias, atividade recente e provas autoritativas das batalhas disputadas pelos forjadores.</p>
+            <p>Vitórias, atividade recente e registros de batalha preservados para inspeção pelos forjadores.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/simulate" className="rf-button rf-button-secondary">◇ SIMULAR</Link>
@@ -142,13 +142,13 @@ export default async function LeaderboardPage() {
         <section className="mt-10" aria-labelledby="replays-heading">
           <div className="mb-4 flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300/65">PROVA AUTORITATIVA</p>
-              <h2 id="replays-heading" className="mt-1 text-2xl font-black text-slate-100">Replays verificados</h2>
+              <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300/65">ARQUIVO DE BATALHA</p>
+              <h2 id="replays-heading" className="mt-1 text-2xl font-black text-slate-100">Replays registrados</h2>
             </div>
-            <p className="max-w-lg text-xs leading-5 text-slate-500">Cada registro preserva o desfecho produzido pelo motor autoritativo para inspeção e revisão da partida.</p>
+            <p className="max-w-lg text-xs leading-5 text-slate-500">Cada registro preserva o desfecho da batalha para inspeção. Abra o replay para solicitar a verificação de integridade quando houver snapshot autoritativo disponível.</p>
           </div>
           {recentReplays.length === 0 ? (
-            <Empty title="Nenhum replay disponível" copy="Quando uma partida autoritativa for persistida, a revisão aparecerá nesta seção." />
+            <Empty title="Nenhum replay disponível" copy="Quando uma partida gerar um replay persistido, a revisão aparecerá nesta seção." />
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {recentReplays.map((r) => {
