@@ -2,6 +2,26 @@
 
 RuneForge 2.97 closes the competitive Ranked launch architecture instead of merely removing a feature flag. Ranked now uses a small immutable, server-authoritative preconstructed deck pool with frozen season/content provenance, authoritative replay settlement and a dedicated multi-stratum balance gate.
 
+## Playable alpha quick start
+
+Requirements: Node.js 22 or 24, npm 10 or 11, and Docker Desktop with Compose.
+
+```bash
+npm ci
+npm run alpha:setup
+npm run dev
+```
+
+Open `http://127.0.0.1:3000`, choose **Play Now**, select a deck and enter the Nexus. `alpha:setup` creates an ignored `.env.local`, starts a persistent PostgreSQL 17 container and bootstraps a fresh RuneForge 2.97 schema. Running it again preserves the alpha database and verifies its schema version.
+
+The local alpha keeps Ranked and real-money payments disabled. The admin login defaults are documented in `.env.example` and are strictly for local development.
+
+Run the complete dependency-independent alpha gate with:
+
+```bash
+npm run alpha:verify
+```
+
 ## Current release status
 
 - PvE / Casual PvP / Studio / Vanilla / Forge / Draft: candidate GO after clean deployment verification.
@@ -67,10 +87,9 @@ Final local evidence in this environment:
 
 ## Production verification boundary
 
-This source package intentionally does **not** fabricate `package-lock.json`. A production activation still requires a registry-connected machine and real PostgreSQL:
+This repository includes the reviewed npm lockfile. A production activation still requires a clean registry-connected machine and real PostgreSQL:
 
 ```bash
-npm run lock:refresh
 npm ci
 npm run production:verify
 npm run ranked:verify

@@ -3,6 +3,8 @@
   "version": "2.97.0",
   "private": true,
   "scripts": {
+    "alpha:setup": "node scripts/alpha-setup.mjs",
+    "alpha:verify": "npm run release:runtime-gate && npm run test:local-imports && npm run audit:test-taxonomy && npm run audit:schema-static && npm run audit:source-contracts && npm run audit:studio-structure && npm run typecheck && npm run lint -- --max-warnings 0 && npm run test:behavior && npm run build",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
