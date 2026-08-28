@@ -187,9 +187,6 @@ export interface BrawlMode {
     startingMana?: number;
     startingHand?: number;
     startingNexus?: number;
-    spellsOnly?: boolean;
-    unitsOnly?: boolean;
-    doubleMana?: boolean;
   };
 }
 
