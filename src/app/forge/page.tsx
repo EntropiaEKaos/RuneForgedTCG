@@ -1,7 +1,8 @@
 import ForgeClient from "./ForgeClient";
 
 export const metadata = {
-  title: "Forge — Runeforge: Legends of the Nexus",
+  title: "Forja — RuneForge",
+  description: "Construa, analise, valide e compartilhe decks RuneForge dentro das regras runtime e formatos publicados.",
 };
 
 export default function ForgePage() {
