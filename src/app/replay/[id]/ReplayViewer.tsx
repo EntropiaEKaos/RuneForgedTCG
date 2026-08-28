@@ -419,7 +419,7 @@ export default function ReplayViewer({ id }: { id: string }) {
 
             <div className="min-w-0 rounded-xl border border-white/10 bg-black/20 p-3">
               <div className="flex items-center justify-between gap-3 px-1 pb-3">
-                <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-slate-500">Log navegável</p><h3 className="mt-1 font-black text-white">Histórico de eventos</h3></div>
+                <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-slate-500">Log navegável</p><h3 className="mt-1 font-black text-white">Histórico Completo</h3></div>
                 <span className="text-xs text-slate-500">{visibleTimeline.length} visível(is)</span>
               </div>
               <ol className="max-h-[470px] space-y-1 overflow-y-auto pr-1 text-sm">
