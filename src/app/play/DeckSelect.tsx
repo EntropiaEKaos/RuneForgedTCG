@@ -74,6 +74,14 @@ export default function DeckSelect({
     return doctrines.find((item) => item.deckId === winner) ?? archetypeForCards(previewCards);
   }, [deckKey, doctrines, previewCards, selectedPresetId]);
 
+  const syncIdentity = () => {
+    void ensurePlayerSession(playerName).then((profile) => {
+      if (profile.player?.name) setPlayerName(String(profile.player.name));
+    });
+  };
+
+  const sessionReady = Boolean(playerName.trim());
+
   return (
     <div className="rf-app-page deck-select-page">
       <SiteNav />
@@ -83,17 +91,20 @@ export default function DeckSelect({
           <Link href="/forge" className="rf-button rf-button-secondary">◆ FORJAR DECK</Link>
         </header>
 
-        <div className="deck-player-name">
-          <label>IDENTIDADE DO DESAFIANTE</label>
-          <input
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            onBlur={() => { void ensurePlayerSession(playerName).then((profile) => { if (profile.player?.name) setPlayerName(String(profile.player.name)); }); }}
-            maxLength={40}
-            className="input"
-            placeholder="Challenger"
-          />
-        </div>
+        <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[.035] p-4" aria-label="Identidade da sessão">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">Identidade do desafiante</p>
+            <div className="mt-1 flex items-center gap-2">
+              <span className={sessionReady ? "text-emerald-300" : "text-amber-300"}>{sessionReady ? "●" : "○"}</span>
+              <strong className="truncate text-lg text-white">{sessionReady ? playerName : "Sincronizando sessão…"}</strong>
+            </div>
+            <p className="mt-1 text-xs text-slate-400">A identidade vem da sessão estável. Alterações de nome são feitas no Perfil, não no lobby de batalha.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={syncIdentity} className="btn-ghost">Ressincronizar</button>
+            <Link href="/profile" className="btn-ghost">Gerenciar perfil</Link>
+          </div>
+        </section>
 
         <div className="deck-choice-grid">
           {presetDecks.map((d) => {
@@ -109,6 +120,7 @@ export default function DeckSelect({
                   "deck-choice flex flex-col text-left",
                   selected ? "is-selected" : "",
                 ].join(" ")}
+                aria-pressed={selected}
               >
                 <div className="deck-choice-mark"><Image src={style.art} alt="" width={64} height={64} /></div>
                 <h3>{d.name}</h3>
@@ -122,11 +134,15 @@ export default function DeckSelect({
         </div>
 
         {customDecks.length > 0 && (
-          <div className="mt-8">
-            <h2 className="mb-3 text-center text-sm font-bold uppercase tracking-wider text-slate-400">
-              Seus Decks Forjados
-            </h2>
-            <div className="flex flex-wrap justify-center gap-3">
+          <section className="mt-8" aria-label="Decks forjados">
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">Seu arsenal</p>
+                <h2 className="mt-1 text-lg font-black text-white">Decks forjados</h2>
+              </div>
+              <Link href="/forge" className="text-xs font-bold text-amber-300 hover:text-amber-200">Editar na Forja →</Link>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {customDecks.map((d) => {
                 const selected = deckKey === `custom:${d.id}`;
                 return (
@@ -134,18 +150,24 @@ export default function DeckSelect({
                     key={d.id}
                     onClick={() => setDeckKey(`custom:${d.id}`)}
                     className={[
-                      "rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-left hover:bg-white/10",
-                      selected ? "ring-2 ring-amber-400" : "",
+                      "rounded-2xl border bg-white/[.035] px-4 py-3 text-left transition hover:bg-white/[.07]",
+                      selected ? "border-amber-300/50 ring-1 ring-amber-300/40" : "border-white/10",
                     ].join(" ")}
+                    aria-pressed={selected}
                   >
-                    <div className="text-2xl">{d.emoji}</div>
-                    <div className="font-bold">{d.name}</div>
-                    <div className="text-[10px] text-slate-400">{d.cards.length} cartas</div>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-2xl">{d.emoji}</div>
+                        <div className="mt-1 font-bold text-white">{d.name}</div>
+                        <div className="mt-0.5 text-[10px] uppercase tracking-wide text-slate-500">{d.cards.length} cartas</div>
+                      </div>
+                      {selected && <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-amber-200">Selecionado</span>}
+                    </div>
                   </button>
                 );
               })}
             </div>
-          </div>
+          </section>
         )}
 
         {doctrine && (
@@ -160,7 +182,7 @@ export default function DeckSelect({
 
         <section className="ai-difficulty-panel" aria-label="Dificuldade do adversário">
           <div><small>ADVERSÁRIO PVE</small><h2>Escolha o nível da inteligência</h2><p>A política selecionada é emitida pelo servidor e preservada no replay autoritativo.</p></div>
-          <div>{(Object.entries(AI_DIFFICULTIES) as Array<[AiDifficulty, (typeof AI_DIFFICULTIES)[AiDifficulty]]>).map(([id, item]) => <button key={id} type="button" className={aiDifficulty === id ? "active" : ""} onClick={() => onAiDifficulty(id)}><i>{item.icon}</i><span><b>{item.label}</b><small>{item.description}</small></span></button>)}</div>
+          <div>{(Object.entries(AI_DIFFICULTIES) as Array<[AiDifficulty, (typeof AI_DIFFICULTIES)[AiDifficulty]]>).map(([id, item]) => <button key={id} type="button" className={aiDifficulty === id ? "active" : ""} aria-pressed={aiDifficulty === id} onClick={() => onAiDifficulty(id)}><i>{item.icon}</i><span><b>{item.label}</b><small>{item.description}</small></span></button>)}</div>
         </section>
 
         <div className="mt-8">
@@ -175,13 +197,14 @@ export default function DeckSelect({
         </div>
 
         <div className="deck-start-actions flex flex-wrap justify-center gap-3">
-          <button onClick={onStart} className="btn-primary text-base">
-            ⚔ ENTRAR NO NEXUS
+          <button onClick={onStart} className="btn-primary text-base" disabled={!sessionReady}>
+            {sessionReady ? "⚔ ENTRAR NO NEXUS" : "SINCRONIZANDO SESSÃO…"}
           </button>
           <Link href="/forge" className="btn-ghost">
             ◆ FORJAR UM DECK
           </Link>
         </div>
+        {!sessionReady && <p className="mt-2 text-center text-xs text-amber-300/80" role="status">A partida só pode ser preparada depois que a sessão estável do jogador estiver disponível.</p>}
       </div>
     </div>
   );
