@@ -338,9 +338,9 @@ export default function CardLabClient() {
                       </h3>
                     </div>
                     <div className="flex flex-wrap gap-2 text-[10px] text-slate-400">
-                      {result.run?.engineVersion && <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1">Engine {result.run.engineVersion}</span>}
-                      {result.run?.rulesetVersion && <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1">Rules {result.run.rulesetVersion}</span>}
-                      {result.run?.contentVersion && <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1">Content {result.run.contentVersion}</span>}
+                      {result?.run?.engineVersion && <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1">Engine {result.run.engineVersion}</span>}
+                      {result?.run?.rulesetVersion && <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1">Rules {result.run.rulesetVersion}</span>}
+                      {result?.run?.contentVersion && <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1">Content {result.run.contentVersion}</span>}
                     </div>
                   </div>
                   {report.warnings.length > 0 && (
