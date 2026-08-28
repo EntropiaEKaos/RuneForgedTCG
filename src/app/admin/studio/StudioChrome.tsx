@@ -17,6 +17,7 @@ const routes = [
   ["/admin/studio/runtime", "Runtime Operations", "Matches, replays, decks, chat and sessions"],
   ["/admin/studio/5", "Balance Lab", "Matchups and outliers"],
   ["/admin/studio/lab", "Card Laboratory", "Run deterministic QA scenarios"],
+  ["/admin/studio/lab/history", "Lab History", "Compare persisted card QA regressions"],
   ["/admin/studio?tab=interactions", "Rule Graph", "Build triggers, targets and effects"],
   ["/admin/studio/production?tab=simulator", "Simulator", "Run content against the production engine"],
   ["/admin/studio/4?tab=approvals", "Approval Queue", "Review QA and publish gates"],
