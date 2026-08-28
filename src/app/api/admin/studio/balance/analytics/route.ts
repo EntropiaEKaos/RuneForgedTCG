@@ -35,7 +35,29 @@ export async function GET(req: NextRequest) {
   const rows = experimentIds.length
     ? await db.select().from(adminBalanceMatchups).where(inArray(adminBalanceMatchups.experimentId, experimentIds)).orderBy(desc(adminBalanceMatchups.id)).limit(1000)
     : [];
-  const runs = await db.select().from(adminSimulationRuns).where(and(eq(adminSimulationRuns.engineVersion, ENGINE_VERSION), eq(adminSimulationRuns.rulesetVersion, RULESET_VERSION))).orderBy(desc(adminSimulationRuns.id)).limit(1000);
+
+  // Current balance metrics intentionally stay scoped to the active engine/ruleset
+  // through `experiments` above. Comparison history is different: it must retain
+  // older provenance or the Version Compare UI can never compare engine/ruleset
+  // generations. Return a narrow projection so historical diagnostics do not
+  // expose raw simulation details that the compare surface does not need.
+  const runs = await db.select({
+    id: adminSimulationRuns.id,
+    mode: adminSimulationRuns.mode,
+    deckA: adminSimulationRuns.deckA,
+    deckB: adminSimulationRuns.deckB,
+    requestedGames: adminSimulationRuns.requestedGames,
+    completedGames: adminSimulationRuns.completedGames,
+    winsA: adminSimulationRuns.winsA,
+    winsB: adminSimulationRuns.winsB,
+    draws: adminSimulationRuns.draws,
+    avgRounds: adminSimulationRuns.avgRounds,
+    seed: adminSimulationRuns.seed,
+    engineVersion: adminSimulationRuns.engineVersion,
+    rulesetVersion: adminSimulationRuns.rulesetVersion,
+    createdAt: adminSimulationRuns.createdAt,
+  }).from(adminSimulationRuns).orderBy(desc(adminSimulationRuns.id)).limit(250);
+
   const metaRows = await db.select({ defId: cardCatalogMeta.defId, collectionId: cardCatalogMeta.collectionId }).from(cardCatalogMeta);
   const meta = new Map(metaRows.map(r => [r.defId, r]));
   const matchup = new Map<string, {games:number; wins:number; losses:number; draws:number}>();
@@ -55,5 +77,5 @@ export async function GET(req: NextRequest) {
   };
   const dimensionsByType={classes:dimensionMetrics("classes"),races:dimensionMetrics("races"),collections:dimensionMetrics("collections")};
   const matrix = rows.map(r=>({deckA:r.deckA,deckB:r.deckB,games:r.completedGames,winRateA:r.winRateA/10,winRateB:r.winRateB/10,draws:r.draws,avgRounds:r.avgRounds,experimentId:r.experimentId}));
-  return Response.json({ok:true,deckMetrics,outliers,matrix,runs:runs.slice(0,50),dimensions:{classes:[...new Set(deckMetrics.flatMap(d=>d.profile.classes.map(x=>x.key)))],races:[...new Set(deckMetrics.flatMap(d=>d.profile.races.map(x=>x.key)))],collections:[...new Set(deckMetrics.flatMap(d=>d.profile.collections.map(x=>x.key)))]},dimensionsByType});
+  return Response.json({ok:true,deckMetrics,outliers,matrix,runs,dimensions:{classes:[...new Set(deckMetrics.flatMap(d=>d.profile.classes.map(x=>x.key)))],races:[...new Set(deckMetrics.flatMap(d=>d.profile.races.map(x=>x.key)))],collections:[...new Set(deckMetrics.flatMap(d=>d.profile.collections.map(x=>x.key)))]},dimensionsByType});
 }
