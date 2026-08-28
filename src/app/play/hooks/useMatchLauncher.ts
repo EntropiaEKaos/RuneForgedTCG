@@ -134,7 +134,7 @@ export function useMatchLauncher({
     if (mode && modeId) {
       fetch("/api/modes/attempt", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: playerName, modeType: mode, modeId, deckId: playerDeck.id }),
+        body: JSON.stringify({ modeType: mode, modeId, deckId: playerDeck.id }),
       })
         .then((response) => response.json())
         .then((attempt) => {
@@ -180,7 +180,7 @@ export function useMatchLauncher({
     setScreen("select");
     fetch("/api/matches/token", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerName, deckId: playerDeck.id, difficulty: aiDifficulty }),
+      body: JSON.stringify({ deckId: playerDeck.id, difficulty: aiDifficulty }),
     })
       .then((response) => response.json())
       .then((data) => {
