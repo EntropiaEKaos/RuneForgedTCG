@@ -135,8 +135,8 @@ export function useMatchLauncher({
 
     if (mode && modeId) {
       fetch("/api/modes/attempt", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: playerName, modeType: mode, modeId, deckId: playerDeck.id }),
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ modeType: mode, modeId, deckId: playerDeck.id }),
       })
         .then((response) => response.json())
         .then((attempt) => {
@@ -172,7 +172,13 @@ export function useMatchLauncher({
           setFirstInfo(mode === "puzzle" ? "🧩 Puzzle mode — win this turn!" : mode === "boss" ? "👹 Boss battle — survive and destroy the Boss!" : mode === "expedition" ? `🧭 ${encounter?.chapter} — ${encounter?.mutator.label}` : "⚔️ Brawl — special rules active!");
           setScreen("game");
         })
-        .catch((error) => { console.error(error); setActiveModeMission(null); setFirstInfo("Não foi possível preparar a tentativa autoritativa."); setScreen("select"); });
+        .catch((error) => {
+          console.error(error);
+          setActiveModeMission(null);
+          const reason = error instanceof Error ? error.message : "Falha desconhecida";
+          setFirstInfo(`Não foi possível preparar a tentativa autoritativa: ${reason}`);
+          setScreen("select");
+        });
       return;
     }
 
@@ -182,8 +188,8 @@ export function useMatchLauncher({
     setFirstInfo("Preparing an authoritative match…");
     setScreen("select");
     fetch("/api/matches/token", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerName, deckId: playerDeck.id, difficulty: aiDifficulty }),
+      method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+      body: JSON.stringify({ deckId: playerDeck.id, difficulty: aiDifficulty }),
     })
       .then((response) => response.json())
       .then((data) => {
@@ -203,7 +209,11 @@ export function useMatchLauncher({
         setState(createGame(playerName, playerDeck, authoritativeOpponent, authoritativeFirst, authoritativeSeed, issuedDifficulty, data.engineRules, data.aiRules));
         setScreen("game");
       })
-      .catch(() => { setFirstInfo("Não foi possível preparar a partida autoritativa."); setScreen("select"); });
+      .catch((error) => {
+        const reason = error instanceof Error ? error.message : "Falha desconhecida";
+        setFirstInfo(`Não foi possível preparar a partida autoritativa: ${reason}`);
+        setScreen("select");
+      });
   }, [actionLogRef, aiDifficulty, modeAttemptTokenRef, modePlayerFirstRef, playerName, presetDecks, resetTransientMatchState, resolvePlayerDeck, router, savedRef, seedRef, setActiveEncounter, setFirstInfo, setMatchReward, setMatchToken, setPvpConnection, setPvpGuest, setPvpMessage, setPvpRoomCode, setPvpVersion, setScreen, setState]);
 
   useDeferredEffect(() => {
