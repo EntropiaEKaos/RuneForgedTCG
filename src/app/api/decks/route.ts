@@ -51,8 +51,6 @@ export async function POST(req: Request) {
   await ensureConfigLoaded();
   try {
     const body = await req.json();
-    const requestedOwner = String(body.ownerName ?? "").trim().slice(0, 40);
-    void requestedOwner;
     await ensureCustomCardsLoaded();
     const identity = await requireStablePlayerIdentity(req);
     if (!identity || identity.playerId == null) return Response.json({ ok: false, error: "Authenticated player session required" }, { status: 401 });
