@@ -11,6 +11,34 @@
   overflow-x: clip;
 }
 
+/* The result surface is fixed to the viewport, so its own padding/content must
+   also be bounded explicitly. This prevents fixed descendants or long result
+   copy from enlarging documentElement.scrollWidth while preserving the strict
+   visual overflow gate instead of hiding overflow on the whole document. */
+.match-result-backdrop {
+  box-sizing: border-box;
+  width: 100vw;
+  max-width: 100vw;
+  overflow-x: clip;
+}
+
+.match-result-card {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  min-width: 0;
+}
+
+.match-result-card > *,
+.match-mastery > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.match-result-card p {
+  overflow-wrap: anywhere;
+}
+
 @media (min-width: 901px) {
   /* Keep the tactical center concise when no combat/reaction UI needs height.
      The player's hand becomes the flexible visual anchor instead of leaving a
