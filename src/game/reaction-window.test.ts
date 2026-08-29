@@ -1,4 +1,4 @@
-import { aiChooseReaction } from "./ai";
+import { aiChooseAction, aiChooseReaction } from "./ai";
 import { replayAuthoritativeMatch } from "./authoritative";
 import { applyStackedActionWithAi, createCustomGame } from "./engine";
 import { applyGameAction } from "./reducer";
@@ -57,6 +57,36 @@ if (resolved.next.players.ai.hand.some((card) => card.instanceId === "ai-bolt"))
 }
 if (resolved.next === opened.next) {
   throw new Error("Resolving the skipped reaction must advance the authoritative game state");
+}
+
+// Target-contract regression: `damageUnit` describes the effect implementation,
+// not permission to target a Sentinela. Ember Bolt is anyUnit-only, so the AI
+// must not emit a cast at a Sentinela just because its loyalty is low.
+const targetContractState = createCustomGame("Target Contract", deck, deck, {
+  skipMulligan: true,
+  playerGoesFirst: true,
+  playerStartingHand: 0,
+  aiStartingHand: 0,
+  playerStartingMana: 10,
+  aiStartingMana: 10,
+  seed: 616161,
+});
+targetContractState.phase = "main";
+targetContractState.activePlayer = "player";
+targetContractState.players.player.mana = 10;
+targetContractState.players.player.maxMana = 10;
+targetContractState.players.player.hand = [{ instanceId: "player-bolt", defId: "ember_bolt" }];
+targetContractState.players.ai.sentinelas = [{
+  instanceId: "enemy-sentinela",
+  defId: "rf296_sent_ilyra",
+  owner: "ai",
+  loyalty: 2,
+  activatedThisTurn: false,
+}];
+
+const illegalSentinelaTarget = aiChooseAction(targetContractState, "player");
+if (illegalSentinelaTarget?.targetInstanceId === "enemy-sentinela") {
+  throw new Error("AI emitted a unit-only damage spell against a Sentinela target");
 }
 
 // Replay parity regression: after a human resolves an AI reaction window, the
