@@ -169,21 +169,54 @@ async function clickText(cdp, text, exact = false) {
 
 async function clickTextPhysical(cdp, text, exact = false) {
   const encoded = JSON.stringify(text);
+  await cdp.call("Page.bringToFront");
+  const prepared = await evaluate(cdp, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const element = [...document.querySelectorAll('button,a,[role="button"]')]
+      .find((candidate) => !candidate.disabled && ${exact ? `normalize(candidate.textContent) === ${encoded}` : `normalize(candidate.textContent).includes(${encoded})`});
+    if (!element) return false;
+    element.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    return true;
+  })()`);
+  assert.equal(prepared, true, `Could not locate physical control ${exact ? "equal to" : "containing"} text: ${text}`);
+  await sleep(80);
+
   const target = await evaluate(cdp, `(() => {
     const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
     const element = [...document.querySelectorAll('button,a,[role="button"]')]
       .find((candidate) => !candidate.disabled && ${exact ? `normalize(candidate.textContent) === ${encoded}` : `normalize(candidate.textContent).includes(${encoded})`});
-    if (!element) return null;
-    element.scrollIntoView({ block: 'center', inline: 'center' });
+    if (!element) return { ok: false, reason: 'missing-after-scroll' };
     const rect = element.getBoundingClientRect();
     const style = getComputedStyle(element);
-    if (rect.width <= 0 || rect.height <= 0 || style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return null;
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    if (rect.width <= 0 || rect.height <= 0 || style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') {
+      return { ok: false, reason: 'not-visible', rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }, style: { display: style.display, visibility: style.visibility, pointerEvents: style.pointerEvents } };
+    }
+    const fractions = [[.5,.5],[.25,.5],[.75,.5],[.5,.25],[.5,.75],[.25,.25],[.75,.25],[.25,.75],[.75,.75]];
+    const probes = fractions.map(([fx, fy]) => {
+      const x = rect.left + rect.width * fx;
+      const y = rect.top + rect.height * fy;
+      const hit = document.elementFromPoint(x, y);
+      const belongs = Boolean(hit && (hit === element || element.contains(hit)));
+      return {
+        x, y, belongs,
+        hit: hit ? { tag: hit.tagName, className: typeof hit.className === 'string' ? hit.className : '', text: normalize(hit.textContent).slice(0, 100) } : null,
+      };
+    });
+    const usable = probes.find((probe) => probe.belongs);
+    return {
+      ok: Boolean(usable),
+      point: usable ? { x: usable.x, y: usable.y } : null,
+      rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      ariaExpanded: element.getAttribute('aria-expanded'),
+      probes,
+    };
   })()`);
-  assert.ok(target, `Could not locate visible physical control ${exact ? "equal to" : "containing"} text: ${text}`);
-  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: target.x, y: target.y });
-  await cdp.call("Input.dispatchMouseEvent", { type: "mousePressed", x: target.x, y: target.y, button: "left", buttons: 1, clickCount: 1 });
-  await cdp.call("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.x, y: target.y, button: "left", buttons: 0, clickCount: 1 });
+  assert.equal(target?.ok, true, `Physical control is visible but not hit-testable for ${text}: ${JSON.stringify(target)}`);
+  console.log(`ALPHA CASUAL PVP: physical hit target ${text}`, JSON.stringify({ point: target.point, rect: target.rect, ariaExpanded: target.ariaExpanded }));
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: target.point.x, y: target.point.y, pointerType: "mouse" });
+  await cdp.call("Input.dispatchMouseEvent", { type: "mousePressed", x: target.point.x, y: target.point.y, button: "left", buttons: 1, clickCount: 1, pointerType: "mouse" });
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.point.x, y: target.point.y, button: "left", buttons: 0, clickCount: 1, pointerType: "mouse" });
+  await sleep(100);
 }
 
 async function setInputValue(cdp, selector, value) {
@@ -544,8 +577,9 @@ async function main() {
     await capture(guest, "21-pvp-reconnected-guest.png", "guest restored from authoritative room after reconnect", manifest);
 
     // Finish through the real in-battle concession UI using physical pointer
-    // input through CDP. This certifies the same hit target and event path a
-    // player uses instead of relying on HTMLElement.click() synthetic dispatch.
+    // input through CDP. Hit-testing is required before dispatch so a visually
+    // present but overlapped control fails certification instead of being
+    // activated through synthetic DOM methods.
     await clickTextPhysical(guest.cdp, "Render-se", true);
     await waitForText(guest.cdp, "Confirmar rendição", 5_000);
     await clickTextPhysical(guest.cdp, "Confirmar rendição", true);
