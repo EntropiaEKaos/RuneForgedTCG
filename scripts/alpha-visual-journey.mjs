@@ -197,12 +197,10 @@ async function clickText(cdp, text) {
 }
 
 async function pressKey(cdp, key, code = key) {
-  await evaluate(cdp, `(() => {
-    const options = { key: ${JSON.stringify(key)}, code: ${JSON.stringify(code)}, bubbles: true, cancelable: true };
-    window.dispatchEvent(new KeyboardEvent('keydown', options));
-    window.dispatchEvent(new KeyboardEvent('keyup', options));
-    return true;
-  })()`);
+  const virtualKeyCode = code === "Space" ? 32 : code === "Enter" ? 13 : 0;
+  const base = { key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode };
+  await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", ...base });
+  await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", ...base });
 }
 
 async function driveMatchToResult(cdp, timeoutMs = 240_000) {
