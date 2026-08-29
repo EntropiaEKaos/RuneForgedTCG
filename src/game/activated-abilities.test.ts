@@ -41,6 +41,19 @@ const cards: CardDef[] = [
     ],
   },
   {
+    defId: "test_target_dummy",
+    name: "Target Dummy",
+    region: "Ironwood",
+    type: "Unit",
+    cost: 1,
+    power: 0,
+    health: 5,
+    rarity: "Common",
+    description: "Neutral test target without damage mitigation.",
+    emoji: "🎯",
+    keywords: [],
+  },
+  {
     defId: "test_blood_reliquary",
     name: "Blood Reliquary",
     region: "Voidborn",
@@ -139,7 +152,7 @@ try {
     state.players.player.mana = 3;
     state.players.player.maxMana = 3;
     const source = readyUnit(state, "test_arc_tender", "player");
-    const target = readyUnit(state, "wood_ent", "ai");
+    const target = readyUnit(state, "test_target_dummy", "ai");
     const beforeHealth = target.health;
 
     assert.equal(canBeginActivateAbility(state, "player", source.instanceId, 0), true);
@@ -150,7 +163,7 @@ try {
     const targetAfter = state.players.ai.bench.find((unit) => unit.instanceId === target.instanceId)!;
     assert.equal(state.players.player.mana, 1, "regular mana is paid");
     assert.equal(sourceAfter.hasAttackedThisTurn, true, "exhaust cost consumes attack readiness");
-    assert.equal(targetAfter.health, beforeHealth - 2, "targeted effect resolves");
+    assert.equal(targetAfter.health, beforeHealth - 2, "targeted effect resolves without unrelated keyword mitigation");
     assert.equal(canBeginActivateAbility(state, "player", source.instanceId, 0), false, "once-per-round limit blocks reuse");
 
     state = endTurn(state, "player");
@@ -214,7 +227,7 @@ try {
     const state = game();
     const source = readyUnit(state, "test_arc_tender", "player");
     state.players.player.mana = 10;
-    const hexproof = readyUnit(state, "wood_ent", "ai");
+    const hexproof = readyUnit(state, "test_target_dummy", "ai");
     hexproof.keywords.push("Hexproof");
     assert.equal(validateActivatedAbilityActivation(state, "player", source.instanceId, 0, hexproof.instanceId).ok, false, "Hexproof rejects enemy targeted ability");
     assert.equal(canBeginActivateAbility(state, "player", source.instanceId, 0), false, "no legal target disables activation preflight");
