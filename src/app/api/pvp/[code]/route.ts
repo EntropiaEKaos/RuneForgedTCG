@@ -138,9 +138,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
           const host: DeckInput = locked.hostDeckSnapshot ? snapshotDeck(locked.hostDeckSnapshot as DeckInput) : hostPreview;
           const guestSnapshot = snapshotDeck(guest);
           const contentSnapshot = snapshotReplayBundle(host, guestSnapshot);
-          const gameState = withRegisteredCardSnapshot(contentSnapshot.cardDefs, () =>
+          const initialGameState = withRegisteredCardSnapshot(contentSnapshot.cardDefs, () =>
             createGame(locked.hostName, host, guestSnapshot, Boolean(locked.playerFirst), locked.seed ?? undefined),
           );
+          // createGame() defaults the internal "ai" seat to mulligan-complete for PvE.
+          // In Casual PvP that seat is occupied by the second human, so both human
+          // participants must start with their mulligan pending.
+          const gameState: GameState = {
+            ...initialGameState,
+            mulliganDone: { player: false, ai: false },
+          };
           const rows = await tx.update(pvpRooms).set({ guestName, guestPlayerId: identity.playerId, guestDeck: guestDeckId, guestDeckSnapshot: guestSnapshot, contentSnapshot, contentHash: contentSnapshot.contentHash, state: "playing", settledAt: null, gameState, version: locked.version + 1, actionLog: [], eventLog: [], winner: null, expiresAt: new Date(Date.now() + PVP_PLAYING_TTL_MS), updatedAt: new Date() }).where(eq(pvpRooms.id, locked.id)).returning();
           if (rows[0]) await tx.insert(pvpSpectatorSnapshots).values({ roomId: rows[0].id, roomVersion: rows[0].version, gameState }).onConflictDoNothing();
           return rows;
@@ -174,7 +181,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
       if (!actionRate.allowed) {
         return Response.json(
           { ok: false, error: "PvP action rate limit exceeded" },
-          { status: 429, headers: { "retry-after": String(actionRate.retryAfterSeconds) } },
+          { status: 429, headers: { "retry-after": String(rate.retryAfterSeconds) } },
         );
       }
       const expectedVersion = Number(body.version);
@@ -235,33 +242,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
     return Response.json({ ok: false, error: "Invalid action" }, { status: 400 });
   } catch (error) {
     console.error("[pvp/:code] POST failed", error);
-    return Response.json({ ok: false, error: "Internal server error" }, { status: 500 });
-  }
-}
-
-export async function DELETE(req: NextRequest, ctx: { params: Promise<{ code: string }> }) {
-  const runtimeBlocked = await runtimeGate("general");
-  if (runtimeBlocked) return runtimeBlocked;
-  // DELETE used to erase live rooms. Preserve the endpoint for older clients,
-  // but route it through the same safe cancellation/forfeit semantics as leave.
-  try {
-    const { code } = await ctx.params;
-    const roomCode = code.toUpperCase();
-    const identity = await requireStablePlayerIdentity(req);
-    if (!identity || identity.playerId == null) return Response.json({ ok: false, error: "Player session required" }, { status: 401 });
-    const [room] = await db.select().from(pvpRooms).where(eq(pvpRooms.code, roomCode)).limit(1);
-    if (!room || (room.hostPlayerId !== identity.playerId && room.guestPlayerId !== identity.playerId)) return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
-    const actor = actorSide(room, identity.playerId);
-    if (!actor) return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
-    if (room.state === "waiting") {
-      if (room.hostPlayerId !== identity.playerId || room.guestPlayerId != null) return Response.json({ ok: false, error: "Only the host can cancel a waiting room" }, { status: 403 });
-      await db.delete(pvpRooms).where(and(eq(pvpRooms.id, room.id), eq(pvpRooms.hostPlayerId, identity.playerId), isNull(pvpRooms.guestPlayerId)));
-      return Response.json({ ok: true, cancelled: true });
-    }
-    if (room.state === "playing") return Response.json({ ok: false, error: "Active matches must be forfeited, not deleted" }, { status: 409 });
-    return Response.json({ ok: true, alreadyFinished: true });
-  } catch (error) {
-    console.error("[pvp/:code] DELETE failed", error);
     return Response.json({ ok: false, error: "Internal server error" }, { status: 500 });
   }
 }
