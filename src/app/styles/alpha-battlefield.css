@@ -8,35 +8,51 @@
    Rows keep their own horizontal scrolling during active play; this clamp is
    intentionally limited to the game-over phase. */
 .tcg-arena[data-match-phase="gameover"] {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
   overflow-x: clip;
 }
 
-/* The result surface is fixed to the viewport, so its own padding/content must
-   also be bounded explicitly. This prevents fixed descendants or long result
-   copy from enlarging documentElement.scrollWidth while preserving the strict
-   visual overflow gate instead of hiding overflow on the whole document. */
+/* The result surface already has inset:0 in the base visual system. Let those
+   opposing insets determine its used width instead of combining them with
+   100vw, whose scrollbar/viewport geometry can produce a few pixels of root
+   overflow on otherwise valid desktop layouts. The content tree is allowed to
+   shrink at every flex/grid boundary so dynamic mastery/reward copy can never
+   force the dialog wider than its containing block. */
 .match-result-backdrop {
   box-sizing: border-box;
-  width: 100vw;
-  max-width: 100vw;
+  width: auto;
+  max-width: none;
+  min-width: 0;
   overflow-x: clip;
 }
 
 .match-result-card {
   box-sizing: border-box;
-  width: min(440px, calc(100vw - 32px));
-  max-width: calc(100vw - 32px);
+  width: min(440px, 100%);
+  max-width: 100%;
   min-width: 0;
 }
 
-.match-result-card > *,
+.match-result-card *,
 .match-mastery > div {
   min-width: 0;
   max-width: 100%;
 }
 
-.match-result-card p {
+.match-result-card p,
+.match-result-actions button {
   overflow-wrap: anywhere;
+}
+
+.match-result-actions {
+  max-width: 100%;
+}
+
+.match-result-actions button {
+  white-space: normal;
 }
 
 @media (min-width: 901px) {
