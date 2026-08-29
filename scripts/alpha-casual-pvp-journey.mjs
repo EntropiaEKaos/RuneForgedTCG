@@ -167,6 +167,25 @@ async function clickText(cdp, text, exact = false) {
   assert.equal(clicked, true, `Could not click control ${exact ? "equal to" : "containing"} text: ${text}`);
 }
 
+async function clickTextPhysical(cdp, text, exact = false) {
+  const encoded = JSON.stringify(text);
+  const target = await evaluate(cdp, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const element = [...document.querySelectorAll('button,a,[role="button"]')]
+      .find((candidate) => !candidate.disabled && ${exact ? `normalize(candidate.textContent) === ${encoded}` : `normalize(candidate.textContent).includes(${encoded})`});
+    if (!element) return null;
+    element.scrollIntoView({ block: 'center', inline: 'center' });
+    const rect = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    if (rect.width <= 0 || rect.height <= 0 || style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return null;
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()`);
+  assert.ok(target, `Could not locate visible physical control ${exact ? "equal to" : "containing"} text: ${text}`);
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: target.x, y: target.y });
+  await cdp.call("Input.dispatchMouseEvent", { type: "mousePressed", x: target.x, y: target.y, button: "left", buttons: 1, clickCount: 1 });
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.x, y: target.y, button: "left", buttons: 0, clickCount: 1 });
+}
+
 async function setInputValue(cdp, selector, value) {
   const encodedSelector = JSON.stringify(selector);
   const encodedValue = JSON.stringify(value);
@@ -524,12 +543,12 @@ async function main() {
     assert.equal(mirrored.version, version, "reconnected guest must recover the current authoritative version");
     await capture(guest, "21-pvp-reconnected-guest.png", "guest restored from authoritative room after reconnect", manifest);
 
-    // Finish through the real in-battle concession UI. This exercises the same
-    // leave/forfeit endpoint a player uses and therefore also the authoritative
-    // room settlement path; no test-only endpoint or state mutation is used.
-    await clickText(guest.cdp, "Render-se", true);
+    // Finish through the real in-battle concession UI using physical pointer
+    // input through CDP. This certifies the same hit target and event path a
+    // player uses instead of relying on HTMLElement.click() synthetic dispatch.
+    await clickTextPhysical(guest.cdp, "Render-se", true);
     await waitForText(guest.cdp, "Confirmar rendição", 5_000);
-    await clickText(guest.cdp, "Confirmar rendição", true);
+    await clickTextPhysical(guest.cdp, "Confirmar rendição", true);
 
     await Promise.all([
       waitForSelector(host.cdp, ".match-result-backdrop", 20_000),
