@@ -8,12 +8,13 @@ import { refreshCustomCardCache } from "@/game/catalog";
 import type { CardDef } from "@/game/types";
 import {
   CARD_REGIONS, CARD_TYPES, CARD_RARITIES, CARD_RACES, CARD_KEYWORDS,
-  CARD_EFFECT_KINDS, CARD_TARGETS, CARD_TRIGGERS, validateAuthorableCard,
+  CARD_EFFECT_KINDS, CARD_TARGETS, CARD_TRIGGERS,
 } from "@/game/card-authoring";
+import { validateAuthorableCardWithActivatedAbilities } from "@/game/activated-ability-authoring";
 
 export const dynamic = "force-dynamic";
 
-export const validateCard = validateAuthorableCard;
+export const validateCard = validateAuthorableCardWithActivatedAbilities;
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthorized(req))) return unauthorized();
