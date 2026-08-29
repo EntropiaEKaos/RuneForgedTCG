@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { deliverPvpAction } from "./pvp-client";
+import { classifyPvpPollFailure, deliverPvpAction } from "./pvp-client";
 
 async function run() {
   Object.defineProperty(globalThis, "window", { value: globalThis, configurable: true });
@@ -23,6 +23,27 @@ async function run() {
   const conflict = await deliverPvpAction({ code: "ABC123", playerName: "P", version: 7, actionId: "conflict-action", gameAction: { type: "pass", player: "player" } });
   assert.equal(conflict.status, 409);
   assert.equal(calls, 1);
+
+  const expiredSession = classifyPvpPollFailure(401, "Player session required");
+  assert.equal(expiredSession.terminal, true);
+  assert.match(expiredSession.message, /sessão de jogador expirou/i);
+
+  const forbidden = classifyPvpPollFailure(403, "Forbidden");
+  assert.equal(forbidden.terminal, true);
+  assert.match(forbidden.message, /não tem mais acesso/i);
+
+  const missing = classifyPvpPollFailure(404, "Room not found");
+  assert.equal(missing.terminal, true);
+  assert.match(missing.message, /encerrada ou expirou/i);
+
+  const transient = classifyPvpPollFailure(503, "Runtime temporarily unavailable");
+  assert.equal(transient.terminal, false);
+  assert.equal(transient.message, "Runtime temporarily unavailable");
+
+  const transientFallback = classifyPvpPollFailure(500);
+  assert.equal(transientFallback.terminal, false);
+  assert.match(transientFallback.message, /tentando novamente/i);
+
   console.log("PVP CLIENT 2.40: PASS");
 }
 

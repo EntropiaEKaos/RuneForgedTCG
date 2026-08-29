@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRe
 import type { GameState } from "@/game/types";
 import type { GameAction } from "@/game/reducer";
 import { canonicalizeGuestAction, type PvpConnectionState } from "@/game/client/match-model";
-import { deliverPvpAction } from "@/lib/pvp-client";
+import { classifyPvpPollFailure, deliverPvpAction } from "@/lib/pvp-client";
 
 export function usePvpTransport({
   playerName,
@@ -73,9 +73,16 @@ export function usePvpTransport({
       }
       try {
         const pollStarted = performance.now();
-        const res = await fetch(`/api/pvp/${encodeURIComponent(pvpRoomCode)}`, { cache: "no-store" });
-        const data = await res.json();
-        if (data.ok && data.room?.gameState) {
+        const res = await fetch(`/api/pvp/${encodeURIComponent(pvpRoomCode)}`, { credentials: "include", cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          const failure = classifyPvpPollFailure(res.status, typeof data.error === "string" ? data.error : undefined);
+          setPvpConnection("offline");
+          setPvpMessage(failure.message);
+          if (failure.terminal) return;
+          throw new Error(failure.message);
+        }
+        if (data.room?.gameState) {
           setPvpVersion(data.room.version);
           setPvpLatency(Math.round(performance.now() - pollStarted));
           setState((current) => data.room.gameState ?? current);
@@ -84,9 +91,9 @@ export function usePvpTransport({
             setPvpMessage("Estado sincronizado.");
           }
         }
-      } catch {
+      } catch (error) {
         setPvpConnection("offline");
-        setPvpMessage("Conexão instável; tentando novamente.");
+        setPvpMessage(error instanceof Error ? error.message : "Conexão instável; tentando novamente.");
       }
       if (!cancelled) timer = window.setTimeout(poll, document.hidden ? 3500 : 1200);
     };
