@@ -142,6 +142,7 @@ jobs:
           npm run test:e2e:alpha-journey
           npm run test:e2e:http
           node scripts/alpha-visual-journey.mjs
+          node scripts/alpha-runtime-tooltip-cert.mjs
 
       - name: Upload Alpha visual journey
         if: always()
