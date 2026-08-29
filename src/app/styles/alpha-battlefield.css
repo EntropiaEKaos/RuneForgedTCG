@@ -101,4 +101,18 @@
   .tcg-arena > .mx-auto {
     max-width: 1280px;
   }
+
+  /* During the first-match checklist, keep the opponent's mana/Nexus and the
+     top tactical status strips out from underneath the fixed training panel.
+     Only wide desktop layouts reserve this space; the overlay behavior on
+     smaller breakpoints remains exactly as before. */
+  .tcg-arena:has(> .tutorial-checklist) .tcg-playerbar:has(+ .tcg-divider + .tcg-row[data-bench-side="ai"]) {
+    padding-right: 250px;
+  }
+
+  .tcg-arena:has(> .tutorial-checklist) .board-status-strip,
+  .tcg-arena:has(> .tutorial-checklist) .archetype-tracker,
+  .tcg-arena:has(> .tutorial-checklist) .encounter-banner {
+    margin-right: 250px;
+  }
 }
