@@ -28,7 +28,7 @@ import { boardEntityName, topOfReactionStack, type PendingSpell, type ReactionPe
 import { permanentAsUnit } from "@/game/client/card-adapters";
 import type { DeckDef } from "@/game/decks";
 import type { Encounter } from "@/lib/game-modes";
-import type { GameState, PermanentInstance, PlayerId, UnitInstance } from "@/game/types";
+import type { BoardEntity, GameState, PermanentInstance, PlayerId, UnitInstance } from "@/game/types";
 import type { GamePresentationState } from "./hooks/useGamePresentation";
 import type { PvpTransportState } from "./hooks/usePvpTransport";
 
@@ -58,9 +58,11 @@ export interface BattleViewProps {
   pvp: PvpTransportState;
   isValidSpellTarget: (owner: PlayerId, entity?: TargetEntity) => boolean;
   reactionTargetOk: (owner: PlayerId, entity?: TargetEntity) => boolean;
+  activatedTargetOk: (entity: BoardEntity) => boolean;
   handlePermanentClick: (permanent: PermanentInstance) => void;
   handleSentinelaClick: (sentinelaId: string, owner: PlayerId) => void;
-  handleSentinelaActivate: (sentinelaId: string, abilityIndex: number) => void;
+  /** Legacy prop name retained; now activates abilities on any controlled board entity. */
+  handleSentinelaActivate: (sourceInstanceId: string, abilityIndex: number) => void;
   handleUnitClick: (unit: UnitInstance) => void;
   handleHandClick: (instanceId: string, defId: string) => void;
   confirmAttack: () => void;
@@ -82,7 +84,7 @@ export function BattleView(props: BattleViewProps) {
     state, presetDecks, activeEncounter, matchReward, reaction, pendingSpell, pendingReaction,
     pendingSentinelaAbility, selectedAttackers, selectedChallengers, selectedBlocker, challenges,
     blockAssignments, isPlayerMain, isPlayerBlocking, canAttackNow, timeLeft, firstInfo,
-    presentation, pvp, isValidSpellTarget, reactionTargetOk, handlePermanentClick,
+    presentation, pvp, isValidSpellTarget, reactionTargetOk, activatedTargetOk, handlePermanentClick,
     handleSentinelaClick, handleSentinelaActivate, handleUnitClick, handleHandClick,
     confirmAttack, confirmBlocks, endMyTurn, finishReaction, replay, changeDeck,
     setPendingSpell, setPendingReaction, setPendingSentinelaAbility, setSelectedBlocker,
@@ -106,8 +108,9 @@ export function BattleView(props: BattleViewProps) {
     ? state.winner === "player" ? "🏆 Vitória! O Nexus inimigo caiu." : "💀 Derrota. Seu Nexus foi destruído."
     : isPlayerBlocking ? "🛡️ Defina seus bloqueadores e confirme."
       : isPlayerMain ? pendingSpell ? "🎯 Escolha um alvo para o feitiço."
-        : canAttackNow ? selectedChallengers.length > 0 ? "Selecione rivais para desafiá-los e então ataque." : "Seu turno — jogue cartas ou selecione atacantes."
-          : "Seu turno — jogue cartas (sem Token de Ataque)."
+        : pendingSentinelaAbility ? "🎯 Escolha um alvo para a habilidade ativada."
+          : canAttackNow ? selectedChallengers.length > 0 ? "Selecione rivais para desafiá-los e então ataque." : "Seu turno — jogue cartas ou selecione atacantes."
+            : "Seu turno — jogue cartas (sem Token de Ataque)."
         : "⏳ O adversário está planejando…";
   const aiAttackers = ai.bench.filter((unit) => unit.isAttacking);
   const playerAttackers = player.bench.filter((unit) => unit.isAttacking);
@@ -175,20 +178,26 @@ export function BattleView(props: BattleViewProps) {
         <Row label="CAMPO RIVAL" side="ai">
           {ai.bench.length === 0 && ai.permanents.length === 0 && <EmptyHint text="Sem unidades ou permanentes inimigos" />}
           {ai.permanents.map((permanent) => {
-            const clickable = (!!pendingSpell && isValidSpellTarget("ai", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("ai", { kind: "permanent" }));
+            const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "permanent", perm: permanent, owner: "ai" });
+            const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("ai", { kind: "permanent" }));
             return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} />;
           })}
-          {ai.sentinelas.map((sentinela) => (
-            <div key={sentinela.instanceId} className={isPlayerMain && canAttackNow ? "cursor-pointer hover:ring-2 hover:ring-red-400" : ""} onClick={() => handleSentinelaClick(sentinela.instanceId, "ai")} title={isPlayerMain && canAttackNow ? "Clique para atacar esta Sentinela" : ""}>
-              <SentinelaView instance={sentinela} state={state} size="sm" />
-            </div>
-          ))}
+          {ai.sentinelas.map((sentinela) => {
+            const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: "ai" });
+            const attackTarget = isPlayerMain && canAttackNow;
+            return (
+              <div key={sentinela.instanceId} className={abilityTarget ? "cursor-pointer rounded-xl ring-4 ring-yellow-300" : attackTarget ? "cursor-pointer hover:ring-2 hover:ring-red-400" : ""} onClick={(abilityTarget || attackTarget) ? () => handleSentinelaClick(sentinela.instanceId, "ai") : undefined} title={abilityTarget ? "Alvo válido para a habilidade" : attackTarget ? "Clique para atacar esta Sentinela" : ""}>
+                <SentinelaView instance={sentinela} state={state} size="sm" />
+              </div>
+            );
+          })}
           {ai.bench.map((unit) => {
             const challenged = Object.values(challenges).includes(unit.instanceId);
-            const clickable = (!!pendingSpell && isValidSpellTarget("ai")) || (reaction && !!pendingReaction && reactionTargetOk("ai")) || (isPlayerBlocking && unit.isAttacking) || (isPlayerMain && canAttackNow && selectedChallengers.length > 0);
+            const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "ai" });
+            const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || (reaction && !!pendingReaction && reactionTargetOk("ai")) || (isPlayerBlocking && unit.isAttacking) || (isPlayerMain && canAttackNow && selectedChallengers.length > 0);
             return (
               <CardTip key={unit.instanceId} defId={unit.defId} unit={unit} state={state} size="sm" className={unitFxClass(unit)} attacking={unit.isAttacking}
-                targetable={(!!pendingSpell && isValidSpellTarget("ai")) || !!(reaction && pendingReaction && reactionTargetOk("ai")) || (isPlayerMain && canAttackNow && selectedChallengers.length > 0)}
+                targetable={abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || !!(reaction && pendingReaction && reactionTargetOk("ai")) || (isPlayerMain && canAttackNow && selectedChallengers.length > 0)}
                 selected={challenged || (isPlayerBlocking && unit.isAttacking && !!blockAssignments[unit.instanceId])} onClick={clickable ? () => handleUnitClick(unit) : undefined} />
             );
           })}
@@ -228,17 +237,27 @@ export function BattleView(props: BattleViewProps) {
         <Row label="SEU CAMPO" side="player">
           {player.bench.length === 0 && player.permanents.length === 0 && <EmptyHint text="Jogue unidades ou permanentes" />}
           {player.permanents.map((permanent) => {
-            const clickable = (!!pendingSpell && isValidSpellTarget("player", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("player", { kind: "permanent" }));
-            return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} />;
+            const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "permanent", perm: permanent, owner: "player" });
+            const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("player", { kind: "permanent" }));
+            return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} onActivateAbility={(index) => handleSentinelaActivate(permanent.instanceId, index)} />;
           })}
-          {player.sentinelas.map((sentinela) => <SentinelaView key={sentinela.instanceId} instance={sentinela} state={state} size="md" onActivate={(index) => handleSentinelaActivate(sentinela.instanceId, index)} />)}
+          {player.sentinelas.map((sentinela) => {
+            const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: "player" });
+            return (
+              <div key={sentinela.instanceId} className={abilityTarget ? "cursor-pointer rounded-xl ring-4 ring-yellow-300" : ""} onClick={abilityTarget ? () => handleSentinelaClick(sentinela.instanceId, "player") : undefined}>
+                <SentinelaView instance={sentinela} state={state} size="md" onActivate={(index) => handleSentinelaActivate(sentinela.instanceId, index)} />
+              </div>
+            );
+          })}
           {player.bench.map((unit) => {
-            const selectable = (!!pendingSpell && isValidSpellTarget("player")) || (reaction && !!pendingReaction && reactionTargetOk("player")) || (isPlayerMain && canAttackNow) || isPlayerBlocking;
+            const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "player" });
+            const selectable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || (reaction && !!pendingReaction && reactionTargetOk("player")) || (isPlayerMain && canAttackNow) || isPlayerBlocking;
             return (
               <CardTip key={unit.instanceId} defId={unit.defId} unit={unit} state={state} size="sm" className={unitFxClass(unit)}
                 selected={selectedAttackers.includes(unit.instanceId) || selectedBlocker === unit.instanceId || Object.values(blockAssignments).includes(unit.instanceId) || Object.values(lockedBlocks).includes(unit.instanceId)}
-                targetable={(!!pendingSpell && isValidSpellTarget("player")) || !!(reaction && pendingReaction && reactionTargetOk("player"))}
-                onClick={selectable ? () => handleUnitClick(unit) : undefined} />
+                targetable={abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || !!(reaction && pendingReaction && reactionTargetOk("player"))}
+                onClick={selectable ? () => handleUnitClick(unit) : undefined}
+                onActivateAbility={(index) => handleSentinelaActivate(unit.instanceId, index)} />
             );
           })}
         </Row>
@@ -252,9 +271,10 @@ export function BattleView(props: BattleViewProps) {
           {isPlayerBlocking && <CombatOutcomePreview state={state} blocks={{ ...lockedBlocks, ...blockAssignments }} />}
           {gameover ? <span className="text-sm font-semibold text-amber-200">Partida concluída</span>
             : pendingSpell ? <button onClick={() => setPendingSpell(null)} className="btn-ghost">✖ Cancelar feitiço</button>
-              : isPlayerBlocking ? <button onClick={confirmBlocks} className="btn-primary">✅ Confirmar bloqueios</button>
-                : isPlayerMain ? <>{canAttackNow && selectedAttackers.length > 0 && <button onClick={confirmAttack} className="btn-attack">⚔️ Atacar com {selectedAttackers.length}</button>}<button onClick={endMyTurn} className="btn-primary">⏭️ Encerrar turno</button></>
-                  : <span className="text-sm text-slate-400">Aguardando o adversário…</span>}
+              : pendingSentinelaAbility ? <button onClick={() => setPendingSentinelaAbility(null)} className="btn-ghost">✖ Cancelar habilidade</button>
+                : isPlayerBlocking ? <button onClick={confirmBlocks} className="btn-primary">✅ Confirmar bloqueios</button>
+                  : isPlayerMain ? <>{canAttackNow && selectedAttackers.length > 0 && <button onClick={confirmAttack} className="btn-attack">⚔️ Atacar com {selectedAttackers.length}</button>}<button onClick={endMyTurn} className="btn-primary">⏭️ Encerrar turno</button></>
+                    : <span className="text-sm text-slate-400">Aguardando o adversário…</span>}
         </div>
 
         <details className="tcg-log bg-slate-950/80 px-4 py-2 text-xs text-slate-300">
