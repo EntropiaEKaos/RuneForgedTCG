@@ -2,7 +2,7 @@ import { getCard } from "../cards";
 import type { GameState, PlayerId } from "../types";
 import { checkWin, clone, findSentinela } from "./state";
 import { cleanupSentinelas } from "./sentinela-state";
-import { activateAbility, canBeginActivateAbility } from "./activated-actions";
+import { activateAbility } from "./activated-actions";
 
 /** Aplica dano a uma sentinela (reduz lealdade). */
 export function damageSentinela(state: GameState, targetId: string, amount: number): GameState {
@@ -19,7 +19,12 @@ export function damageSentinela(state: GameState, targetId: string, amount: numb
 
 /**
  * Compatibilidade pública com o contrato 2.96/2.97 de Sentinelas.
- * A regra agora é executada pelo sistema genérico de habilidades ativadas.
+ *
+ * Historicamente esta função responde somente se a habilidade pode ser
+ * iniciada quanto a fase, dono, uso e lealdade; ela nunca exigiu que o caller
+ * já tivesse escolhido um alvo. A UI genérica usa canBeginActivateAbility(),
+ * que é deliberadamente mais estrita e só habilita habilidades direcionadas
+ * quando existe ao menos um alvo legal.
  */
 export function canActivateSentinela(
   state: GameState,
@@ -27,7 +32,13 @@ export function canActivateSentinela(
   instanceId: string,
   abilityIndex: number,
 ): boolean {
-  return canBeginActivateAbility(state, playerId, instanceId, abilityIndex);
+  if (state.phase !== "main" || state.activePlayer !== playerId) return false;
+  const found = findSentinela(state, instanceId);
+  if (!found || found.owner !== playerId || found.sen.activatedThisTurn) return false;
+  const ability = getCard(found.sen.defId).sentinela?.abilities[abilityIndex];
+  if (!ability) return false;
+  if (ability.cost < 0 && found.sen.loyalty < -ability.cost) return false;
+  return true;
 }
 
 /**
