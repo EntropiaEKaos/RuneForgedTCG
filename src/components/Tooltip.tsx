@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode, TouchEvent as ReactTouchEvent } from "react";
 
 interface TooltipProps {
   content: ReactNode;
@@ -26,35 +26,38 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
   const suppressNextClick = useRef(false);
   const rootRef = useRef<HTMLSpanElement | null>(null);
 
-  const clearPressTimer = () => {
+  const clearPressTimer = useCallback(() => {
     if (pressTimer.current) {
       clearTimeout(pressTimer.current);
       pressTimer.current = null;
     }
-  };
-  const clearCloseTimer = () => {
+  }, []);
+
+  const clearCloseTimer = useCallback(() => {
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
       closeTimer.current = null;
     }
-  };
-  const close = () => {
+  }, []);
+
+  const close = useCallback(() => {
     clearCloseTimer();
     setPos(null);
     setTouchPinned(false);
-  };
-  const scheduleClose = () => {
+  }, [clearCloseTimer]);
+
+  const scheduleClose = useCallback(() => {
     if (touchPinned) return;
     clearCloseTimer();
     closeTimer.current = setTimeout(() => setPos(null), HOVER_CLOSE_MS);
-  };
+  }, [clearCloseTimer, touchPinned]);
 
   useEffect(() => {
     if (!touchPinned) return;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Element | null;
       if (target?.closest?.('[data-tooltip-panel="true"]')) return;
-      if (rootRef.current?.contains(target as Node)) return;
+      if (rootRef.current?.contains(target)) return;
       close();
     };
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
@@ -64,17 +67,17 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
       document.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [touchPinned]);
+  }, [close, touchPinned]);
 
   useEffect(() => () => {
     clearPressTimer();
     clearCloseTimer();
-  }, []);
+  }, [clearCloseTimer, clearPressTimer]);
 
   if (disabled) return <>{children}</>;
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.touches[0];
+  const handleTouchStart = (event: ReactTouchEvent) => {
+    const touch = event.touches[0];
     if (!touch) return;
     const { clientX, clientY } = touch;
     touchOrigin.current = { x: clientX, y: clientY };
@@ -86,9 +89,9 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
     }, LONG_PRESS_MS);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = (event: ReactTouchEvent) => {
     if (touchPinned) return;
-    const touch = e.touches[0];
+    const touch = event.touches[0];
     const origin = touchOrigin.current;
     if (!touch || !origin) return;
     const dx = touch.clientX - origin.x;
@@ -105,10 +108,10 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
     if (!touchPinned) setPos(null);
   };
 
-  const handleClickCapture = (e: React.MouseEvent) => {
+  const handleClickCapture = (event: ReactMouseEvent) => {
     if (suppressNextClick.current) {
-      e.preventDefault();
-      e.stopPropagation();
+      event.preventDefault();
+      event.stopPropagation();
       suppressNextClick.current = false;
     }
   };
@@ -129,7 +132,7 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
     <span
       ref={rootRef}
       className="inline-block"
-      onMouseMove={(e) => { if (!touchPinned) setPos({ x: e.clientX, y: e.clientY }); }}
+      onMouseMove={(event) => { if (!touchPinned) setPos({ x: event.clientX, y: event.clientY }); }}
       onMouseEnter={clearCloseTimer}
       onMouseLeave={scheduleClose}
       onTouchStart={handleTouchStart}
