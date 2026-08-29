@@ -60,6 +60,37 @@ async function waitForChrome(port, timeoutMs = 15_000) {
   throw new Error(`Chrome remote debugging endpoint did not become ready${lastError ? `: ${lastError}` : ""}`);
 }
 
+async function waitForProcessExit(child, timeoutMs) {
+  if (child.exitCode != null || child.signalCode != null) return true;
+  return new Promise((resolvePromise) => {
+    let finished = false;
+    const finish = (exited) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      child.removeListener("exit", onExit);
+      resolvePromise(exited);
+    };
+    const onExit = () => finish(true);
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    child.once("exit", onExit);
+  });
+}
+
+async function shutdownChrome(chrome, profileDir) {
+  if (chrome.exitCode == null && chrome.signalCode == null) chrome.kill("SIGTERM");
+  const terminated = await waitForProcessExit(chrome, 1500);
+  if (!terminated && chrome.exitCode == null && chrome.signalCode == null) {
+    chrome.kill("SIGKILL");
+    await waitForProcessExit(chrome, 2000);
+  }
+  try {
+    await rm(profileDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch (error) {
+    console.warn(`ALPHA VISUAL: temporary Chrome profile cleanup warning — ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 class CdpClient {
   constructor(socket) {
     this.socket = socket;
@@ -306,13 +337,7 @@ async function main() {
     console.log(`ALPHA VISUAL JOURNEY: PASS — ${manifest.length} real browser screenshots captured in ${outputDir}`);
   } finally {
     try { cdp?.close(); } catch {}
-    chrome.kill("SIGTERM");
-    await Promise.race([
-      new Promise((resolvePromise) => chrome.once("exit", resolvePromise)),
-      sleep(1500),
-    ]);
-    if (chrome.exitCode == null) chrome.kill("SIGKILL");
-    await rm(profileDir, { recursive: true, force: true });
+    await shutdownChrome(chrome, profileDir);
   }
 
   if (browserStderr && process.env.ALPHA_VISUAL_DEBUG === "1") console.error(browserStderr);
