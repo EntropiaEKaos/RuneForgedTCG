@@ -113,7 +113,7 @@ export default function ForgeClient() {
       setSaved(Array.isArray(payload.decks) ? payload.decks.filter(isSavedDeck) : []);
       return true;
     } catch {
-      if (!silent) setMessage("❌ Não foi possível sincronizar seus decks com o servidor.");
+      if (!silent) setMessage("❌ Não foi possível sincronizar seus decks.");
       return false;
     } finally {
       if (!silent) setLoadingDecks(false);
@@ -131,7 +131,7 @@ export default function ForgeClient() {
       .catch(() => {
         if (!cancelled) {
           setLoadingDecks(false);
-          setMessage("❌ Não foi possível estabelecer a identidade do jogador.");
+          setMessage("❌ Não foi possível carregar seu perfil de jogador.");
         }
       });
     return () => { cancelled = true; };
@@ -242,7 +242,7 @@ export default function ForgeClient() {
       setEmoji(payload.deck.emoji);
       setFormatId(payload.deck.formatId || formatId);
       await loadDecks(true);
-      setMessage("✅ Deck salvo e revalidado pelo servidor.");
+      setMessage("✅ Deck salvo e pronto para jogar.");
     } catch {
       setMessage("❌ Não foi possível confirmar o salvamento do deck.");
     } finally {
@@ -327,7 +327,7 @@ export default function ForgeClient() {
           <div>
             <p className="rf-eyebrow"><span /> ARSENAL DO NEXUS</p>
             <h1>Forja de Decks</h1>
-            <p>Construa, analise e publique listas dentro das regras runtime. A validação final de deck e formato continua no servidor.</p>
+            <p>Construa seu deck, descubra combinações e salve listas prontas para jogar dentro das regras de cada formato.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/collection" className="rf-button rf-button-secondary">COLEÇÃO</Link>
@@ -338,9 +338,9 @@ export default function ForgeClient() {
 
         <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumo da Forja">
           <SummaryCard label="Deck" value={`${list.length}/${deckMax}`} detail={`${deckMin}–${deckMax} cartas permitidas`} />
-          <SummaryCard label="Cartas únicas" value={uniqueCards} detail={`máximo ${maxCopies} por definição`} />
+          <SummaryCard label="Cartas únicas" value={uniqueCards} detail={`máximo ${maxCopies} cópias por carta`} />
           <SummaryCard label="Identidade" value={identity?.name ?? "Em aberto"} detail={check.regions.length ? check.regions.join(" · ") : `até ${deckRules.maxRegions} regiões`} />
-          <SummaryCard label="Formato" value={selectedFormat.name} detail={selectedFormat.rankedEligible ? "elegível para Ranked" : "validação server-side"} />
+          <SummaryCard label="Formato" value={selectedFormat.name} detail="regras do formato ativas" />
           <SummaryCard label="Invocador" value={playerName || "Sincronizando"} detail={`${saved.length} deck(s) salvo(s)`} />
         </section>
 
@@ -349,7 +349,7 @@ export default function ForgeClient() {
             <div>
               <p className="text-xs font-black uppercase tracking-[.2em] text-amber-300">Configuração</p>
               <h2 id="forge-editor-heading" className="mt-1 text-xl font-black text-white">{editingId ? "Editar deck salvo" : "Novo projeto"}</h2>
-              <p className="mt-1 text-xs leading-5 text-slate-400">A identidade do jogador vem da sessão. Nome, emblema e formato pertencem ao deck.</p>
+              <p className="mt-1 text-xs leading-5 text-slate-400">Escolha um nome, um emblema e o formato em que este deck será usado.</p>
             </div>
             <button type="button" onClick={resetNew} className="rf-button rf-button-secondary">+ NOVO DECK</button>
           </div>
@@ -366,7 +366,7 @@ export default function ForgeClient() {
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
               Formato
               <select className="input mt-1 w-full normal-case tracking-normal" value={formatId} onChange={(event) => { setFormatId(event.target.value); setMessage(""); }}>
-                {formats.map((format) => <option key={format.id} value={format.id}>{format.name}{format.rankedEligible ? " · Ranked" : ""}</option>)}
+                {formats.map((format) => <option key={format.id} value={format.id}>{format.name}</option>)}
               </select>
             </label>
           </div>
@@ -413,7 +413,7 @@ export default function ForgeClient() {
               {saved.map((deck) => (
                 <article key={deck.id} className={`rounded-xl border p-3 ${editingId === deck.id ? "border-amber-400/50 bg-amber-400/10" : "border-white/10 bg-white/[.025]"}`}>
                   <button type="button" onClick={() => loadDeck(deck)} className="w-full text-left" aria-pressed={editingId === deck.id}>
-                    <div className="flex items-center gap-2"><span className="text-xl">{deck.emoji}</span><div className="min-w-0"><p className="truncate text-sm font-black text-white">{deck.name}</p><p className="text-[10px] uppercase tracking-wider text-slate-500">{deck.cards.length} cartas · {deck.formatId || "eternal"}</p></div></div>
+                    <div className="flex items-center gap-2"><span className="text-xl">{deck.emoji}</span><div className="min-w-0"><p className="truncate text-sm font-black text-white">{deck.name}</p><p className="text-[10px] uppercase tracking-wider text-slate-500">{deck.cards.length} cartas · {deck.formatId || "padrão"}</p></div></div>
                   </button>
                   <button type="button" disabled={deletingId !== null || saving || sharing} onClick={() => void remove(deck.id)} className="mt-3 w-full rounded-lg border border-red-400/15 bg-red-400/5 px-2 py-1.5 text-[10px] font-black uppercase tracking-wider text-red-200 hover:bg-red-400/10 disabled:opacity-35">{deletingId === deck.id ? "Excluindo…" : "Excluir"}</button>
                 </article>
@@ -425,11 +425,11 @@ export default function ForgeClient() {
         <section className="mb-5 rounded-2xl border border-white/10 bg-slate-950/45 p-4" aria-labelledby="forge-catalog-heading">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div><p className="text-xs font-black uppercase tracking-[.2em] text-slate-500">Catálogo do formato</p><h2 id="forge-catalog-heading" className="mt-1 text-lg font-black text-white">Escolha as cartas</h2></div>
-            <span className="text-xs text-slate-500">{pool.length} definição(ões) disponíveis</span>
+            <span className="text-xs text-slate-500">{pool.length} carta(s) disponível(is)</span>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             {REGIONS.map((region) => <button type="button" key={region} onClick={() => setFilter(region)} className={`rounded-full border px-3 py-1 text-xs font-black ${filter === region ? "border-amber-300/40 bg-amber-300/15 text-amber-100" : "border-white/10 bg-white/[.025] text-slate-400 hover:text-white"}`}>{region === "All" ? "Todas regiões" : region}</button>)}
-            <label className="ml-auto min-w-[220px] flex-1 md:max-w-sm"><span className="sr-only">Buscar cartas</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar carta, raça ou keyword…" className="input w-full" /></label>
+            <label className="ml-auto min-w-[220px] flex-1 md:max-w-sm"><span className="sr-only">Buscar cartas</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar carta, raça ou habilidade…" className="input w-full" /></label>
           </div>
         </section>
 
@@ -474,7 +474,7 @@ export default function ForgeClient() {
             {!check.ok && <ul className="mt-3 space-y-1 rounded-xl border border-red-400/20 bg-red-400/5 p-3 text-[11px] text-red-200">{check.errors.map((error) => <li key={error}>• {error}</li>)}</ul>}
 
             <section className="mt-4 rounded-xl border border-violet-400/20 bg-violet-400/[.05] p-3">
-              <div className="flex items-center justify-between"><div><small className="font-black tracking-[.15em] text-violet-300">SYNERGY GRAPH</small><b className="block text-sm text-white">{synergy.score}/100 · {synergy.links.length} conexões</b></div><span className="text-2xl">🕸️</span></div>
+              <div className="flex items-center justify-between"><div><small className="font-black tracking-[.15em] text-violet-300">SINERGIA DO DECK</small><b className="block text-sm text-white">{synergy.score}/100 · {synergy.links.length} conexões</b></div><span className="text-2xl">🕸️</span></div>
               <p className="mt-1 text-[10px] leading-4 text-slate-500">Selecione uma carta no catálogo para receber sugestões sem alterar o deck automaticamente.</p>
               {focusCard && suggestions.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{suggestions.map((item) => <button type="button" key={item.defId} onClick={() => { addCard(item.defId); setFocusCard(item.defId); }} className="rounded border border-white/10 px-2 py-1 text-[10px] hover:bg-white/10">+ {getCard(item.defId).name} · {item.score}</button>)}</div>}
             </section>
