@@ -130,7 +130,7 @@ export default function PvpClient() {
 
   const loadChat = useCallback(async (code: string) => {
     try {
-      const res = await fetch(`/api/pvp/${encodeURIComponent(code)}`, { cache: "no-store" });
+      const res = await fetch(`/api/pvp/${encodeURIComponent(code)}`, { credentials: "include", cache: "no-store" });
       const data: unknown = await res.json().catch(() => null);
       if (!data || typeof data !== "object") return;
       const payload = data as { ok?: boolean; chat?: unknown[] };
@@ -142,7 +142,7 @@ export default function PvpClient() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/pvp", { cache: "no-store" });
+      const res = await fetch("/api/pvp", { credentials: "include", cache: "no-store" });
       const data: unknown = await res.json().catch(() => null);
       if (!data || typeof data !== "object") throw new Error("Invalid lobby response");
       const payload = data as { ok?: boolean; error?: string; playerName?: string | null; rooms?: unknown[]; myRoom?: unknown };
@@ -181,14 +181,22 @@ export default function PvpClient() {
     try {
       const res = await fetch("/api/pvp", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hostDeck: selectedDeck }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        setMessage(`✅ Sala criada. Código ${data.room.code}.`);
-        await load();
-      } else setMessage(`❌ ${data.error || "Não foi possível criar a sala."}`);
+      const data: unknown = await res.json().catch(() => ({}));
+      const payload = data && typeof data === "object" ? data as { ok?: boolean; error?: string; room?: unknown } : {};
+      if (res.ok && payload.ok && isPvpRoom(payload.room)) {
+        const nextRoom = payload.room;
+        setMyRoom(nextRoom);
+        setRooms((current) => [nextRoom, ...current.filter((room) => room.code !== nextRoom.code)]);
+        setConnection("online");
+        setMessage(`✅ Sala criada. Código ${nextRoom.code}.`);
+        void loadChat(nextRoom.code);
+      } else {
+        setMessage(`❌ ${payload.error || "Não foi possível criar a sala."}`);
+      }
     } catch {
       setConnection("offline");
       setMessage("❌ Não foi possível criar a sala. Verifique sua conexão.");
@@ -205,15 +213,22 @@ export default function PvpClient() {
     try {
       const res = await fetch(`/api/pvp/${encodeURIComponent(normalized)}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "join", guestDeck: selectedDeck }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        setMessage("✅ Entrada confirmada pelo servidor. Preparando partida…");
+      const data: unknown = await res.json().catch(() => ({}));
+      const payload = data && typeof data === "object" ? data as { ok?: boolean; error?: string; room?: unknown } : {};
+      if (res.ok && payload.ok && isPvpRoom(payload.room)) {
+        const nextRoom = payload.room;
+        setMyRoom(nextRoom);
         setJoinCode("");
-        await load();
-      } else setMessage(`❌ ${data.error || "Não foi possível entrar na sala."}`);
+        setConnection("online");
+        setMessage("✅ Entrada confirmada pelo servidor. Preparando partida…");
+        void loadChat(nextRoom.code);
+      } else {
+        setMessage(`❌ ${payload.error || "Não foi possível entrar na sala."}`);
+      }
     } catch {
       setConnection("offline");
       setMessage("❌ Não foi possível entrar na sala.");
@@ -228,6 +243,7 @@ export default function PvpClient() {
     try {
       const response = await fetch(`/api/pvp/${encodeURIComponent(myRoom.code)}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "leave" }),
       });
@@ -254,6 +270,7 @@ export default function PvpClient() {
     try {
       const response = await fetch(`/api/pvp/${encodeURIComponent(myRoom.code)}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "chat", message: chatInput }),
       });
