@@ -19,6 +19,7 @@ export const behavioralTests = [
   "src/game/mechanics-studio-1.1.test.ts",
   "src/lib/admin-multiuser.test.ts",
   "src/lib/brawl-rule-authority.test.ts",
+  "src/lib/brawl-contract-assistant.test.ts",
   "src/lib/content-hardening.test.ts",
   "src/lib/content-regression.test.ts",
   "src/lib/content-studio-3-regression.test.ts",
