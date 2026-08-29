@@ -42,6 +42,7 @@ export const behavioralTests = [
 export const sourceContractTests = [
   "src/lib/api-contract-regression.test.ts",
   "src/lib/art-optimization-2.95.test.ts",
+  "src/lib/brawl-contract-assistant-regression.test.ts",
   "src/lib/bugfix-2.88.test.ts",
   "src/lib/card-studio-4.1-2.75.test.ts",
   "src/lib/certification-2.90.test.ts",
