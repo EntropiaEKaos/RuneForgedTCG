@@ -1,0 +1,113 @@
+/* ========================================================================== 
+   Alpha battlefield polish — desktop density and first-session legibility
+   Loaded after the general visual system so this pass stays presentation-only.
+   ========================================================================== */
+
+@media (min-width: 901px) {
+  /* Keep the tactical center concise when no combat/reaction UI needs height.
+     The player's hand becomes the flexible visual anchor instead of leaving a
+     large empty band in the middle of a quiet main phase. */
+  .tcg-arena > .mx-auto > .tcg-row + .relative.flex-1 {
+    flex: 0 1 auto;
+    min-height: 84px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .tcg-arena .player-hand-shell {
+    display: flex;
+    min-height: 210px;
+    flex: 1 1 210px;
+    flex-direction: column;
+  }
+
+  .tcg-arena .tcg-hand {
+    min-height: 0;
+    flex: 1 1 auto;
+    padding-top: 12px;
+    padding-bottom: 8px;
+  }
+
+  .tcg-arena .tcg-hand::before {
+    top: 5px;
+  }
+
+  .tcg-arena .tcg-hand::after {
+    top: 8px;
+  }
+
+  .tcg-arena .tcg-hand > * {
+    margin-top: 6px;
+  }
+
+  /* The 112x160 default medium card was readable in isolation but undersized
+     in the certified 1440x1000 battlefield. Grow only cards in the player's
+     hand; Collection/Forge/Mulligan keep their existing sizing. */
+  .tcg-arena .tcg-hand .card-shell {
+    width: 124px;
+    height: 176px;
+  }
+
+  .tcg-arena .tcg-hand .card-name-line p {
+    font-size: 11px;
+  }
+
+  .tcg-arena .tcg-hand .card-textbox p {
+    font-size: 9px;
+    line-height: 1.2;
+  }
+
+  .tcg-arena .tcg-hand .card-type {
+    font-size: 7.5px;
+  }
+
+  .tcg-arena .tcg-hand .card-role {
+    font-size: 6px;
+  }
+
+  /* Board cards stay compact enough for six-wide boards, but gain enough
+     physical size for stats/region markers to read at normal desktop zoom. */
+  .tcg-arena .tcg-row .card-shell {
+    width: 88px;
+    height: 124px;
+  }
+
+  .tcg-arena .tcg-row {
+    padding-top: 10px;
+    padding-bottom: 7px;
+  }
+
+  /* The first-round encounter toast intentionally occupies the center header
+     slot. Hide the redundant live-status label while it is present so the two
+     texts never render on top of each other. */
+  .tcg-arena:has(> .pointer-events-none.fixed.inset-x-0.top-4) .tcg-match-status {
+    opacity: 0;
+  }
+
+  .tcg-arena > .pointer-events-none.fixed.inset-x-0.top-4 > div {
+    max-width: min(620px, 52vw);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, .42);
+    backdrop-filter: blur(10px);
+  }
+}
+
+@media (min-width: 1200px) {
+  /* Give the arena slightly more horizontal breathing room on the reference
+     1440px viewport without changing any gameplay surface or target geometry. */
+  .tcg-arena > .mx-auto {
+    max-width: 1280px;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Preserve the existing mobile/tablet hand behavior. */
+  .tcg-arena .tcg-hand .card-shell,
+  .tcg-arena .tcg-row .card-shell {
+    width: auto;
+    height: auto;
+  }
+}
