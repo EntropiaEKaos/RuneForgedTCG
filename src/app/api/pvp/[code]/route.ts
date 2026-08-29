@@ -181,7 +181,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
       if (!actionRate.allowed) {
         return Response.json(
           { ok: false, error: "PvP action rate limit exceeded" },
-          { status: 429, headers: { "retry-after": String(rate.retryAfterSeconds) } },
+          { status: 429, headers: { "retry-after": String(actionRate.retryAfterSeconds) } },
         );
       }
       const expectedVersion = Number(body.version);
