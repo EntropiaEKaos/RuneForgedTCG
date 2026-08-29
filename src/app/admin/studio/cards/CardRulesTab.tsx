@@ -1,6 +1,7 @@
 "use client";
 import RuleBuilder from "../RuleBuilder";
 import { EffectEditor, F, Json, Panel } from "./CardAuthoringFields";
+import ActivatedAbilityEditor from "./ActivatedAbilityEditor";
 import {
   CARD_KEYWORDS as KWS,
   CARD_EFFECT_KINDS as EFFECT_KINDS,
@@ -138,6 +139,9 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
           </button>
         </Panel>
       )}
+
+      <ActivatedAbilityEditor model={model} />
+
       {card.type === "Spell" && (
         <Panel title="Spell Contract" eyebrow="VISUAL EFFECT AUTHORING">
           <EffectEditor value={card.spell || { kind: "damageUnit", amount: 1, target: "enemyUnit" }} classes={classes} onChange={(v: any) => set("spell", v)} />
@@ -204,6 +208,7 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
         <Json title="Trigger" value={card.trigger} onChange={(v) => set("trigger", v)} />
         <Json title="Equipment" value={card.equipment} onChange={(v) => set("equipment", v)} />
         <Json title="Level Up" value={card.levelUp} onChange={(v) => set("levelUp", v)} />
+        <Json title="Activated Abilities" value={card.activatedAbilities} onChange={(v) => set("activatedAbilities", v)} />
       </Panel>
     </div>
   );
