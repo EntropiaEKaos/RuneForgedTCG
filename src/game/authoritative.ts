@@ -62,6 +62,30 @@ export function replayAuthoritativeMatch(input: AuthoritativeMatchInput): Replay
   let pendingAiAction: CardAction | null = null;
   const events: GameEvent[] = [];
 
+  const driveDerivedAi = () => {
+    // AI decisions are derived by the server, never accepted from the client.
+    // This must run after every completed player-controlled transition,
+    // including resolving or countering a pending AI reaction window. The
+    // live match driver does the same; skipping it here makes replay phase
+    // ordering diverge from the game that originally produced the action log.
+    for (let guard = 0; guard < 80 && !pendingAiAction && state.phase !== "gameover" && state.activePlayer === "ai"; guard++) {
+      const aiResult = applyGameAction(state, { type: "aiStep" });
+      if (aiResult.awaitingReaction) {
+        pendingAiAction = aiResult.awaitingReaction.action;
+        const previous = state;
+        state = aiResult.next;
+        events.push(...deriveGameEvents(previous, state));
+        assertGameStateInvariant(state);
+        break;
+      }
+      if (aiResult.next === state) break;
+      const previous = state;
+      state = aiResult.next;
+      events.push(...deriveGameEvents(previous, state));
+      assertGameStateInvariant(state);
+    }
+  };
+
   for (const action of input.actions) {
     if (state.phase === "gameover") throw new Error(`Action submitted after gameover at index ${applied}`);
     assertReplayActionAllowed(state, action, "player", Boolean(pendingAiAction));
@@ -78,6 +102,7 @@ export function replayAuthoritativeMatch(input: AuthoritativeMatchInput): Replay
         assertGameStateInvariant(state);
         pendingAiAction = null;
         applied += 1;
+        driveDerivedAi();
         continue;
       }
       const semanticReaction = validateGameActionSemantics(state, action, "player");
@@ -90,6 +115,7 @@ export function replayAuthoritativeMatch(input: AuthoritativeMatchInput): Replay
         assertGameStateInvariant(state);
         pendingAiAction = null;
         applied += 1;
+        driveDerivedAi();
         continue;
       }
       throw new Error(`Expected reaction/resolve action at index ${applied}`);
@@ -111,23 +137,7 @@ export function replayAuthoritativeMatch(input: AuthoritativeMatchInput): Replay
       applied += 1;
     }
 
-    // AI decisions are derived by the server, never accepted from the client.
-    for (let guard = 0; guard < 80 && !pendingAiAction && state.phase !== "gameover" && state.activePlayer === "ai"; guard++) {
-      const aiResult = applyGameAction(state, { type: "aiStep" });
-      if (aiResult.awaitingReaction) {
-        pendingAiAction = aiResult.awaitingReaction.action;
-        const previous = state;
-      state = aiResult.next;
-      events.push(...deriveGameEvents(previous, state));
-      assertGameStateInvariant(state);
-        break;
-      }
-      if (aiResult.next === state) break;
-      const previous = state;
-      state = aiResult.next;
-      events.push(...deriveGameEvents(previous, state));
-      assertGameStateInvariant(state);
-    }
+    driveDerivedAi();
   }
 
   if (pendingAiAction) {
