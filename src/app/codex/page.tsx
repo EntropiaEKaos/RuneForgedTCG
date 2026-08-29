@@ -7,7 +7,7 @@ import CodexExplorer, { type CodexEntry } from "./CodexExplorer";
 
 export const metadata = {
   title: "Codex — Runeforge: Legends of the Nexus",
-  description: "Explore o catálogo publicado de cartas, coleções, regiões, raridades e formas geradas de Runeforge.",
+  description: "Explore cartas, coleções, regiões, raridades, tokens e formas de Runeforge.",
 };
 
 export default async function CodexPage() {
@@ -24,7 +24,7 @@ export default async function CodexPage() {
           <div>
             <p className="rf-eyebrow"><span /> ARQUIVO DE CARTAS</p>
             <h1>Codex do Nexus</h1>
-            <p>Catálogo publicado com cartas Vanilla e coleções do Studio, incluindo identidades regionais duplas e triplas, tokens e formas evoluídas.</p>
+            <p>Explore cartas e coleções do RuneForge, incluindo identidades regionais duplas e triplas, tokens e formas evoluídas.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/album" className="rf-button rf-button-secondary">◇ VER ÁLBUM</Link>

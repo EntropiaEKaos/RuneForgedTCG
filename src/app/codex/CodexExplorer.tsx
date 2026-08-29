@@ -144,7 +144,7 @@ export default function CodexExplorer({ entries }: { entries: CodexEntry[] }) {
               className="input w-full"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Nome, keyword, raça, classe, defId…"
+              placeholder="Nome, habilidade, raça, classe ou coleção…"
             />
           </label>
           <FilterSelect label="Tipo" value={type} onChange={(value) => setType(value as TypeFilter)} options={TYPES.map((value) => ({ value, label: TYPE_LABEL[value] }))} />
@@ -257,7 +257,6 @@ function CardInspector({ entry }: { entry: CodexEntry }) {
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-300">Dossiê da carta</p>
           <h2 className="mt-1 text-xl font-black text-white">{card.name}</h2>
-          <p className="mt-1 font-mono text-[10px] text-slate-500">{card.defId}</p>
         </div>
         <span className="rounded-xl border border-sky-300/30 bg-sky-300/10 px-3 py-2 text-lg font-black text-sky-100">{card.cost}</span>
       </div>
@@ -297,7 +296,7 @@ function CardInspector({ entry }: { entry: CodexEntry }) {
 
       {(card.keywords?.length || card.customKeywords?.length) ? (
         <div className="mt-5">
-          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Keywords</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Habilidades</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {[...(card.keywords ?? []), ...(card.customKeywords ?? [])].map((keyword) => (
               <span key={keyword} className="rounded-full border border-fuchsia-300/15 bg-fuchsia-300/[0.06] px-2.5 py-1 text-[10px] font-bold text-fuchsia-100">{keyword}</span>

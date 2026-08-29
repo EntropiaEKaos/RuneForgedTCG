@@ -117,7 +117,7 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
           <div>
             <p className="rf-eyebrow"><span /> ARQUIVOS DO NEXUS</p>
             <h1>Modos de jogo</h1>
-            <p>Campanhas, desafios táticos e regras especiais. Cada tentativa é preparada e liquidada pelo fluxo autoritativo do servidor.</p>
+            <p>Campanhas, desafios táticos e batalhas com regras especiais. Escolha um desafio, vença e avance no seu mapa de conquistas.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/forge" className="rf-button rf-button-secondary">FORJA</Link>
@@ -144,7 +144,7 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
 
         {featuredBrawlId && (
           <div className="mb-5 rounded-2xl border border-amber-300/25 bg-amber-300/[.07] px-4 py-3" role="status">
-            <p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-300">Evento publicado pelo Studio</p>
+            <p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-300">Evento em destaque</p>
             <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-bold text-amber-50">⭐ {featuredEventName || "Brawl da Semana"}</p>
               <button type="button" onClick={() => setTab("brawl")} className="text-xs font-black uppercase tracking-wider text-amber-200 hover:text-white">Ver Brawl em destaque</button>
@@ -173,7 +173,7 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
 
         {tab === "expedition" && (
           <section id="mode-panel-expedition" role="tabpanel" aria-labelledby="mode-tab-expedition">
-            <ModeSectionHeader eyebrow="CAMPANHA" title="Expedição do Nexus" text="Avance por encontros com objetivo, mutador e recompensa próprios. O servidor emite a configuração da tentativa antes da partida." />
+            <ModeSectionHeader eyebrow="CAMPANHA" title="Expedição do Nexus" text="Avance por encontros com objetivo, modificador e recompensa próprios. Cada capítulo muda a forma como você precisa pilotar o deck." />
             <div className="grid gap-4 lg:grid-cols-3">
               {ENCOUNTERS.map((encounter) => {
                 const completed = isCompleted("expedition", encounter.id);
@@ -188,7 +188,7 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
                     <div className="expedition-objective"><small>OBJETIVO</small><b>{encounter.objective}</b></div>
                     <div className="expedition-mutator"><small>MODIFICADOR · {encounter.mutator.label}</small><p>{encounter.mutator.description}</p></div>
                     <RewardStrip reward={encounter.reward} completed={completed} />
-                    <footer><span>{completed ? "Conquista registrada" : "Tentativa autoritativa"}</span><Link href={playHref("expedition", encounter.id)}>{completed ? "Jogar novamente" : "Iniciar capítulo"}</Link></footer>
+                    <footer><span>{completed ? "Conquista registrada" : "Pronto para desafiar"}</span><Link href={playHref("expedition", encounter.id)}>{completed ? "Jogar novamente" : "Iniciar capítulo"}</Link></footer>
                   </article>
                 );
               })}
@@ -198,7 +198,7 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
 
         {tab === "puzzle" && (
           <section id="mode-panel-puzzle" role="tabpanel" aria-labelledby="mode-tab-puzzle">
-            <ModeSectionHeader eyebrow="LABORATÓRIO TÁTICO" title="Puzzles do Nexus" text="Resolva cenários fechados com recursos definidos. A tentativa é criada no servidor e o resultado é verificado antes da recompensa." />
+            <ModeSectionHeader eyebrow="LABORATÓRIO TÁTICO" title="Puzzles do Nexus" text="Resolva cenários fechados com recursos definidos. Encontre a linha certa e conclua o objetivo para receber a recompensa." />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {PUZZLES.map((puzzle) => {
                 const completed = isCompleted("puzzle", puzzle.id);
@@ -225,7 +225,7 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
 
         {tab === "boss" && (
           <section id="mode-panel-boss" role="tabpanel" aria-labelledby="mode-tab-boss">
-            <ModeSectionHeader eyebrow="AMEAÇAS MAIORES" title="Boss Battles" text="Encontros especiais com Nexus assimétrico e regras próprias. A vitória só é creditada após replay autoritativo." />
+            <ModeSectionHeader eyebrow="AMEAÇAS MAIORES" title="Boss Battles" text="Encontros especiais com Nexus assimétrico e regras próprias. Derrube o Boss para registrar a conquista e receber a recompensa." />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {BOSSES.map((boss) => {
                 const completed = isCompleted("boss", boss.id);
@@ -256,7 +256,7 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
 
         {tab === "brawl" && (
           <section id="mode-panel-brawl" role="tabpanel" aria-labelledby="mode-tab-brawl">
-            <ModeSectionHeader eyebrow="REGRAS ALTERNATIVAS" title="Brawls" text="Partidas com modificadores especiais. Eventos publicados pelo Studio podem destacar um Brawl sem exigir novo deploy." />
+            <ModeSectionHeader eyebrow="REGRAS ALTERNATIVAS" title="Brawls" text="Partidas com modificadores especiais que mudam o ritmo e a construção do confronto. O Brawl em destaque aparece primeiro quando há um evento ativo." />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {orderedBrawls.map((brawl) => {
                 const featured = brawl.id === featuredBrawlId;
@@ -297,7 +297,7 @@ function ProgressOverview({ completed, total, percent, status, latest, categorie
           <p className="text-[10px] font-black uppercase tracking-[.2em] text-emerald-300">MAPA DE CONQUISTAS</p>
           <div className="mt-2 flex items-end gap-3"><strong className="text-4xl font-black text-white">{status === "ready" ? `${percent}%` : "—"}</strong><span className="pb-1 text-sm font-bold text-slate-400">do arquivo dominado</span></div>
           <p className="mt-2 max-w-xl text-sm leading-6 text-slate-400">
-            {status === "loading" ? "Sincronizando suas vitórias verificadas pelo servidor…" : status === "unavailable" ? "O catálogo está disponível, mas o progresso pessoal exige uma sessão de jogador ativa." : `${completed} de ${total} desafios já tiveram a vitória validada e a recompensa liquidada.`}
+            {status === "loading" ? "Sincronizando suas conquistas…" : status === "unavailable" ? "O catálogo está disponível, mas seu progresso pessoal precisa de uma sessão de jogador ativa." : `${completed} de ${total} desafios conquistados. Continue avançando para completar o arquivo do Nexus.`}
           </p>
           <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/[.06]" aria-label={`${completed} de ${total} desafios concluídos`}><div className="h-full rounded-full bg-emerald-300 transition-all" style={{ width: `${status === "ready" ? percent : 0}%` }} /></div>
           {latest && <p className="mt-3 text-xs text-emerald-100/70">Último selo: <b className="text-emerald-200">{latest.modeType} · {latest.modeId}</b> · {new Date(latest.claimedAt).toLocaleDateString("pt-BR")}</p>}
@@ -336,7 +336,7 @@ function Difficulty({ value, symbol }: { value: number; symbol: string }) {
 function RewardStrip({ reward, completed = false }: { reward: Reward; completed?: boolean }) {
   return (
     <div className={`mt-4 rounded-xl border p-3 ${completed ? "border-emerald-300/25 bg-emerald-300/[.07]" : "border-emerald-300/15 bg-emerald-300/[.045]"}`}>
-      <p className="text-[9px] font-black uppercase tracking-[.16em] text-emerald-300">{completed ? "✓ Recompensa já resgatada" : "Recompensa após verificação"}</p>
+      <p className="text-[9px] font-black uppercase tracking-[.16em] text-emerald-300">{completed ? "✓ Recompensa já resgatada" : "Recompensa da vitória"}</p>
       <p className="mt-1 text-xs font-bold text-slate-300">+{reward.gold} 🪙 · +{reward.dust} 💠 · +{reward.xp} XP{reward.pack ? ` · 📦 ${reward.pack}` : ""}</p>
     </div>
   );

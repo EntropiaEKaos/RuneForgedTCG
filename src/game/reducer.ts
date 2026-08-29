@@ -130,7 +130,7 @@ function runAiMain(state: GameState, maxSteps: number): ActionResult {
     }
 
     if (actionReactable(s, action)) {
-      return { next: s, awaitingReaction: { action, aiState: s } };
+      return { next: s, awaitingReaction: { action: { ...action, player: "ai" }, aiState: s } };
     }
     s = runAiWithReaction(s, action, Math.max(1, aiRulesFor(s).reactionDepth));
   }
