@@ -1,6 +1,7 @@
 import { getCard } from "../cards";
 import type { ActivatedAbility, ActivatedAbilityUsage } from "../activated-ability-types";
 import type {
+  BoardEntity,
   CardDef,
   GameState,
   PermanentInstance,
@@ -116,6 +117,22 @@ function requiresBoardTarget(target: TargetKind): boolean {
   return !["none", "self", "spellOnStack"].includes(target);
 }
 
+function boardEntityId(entity: BoardEntity): string {
+  if (entity.kind === "unit") return entity.unit.instanceId;
+  if (entity.kind === "permanent") return entity.perm.instanceId;
+  return entity.sen.instanceId;
+}
+
+function boardEntities(state: GameState): BoardEntity[] {
+  const entities: BoardEntity[] = [];
+  for (const owner of ["player", "ai"] as PlayerId[]) {
+    for (const unit of state.players[owner].bench) entities.push({ kind: "unit", unit, owner });
+    for (const perm of state.players[owner].permanents) entities.push({ kind: "permanent", perm, owner });
+    for (const sen of state.players[owner].sentinelas) entities.push({ kind: "sentinela", sen, owner });
+  }
+  return entities;
+}
+
 export function validateActivatedAbilityActivation(
   state: GameState,
   playerId: PlayerId,
@@ -176,10 +193,8 @@ export function validateActivatedAbilityActivation(
       if (source.unit.summonedThisTurn && !source.unit.keywords.includes("Haste")) {
         return fail("summoning-sick unit cannot pay an exhaust cost");
       }
-    } else {
-      if (sourceInstance(source).exhaustedRound === state.round) {
-        return fail("source is already exhausted this round");
-      }
+    } else if (sourceInstance(source).exhaustedRound === state.round) {
+      return fail("source is already exhausted this round");
     }
   }
 
@@ -201,6 +216,36 @@ export function validateActivatedAbilityActivation(
   }
 
   return { ok: true, ability, source, legacySentinela };
+}
+
+/**
+ * UI/preflight availability check. Targeted abilities are considered usable if
+ * at least one legal board target exists; the actual target is still validated
+ * authoritatively when the action is submitted.
+ */
+export function canBeginActivateAbility(
+  state: GameState,
+  playerId: PlayerId,
+  instanceId: string,
+  abilityIndex: number,
+): boolean {
+  const source = findActivatedAbilitySource(state, playerId, instanceId);
+  if (!source) return false;
+  const ability = activatedAbilitiesForDef(getCard(sourceInstance(source).defId))[abilityIndex];
+  if (!ability || ability.effect.target === "spellOnStack") return false;
+  if (!requiresBoardTarget(ability.effect.target)) {
+    return validateActivatedAbilityActivation(state, playerId, instanceId, abilityIndex).ok;
+  }
+  return boardEntities(state).some((entity) =>
+    isValidTarget(state, playerId, ability.effect.target, entity) &&
+    validateActivatedAbilityActivation(
+      state,
+      playerId,
+      instanceId,
+      abilityIndex,
+      boardEntityId(entity),
+    ).ok,
+  );
 }
 
 export function canActivateAbility(
