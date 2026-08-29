@@ -610,7 +610,7 @@ async function main() {
     // raw Enter key sequence that Chrome treats as a genuine focused-control
     // activation rather than the document-level keyDown used for gameplay.
     await clickTextPhysical(guest.cdp, "Render-se", true);
-    await waitForText(guest.cdp, "Confirmar rendição", 5_000);
+    await waitForSelector(guest.cdp, '[role="dialog"][aria-label="Confirmar rendição"]:not([hidden])', 5_000);
     await clickTextPhysical(guest.cdp, "Confirmar rendição", true);
 
     await Promise.all([
