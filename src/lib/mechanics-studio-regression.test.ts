@@ -21,6 +21,7 @@ const migration = read("drizzle/0020_mechanics_studio.sql");
 const cardStudio = read("src/app/admin/studio/cards/CardAuthoringStudio.tsx") + read("src/app/admin/studio/cards/useCardAuthoringModel.ts") + read("src/app/admin/studio/cards/CardAuthoringFields.tsx");
 const catalog = read("src/app/api/admin/studio/mechanics/catalog/route.ts");
 const mechanicsUi = read("src/app/admin/studio/mechanics/MechanicsStudio.tsx");
+const mechanicsPatch = read("src/app/api/admin/studio/[resource]/[id]/route.ts");
 const pkg = JSON.parse(read("package.json"));
 const suites = read("scripts/test-suites.mjs");
 
@@ -39,6 +40,8 @@ check("Card Studio loads mechanics catalog", cardStudio.includes("/api/admin/stu
 check("Card Studio embeds published keyword mechanics", cardStudio.includes("customKeywords") && cardStudio.includes("mechanics"));
 check("Mechanics catalog exposes canonical primitives", catalog.includes("CARD_EFFECT_KINDS") && catalog.includes("CARD_TRIGGERS") && catalog.includes("CARD_TYPES"));
 check("Mechanics editor supports draft editing", mechanicsUi.includes("editingId") && mechanicsUi.includes("PATCH"));
+check("Mechanics editor locks identity keys after creation", mechanicsUi.includes("Identity key imutável") && mechanicsUi.includes("readOnly={locked}") && mechanicsUi.includes("if (editingId) delete payload.key"));
+check("Mechanics PATCH contract excludes identity key mutations", /keywords:\s*\["name",\s*"description",\s*"icon",\s*"engineKeyword",\s*"behavior"\]/.test(mechanicsPatch) && /effects:\s*\["name",\s*"description",\s*"kind",\s*"schema"\]/.test(mechanicsPatch) && /archetypes:\s*\["name",\s*"description",\s*"baseType",\s*"definition"\]/.test(mechanicsPatch));
 check("mechanics regression is classified as behavioral", /behavioralTests[\s\S]*mechanics-studio-1\.0\.test\.ts/.test(suites));
 check("Dedicated mechanics test script exists", String(pkg.scripts?.["test:mechanics"] || "").includes("card-authoring-roundtrip.test.ts"));
 
