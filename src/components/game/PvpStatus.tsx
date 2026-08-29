@@ -66,7 +66,6 @@ export function PvpStatus({ state, message, version, latency }: { state: PvpConn
             aria-expanded={confirmOpen}
             className="inline-flex items-center gap-1.5 rounded-lg border border-red-300/20 bg-red-400/[.06] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[.1em] text-red-200 transition hover:bg-red-400/[.12] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={submitting || state === "sending" || state === "retrying"}
-            onPointerDown={() => setConfirmOpen(true)}
             onClick={() => setConfirmOpen(true)}
           >
             <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3 w-3 fill-current" focusable="false">
