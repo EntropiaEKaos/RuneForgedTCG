@@ -61,6 +61,7 @@ export function applyStackedAction(
   options: { human?: "react" | "skip"; playerCounter?: CardAction | null } = {},
 ): StackResolution {
   if (state.phase === "gameover") return { next: state };
+  const humanDecisionPending = options.human === undefined;
   const human = options.human ?? "skip";
   const playerCounter = options.playerCounter ?? null;
 
@@ -97,11 +98,12 @@ export function applyStackedAction(
     stack.push(counterItem);
   }
 
-  // If the human can respond (responder == player) and we haven't pushed
-  // a counter yet, return so the client can ask the human.
+  // Omitting a human decision means "pause and ask". An explicit "skip" is
+  // a real player choice and must resolve the base action instead of reopening
+  // the same reaction window forever.
   if (
     respondingSide === "player" &&
-    human === "skip" &&
+    humanDecisionPending &&
     canRespondTo(baseState, "player", action)
   ) {
     return { next: baseState, awaitingReaction: { action, aiState: baseState } };
@@ -173,14 +175,7 @@ export function applyStackedActionWithAi(
     stack.push({ ...chosenCounter, player: respondingSide, negates: action.instanceId });
   }
 
-  if (
-    respondingSide === "player" &&
-    human === "skip" &&
-    canRespondTo(baseState, "player", action)
-  ) {
-    return { next: baseState, awaitingReaction: { action, aiState: baseState } };
-  }
-
+  // `human` is required in this variant, so "skip" is always an explicit
+  // decision. Never turn it back into another awaitingReaction window.
   return resolveStack(baseState, stack);
 }
-
