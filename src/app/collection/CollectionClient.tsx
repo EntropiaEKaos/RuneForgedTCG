@@ -158,7 +158,7 @@ export default function CollectionClient() {
       applySnapshot(payload);
       return true;
     } catch {
-      if (!silent) setMessage("❌ Não foi possível sincronizar sua coleção com o servidor.");
+      if (!silent) setMessage("❌ Não foi possível sincronizar sua coleção.");
       return false;
     } finally {
       if (!silent) setLoading(false);
@@ -176,7 +176,7 @@ export default function CollectionClient() {
       .catch(() => {
         if (!cancelled) {
           setLoading(false);
-          setMessage("❌ Não foi possível estabelecer a identidade do jogador.");
+          setMessage("❌ Não foi possível carregar seu perfil de jogador.");
         }
       });
     return () => { cancelled = true; };
@@ -268,7 +268,7 @@ export default function CollectionClient() {
       settleEconomyOperation(fingerprint, response.status);
 
       if (!payload.ok) {
-        setMessage(`❌ ${payload.error || "A operação foi recusada pelo servidor."}`);
+        setMessage(`❌ ${payload.error || "Não foi possível concluir esta operação."}`);
         return;
       }
 
@@ -276,9 +276,9 @@ export default function CollectionClient() {
         ? `✨ ${amount}x ${card.name} forjada(s) por ${Number(payload.dustSpent) || card.craftCost * amount} de pó.`
         : `💠 ${amount}x ${card.name} desencantada(s) por ${Number(payload.dustGained) || card.dustValue * amount} de pó.`;
       const refreshed = await loadCollection(true);
-      setMessage(refreshed ? successMessage : `${successMessage} A operação foi confirmada, mas a coleção precisa ser atualizada novamente.`);
+      setMessage(refreshed ? successMessage : `${successMessage} Sua coleção precisa ser atualizada novamente.`);
     } catch {
-      setMessage("⚠️ Não foi possível confirmar a operação. Tente novamente: o mesmo identificador será reutilizado com segurança.");
+      setMessage("⚠️ Não foi possível confirmar a operação. Tente novamente; uma nova tentativa não duplicará a ação.");
     } finally {
       setActionKey(null);
     }
@@ -292,7 +292,7 @@ export default function CollectionClient() {
           <div>
             <p className="rf-eyebrow"><span /> ARQUIVO DO INVOCADOR</p>
             <h1>Coleção de Cartas</h1>
-            <p>Consulte seu acervo, encontre lacunas e transforme pó em cópias com operações protegidas pelo ledger da economia.</p>
+            <p>Consulte seu acervo, encontre lacunas e transforme pó em novas cópias com segurança.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/album" className="rf-button rf-button-secondary">ÁLBUM VANILLA</Link>
@@ -303,10 +303,10 @@ export default function CollectionClient() {
 
         <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumo da coleção">
           <SummaryCard label="Conclusão" value={`${completion}%`} detail={`${ownedCards}/${totalCards} cartas distintas`} />
-          <SummaryCard label="Faltando" value={missingCards} detail="definições colecionáveis" />
+          <SummaryCard label="Faltando" value={missingCards} detail="cartas colecionáveis" />
           <SummaryCard label="No limite" value={stats.complete} detail={`com ${duplicateCap}/${duplicateCap} cópias`} />
           <SummaryCard label="Pó" value={player?.dust ?? "—"} detail="saldo para forja" />
-          <SummaryCard label="Identidade" value={playerName || "Sincronizando"} detail={player ? `nível ${player.level} · ${player.gold} ouro` : "sessão estável"} />
+          <SummaryCard label="Jogador" value={playerName || "Sincronizando"} detail={player ? `nível ${player.level} · ${player.gold} ouro` : "carregando perfil"} />
         </section>
 
         <section className="mb-5 rounded-2xl border border-white/10 bg-slate-950/45 p-4" aria-labelledby="collection-progress-heading">
@@ -314,7 +314,7 @@ export default function CollectionClient() {
             <div>
               <p className="text-xs font-black uppercase tracking-[.2em] text-amber-300">Progresso do acervo</p>
               <h2 id="collection-progress-heading" className="mt-1 text-xl font-black text-white">Domínio por raridade</h2>
-              <p className="mt-1 text-xs text-slate-400">{totalDefinitions || cards.length} definições carregadas · limite atual de {duplicateCap} cópias por carta.</p>
+              <p className="mt-1 text-xs text-slate-400">{totalDefinitions || cards.length} cartas no catálogo · limite atual de {duplicateCap} cópias por carta.</p>
             </div>
             <div className="min-w-[180px] flex-1 md:max-w-sm">
               <div className="mb-1 flex justify-between text-[10px] font-bold uppercase tracking-wider text-slate-500"><span>Conclusão geral</span><span>{completion}%</span></div>
@@ -366,22 +366,22 @@ export default function CollectionClient() {
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
             <label className="sm:col-span-2 xl:col-span-2">
               <span className="sr-only">Buscar cartas</span>
-              <input className="input w-full" placeholder="Buscar nome, texto, raça ou keyword…" value={search} onChange={(event) => setSearch(event.target.value)} />
+              <input className="input w-full" placeholder="Buscar nome, texto, raça ou habilidade…" value={search} onChange={(event) => setSearch(event.target.value)} />
             </label>
             <FilterSelect label="Região" value={regionFilter} onChange={(value) => setRegionFilter(value as Region | "All")} options={REGIONS.map((value) => ({ value, label: value === "All" ? "Todas regiões" : value }))} />
             <FilterSelect label="Raridade" value={rarityFilter} onChange={(value) => setRarityFilter(value as Rarity | "All")} options={RARITIES.map((value) => ({ value, label: value === "All" ? "Todas raridades" : RARITY_LABEL[value] }))} />
             <FilterSelect label="Tipo" value={typeFilter} onChange={(value) => setTypeFilter(value as CardType | "All")} options={TYPES.map((value) => ({ value, label: value === "All" ? "Todos tipos" : value }))} />
             <FilterSelect label="Posse" value={ownFilter} onChange={(value) => setOwnFilter(value as OwnershipFilter)} options={OWNERSHIP.map((value) => ({ value, label: value === "All" ? "Toda posse" : value === "Owned" ? "Obtidas" : value === "Missing" ? "Faltando" : "No limite" }))} />
             <FilterSelect label="Custo" value={costFilter} onChange={(value) => setCostFilter(value as CostFilter)} options={COSTS.map((value) => ({ value, label: value === "All" ? "Todo custo" : value }))} />
-            <FilterSelect label="Keyword" value={keywordFilter} onChange={(value) => setKeywordFilter(value as Keyword | "All")} options={KEYWORDS.map((value) => ({ value, label: value === "All" ? "Toda keyword" : value }))} />
+            <FilterSelect label="Habilidade" value={keywordFilter} onChange={(value) => setKeywordFilter(value as Keyword | "All")} options={KEYWORDS.map((value) => ({ value, label: value === "All" ? "Todas habilidades" : value }))} />
             <FilterSelect label="Ordenação" value={sortBy} onChange={(value) => setSortBy(value as SortMode)} options={[{ value: "curve", label: "Curva de mana" }, { value: "name", label: "Nome" }, { value: "rarity", label: "Raridade" }]} />
           </div>
         </section>
 
         {loading ? (
-          <EmptyState title="Sincronizando coleção" text="Carregando acervo, custos de forja e saldo da sua identidade estável." />
+          <EmptyState title="Sincronizando coleção" text="Carregando seu acervo, custos de forja e saldo de pó." />
         ) : cards.length === 0 ? (
-          <EmptyState title="Coleção indisponível" text="Nenhuma definição foi carregada. Tente sincronizar novamente." action={<button type="button" className="rf-button rf-button-secondary" onClick={() => void loadCollection()}>TENTAR NOVAMENTE</button>} />
+          <EmptyState title="Coleção indisponível" text="Nenhuma carta foi carregada. Tente sincronizar novamente." action={<button type="button" className="rf-button rf-button-secondary" onClick={() => void loadCollection()}>TENTAR NOVAMENTE</button>} />
         ) : filtered.length === 0 ? (
           <EmptyState title="Nenhuma carta corresponde aos filtros" text="A coleção está carregada; ajuste ou limpe os filtros para voltar ao catálogo." action={<button type="button" className="rf-button rf-button-secondary" onClick={clearFilters}>LIMPAR FILTROS</button>} />
         ) : (
@@ -418,7 +418,7 @@ export default function CollectionClient() {
                 <div className="py-12 text-center">
                   <div className="text-4xl">◇</div>
                   <h3 className="mt-3 font-black text-white">Selecione uma carta</h3>
-                  <p className="mx-auto mt-2 max-w-[230px] text-xs leading-5 text-slate-400">O painel mostra suas cópias, custo de forja, retorno de desencanto e ações seguras de economia.</p>
+                  <p className="mx-auto mt-2 max-w-[230px] text-xs leading-5 text-slate-400">O painel mostra suas cópias, custo de forja, retorno de desencanto e opções para completar ou transformar sua coleção.</p>
                 </div>
               )}
             </aside>
@@ -501,7 +501,7 @@ function CardEconomyPanel({ card, duplicateCap, dust, busy, actionKey, onAction 
       </section>
 
       <p className="text-xs leading-5 text-slate-400">{card.description}</p>
-      <p className="rounded-lg border border-white/10 bg-white/[.025] px-3 py-2 text-[10px] leading-4 text-slate-500">Craft e desencanto usam operação idempotente. Em resposta de rede incerta, uma nova tentativa reutiliza o mesmo identificador antes de criar outra intenção.</p>
+      <p className="rounded-lg border border-white/10 bg-white/[.025] px-3 py-2 text-[10px] leading-4 text-slate-500">Suas ações de forja e desencanto são protegidas contra duplicação. Se a conexão falhar, tente novamente com segurança.</p>
     </div>
   );
 }
