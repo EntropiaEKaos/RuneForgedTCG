@@ -68,11 +68,13 @@ function buildCompleteActionLog(playerName: string, playerDeck: DeckInput, token
   const actions: GameAction[] = [];
   let budgetRound = state.round;
   let playerMainActionsThisRound = 0;
+  let playerAttackedThisRound = false;
 
   const refreshPlayerActionBudget = () => {
     if (state.round !== budgetRound) {
       budgetRound = state.round;
       playerMainActionsThisRound = 0;
+      playerAttackedThisRound = false;
     }
   };
 
@@ -117,11 +119,14 @@ function buildCompleteActionLog(playerName: string, playerDeck: DeckInput, token
     }
     if (state.phase === "main" && state.activePlayer === "player") {
       // Behave like a real Alpha player instead of recursively exhausting every
-      // generated zero-cost line. Attack while the token is live, take a bounded
-      // number of main-phase plays, then deliberately pass so rounds always move.
-      if (canDeclareAttack(state, "player")) {
+      // generated zero-cost line. A human takes at most one normal attack per
+      // round in this certification, then a bounded number of main-phase plays,
+      // then deliberately passes. This also prevents a still-live attack token
+      // from turning the harness into an attack/re-resolve loop without round progress.
+      if (!playerAttackedThisRound && canDeclareAttack(state, "player")) {
         const attackerIds = state.players.player.bench.filter(isReadyToAttack).map((unit) => unit.instanceId);
         if (attackerIds.length) {
+          playerAttackedThisRound = true;
           submit({ type: "attack", player: "player", attackerIds });
           continue;
         }
