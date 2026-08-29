@@ -127,7 +127,7 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://ci.placeholder.invalid
         run: npm run build
 
-      - name: HTTP E2E — alpha journey, recovery, Ranked fail-closed, casual matchmaking and DTO isolation
+      - name: HTTP E2E — alpha journey, recovery, Ranked fail-closed, casual matchmaking, two-browser PvP and DTO isolation
         env:
           E2E_BASE_URL: http://127.0.0.1:3000
         run: |
@@ -143,6 +143,7 @@ jobs:
           npm run test:e2e:http
           node scripts/alpha-visual-journey.mjs
           node scripts/alpha-runtime-tooltip-cert.mjs
+          node scripts/alpha-casual-pvp-journey.mjs
 
       - name: Upload Alpha visual journey
         if: always()
