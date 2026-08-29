@@ -12,7 +12,7 @@ export default function CardTip(props: CardViewProps) {
       panelWidth={420}
       panelHeightEstimate={720}
     >
-      <span data-unit-id={unit?.instanceId} className="inline-block">
+      <span data-card-tip-def-id={defId} data-unit-id={unit?.instanceId} className="inline-block">
         <CardView {...props} />
       </span>
     </Tooltip>
