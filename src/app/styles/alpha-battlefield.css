@@ -16,15 +16,21 @@
 }
 
 /* Combat feedback is deliberately short-lived, but a match can reach gameover
-   while a fixed-position pop/flash/cinematic still has a few animation frames
-   left. Those effects no longer communicate actionable state once the result
-   dialog owns the screen, and fixed descendants can otherwise enlarge the
-   root scrollable overflow area during the result capture. */
-.tcg-arena[data-match-phase="gameover"] .fx-pop,
-.tcg-arena[data-match-phase="gameover"] .combat-feedback,
-.tcg-arena[data-match-phase="gameover"] .combat-screen-flash,
-.tcg-arena[data-match-phase="gameover"] .match-cinematic {
-  display: none;
+   while fixed-position overlays still have animation frames left. Some of
+   those surfaces are mounted outside the arena, so key suppression off the
+   result dialog itself rather than relying on arena ancestry. Once the modal
+   owns interaction these controls/FX no longer communicate actionable state. */
+body:has(.match-result-backdrop) .fx-pop,
+body:has(.match-result-backdrop) .combat-feedback,
+body:has(.match-result-backdrop) .combat-screen-flash,
+body:has(.match-result-backdrop) .match-cinematic,
+body:has(.match-result-backdrop) .combat-choreography,
+body:has(.match-result-backdrop) .mechanic-cue,
+body:has(.match-result-backdrop) .match-settings-button,
+body:has(.match-result-backdrop) .tutorial-checklist,
+body:has(.match-result-backdrop) .player-journey,
+body:has(.match-result-backdrop) .tcg-arena > .pointer-events-none.fixed {
+  display: none !important;
 }
 
 /* The result surface already has inset:0 in the base visual system. Let those
