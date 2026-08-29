@@ -14,7 +14,7 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
   const { card, set, classes } = model;
   if (!SUPPORTED_SOURCE_TYPES.has(card.type)) return null;
 
-  const abilities = card.activatedAbilities ?? [];
+  const abilities: ActivatedAbility[] = card.activatedAbilities ?? [];
   const replace = (next: ActivatedAbility[]) => set("activatedAbilities", next.length ? next : undefined);
   const update = (index: number, patch: Partial<ActivatedAbility>) => {
     const next = cloneAbilities(abilities);
