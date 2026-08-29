@@ -3,6 +3,14 @@
    Loaded after the general visual system so this pass stays presentation-only.
    ========================================================================== */
 
+/* Once the result dialog owns the interaction, transformed battlefield cards
+   underneath it must not enlarge the document's scrollable overflow area.
+   Rows keep their own horizontal scrolling during active play; this clamp is
+   intentionally limited to the game-over phase. */
+.tcg-arena[data-match-phase="gameover"] {
+  overflow-x: clip;
+}
+
 @media (min-width: 901px) {
   /* Keep the tactical center concise when no combat/reaction UI needs height.
      The player's hand becomes the flexible visual anchor instead of leaving a
