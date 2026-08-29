@@ -59,7 +59,11 @@ export function MulliganView({
                 return (
                   <div key={cost} className="group flex min-w-0 flex-1 flex-col items-center justify-end" title={`${count} carta(s) de custo ${cost === 10 ? "10+" : cost}`}>
                     <span className="mb-1 text-[9px] font-black text-slate-500 opacity-0 transition group-hover:opacity-100">{count || ""}</span>
-                    <i className={count > 0 ? "w-full rounded-t-md bg-sky-400/80" : "w-full rounded-t-md bg-white/10"} style={{ height: `${pct}%` }} />
+                    <i
+                      data-mana-count={count}
+                      className={count > 0 ? "block w-full rounded-t-md bg-sky-400/80" : "block w-full rounded-t-md bg-white/10"}
+                      style={{ height: `${pct}%` }}
+                    />
                     <b className="mt-1 text-[10px] text-slate-400">{cost === 10 ? "10+" : cost}</b>
                   </div>
                 );
@@ -70,7 +74,7 @@ export function MulliganView({
           <aside className="rounded-3xl border border-violet-300/15 bg-violet-300/[.045] p-5" aria-label="Conselho estratégico de mulligan">
             <p className="text-[10px] font-black uppercase tracking-[.18em] text-violet-300/70">Conselheiro de abertura</p>
             <h2 className="mt-2 text-lg font-black text-white">{coach.reason}</h2>
-            <p className="mt-2 text-xs leading-relaxed text-slate-400">O conselho é apenas informativo. Sua seleção visual abaixo define quais instâncias serão enviadas ao callback de confirmação.</p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">O conselho é apenas uma sugestão. Marque as cartas que quer devolver; a troca só acontece quando você confirmar.</p>
             <div className="mt-4 grid grid-cols-2 gap-2">
               <div className="rounded-2xl border border-emerald-300/15 bg-emerald-300/[.05] p-3 text-center">
                 <strong className="block text-2xl text-emerald-300">{coach.keep.length}</strong>
