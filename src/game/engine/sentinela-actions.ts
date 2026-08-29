@@ -2,7 +2,7 @@ import { getCard } from "../cards";
 import type { GameState, PlayerId } from "../types";
 import { checkWin, clone, findSentinela } from "./state";
 import { cleanupSentinelas } from "./sentinela-state";
-import { activateAbility, canActivateAbility } from "./activated-actions";
+import { activateAbility, canBeginActivateAbility } from "./activated-actions";
 
 /** Aplica dano a uma sentinela (reduz lealdade). */
 export function damageSentinela(state: GameState, targetId: string, amount: number): GameState {
@@ -27,7 +27,7 @@ export function canActivateSentinela(
   instanceId: string,
   abilityIndex: number,
 ): boolean {
-  return canActivateAbility(state, playerId, instanceId, abilityIndex);
+  return canBeginActivateAbility(state, playerId, instanceId, abilityIndex);
 }
 
 /**
