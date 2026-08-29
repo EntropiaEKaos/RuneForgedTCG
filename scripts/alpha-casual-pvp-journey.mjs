@@ -355,15 +355,24 @@ async function waitForRoomVersion(browser, code, minimumVersion, timeoutMs = 12_
 async function ensureMulliganConfirmed(browser, code, previousVersion) {
   for (let attempt = 0; attempt < 3; attempt++) {
     await clickText(browser.cdp, "Manter mão inicial");
-    const moved = await waitUntil(
-      () => evaluate(browser.cdp, "Boolean(document.querySelector('.tcg-arena'))"),
-      `${browser.label} mulligan confirmation`,
-      3500,
-    ).then(() => true).catch(() => false);
-    if (moved) return waitForRoomVersion(browser, code, previousVersion + 1);
+    const committed = await waitForRoomVersion(browser, code, previousVersion + 1, 5000).catch(() => null);
+    if (committed) {
+      assert.equal(committed.body.room.gameState?.mulliganDone?.player, true, `${browser.label} authoritative local mulligan must be confirmed`);
+      return committed;
+    }
+    const diagnostic = await evaluate(browser.cdp, `({
+      href: location.href,
+      pvpStatus: document.querySelector('.pvp-status')?.innerText || '',
+      stillInMulligan: (document.body?.innerText || '').includes('Prepare sua mão inicial'),
+      hasArena: Boolean(document.querySelector('.tcg-arena')),
+      buttons: [...document.querySelectorAll('button')].map((button) => ({ text: (button.textContent || '').replace(/\\s+/g, ' ').trim(), disabled: button.disabled })).filter((button) => button.text).slice(-12)
+    })`);
+    const latestRoom = await fetchRoom(browser, code).catch(() => null);
+    const runtimeExceptions = browser.cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown").slice(-3);
+    console.error(`ALPHA CASUAL PVP: ${browser.label} mulligan attempt ${attempt + 1} did not commit`, JSON.stringify({ diagnostic, latestRoom, runtimeExceptions }));
     await sleep(1450);
   }
-  throw new Error(`${browser.label} could not confirm mulligan after authoritative resynchronization`);
+  throw new Error(`${browser.label} could not commit mulligan to authoritative room`);
 }
 
 async function getDomPhase(browser) {
@@ -441,12 +450,18 @@ async function main() {
     let guestRoom = await fetchRoom(guest, roomCode);
     let mirrored = assertMirrored(hostRoom, guestRoom, "initial room");
     const initialVersion = mirrored.version;
+    assert.deepEqual(mirrored.hostState.mulliganDone, { player: false, ai: false }, "initial host view must require mulligan from both humans");
+    assert.deepEqual(mirrored.guestState.mulliganDone, { player: false, ai: false }, "initial guest view must require mulligan from both humans");
 
     const afterHostMulligan = await ensureMulliganConfirmed(host, roomCode, mirrored.version);
     mirrored = assertMirrored(afterHostMulligan, await fetchRoom(guest, roomCode), "after host mulligan");
+    assert.deepEqual(mirrored.hostState.mulliganDone, { player: true, ai: false }, "host authoritative mulligan must commit without auto-confirming guest");
+    assert.deepEqual(mirrored.guestState.mulliganDone, { player: false, ai: true }, "guest view must mirror host mulligan without auto-confirming itself");
     await sleep(1450);
     const afterGuestMulligan = await ensureMulliganConfirmed(guest, roomCode, mirrored.version);
     mirrored = assertMirrored(await fetchRoom(host, roomCode), afterGuestMulligan, "after guest mulligan");
+    assert.deepEqual(mirrored.hostState.mulliganDone, { player: true, ai: true }, "host view must see both human mulligans committed");
+    assert.deepEqual(mirrored.guestState.mulliganDone, { player: true, ai: true }, "guest view must see both human mulligans committed");
 
     await Promise.all([waitForBattlefield(host), waitForBattlefield(guest)]);
     await Promise.all([waitForPvpVersion(host, mirrored.version), waitForPvpVersion(guest, mirrored.version)]);
