@@ -13,6 +13,7 @@ const routes = [
   ["/admin/studio/4", "Operations", "Content pipeline and approvals"],
   ["/admin/studio/operators", "Admin Operators", "Manage individual RBAC and MFA"],
   ["/admin/studio/control", "Total Game Control", "Engine, AI, modes, economy and presentation"],
+  ["/admin/studio/brawl-contract", "Brawl Contract Inspector", "Preflight Brawl definitions against the canonical runtime validator"],
   ["/admin/studio/payments", "Payments", "Mercado Pago credentials, webhooks and commerce"],
   ["/admin/studio/runtime", "Runtime Operations", "Matches, replays, decks, chat and sessions"],
   ["/admin/studio/5", "Balance Lab", "Matchups and outliers"],
@@ -30,6 +31,7 @@ const quickActions = [
   ["/admin/studio/ops?new=promotion", "Create promotion", "Start a promotion draft"],
   ["/admin/studio/5?tab=matrix", "Run matchup matrix", "Open Balance matrix controls"],
   ["/admin/studio/control", "Open total control", "Manage every runtime content domain"],
+  ["/admin/studio/brawl-contract", "Validate Brawl contract", "Check a Brawl payload before publication"],
 ];
 
 export function StudioCommandPalette() {
