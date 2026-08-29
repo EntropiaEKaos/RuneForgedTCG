@@ -99,7 +99,7 @@ export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDe
     if (!rawAbility || typeof rawAbility !== "object" || Array.isArray(rawAbility)) {
       return { ok: false, error: `Activated ability ${index + 1} must be an object` };
     }
-    const input = rawAbility as Record<string, unknown>;
+    const input = rawAbility as unknown as Record<string, unknown>;
     const description = typeof input.description === "string" ? input.description.trim().slice(0, 200) : "";
     if (!description) return { ok: false, error: `Activated ability ${index + 1} requires a description` };
 
