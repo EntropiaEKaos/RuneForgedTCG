@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
 import { refreshCustomCardCache } from "@/game/catalog";
 import type { CardDef } from "@/game/types";
-import { validateAuthorableCard as validateCard } from "@/game/card-authoring";
+import { validateAuthorableCardWithActivatedAbilities as validateCard } from "@/game/activated-ability-authoring";
 import { analyzeCardImpact } from "@/lib/card-impact";
 import { removeCardArtUsages } from "@/lib/card-art-integrity";
 
@@ -20,7 +20,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     const body = await req.json(); const rawPatch = body?.card && typeof body.card === "object" ? body.card : body; const metadata = body?.metadata && typeof body.metadata === "object" ? body.metadata : null;
     const [existing] = await db.select().from(customCards).where(eq(customCards.id, dbId)).limit(1); if (!existing) return Response.json({ ok: false, error: "Not found" }, { status: 404 });
     if (existing.enabled) return Response.json({ ok: false, error: "Active cards must be archived before editing." }, { status: 409 });
-    const candidate: Partial<CardDef> = { ...(existing.data as CardDef), ...rawPatch, defId: existing.defId }; const validation = validateCard(candidate); if (!validation.ok) return Response.json({ ok: false, error: validation.error }, { status: 400 }); const next = validation.card;
+    const candidate: Partial<CardDef> & Record<string, unknown> = { ...(existing.data as CardDef), ...rawPatch, defId: existing.defId }; const validation = validateCard(candidate); if (!validation.ok) return Response.json({ ok: false, error: validation.error }, { status: 400 }); const next = validation.card;
     const row = await db.transaction(async tx => {
       const [updated] = await tx.update(customCards).set({ name: next.name, region: next.region, type: next.type, cost: next.cost, enabled: false, data: next, updatedAt: new Date() }).where(eq(customCards.id, dbId)).returning();
       if (metadata) await tx.insert(cardCatalogMeta).values({ defId: existing.defId, collectionId: metadata.collectionId ? Number(metadata.collectionId) : null, tags: Array.isArray(metadata.tags) ? metadata.tags : [], classKeys: Array.isArray(metadata.classKeys) ? metadata.classKeys : next.classes || [], raceKeys: Array.isArray(metadata.raceKeys) ? metadata.raceKeys : next.race ? [next.race] : [], releaseState: "draft", notes: metadata.notes ? String(metadata.notes).slice(0,1000) : null }).onConflictDoUpdate({ target: cardCatalogMeta.defId, set: { collectionId: metadata.collectionId ? Number(metadata.collectionId) : null, tags: Array.isArray(metadata.tags) ? metadata.tags : [], classKeys: Array.isArray(metadata.classKeys) ? metadata.classKeys : next.classes || [], raceKeys: Array.isArray(metadata.raceKeys) ? metadata.raceKeys : next.race ? [next.race] : [], notes: metadata.notes ? String(metadata.notes).slice(0,1000) : null, updatedAt: new Date() } });
