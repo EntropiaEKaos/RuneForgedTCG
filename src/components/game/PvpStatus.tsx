@@ -20,6 +20,7 @@ export function PvpStatus({ state, message, version, latency }: { state: PvpConn
   const quality = latency == null ? null : latency < 120 ? "ÓTIMA" : latency < 260 ? "ESTÁVEL" : "ALTA";
   const roomCode = useSyncExternalStore(subscribeLocation, readRoomCode, readServerRoomCode);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [concedeMessage, setConcedeMessage] = useState("");
 
   const concede = async () => {
@@ -36,6 +37,7 @@ export function PvpStatus({ state, message, version, latency }: { state: PvpConn
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível registrar a rendição.");
+      setConfirmOpen(false);
       setConcedeMessage(data.forfeited ? "Rendição confirmada; sincronizando resultado…" : "Partida encerrada; sincronizando resultado…");
     } catch (error) {
       setConcedeMessage(error instanceof Error ? error.message : "Não foi possível registrar a rendição.");
@@ -61,12 +63,10 @@ export function PvpStatus({ state, message, version, latency }: { state: PvpConn
             type="button"
             aria-label="Render-se"
             aria-haspopup="dialog"
+            aria-expanded={confirmOpen}
             className="inline-flex items-center gap-1.5 rounded-lg border border-red-300/20 bg-red-400/[.06] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[.1em] text-red-200 transition hover:bg-red-400/[.12] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={submitting || state === "sending" || state === "retrying"}
-            onClick={(event) => {
-              const panel = event.currentTarget.nextElementSibling;
-              if (panel instanceof HTMLElement) panel.hidden = false;
-            }}
+            onClick={() => setConfirmOpen(true)}
           >
             <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3 w-3 fill-current" focusable="false">
               <path d="M3 1.5a.75.75 0 0 1 .75.75v.5h7.1c.55 0 .9.58.64 1.06L10.3 6l1.19 2.19c.26.48-.09 1.06-.64 1.06h-7.1v5a.75.75 0 0 1-1.5 0v-12A.75.75 0 0 1 3 1.5Z" />
@@ -74,7 +74,7 @@ export function PvpStatus({ state, message, version, latency }: { state: PvpConn
             Render-se
           </button>
           <div
-            hidden
+            hidden={!confirmOpen}
             role="dialog"
             aria-label="Confirmar rendição"
             className="absolute right-0 top-full z-[120] mt-2 w-72 rounded-2xl border border-red-300/20 bg-slate-950/95 p-3 text-left shadow-2xl backdrop-blur"
@@ -93,10 +93,7 @@ export function PvpStatus({ state, message, version, latency }: { state: PvpConn
               <button
                 type="button"
                 className="rounded-lg border border-white/10 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-300"
-                onClick={(event) => {
-                  const panel = event.currentTarget.closest('[role="dialog"]');
-                  if (panel instanceof HTMLElement) panel.hidden = true;
-                }}
+                onClick={() => setConfirmOpen(false)}
                 disabled={submitting}
               >
                 Continuar partida
