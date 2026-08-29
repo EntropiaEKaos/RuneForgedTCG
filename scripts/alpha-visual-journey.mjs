@@ -196,6 +196,44 @@ async function clickText(cdp, text) {
   assert.equal(clicked, true, `Could not click control containing text: ${text}`);
 }
 
+async function pressKey(cdp, key, code = key) {
+  const virtualKeyCode = code === "Space" ? 32 : code === "Enter" ? 13 : 0;
+  const base = { key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode };
+  await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", ...base });
+  await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+}
+
+async function driveMatchToResult(cdp, timeoutMs = 240_000) {
+  const deadline = Date.now() + timeoutMs;
+  let lastPhase = "unknown";
+  let rounds = 0;
+  while (Date.now() < deadline) {
+    const snapshot = await evaluate(cdp, `(() => {
+      const arena = document.querySelector('.tcg-arena');
+      const result = document.querySelector('.match-result-backdrop');
+      const round = document.querySelector('.tcg-round-pill')?.textContent || '';
+      return { phase: arena?.dataset?.matchPhase || null, result: Boolean(result), round };
+    })()`);
+    if (snapshot.result || snapshot.phase === "gameover") return { rounds, lastPhase: snapshot.phase || lastPhase };
+    if (snapshot.phase) lastPhase = snapshot.phase;
+    const roundMatch = String(snapshot.round || "").match(/(\d+)/);
+    if (roundMatch) rounds = Math.max(rounds, Number(roundMatch[1]));
+
+    if (snapshot.phase === "response" || snapshot.phase === "main") {
+      await pressKey(cdp, " ", "Space");
+      await sleep(220);
+      continue;
+    }
+    if (snapshot.phase === "combat") {
+      await pressKey(cdp, "Enter", "Enter");
+      await sleep(220);
+      continue;
+    }
+    await sleep(280);
+  }
+  throw new Error(`Alpha browser match did not reach gameover within ${timeoutMs}ms (last phase=${lastPhase}, rounds=${rounds})`);
+}
+
 async function navigate(cdp, path) {
   const target = `${baseUrl}${path}`;
   await cdp.call("Page.navigate", { url: target });
@@ -320,6 +358,32 @@ async function main() {
     const onboardingReturned = await evaluate(cdp, "document.body?.innerText?.includes('PRIMEIRO ACESSO · ALPHA JOGÁVEL') === true");
     assert.equal(onboardingReturned, false, "returning player must bypass first-run onboarding");
     await capture(cdp, "11-return-to-play.png", "return-to-play loop", manifest);
+
+    await clickText(cdp, "ENTRAR NO NEXUS");
+    await waitForText(cdp, "Prepare sua mão inicial", 30_000);
+    await clickText(cdp, "Manter mão inicial");
+    await waitForSelector(cdp, ".tcg-arena", 30_000);
+    const guideReturned = await evaluate(cdp, "Boolean(document.querySelector('.match-guide-backdrop'))");
+    if (guideReturned) await clickText(cdp, "Pular guia");
+    await waitUntil(() => evaluate(cdp, "!document.querySelector('.match-guide-backdrop')"), "second-match guide to be absent or close");
+
+    const completed = await driveMatchToResult(cdp);
+    await waitForSelector(cdp, ".match-result-backdrop", 10_000);
+    await waitForSelector(cdp, "[aria-label='Recompensas confirmadas']", 30_000);
+    await capture(cdp, "12-match-result.png", `completed match result (${completed.rounds} rounds)`, manifest);
+
+    const resultText = await evaluate(cdp, "document.querySelector('.match-result-card')?.innerText || ''");
+    assert.match(resultText, /VITÓRIA|DERROTA/, "completed browser match must show an explicit result");
+    assert.match(resultText, /XP/, "completed browser match must show confirmed XP reward");
+    assert.match(resultText, /OURO/, "completed browser match must show confirmed gold reward");
+
+    await clickText(cdp, "Trocar deck");
+    await waitForText(cdp, "Escolha seu deck", 20_000);
+    await capture(cdp, "13-post-match-return.png", "post-match return to deck selection", manifest);
+
+    await navigate(cdp, "/profile");
+    await waitForText(cdp, "Perfil", 20_000);
+    await capture(cdp, "14-post-match-profile.png", "post-match persisted progression", manifest);
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
     assert.equal(runtimeExceptions.length, 0, `browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0, 3))}`);
