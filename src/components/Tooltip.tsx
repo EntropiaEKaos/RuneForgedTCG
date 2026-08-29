@@ -24,7 +24,7 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchOrigin = useRef<{ x: number; y: number } | null>(null);
   const suppressNextClick = useRef(false);
-  const rootRef = useRef<HTMLSpanElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
   const clearPressTimer = useCallback(() => {
     if (pressTimer.current) {
@@ -129,9 +129,9 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
   };
 
   return (
-    <span
+    <div
       ref={rootRef}
-      className="inline-block"
+      className="contents"
       onMouseMove={(event) => { if (!touchPinned) setPos({ x: event.clientX, y: event.clientY }); }}
       onMouseEnter={clearCloseTimer}
       onMouseLeave={scheduleClose}
@@ -154,6 +154,6 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
         </div>,
         document.body,
       )}
-    </span>
+    </div>
   );
 }
