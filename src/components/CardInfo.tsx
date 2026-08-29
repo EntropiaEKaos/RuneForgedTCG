@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { getCard } from "@/game/cards";
 import { championProgressView } from "@/game/champion-progress";
 import { inspectRuntimeCard, type CardInspectionTone } from "@/game/card-inspection";
@@ -5,13 +6,14 @@ import { KEYWORD_INFO, RACE_INFO } from "@/game/keywords";
 import { strategicRoleForCard } from "@/game/card-role";
 import { getCardCollection } from "@/game/card-collections";
 import { cardRegions, identityForRegions, regionalRuleText } from "@/game/region-identity";
-import type { CardDef, GameState, UnitInstance } from "@/game/types";
+import type { CardDef, GameState, SentinelaInstance, UnitInstance } from "@/game/types";
 import { REGION_STYLE } from "./CardView";
 
 interface CardInfoProps {
   defId: string;
   definition?: CardDef;
   unit?: UnitInstance;
+  sentinela?: SentinelaInstance;
   state?: GameState;
   costOverride?: number;
 }
@@ -23,11 +25,11 @@ const toneClasses: Record<CardInspectionTone, string> = {
   state: "border-slate-400/20 bg-white/[.04] text-slate-200",
 };
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children }: { children: ReactNode }) {
   return <div className="mb-2 text-[9px] font-black uppercase tracking-[.18em] text-slate-500">{children}</div>;
 }
 
-export default function CardInfo({ defId, definition, unit, state, costOverride }: CardInfoProps) {
+export default function CardInfo({ defId, definition, unit, sentinela, state, costOverride }: CardInfoProps) {
   const def = definition ?? getCard(defId);
   const style = REGION_STYLE[def.region];
   const keywords = unit ? unit.keywords : def.keywords ?? [];
@@ -43,6 +45,9 @@ export default function CardInfo({ defId, definition, unit, state, costOverride 
   const races = [def.race, ...(def.secondaryRaces ?? [])].filter(Boolean) as string[];
   const classes = unit?.classes?.length ? unit.classes : def.classes ?? [];
   const mechanicNames = [...new Set((def.mechanics ?? []).map((mechanic) => mechanic.name).filter((name): name is string => Boolean(name)))];
+  const inPlay = Boolean(unit || sentinela);
+  const runtimeUnit = Boolean(runtime && def.type === "Unit");
+  const runtimePermanent = Boolean(runtime && (def.type === "Enchantment" || def.type === "Artifact"));
 
   return (
     <div
@@ -56,7 +61,7 @@ export default function CardInfo({ defId, definition, unit, state, costOverride 
               {def.isChampion && <span className="mr-1">{unit?.leveled ? "✨" : "⭐"}</span>}
               {def.name}
             </p>
-            {unit && <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-cyan-200">em jogo</span>}
+            {inPlay && <span className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-cyan-200">em jogo</span>}
             {def.collectible === false && <span className="rounded-full border border-slate-400/20 bg-white/[.04] px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-slate-300">não colecionável</span>}
           </div>
           <p className={`mt-1 text-[10px] font-semibold uppercase tracking-wider ${style.text}`}>
@@ -81,7 +86,7 @@ export default function CardInfo({ defId, definition, unit, state, costOverride 
       <p className="mt-3 text-[11px] leading-relaxed text-slate-100">{def.description}</p>
       {def.flavor && <p className="mt-2 border-l-2 border-white/10 pl-2 text-[10px] italic leading-relaxed text-slate-500">“{def.flavor}”</p>}
 
-      {def.type === "Unit" && runtime && (
+      {runtimeUnit && runtime && (
         <section className="mt-4 border-t border-white/10 pt-3">
           <SectionTitle>Estado em jogo</SectionTitle>
           <div className="grid grid-cols-2 gap-2">
@@ -93,7 +98,7 @@ export default function CardInfo({ defId, definition, unit, state, costOverride 
             </div>
             <div className="rounded-xl border border-rose-400/20 bg-rose-400/[.06] p-2.5">
               <div className="text-[8px] font-black uppercase tracking-wider text-rose-300">Vida</div>
-              <div className="mt-1 flex items-baseline gap-2"><b className="text-xl text-rose-100">{runtime.currentHealth}/{runtime.currentMaxHealth}</b><span className="text-[9px] text-slate-500">impresso {runtime.printedHealth}</span></div>
+              <div className="mt-1 flex items-baseline gap-2"><b className="text-xl text-rose-100">{runtime.currentHealth}/{runtime.currentMaxHealth}</b><span className="text-[9px] text-slate-500">impressa {runtime.printedHealth}</span></div>
               <div className="text-[9px] text-slate-400">máx. {signed(runtime.maxHealthDelta)} · dano sofrido {runtime.damageTaken}</div>
               {(runtime.equipmentHealth !== 0 || runtime.otherHealthModifier !== 0 || runtime.permanentHealthModifier !== 0) && <div className="mt-1 text-[8px] leading-relaxed text-slate-400">Equip. {signed(runtime.equipmentHealth)} · Efeitos {signed(runtime.otherHealthModifier)} · Permanente {signed(runtime.permanentHealthModifier)}</div>}
             </div>
@@ -107,11 +112,38 @@ export default function CardInfo({ defId, definition, unit, state, costOverride 
         </section>
       )}
 
+      {runtimePermanent && runtime && (
+        <section className="mt-4 border-t border-white/10 pt-3">
+          <SectionTitle>Estado em jogo</SectionTitle>
+          <div className="rounded-xl border border-fuchsia-400/20 bg-fuchsia-400/[.06] p-2.5">
+            <div className="text-[8px] font-black uppercase tracking-wider text-fuchsia-300">Integridade</div>
+            <div className="mt-1 flex items-baseline gap-2"><b className="text-xl text-fuchsia-100">{runtime.currentHealth}/{runtime.currentMaxHealth}</b><span className="text-[9px] text-slate-500">impressa {runtime.printedHealth}</span></div>
+            <div className="text-[9px] text-slate-400">dano sofrido {runtime.damageTaken}</div>
+          </div>
+        </section>
+      )}
+
       {def.type === "Unit" && !runtime && (
         <div className="mt-3 flex gap-2 text-sm font-black">
           <span className="rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-amber-200">⚔ {def.power ?? 0} poder</span>
           <span className="rounded-lg border border-rose-400/20 bg-rose-400/10 px-2 py-1 text-rose-200">♥ {def.health ?? 0} vida</span>
         </div>
+      )}
+
+      {def.type === "Sentinela" && def.sentinela && (
+        <section className="mt-4 border-t border-white/10 pt-3">
+          <SectionTitle>Sentinela</SectionTitle>
+          <div className="rounded-xl border border-amber-400/20 bg-amber-400/[.06] p-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div><div className="text-[8px] font-black uppercase tracking-wider text-amber-300">Lealdade</div><div className="mt-1 flex items-baseline gap-2"><b className="text-xl text-amber-100">{sentinela?.loyalty ?? def.sentinela.startingLoyalty}</b><span className="text-[9px] text-slate-500">inicial {def.sentinela.startingLoyalty}</span></div></div>
+              {sentinela && <span className={`rounded-full border px-2 py-1 text-[8px] font-black uppercase tracking-wider ${sentinela.activatedThisTurn ? "border-slate-400/20 bg-white/[.04] text-slate-400" : "border-emerald-400/20 bg-emerald-400/10 text-emerald-200"}`}>{sentinela.activatedThisTurn ? "habilidade usada" : "habilidade disponível"}</span>}
+            </div>
+            {sentinela && sentinela.loyalty !== def.sentinela.startingLoyalty && <div className={`mt-1 text-[9px] font-bold ${sentinela.loyalty > def.sentinela.startingLoyalty ? "text-emerald-300" : "text-rose-300"}`}>alteração {signed(sentinela.loyalty - def.sentinela.startingLoyalty)}</div>}
+          </div>
+          <div className="mt-2 space-y-1.5">
+            {def.sentinela.abilities.map((ability, index) => <div key={`${ability.cost}-${index}`} className="rounded-lg border border-white/10 bg-white/[.025] px-2 py-1.5 text-[9px] leading-relaxed text-slate-300"><b className={ability.cost >= 0 ? "text-emerald-200" : "text-rose-200"}>{ability.cost > 0 ? `+${ability.cost}` : ability.cost} lealdade</b> — {ability.description}</div>)}
+          </div>
+        </section>
       )}
 
       <section className="mt-4 border-t border-white/10 pt-3">
@@ -120,7 +152,7 @@ export default function CardInfo({ defId, definition, unit, state, costOverride 
           {def.speed && <p><span className="font-black text-violet-300">⚡ {def.speed}:</span> {def.speed === "Burst" ? "pode responder a feitiços ou unidades inimigas." : "pode responder a unidades inimigas."}</p>}
           {def.costReduction && <p><span className="font-black text-emerald-300">🔻 Afinidade:</span> {def.costReduction.kind === "creatures" ? `custa ${def.costReduction.per ?? 1} a menos por criatura que você controla` : `custa ${def.costReduction.per ?? 1} a menos por unidade com ${def.costReduction.threshold ?? 4}+ de poder`}{def.costReduction.max !== undefined ? ` (máx. -${def.costReduction.max})` : ""}.</p>}
           {masteryText && <p><span className="font-black text-cyan-300">◆ Identidade regional:</span> {masteryText}</p>}
-          {def.type === "Enchantment" || def.type === "Artifact" ? <p><span className="font-black text-fuchsia-300">✦ {def.archetypeName || def.type}:</span> {def.maxHealth} de vida · pode ser alvo de efeitos compatíveis.</p> : null}
+          {def.type === "Enchantment" || def.type === "Artifact" ? <p><span className="font-black text-fuchsia-300">✦ {def.archetypeName || def.type}:</span> {def.maxHealth ?? runtime?.printedHealth ?? 0} de vida · pode ser alvo de efeitos compatíveis.</p> : null}
           {def.type === "Equipment" && def.equipment && <p><span className="font-black text-cyan-300">⚙ Equipamento:</span> {signed(def.equipment.buffPower)}/{signed(def.equipment.buffHealth)}{def.equipment.keywords?.length ? ` · concede ${def.equipment.keywords.join(", ")}` : ""}.</p>}
           {def.customKeywords?.length ? <p><span className="font-black text-amber-300">✦ Habilidades customizadas:</span> {def.customKeywords.join(", ")}.</p> : null}
           {mechanicNames.length ? <p><span className="font-black text-sky-300">◈ Mecânicas adicionais:</span> {mechanicNames.join(", ")}.</p> : null}
