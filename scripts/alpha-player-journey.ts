@@ -121,7 +121,7 @@ function buildCompleteActionLog(playerName: string, playerDeck: DeckInput, token
     if (state.activePlayer === "ai") {
       const before = state;
       driveServerAi();
-      assert.ok(state !== before || pendingAiAction || state.phase === "blocking" || state.phase === "gameover", "server AI must make progress");
+      assert.ok(state !== before || pendingAiAction || state.phase === "blocking", "server AI must make progress");
       continue;
     }
     throw new Error(`Alpha journey autopilot reached an unsupported state: phase=${state.phase}, active=${state.activePlayer}`);
