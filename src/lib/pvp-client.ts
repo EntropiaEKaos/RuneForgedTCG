@@ -34,7 +34,11 @@ export interface PvpClientStatusDetail {
 export const PVP_CLIENT_STATUS_EVENT = "runeforge:pvp-client-status";
 
 function publishPvpClientStatus(detail: PvpClientStatusDetail): void {
-  if (typeof window === "undefined") return;
+  if (
+    typeof window === "undefined"
+    || typeof window.dispatchEvent !== "function"
+    || typeof CustomEvent !== "function"
+  ) return;
   window.dispatchEvent(new CustomEvent<PvpClientStatusDetail>(PVP_CLIENT_STATUS_EVENT, { detail }));
 }
 
