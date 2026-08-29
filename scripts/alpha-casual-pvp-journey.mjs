@@ -389,18 +389,26 @@ async function getDomPhase(browser) {
   })()`);
 }
 
-async function passTurn(active, passive, code, currentVersion) {
+async function passTurn(active, otherParticipant, code, currentVersion) {
+  const beforeHostRoom = active.label === "host" ? await fetchRoom(active, code) : await fetchRoom(otherParticipant, code);
+  const beforeGuestRoom = active.label === "guest" ? await fetchRoom(active, code) : await fetchRoom(otherParticipant, code);
+  const before = assertMirrored(beforeHostRoom, beforeGuestRoom, `before ${active.label} pass v${currentVersion}`);
+  const expectedActiveLabel = before.hostState.activePlayer === "player" ? "host" : "guest";
+  assert.equal(active.label, expectedActiveLabel, `authoritative v${currentVersion} says ${expectedActiveLabel}, not ${active.label}, owns priority`);
   await waitUntil(async () => (await getDomPhase(active)).phase === "main", `${active.label} to own main phase`, 12_000);
   await pressKey(active.cdp, " ", "Space");
   const nextRoom = await waitForRoomVersion(active, code, currentVersion + 1);
   const nextVersion = nextRoom.body.room.version;
   await waitForPvpVersion(active, nextVersion);
-  await waitForPvpVersion(passive, nextVersion);
-  const hostRoom = active.label === "host" ? await fetchRoom(active, code) : await fetchRoom(passive, code);
-  const guestRoom = active.label === "guest" ? await fetchRoom(active, code) : await fetchRoom(passive, code);
+  await waitForPvpVersion(otherParticipant, nextVersion);
+  const hostRoom = active.label === "host" ? await fetchRoom(active, code) : await fetchRoom(otherParticipant, code);
+  const guestRoom = active.label === "guest" ? await fetchRoom(active, code) : await fetchRoom(otherParticipant, code);
   const mirrored = assertMirrored(hostRoom, guestRoom, `after ${active.label} pass v${nextVersion}`);
-  await waitUntil(async () => (await getDomPhase(passive)).phase === "main", `${passive.label} to receive main phase after v${nextVersion}`, 12_000);
-  return mirrored.version;
+  const nextActive = mirrored.hostState.activePlayer === "player"
+    ? (active.label === "host" ? active : otherParticipant)
+    : (active.label === "guest" ? active : otherParticipant);
+  await waitUntil(async () => (await getDomPhase(nextActive)).phase === "main", `${nextActive.label} to own authoritative main phase after v${nextVersion}`, 12_000);
+  return { version: mirrored.version, nextActive, mirrored };
 }
 
 async function main() {
@@ -469,22 +477,44 @@ async function main() {
     await capture(guest, "20-pvp-guest-battlefield.png", "guest authoritative PvP battlefield", manifest);
 
     // Direct lobbies intentionally start with the host holding first priority.
-    // Alternate four genuine client passes so both browser orientations submit
-    // versioned actions and then observe the other participant's committed state.
+    // Drive genuine client passes by following the authoritative activePlayer
+    // after every committed version. Attack-token round rotation can let the
+    // player who ended a round immediately open the next one, so a rigid
+    // host/guest alternation would encode a false gameplay rule.
     let version = mirrored.version;
-    version = await passTurn(host, guest, roomCode, version);
-    version = await passTurn(guest, host, roomCode, version);
-    version = await passTurn(host, guest, roomCode, version);
-    version = await passTurn(guest, host, roomCode, version);
+    let active = mirrored.hostState.activePlayer === "player" ? host : guest;
+    const submittedBy = new Set();
+    let clientPasses = 0;
+    while (clientPasses < 4) {
+      submittedBy.add(active.label);
+      const otherParticipant = active.label === "host" ? guest : host;
+      const step = await passTurn(active, otherParticipant, roomCode, version);
+      version = step.version;
+      active = step.nextActive;
+      mirrored = step.mirrored;
+      clientPasses += 1;
+    }
+    assert.deepEqual([...submittedBy].sort(), ["guest", "host"], "both browsers must submit genuine authoritative actions");
 
-    // Reconnection proof: take the guest page completely away from the app,
-    // advance the authoritative room through the host, then reload the exact
-    // PvP room and require the guest UI to catch the committed version.
+    // Reconnection proof specifically advances through the host while the guest
+    // is away. If attack-token rotation currently leaves guest priority, keep
+    // following authoritative state until host legitimately owns main phase.
+    while (active.label !== "host" && clientPasses < 6) {
+      submittedBy.add(active.label);
+      const step = await passTurn(active, host, roomCode, version);
+      version = step.version;
+      active = step.nextActive;
+      mirrored = step.mirrored;
+      clientPasses += 1;
+    }
+    assert.equal(active.label, "host", "host must legitimately own priority before guest disconnect proof");
+
     await navigate(guest.cdp, "about:blank");
     await waitUntil(async () => (await getDomPhase(host)).phase === "main", "host main phase before reconnect proof", 12_000);
     await pressKey(host.cdp, " ", "Space");
     const reconnectRoom = await waitForRoomVersion(host, roomCode, version + 1);
     version = reconnectRoom.body.room.version;
+    clientPasses += 1;
     await waitForPvpVersion(host, version);
 
     await navigate(guest.cdp, `/play?pvpRoom=${roomCode}`);
@@ -542,7 +572,9 @@ async function main() {
         independentStableSessions: true,
         realLobbyUi: true,
         realMulliganUi: true,
-        alternatingAuthoritativeActions: 5,
+        authoritativeClientActions: clientPasses,
+        bothParticipantsSubmittedActions: submittedBy.has("host") && submittedBy.has("guest"),
+        authoritativeTurnOwnerFollowed: true,
         guestReconnect: true,
         inBattleConcessionUi: true,
         serverSettlement: true,
