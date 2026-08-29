@@ -3,6 +3,7 @@ export const behavioralTests = [
   "src/components/MatchExperience.test.ts",
   "src/game/authoritative.test.ts",
   "src/game/card-authoring-roundtrip.test.ts",
+  "src/game/card-inspection.test.ts",
   "src/game/card-laboratory.test.ts",
   "src/game/ci.test.ts",
   "src/game/client/match-model.test.ts",

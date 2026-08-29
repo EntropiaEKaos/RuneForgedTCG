@@ -18,7 +18,7 @@ export const KEYWORD_INFO: Record<Keyword, { name: string; desc: string; icon: s
   },
   Elusive: {
     name: "Elusive",
-    desc: "Can only be blocked by other Elusive units.",
+    desc: "Can only be blocked by units with Elusive or Reach.",
     icon: "🌀",
   },
   Fearsome: {
@@ -73,7 +73,7 @@ export const KEYWORD_INFO: Record<Keyword, { name: string; desc: string; icon: s
   },
   Poisonous: {
     name: "Poisonous",
-    desc: "When it damages a unit, that unit gains a poison counter (loses 1 HP each round).",
+    desc: "Damage this unit deals to the enemy Nexus also gives that player poison counters. 10 poison counters cause defeat.",
     icon: "🧪",
   },
   Haste: {
@@ -93,7 +93,7 @@ export const KEYWORD_INFO: Record<Keyword, { name: string; desc: string; icon: s
   },
   Reach: {
     name: "Alcance",
-    desc: "Pode bloquear criaturas Evasivas.",
+    desc: "Pode bloquear criaturas Evasivas e criaturas com Voo.",
     icon: "🕸️",
   },
   Flying: {
