@@ -37,7 +37,7 @@ export function inspectRuntimeCard(def: CardDef, unit?: UnitInstance): CardRunti
   if (!unit) return null;
 
   const printedPower = Number(def.power ?? 0);
-  const printedHealth = Number(def.health ?? 0);
+  const printedHealth = Number(def.type === "Enchantment" || def.type === "Artifact" ? def.maxHealth ?? def.health ?? 0 : def.health ?? 0);
   let equipmentPower = 0;
   let equipmentHealth = 0;
   for (const equipment of unit.equipment) {
