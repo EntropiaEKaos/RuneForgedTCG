@@ -9,6 +9,9 @@ import type { AiDifficulty, AiRulesSnapshot, DeckInput, EngineRulesSnapshot, Gam
 const baseUrl = process.env.E2E_BASE_URL?.replace(/\/$/, "");
 if (!baseUrl) throw new Error("E2E_BASE_URL is required (example: http://127.0.0.1:3000)");
 
+const MAX_ALPHA_ACTIONS = 2200;
+const MAX_PLAYER_MAIN_ACTIONS_PER_ROUND = 8;
+
 class BrowserClient {
   private cookie = "";
 
@@ -63,6 +66,15 @@ function buildCompleteActionLog(playerName: string, playerDeck: DeckInput, token
   });
   let pendingAiAction: CardAction | null = null;
   const actions: GameAction[] = [];
+  let budgetRound = state.round;
+  let playerMainActionsThisRound = 0;
+
+  const refreshPlayerActionBudget = () => {
+    if (state.round !== budgetRound) {
+      budgetRound = state.round;
+      playerMainActionsThisRound = 0;
+    }
+  };
 
   const driveServerAi = () => {
     for (let guard = 0; guard < 100 && !pendingAiAction && state.phase !== "gameover" && state.activePlayer === "ai"; guard += 1) {
@@ -89,7 +101,8 @@ function buildCompleteActionLog(playerName: string, playerDeck: DeckInput, token
     driveServerAi();
   };
 
-  for (let guard = 0; guard < 1800 && state.phase !== "gameover"; guard += 1) {
+  for (let guard = 0; guard < MAX_ALPHA_ACTIONS && state.phase !== "gameover"; guard += 1) {
+    refreshPlayerActionBudget();
     if (pendingAiAction) {
       submit({ type: "resolve" });
       continue;
@@ -103,11 +116,9 @@ function buildCompleteActionLog(playerName: string, playerDeck: DeckInput, token
       continue;
     }
     if (state.phase === "main" && state.activePlayer === "player") {
-      const chosen = aiChooseAction(state, "player");
-      if (chosen) {
-        submit(toPlayerAction(chosen));
-        continue;
-      }
+      // Behave like a real Alpha player instead of recursively exhausting every
+      // generated zero-cost line. Attack while the token is live, take a bounded
+      // number of main-phase plays, then deliberately pass so rounds always move.
       if (canDeclareAttack(state, "player")) {
         const attackerIds = state.players.player.bench.filter(isReadyToAttack).map((unit) => unit.instanceId);
         if (attackerIds.length) {
@@ -115,6 +126,16 @@ function buildCompleteActionLog(playerName: string, playerDeck: DeckInput, token
           continue;
         }
       }
+
+      if (playerMainActionsThisRound < MAX_PLAYER_MAIN_ACTIONS_PER_ROUND) {
+        const chosen = aiChooseAction(state, "player");
+        if (chosen) {
+          playerMainActionsThisRound += 1;
+          submit(toPlayerAction(chosen));
+          continue;
+        }
+      }
+
       submit({ type: "pass", player: "player" });
       continue;
     }
@@ -127,9 +148,10 @@ function buildCompleteActionLog(playerName: string, playerDeck: DeckInput, token
     throw new Error(`Alpha journey autopilot reached an unsupported state: phase=${state.phase}, active=${state.activePlayer}`);
   }
 
-  assert.equal(state.phase, "gameover", `alpha PvE action log did not finish within ${actions.length} submitted actions`);
+  const diagnostic = `round=${state.round}, playerDeck=${state.players.player.deck.length}, aiDeck=${state.players.ai.deck.length}, playerHand=${state.players.player.hand.length}, aiHand=${state.players.ai.hand.length}, playerBench=${state.players.player.bench.length}, aiBench=${state.players.ai.bench.length}`;
+  assert.equal(state.phase, "gameover", `alpha PvE action log did not finish within ${actions.length} submitted actions (${diagnostic})`);
   assert.ok(state.winner, "alpha PvE action log finished without a winner");
-  assert.ok(actions.length > 3 && actions.length < 1800, `alpha action log length is suspicious: ${actions.length}`);
+  assert.ok(actions.length > 3 && actions.length < MAX_ALPHA_ACTIONS, `alpha action log length is suspicious: ${actions.length}`);
 
   const replay = replayAuthoritativeMatch({
     playerName,
