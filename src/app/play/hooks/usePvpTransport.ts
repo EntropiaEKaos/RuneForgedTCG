@@ -6,6 +6,12 @@ import type { GameAction } from "@/game/reducer";
 import { canonicalizeGuestAction, type PvpConnectionState } from "@/game/client/match-model";
 import { classifyPvpPollFailure, deliverPvpAction } from "@/lib/pvp-client";
 
+function requestedPvpRoomCode(): string | null {
+  if (typeof window === "undefined") return null;
+  const value = new URLSearchParams(window.location.search).get("pvpRoom")?.trim().toUpperCase();
+  return value || null;
+}
+
 export function usePvpTransport({
   playerName,
   screen,
@@ -24,19 +30,68 @@ export function usePvpTransport({
   const [pvpMessage, setPvpMessage] = useState("");
   const [pvpLatency, setPvpLatency] = useState<number | null>(null);
   const pvpSendingRef = useRef(false);
-  const isPvp = pvpRoomCode !== null;
+  const requestedRoomCode = requestedPvpRoomCode();
+  // A /play?pvpRoom=... route is always PvP, even before React has hydrated
+  // the room/version state. Never let that brief transport gap fall through to
+  // local engine authority.
+  const isPvp = pvpRoomCode !== null || requestedRoomCode !== null;
 
   const sendPvpAction = useCallback(async (action: GameAction) => {
-    if (!pvpRoomCode || pvpVersion == null || pvpSendingRef.current) return false;
+    const effectiveRoomCode = pvpRoomCode ?? requestedPvpRoomCode();
+    if (!effectiveRoomCode || pvpSendingRef.current) return false;
+
     pvpSendingRef.current = true;
     const requestStarted = performance.now();
+    let effectiveVersion = pvpVersion;
+    let effectiveGuest = pvpGuest;
+
+    // If the UI reached an actionable PvP screen before the hook state was
+    // fully hydrated, recover the current authoritative room first instead of
+    // silently returning or mutating the local game state.
+    if (effectiveVersion == null || pvpRoomCode == null) {
+      setPvpConnection("connecting");
+      setPvpMessage("Sincronizando a sala antes de confirmar a ação…");
+      try {
+        const response = await fetch(`/api/pvp/${encodeURIComponent(effectiveRoomCode)}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.ok || !data.room?.gameState || !Number.isInteger(data.room.version)) {
+          const failure = classifyPvpPollFailure(response.status, typeof data.error === "string" ? data.error : undefined);
+          setPvpConnection("offline");
+          setPvpMessage(failure.message);
+          pvpSendingRef.current = false;
+          return false;
+        }
+        effectiveVersion = data.room.version;
+        effectiveGuest = data.room.viewerSide === "guest";
+        setPvpRoomCode(data.room.code || effectiveRoomCode);
+        setPvpVersion(effectiveVersion);
+        setPvpGuest(effectiveGuest);
+        setState(data.room.gameState);
+      } catch (error) {
+        setPvpConnection("offline");
+        setPvpMessage(error instanceof Error ? error.message : "Não foi possível sincronizar a sala PvP.");
+        pvpSendingRef.current = false;
+        return false;
+      }
+    }
+
+    if (effectiveVersion == null) {
+      setPvpConnection("offline");
+      setPvpMessage("A versão autoritativa da sala ainda não está disponível.");
+      pvpSendingRef.current = false;
+      return false;
+    }
+
     setPvpConnection("sending");
     setPvpMessage("Confirmando ação autoritativa…");
-    const canonical = canonicalizeGuestAction(action, pvpGuest);
+    const canonical = canonicalizeGuestAction(action, effectiveGuest);
     const result = await deliverPvpAction({
-      code: pvpRoomCode,
+      code: effectiveRoomCode,
       playerName,
-      version: pvpVersion,
+      version: effectiveVersion,
       actionId: crypto.randomUUID(),
       gameAction: canonical,
       onRetry: () => {
@@ -60,7 +115,8 @@ export function usePvpTransport({
   }, [actionLogRef, playerName, pvpGuest, pvpRoomCode, pvpVersion, setState]);
 
   useEffect(() => {
-    if (!pvpRoomCode || screen !== "game") return;
+    const effectiveRoomCode = pvpRoomCode ?? requestedPvpRoomCode();
+    if (!effectiveRoomCode || screen !== "game") return;
     let cancelled = false;
     let timer = 0;
     const poll = async () => {
@@ -73,7 +129,7 @@ export function usePvpTransport({
       }
       try {
         const pollStarted = performance.now();
-        const res = await fetch(`/api/pvp/${encodeURIComponent(pvpRoomCode)}`, { credentials: "include", cache: "no-store" });
+        const res = await fetch(`/api/pvp/${encodeURIComponent(effectiveRoomCode)}`, { credentials: "include", cache: "no-store" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) {
           const failure = classifyPvpPollFailure(res.status, typeof data.error === "string" ? data.error : undefined);
@@ -83,7 +139,9 @@ export function usePvpTransport({
           throw new Error(failure.message);
         }
         if (data.room?.gameState) {
+          setPvpRoomCode(data.room.code || effectiveRoomCode);
           setPvpVersion(data.room.version);
+          setPvpGuest(data.room.viewerSide === "guest");
           setPvpLatency(Math.round(performance.now() - pollStarted));
           setState((current) => data.room.gameState ?? current);
           if (!pvpSendingRef.current) {
