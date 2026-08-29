@@ -7,20 +7,22 @@ import { registerCustomCards } from "@/game/custom-registry";
 import { DECKS, type DeckDef } from "@/game/decks";
 import { aiChooseReaction } from "@/game/ai";
 import {
-  activateSentinelaAbility,
+  activateAbility,
+  activatedAbilitiesForInstance,
   applyStackedActionWithAi,
   canCastReaction,
   canDeclareAttack,
   canPlayCard,
   declareAttack,
   endTurn,
+  isValidTarget,
   mulligan,
   skipMulligan,
   resolveCombat,
   spellNeedsTarget,
   type CardAction,
 } from "@/game/engine";
-import type { AiDifficulty, GameState, PermanentInstance, PlayerId, TargetKind, UnitInstance } from "@/game/types";
+import type { AiDifficulty, BoardEntity, GameState, PermanentInstance, PlayerId, TargetKind, UnitInstance } from "@/game/types";
 import type { GameAction } from "@/game/reducer";
 import { topOfReactionStack, type PendingSpell, type ReactionPending } from "@/game/client/match-model";
 import type { Encounter } from "@/lib/game-modes";
@@ -52,6 +54,8 @@ export default function GameClient() {
 
   const [state, setState] = useState<GameState | null>(null);
   const [pendingSpell, setPendingSpell] = useState<PendingSpell | null>(null);
+  // Kept under the legacy name for replay/UI compatibility in 2.97; this now
+  // represents targeting for any board entity's activated ability.
   const [pendingSentinelaAbility, setPendingSentinelaAbility] = useState<{ sentinelaId: string; abilityIndex: number; targetType: TargetKind } | null>(null);
   const [selectedAttackers, setSelectedAttackers] = useState<string[]>([]);
   const [challenges, setChallenges] = useState<Record<string, string>>({});
@@ -164,28 +168,63 @@ export default function GameClient() {
     );
   }, [state, selectedAttackers]);
 
+  const commitActivatedAbility = useCallback((sourceInstanceId: string, abilityIndex: number, target?: string) => {
+    if (!state) return;
+    // Preserve the versioned 2.97 wire opcode. The server now interprets
+    // sentinelaId as a generic controlled board-source id.
+    const action: GameAction = { type: "sentinela", player: "player", sentinelaId: sourceInstanceId, abilityIndex, target };
+    if (isPvp) { void sendPvpAction(action); return; }
+    recordAction(action);
+    setState(activateAbility(state, "player", sourceInstanceId, abilityIndex, target));
+  }, [state, recordAction, isPvp, sendPvpAction]);
+
+  const handleActivatedAbility = useCallback(
+    (sourceInstanceId: string, abilityIndex: number) => {
+      if (!state) return;
+      const ability = activatedAbilitiesForInstance(state, "player", sourceInstanceId)[abilityIndex];
+      if (!ability) return;
+      if (ability.effect.target === "spellOnStack") {
+        setFirstInfo("Esta habilidade exige uma janela de reação e ficará indisponível até a integração com a pilha autoritativa.");
+        return;
+      }
+      if (!["none", "self"].includes(ability.effect.target)) {
+        setPendingSentinelaAbility({ sentinelaId: sourceInstanceId, abilityIndex, targetType: ability.effect.target });
+        return;
+      }
+      commitActivatedAbility(sourceInstanceId, abilityIndex);
+    },
+    [state, commitActivatedAbility],
+  );
+
+  const activatedTargetOk = useCallback((entity: BoardEntity) => {
+    if (!state || !pendingSentinelaAbility) return false;
+    return isValidTarget(state, "player", pendingSentinelaAbility.targetType, entity);
+  }, [state, pendingSentinelaAbility]);
+
   const handleSentinelaClick = useCallback(
     (senInstanceId: string, senOwner: PlayerId) => {
-      if (!state || !isPlayerMain || !canAttackNow) return;
+      if (!state) return;
+      const sentinela = state.players[senOwner].sentinelas.find((candidate) => candidate.instanceId === senInstanceId);
+      if (pendingSentinelaAbility && sentinela && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: senOwner })) {
+        commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, senInstanceId);
+        setPendingSentinelaAbility(null);
+        return;
+      }
+      if (!isPlayerMain || !canAttackNow) return;
       // Selecionar sentinela inimiga como alvo de ataque.
       if (senOwner === "ai") {
-        // Toggle: se já está selecionada, remove; senão, adiciona para o primeiro atacante sem alvo.
         setSentinelaTargets((prev) => {
           const next = { ...prev };
-          // Remove se já está atribuída a algum atacante
           for (const k of Object.keys(next)) {
             if (next[k] === senInstanceId) delete next[k];
           }
-          // Encontrar primeiro atacante sem alvo
           const freeAttacker = selectedAttackers.find((a) => !next[a]);
-          if (freeAttacker) {
-            next[freeAttacker] = senInstanceId;
-          }
+          if (freeAttacker) next[freeAttacker] = senInstanceId;
           return next;
         });
       }
     },
-    [state, isPlayerMain, canAttackNow, selectedAttackers],
+    [state, pendingSentinelaAbility, activatedTargetOk, commitActivatedAbility, isPlayerMain, canAttackNow, selectedAttackers],
   );
 
   const reactionTargetOk = useCallback(
@@ -246,7 +285,7 @@ export default function GameClient() {
           deadline: Date.now() + reactionMs,
           pendingHuman: { ...reactionItem, player: "ai" },
         });
-        return state; // finishReaction resolves the original action + the AI's counter.
+        return state;
       }
       const res = applyStackedActionWithAi(state, action, "skip", null, aiReact);
       return res.next;
@@ -263,7 +302,7 @@ export default function GameClient() {
       if (reaction) {
         const top = topOfReactionStack(reaction);
         if (!top) return;
-        if (reaction.pendingHuman) return; // human already submitted a counter
+        if (reaction.pendingHuman) return;
         if (!canCastReaction(reaction.baseState, "player", instanceId, top.kind)) return;
         const tt = spellNeedsTarget(defId);
         if (!tt) finishReaction({ instanceId });
@@ -275,7 +314,6 @@ export default function GameClient() {
       const def = getCard(defId);
       if (!canPlayCard(state, "player", instanceId)) return;
 
-      // Cartas de board (unidades / encantamentos / artefatos / sentinelas) e equipamentos.
       if (def.type === "Unit" || def.type === "Enchantment" || def.type === "Artifact" || def.type === "Equipment" || def.type === "Sentinela") {
         if (def.type === "Equipment") {
           const tt = spellNeedsTarget(defId);
@@ -294,7 +332,6 @@ export default function GameClient() {
         return;
       }
 
-      // Spells.
       const tt = spellNeedsTarget(defId);
       if (!tt) {
         setState(applyWithAiReaction({ kind: "spell", instanceId, defId }));
@@ -325,7 +362,6 @@ export default function GameClient() {
           return false;
         }
       }
-      // Without entity: show hint based on side only (unit-friendly types)
       if (t === "enemyUnit" || t === "anyUnit") return isEnemy;
       if (t === "allyUnit") return isAlly;
       return false;
@@ -336,14 +372,19 @@ export default function GameClient() {
   const handlePermanentClick = useCallback(
     (perm: PermanentInstance) => {
       if (!state) return;
-      // Reaction mode.
+      if (pendingSentinelaAbility) {
+        if (activatedTargetOk({ kind: "permanent", perm, owner: perm.owner })) {
+          commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, perm.instanceId);
+          setPendingSentinelaAbility(null);
+        }
+        return;
+      }
       if (reaction) {
         if (pendingReaction && reactionTargetOk(perm.owner, { kind: "permanent" })) {
           finishReaction({ instanceId: pendingReaction.instanceId, targetId: perm.instanceId });
         }
         return;
       }
-      // Spell targeting mode.
       if (pendingSpell) {
         const ok =
           (pendingSpell.targetType === "enemyPermanent" && perm.owner === "ai") ||
@@ -363,30 +404,7 @@ export default function GameClient() {
         return;
       }
     },
-    [state, reaction, pendingReaction, reactionTargetOk, finishReaction, pendingSpell, applyWithAiReaction],
-  );
-
-  const commitSentinelaAbility = useCallback((sentinelaId: string, abilityIndex: number, target?: string) => {
-    if (!state) return;
-    const action: GameAction = { type: "sentinela", player: "player", sentinelaId, abilityIndex, target };
-    if (isPvp) { void sendPvpAction(action); return; }
-    recordAction(action);
-    setState(activateSentinelaAbility(state, "player", sentinelaId, abilityIndex, target));
-  }, [state, recordAction, isPvp, sendPvpAction]);
-
-  const handleSentinelaActivate = useCallback(
-    (sentinelaId: string, abilityIndex: number) => {
-      if (!state) return;
-      const instance = state.players.player.sentinelas.find((x) => x.instanceId === sentinelaId);
-      const ability = instance ? getCard(instance.defId).sentinela?.abilities[abilityIndex] : undefined;
-      if (!ability) return;
-      if (!["none", "self", "spellOnStack"].includes(ability.effect.target)) {
-        setPendingSentinelaAbility({ sentinelaId, abilityIndex, targetType: ability.effect.target });
-        return;
-      }
-      commitSentinelaAbility(sentinelaId, abilityIndex);
-    },
-    [state, commitSentinelaAbility],
+    [state, pendingSentinelaAbility, activatedTargetOk, commitActivatedAbility, reaction, pendingReaction, reactionTargetOk, finishReaction, pendingSpell, applyWithAiReaction],
   );
 
   const handleUnitClick = useCallback(
@@ -394,16 +412,13 @@ export default function GameClient() {
       if (!state) return;
 
       if (pendingSentinelaAbility) {
-        const t = pendingSentinelaAbility.targetType;
-        const valid = (t === "enemyUnit" && unit.owner === "ai") || (t === "allyUnit" && unit.owner === "player") || t === "anyUnit" || t === "anyBoard";
-        if (valid) {
-          commitSentinelaAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, unit.instanceId);
+        if (activatedTargetOk({ kind: "unit", unit, owner: unit.owner })) {
+          commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, unit.instanceId);
           setPendingSentinelaAbility(null);
         }
         return;
       }
 
-      // Reaction targeting.
       if (reaction) {
         if (pendingReaction && reactionTargetOk(unit.owner)) {
           finishReaction({ instanceId: pendingReaction.instanceId, targetId: unit.instanceId });
@@ -411,7 +426,6 @@ export default function GameClient() {
         return;
       }
 
-      // Spell / equipment targeting mode.
       if (pendingSpell) {
         if (isValidSpellTarget(unit.owner, { kind: "unit" })) {
           const pendingDef = getCard(pendingSpell.defId);
@@ -428,7 +442,6 @@ export default function GameClient() {
         return;
       }
 
-      // Challenger target selection.
       if (isPlayerMain && canAttackNow && unit.owner === "ai" && selectedChallengers.length > 0) {
         const free = selectedChallengers.find((c) => !challenges[c.instanceId]);
         const champ = free ?? selectedChallengers[0];
@@ -443,7 +456,6 @@ export default function GameClient() {
         return;
       }
 
-      // Attack selection.
       if (isPlayerMain && canAttackNow && unit.owner === "player") {
         setSelectedAttackers((prev) => {
           const next = prev.includes(unit.instanceId)
@@ -459,7 +471,6 @@ export default function GameClient() {
         return;
       }
 
-      // Blocking mode.
       if (isPlayerBlocking) {
         const locked = state.combat?.locked ?? [];
         if (unit.owner === "player") {
@@ -486,6 +497,9 @@ export default function GameClient() {
     },
     [
       state,
+      pendingSentinelaAbility,
+      activatedTargetOk,
+      commitActivatedAbility,
       reaction,
       pendingReaction,
       reactionTargetOk,
@@ -499,8 +513,6 @@ export default function GameClient() {
       selectedBlocker,
       selectedChallengers,
       challenges,
-      pendingSentinelaAbility,
-      commitSentinelaAbility,
     ],
   );
 
@@ -531,6 +543,7 @@ export default function GameClient() {
     setSelectedAttackers([]);
     setChallenges({});
     setPendingSpell(null);
+    setPendingSentinelaAbility(null);
     const action: GameAction = { type: "pass", player: "player" };
     if (isPvp) void sendPvpAction(action);
     else { recordAction(action); setState(endTurn(state, "player")); }
@@ -570,7 +583,6 @@ export default function GameClient() {
     );
   }
 
-  // ---- Mulligan Phase ----
   if (!state.mulliganDone.player) {
     return (
       <MulliganView
@@ -618,9 +630,10 @@ export default function GameClient() {
       pvp={pvp}
       isValidSpellTarget={isValidSpellTarget}
       reactionTargetOk={reactionTargetOk}
+      activatedTargetOk={activatedTargetOk}
       handlePermanentClick={handlePermanentClick}
       handleSentinelaClick={handleSentinelaClick}
-      handleSentinelaActivate={handleSentinelaActivate}
+      handleSentinelaActivate={handleActivatedAbility}
       handleUnitClick={handleUnitClick}
       handleHandClick={handleHandClick}
       confirmAttack={confirmAttack}
