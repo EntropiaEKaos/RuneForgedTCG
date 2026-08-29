@@ -216,8 +216,35 @@ async function clickTextPhysical(cdp, text, exact = false) {
   assert.equal(target?.ok, true, `Physical control is visible but not hit-testable for ${text}: ${JSON.stringify(target)}`);
   assert.equal(target?.focused, true, `Physical control could not receive keyboard focus for ${text}: ${JSON.stringify(target)}`);
   console.log(`ALPHA CASUAL PVP: hit-testable keyboard target ${text}`, JSON.stringify({ point: target.point, rect: target.rect, ariaExpanded: target.ariaExpanded }));
-  await pressKey(cdp, "Enter", "Enter");
-  await sleep(100);
+
+  const enterBase = {
+    key: "Enter",
+    code: "Enter",
+    windowsVirtualKeyCode: 13,
+    nativeVirtualKeyCode: 13,
+  };
+  await cdp.call("Input.dispatchKeyEvent", {
+    type: "rawKeyDown",
+    ...enterBase,
+    text: "\r",
+    unmodifiedText: "\r",
+  });
+  await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", ...enterBase });
+  await sleep(120);
+
+  const activation = await evaluate(cdp, `(() => {
+    const normalize = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+    const sameControl = [...document.querySelectorAll('button,a,[role="button"]')]
+      .find((candidate) => normalize(candidate.textContent) === ${encoded});
+    return {
+      sameControlPresent: Boolean(sameControl),
+      sameControlDisabled: Boolean(sameControl?.disabled),
+      ariaExpanded: sameControl?.getAttribute('aria-expanded') ?? null,
+      confirmDialogVisible: Boolean(document.querySelector('[role="dialog"][aria-label="Confirmar rendição"]:not([hidden])')),
+      resultVisible: Boolean(document.querySelector('.match-result-backdrop')),
+    };
+  })()`);
+  console.log(`ALPHA CASUAL PVP: keyboard activation result ${text}`, JSON.stringify(activation));
 }
 
 async function setInputValue(cdp, selector, value) {
@@ -580,7 +607,8 @@ async function main() {
     // Finish through the real in-battle concession UI using native keyboard
     // activation through CDP. Each control must first be physically visible,
     // unobstructed by hit-testing and focusable; activation then comes from a
-    // real Enter key event instead of synthetic DOM click() or a test endpoint.
+    // raw Enter key sequence that Chrome treats as a genuine focused-control
+    // activation rather than the document-level keyDown used for gameplay.
     await clickTextPhysical(guest.cdp, "Render-se", true);
     await waitForText(guest.cdp, "Confirmar rendição", 5_000);
     await clickTextPhysical(guest.cdp, "Confirmar rendição", true);
