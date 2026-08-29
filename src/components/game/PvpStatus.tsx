@@ -60,11 +60,12 @@ export function PvpStatus({ state, message, version, latency }: { state: PvpConn
       {roomCode && !confirming && !concedeMessage && (
         <button
           type="button"
+          aria-label="Render-se"
           className="rounded-lg border border-red-300/20 bg-red-400/[.06] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[.1em] text-red-200 transition hover:bg-red-400/[.12] disabled:cursor-not-allowed disabled:opacity-50"
           onClick={() => setConfirming(true)}
           disabled={submitting || state === "sending" || state === "retrying"}
         >
-          🏳 Render-se
+          <span aria-hidden="true">🏳</span> Render-se
         </button>
       )}
       {roomCode && confirming && (
