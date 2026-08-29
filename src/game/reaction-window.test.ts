@@ -1,4 +1,5 @@
 import { aiChooseReaction } from "./ai";
+import { replayAuthoritativeMatch } from "./authoritative";
 import { applyStackedActionWithAi, createCustomGame } from "./engine";
 import { applyGameAction } from "./reducer";
 import type { DeckInput } from "./types";
@@ -56,6 +57,50 @@ if (resolved.next.players.ai.hand.some((card) => card.instanceId === "ai-bolt"))
 }
 if (resolved.next === opened.next) {
   throw new Error("Resolving the skipped reaction must advance the authoritative game state");
+}
+
+// Replay parity regression: after a human resolves an AI reaction window, the
+// authoritative replay must continue server-derived AI decisions before it
+// consumes the next client action. Otherwise a legitimate block recorded by
+// the live match arrives while replay is still in main phase.
+const playerReactionDeck: DeckInput = {
+  id: "reaction-player",
+  name: "Reaction player",
+  cards: Array(20).fill("tide_deny"),
+};
+const aiReactionDeck: DeckInput = {
+  id: "reaction-ai",
+  name: "Reaction AI",
+  cards: Array(20).fill("ember_bolt"),
+};
+
+const replay = replayAuthoritativeMatch({
+  playerName: "Replay Reaction Tester",
+  playerDeck: playerReactionDeck,
+  aiDeck: aiReactionDeck,
+  playerGoesFirst: true,
+  seed: 515151,
+  actions: [
+    { type: "pass", player: "player" },
+    { type: "resolve" },
+    { type: "block", blocks: {} },
+  ],
+  customOptions: {
+    skipMulligan: true,
+    playerStartingHand: 1,
+    aiStartingHand: 1,
+    playerStartingMana: 10,
+    aiStartingMana: 10,
+    playerBench: ["wood_ent"],
+    aiBench: ["ember_whelp"],
+  },
+});
+
+if (replay.applied !== 3) {
+  throw new Error(`Replay did not consume pass -> resolve -> block sequence: ${replay.applied}`);
+}
+if (replay.state.phase === "blocking") {
+  throw new Error("Replay remained stuck in blocking after the recorded human block decision");
 }
 
 console.log("Reaction-window regression tests passed.");
