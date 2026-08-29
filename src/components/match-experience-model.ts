@@ -2,6 +2,18 @@ import type { UnitInstance } from "@/game/types";
 
 export type MatchPhase = "opponent" | "main" | "combat" | "response" | "gameover";
 
+export const POST_MATCH_DESTINATIONS = [
+  { href: "/profile", label: "Perfil e missões", description: "Veja nível, saldo, missões e conquistas." },
+  { href: "/collection", label: "Coleção Vanilla", description: "Confira o que você possui e o que falta descobrir." },
+  { href: "/forge", label: "Forjar deck", description: "Transforme sua coleção em uma nova estratégia." },
+] as const;
+
+export function postMatchProgressionMessage(rewardConfirmed: boolean, leveledUp = false): string {
+  if (!rewardConfirmed) return "A batalha terminou. Escolha seu próximo passo no Nexus.";
+  if (leveledUp) return "Recompensas confirmadas e novo nível alcançado. Continue sua progressão no Nexus.";
+  return "Recompensas confirmadas no seu perfil. Use o ganho para evoluir sua próxima batalha.";
+}
+
 export function matchGuidance(phase: MatchPhase, selectedAttackers: number, pendingTarget: boolean): string {
   if (phase === "gameover") return "Partida concluída — revise os números e escolha o próximo desafio.";
   if (phase === "response") return "Prioridade aberta: responda com uma carta válida ou resolva a pilha.";
