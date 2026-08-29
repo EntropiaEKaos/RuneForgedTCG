@@ -117,6 +117,18 @@ function requiresBoardTarget(target: TargetKind): boolean {
   return !["none", "self", "spellOnStack"].includes(target);
 }
 
+/** Unlimited activations must consume a finite resource or the source itself. */
+export function hasConsumingActivatedAbilityCost(ability: ActivatedAbility): boolean {
+  const cost = ability.cost;
+  return Boolean(
+    (cost?.mana ?? 0) > 0 ||
+    (cost?.nexusHealth ?? 0) > 0 ||
+    cost?.exhaustSelf ||
+    cost?.sacrificeSelf ||
+    (cost?.loyaltyDelta ?? 0) < 0
+  );
+}
+
 function boardEntityId(entity: BoardEntity): string {
   if (entity.kind === "unit") return entity.unit.instanceId;
   if (entity.kind === "permanent") return entity.perm.instanceId;
@@ -162,6 +174,9 @@ export function validateActivatedAbilityActivation(
       return fail("maxUsesPerRound must be a positive integer or null");
     }
   }
+  if (ability.maxUsesPerRound === null && !hasConsumingActivatedAbilityCost(ability)) {
+    return fail("unlimited activated abilities require a consuming cost");
+  }
 
   const player = state.players[playerId];
   const manaCost = ability.cost?.mana ?? 0;
@@ -172,9 +187,13 @@ export function validateActivatedAbilityActivation(
   }
 
   const limit = ability.maxUsesPerRound === undefined ? 1 : ability.maxUsesPerRound;
-  if (legacySentinela) {
-    if (source.sen.activatedThisTurn) return fail("Sentinela already activated this round");
-  } else if (limit !== null && abilityUsage(source, abilityIndex, state.round) >= limit) {
+  // Every Sentinela — legacy or generic — shares the Planeswalker-style
+  // one-activation-per-round budget. This prevents a card with both contracts
+  // from activating once through each list in the same round.
+  if (source.kind === "sentinela" && source.sen.activatedThisTurn) {
+    return fail("Sentinela already activated this round");
+  }
+  if (source.kind !== "sentinela" && limit !== null && abilityUsage(source, abilityIndex, state.round) >= limit) {
     return fail("activated ability reached its per-round use limit");
   }
 
@@ -207,10 +226,17 @@ export function validateActivatedAbilityActivation(
     return fail("stack-targeted activated abilities require a reaction-context action");
   }
   if (requiresBoardTarget(targetKind)) {
-    if (!targetInstanceId) return fail("activated ability requires a target");
-    const target = findAnyBoardEntity(state, targetInstanceId);
-    if (!target) return fail("activated ability target does not exist");
-    if (!isValidTarget(state, playerId, targetKind, target)) return fail("invalid activated ability target");
+    if (!targetInstanceId) {
+      // Legacy engine callers historically allowed Sentinela abilities to omit
+      // a target and let applyEffect choose one deterministically. Keep that
+      // replay/API behavior; browser/server semantic validation still requires
+      // an explicit target for client-supplied actions.
+      if (!legacySentinela) return fail("activated ability requires a target");
+    } else {
+      const target = findAnyBoardEntity(state, targetInstanceId);
+      if (!target) return fail("activated ability target does not exist");
+      if (!isValidTarget(state, playerId, targetKind, target)) return fail("invalid activated ability target");
+    }
   } else if (targetInstanceId) {
     return fail("activated ability does not accept an explicit target");
   }
@@ -317,8 +343,8 @@ export function activateAbility(
   if (!ability) return state;
   const legacySentinela = source.kind === "sentinela" && isLegacySentinelaAbility(def, abilityIndex);
 
-  if (legacySentinela) source.sen.activatedThisTurn = true;
-  else recordAbilityUsage(source, abilityIndex, next.round);
+  if (source.kind === "sentinela") source.sen.activatedThisTurn = true;
+  if (!legacySentinela) recordAbilityUsage(source, abilityIndex, next.round);
 
   paySourceCosts(next, source, ability);
   next.log.push(`${def.name} ativa "${ability.description}".`);
