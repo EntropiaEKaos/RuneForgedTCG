@@ -61,8 +61,9 @@ if (resolved.next === opened.next) {
 
 // Replay parity regression: after a human resolves an AI reaction window, the
 // authoritative replay must continue server-derived AI decisions before it
-// consumes the next client action. Otherwise a legitimate block recorded by
-// the live match arrives while replay is still in main phase.
+// consumes the next client action. This deterministic scenario crosses a round
+// boundary, where the AI draws a second Bolt and opens one more reaction window
+// before using its attack token. Only after both resolves is `block` legal.
 const playerReactionDeck: DeckInput = {
   id: "reaction-player",
   name: "Reaction player",
@@ -83,6 +84,7 @@ const replay = replayAuthoritativeMatch({
   actions: [
     { type: "pass", player: "player" },
     { type: "resolve" },
+    { type: "resolve" },
     { type: "block", blocks: {} },
   ],
   customOptions: {
@@ -96,8 +98,8 @@ const replay = replayAuthoritativeMatch({
   },
 });
 
-if (replay.applied !== 3) {
-  throw new Error(`Replay did not consume pass -> resolve -> block sequence: ${replay.applied}`);
+if (replay.applied !== 4) {
+  throw new Error(`Replay did not consume pass -> resolve -> resolve -> block sequence: ${replay.applied}`);
 }
 if (replay.state.phase === "blocking") {
   throw new Error("Replay remained stuck in blocking after the recorded human block decision");
