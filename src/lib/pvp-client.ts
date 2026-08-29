@@ -19,6 +19,18 @@ export interface PvpDeliveryResult {
   gameState?: GameState;
 }
 
+export interface PvpPollFailure {
+  terminal: boolean;
+  message: string;
+}
+
+export function classifyPvpPollFailure(status: number, serverError?: string): PvpPollFailure {
+  if (status === 401) return { terminal: true, message: "Sua sessão de jogador expirou. Reautentique antes de retomar esta sala." };
+  if (status === 403) return { terminal: true, message: "Esta sessão não tem mais acesso a esta sala PvP." };
+  if (status === 404) return { terminal: true, message: "A sala PvP foi encerrada ou expirou." };
+  return { terminal: false, message: serverError?.trim() || "Conexão instável; tentando novamente." };
+}
+
 export async function deliverPvpAction(request: PvpDeliveryRequest): Promise<PvpDeliveryResult> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController();
