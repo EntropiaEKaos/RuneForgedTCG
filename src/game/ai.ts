@@ -118,7 +118,6 @@ function bestAllyTarget(state: GameState, playerId: PlayerId): UnitInstance | un
   return bench.sort((a, b) => b.power - a.power)[0];
 }
 
-
 function sentinelaAbilityTarget(state: GameState, playerId: PlayerId, target: import("./types").TargetKind): string | undefined {
   const enemyId = other(playerId);
   if (target === "none" || target === "self" || target === "spellOnStack") return undefined;
@@ -237,15 +236,17 @@ export function aiChooseAction(state: GameState, playerId: PlayerId = "ai"): AiA
   if (enemyThreat) {
     for (const c of playable) {
       const def = getCard(c.defId);
-      if (def.spell?.kind === "damageUnit" && spellNeedsTarget(def.defId)) {
-        if (def.spell.amount >= enemyThreat.health) {
-          return {
-            kind: "spell",
-            instanceId: c.instanceId,
-            defId: def.defId,
-            targetInstanceId: enemyThreat.instanceId,
-          };
-        }
+      const targetKind = spellNeedsTarget(def.defId);
+      const canTargetThreat = targetKind
+        ? isValidTarget(state, playerId, targetKind, { kind: "unit", owner: enemyId, unit: enemyThreat })
+        : false;
+      if (def.spell?.kind === "damageUnit" && canTargetThreat && def.spell.amount >= enemyThreat.health) {
+        return {
+          kind: "spell",
+          instanceId: c.instanceId,
+          defId: def.defId,
+          targetInstanceId: enemyThreat.instanceId,
+        };
       }
     }
   }
@@ -255,7 +256,11 @@ export function aiChooseAction(state: GameState, playerId: PlayerId = "ai"): AiA
   if (enemyPerm) {
     for (const c of playable) {
       const def = getCard(c.defId);
-      if (def.spell?.kind === "destroyPermanent" || def.spell?.kind === "damagePermanent") {
+      const targetKind = spellNeedsTarget(def.defId);
+      const canTargetPermanent = targetKind
+        ? isValidTarget(state, playerId, targetKind, { kind: "permanent", owner: enemyId, perm: enemyPerm })
+        : false;
+      if ((def.spell?.kind === "destroyPermanent" || def.spell?.kind === "damagePermanent") && canTargetPermanent) {
         return {
           kind: "spell",
           instanceId: c.instanceId,
@@ -284,11 +289,17 @@ export function aiChooseAction(state: GameState, playerId: PlayerId = "ai"): AiA
   // returning a bogus "unit" action that would silently no-op.
   const enemySen = state.players[enemyId].sentinelas.find((s) => s.loyalty <= 3);
 
-  // 4. Damage spells em sentinelas inimigas.
+  // 4. Damage spells em sentinelas inimigas, but only when the card's target
+  // contract actually permits a Sentinela. `damageUnit` is an effect kind,
+  // not permission to bypass the card's TargetKind.
   if (enemySen) {
     for (const c of playable) {
       const def = getCard(c.defId);
-      if (def.spell?.kind === "damageUnit" && def.spell.amount >= enemySen.loyalty) {
+      const targetKind = spellNeedsTarget(def.defId);
+      const canTargetSentinela = targetKind
+        ? isValidTarget(state, playerId, targetKind, { kind: "sentinela", owner: enemyId, sen: enemySen })
+        : false;
+      if (def.spell?.kind === "damageUnit" && canTargetSentinela && def.spell.amount >= enemySen.loyalty) {
         return {
           kind: "spell",
           instanceId: c.instanceId,
@@ -362,19 +373,31 @@ export function aiChooseAction(state: GameState, playerId: PlayerId = "ai"): AiA
     }
     const target = bestAllyTarget(state, playerId);
     if ((def.spell.kind === "buffUnit" || def.spell.kind === "grantBarrier") && target) {
-      if (target.power >= 2) {
+      const targetKind = spellNeedsTarget(def.defId);
+      const canTargetAlly = targetKind
+        ? isValidTarget(state, playerId, targetKind, { kind: "unit", owner: playerId, unit: target })
+        : false;
+      if (target.power >= 2 && canTargetAlly) {
         return { kind: "spell", instanceId: c.instanceId, defId: def.defId, targetInstanceId: target.instanceId };
       }
     }
     if (def.spell.kind === "healUnit") {
       const dmgAlly = me.bench.find((u) => u.health < u.maxHealth);
-      if (dmgAlly) {
+      const targetKind = spellNeedsTarget(def.defId);
+      const canTargetAlly = dmgAlly && targetKind
+        ? isValidTarget(state, playerId, targetKind, { kind: "unit", owner: playerId, unit: dmgAlly })
+        : false;
+      if (dmgAlly && canTargetAlly) {
         return { kind: "spell", instanceId: c.instanceId, defId: def.defId, targetInstanceId: dmgAlly.instanceId };
       }
     }
-    if (def.spell.kind === "damageUnit" && spellNeedsTarget(def.defId)) {
+    if (def.spell.kind === "damageUnit") {
       const t = bestEnemyTarget(state, playerId);
-      if (t && t.power >= 3) {
+      const targetKind = spellNeedsTarget(def.defId);
+      const canTargetEnemy = t && targetKind
+        ? isValidTarget(state, playerId, targetKind, { kind: "unit", owner: enemyId, unit: t })
+        : false;
+      if (t && t.power >= 3 && canTargetEnemy) {
         return { kind: "spell", instanceId: c.instanceId, defId: def.defId, targetInstanceId: t.instanceId };
       }
     }
