@@ -140,6 +140,7 @@ async function main() {
       text: (document.body?.innerText || '').slice(0, 5000),
       status: [...document.querySelectorAll('[role="status"]')].map((node) => (node.textContent || '').replace(/\\s+/g, ' ').trim()).filter(Boolean),
       deck: document.querySelector('select')?.value || null,
+      roomCode: [...document.querySelectorAll('h2')].map((node) => (node.textContent || '').trim()).find((text) => /^[A-Z2-9]{6}$/.test(text)) || null,
     }))()`);
     const session = await evaluate(cdp, `(async () => {
       const response = await fetch('/api/player', { credentials: 'include', cache: 'no-store' });
@@ -166,12 +167,14 @@ async function main() {
     const diagnostic = { ui, session, lobby, network, exceptions };
     console.log(`PVP LOBBY PREFLIGHT DIAGNOSTIC ${JSON.stringify(diagnostic)}`);
 
-    const visibleRoom = ui.text.includes("Sua sala");
-    const authoritativeRoom = lobby.status === 200 && lobby.body?.myRoom?.state === "waiting";
-    assert.equal(visibleRoom, true, `create-room UI did not confirm the server result: ${JSON.stringify(diagnostic)}`);
+    const authoritativeCode = lobby.body?.myRoom?.code;
+    const visibleRoom = typeof ui.roomCode === "string" && ui.roomCode === authoritativeCode;
+    const authoritativeRoom = lobby.status === 200 && lobby.body?.myRoom?.state === "waiting" && /^[A-Z2-9]{6}$/.test(String(authoritativeCode || ""));
+    assert.equal(visibleRoom, true, `create-room UI did not render the authoritative room code: ${JSON.stringify(diagnostic)}`);
     assert.equal(authoritativeRoom, true, `server did not retain the waiting room: ${JSON.stringify(diagnostic)}`);
     assert.equal(network?.response?.status, 200, `browser POST /api/pvp did not return 200: ${JSON.stringify(diagnostic)}`);
-    console.log(`PVP LOBBY PREFLIGHT: PASS — ${lobby.body.myRoom.code}`);
+    assert.equal(exceptions.length, 0, `browser runtime exceptions detected: ${JSON.stringify(diagnostic)}`);
+    console.log(`PVP LOBBY PREFLIGHT: PASS — ${authoritativeCode}`);
   } finally {
     try { cdp?.close(); } catch {}
     if (chrome.exitCode == null && chrome.signalCode == null) chrome.kill("SIGTERM");
