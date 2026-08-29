@@ -211,12 +211,11 @@ try {
   }
 
   {
-    let state = game();
+    const state = game();
     const source = readyUnit(state, "test_arc_tender", "player");
-    source.summonedThisTurn = false;
     state.players.player.mana = 10;
-    const hexproof = readyUnit(state, "wood_ancient", "ai");
-    if (!hexproof.keywords.includes("Hexproof")) hexproof.keywords.push("Hexproof");
+    const hexproof = readyUnit(state, "wood_ent", "ai");
+    hexproof.keywords.push("Hexproof");
     assert.equal(validateActivatedAbilityActivation(state, "player", source.instanceId, 0, hexproof.instanceId).ok, false, "Hexproof rejects enemy targeted ability");
     assert.equal(canBeginActivateAbility(state, "player", source.instanceId, 0), false, "no legal target disables activation preflight");
   }
