@@ -48,6 +48,7 @@ declare module "./types" {
 
   interface UnitInstance {
     activatedAbilityUses?: Record<string, ActivatedAbilityUsage>;
+    exhaustedRound?: number;
   }
 
   interface PermanentInstance {
