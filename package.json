@@ -5,6 +5,7 @@
   "scripts": {
     "alpha:setup": "node scripts/alpha-setup.mjs",
     "alpha:verify": "npm run release:runtime-gate && npm run test:local-imports && npm run audit:test-taxonomy && npm run audit:schema-static && npm run audit:source-contracts && npm run audit:studio-structure && npm run typecheck && npm run lint -- --max-warnings 0 && npm run test:behavior && npm run build",
+    "alpha:certify": "node scripts/alpha-certify.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -44,6 +45,7 @@
     "audit:balance": "node --import tsx scripts/balance-audit-2.97.ts 100 8 --write BALANCE_AUDIT_2.97.json",
     "ranked:verify": "node --import tsx scripts/balance-audit-2.97.ts 100 8 --write BALANCE_AUDIT_2.97.json --enforce",
     "test:e2e:http": "tsx scripts/e2e-pvp-ranked.ts",
+    "test:e2e:alpha-journey": "tsx scripts/alpha-player-journey.ts",
     "db:bootstrap": "tsx scripts/database-bootstrap.ts",
     "db:upgrade": "tsx scripts/database-upgrade-2.31.ts",
     "release:preflight": "tsx scripts/release-preflight.ts",
