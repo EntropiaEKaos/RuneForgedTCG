@@ -57,13 +57,15 @@ export function MulliganView({
               {manaCounts.map((count, cost) => {
                 const pct = count > 0 ? Math.max(12, Math.round((count / maxCount) * 100)) : 5;
                 return (
-                  <div key={cost} className="group flex min-w-0 flex-1 flex-col items-center justify-end" title={`${count} carta(s) de custo ${cost === 10 ? "10+" : cost}`}>
+                  <div key={cost} className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={`${count} carta(s) de custo ${cost === 10 ? "10+" : cost}`}>
                     <span className="mb-1 text-[9px] font-black text-slate-500 opacity-0 transition group-hover:opacity-100">{count || ""}</span>
-                    <i
-                      data-mana-count={count}
-                      className={count > 0 ? "block w-full rounded-t-md bg-sky-400/80" : "block w-full rounded-t-md bg-white/10"}
-                      style={{ height: `${pct}%` }}
-                    />
+                    <div className="flex min-h-0 w-full flex-1 items-end">
+                      <i
+                        data-mana-count={count}
+                        className={count > 0 ? "block w-full rounded-t-md bg-sky-400/80" : "block w-full rounded-t-md bg-white/10"}
+                        style={{ height: `${pct}%` }}
+                      />
+                    </div>
                     <b className="mt-1 text-[10px] text-slate-400">{cost === 10 ? "10+" : cost}</b>
                   </div>
                 );
