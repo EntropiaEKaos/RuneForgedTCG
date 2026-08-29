@@ -31,6 +31,7 @@ export default function MechanicsStudio() {
   const [fx, setFx] = useState<any>({ key: "", name: "", description: "", effect: { ...baseEffect } });
   const [arch, setArch] = useState<any>({ key: "", name: "", description: "", baseType: "Enchantment", definition: { defaults: { maxHealth: 3 } } });
   const resource = tab === "keyword" ? "keywords" : tab === "effect" ? "effects" : "archetypes";
+  const identityLocked = editingId !== null;
 
   async function load() {
     const r = await fetch(`/api/admin/studio/${resource}?limit=300`, { credentials: "include" });
@@ -81,10 +82,11 @@ export default function MechanicsStudio() {
     if (tab === "keyword") payload = { key: kw.key, name: kw.name, description: kw.description, icon: kw.icon, behavior: { version: 1, trigger: kw.trigger, condition: kw.condition, effect: kw.effect } };
     else if (tab === "effect") payload = { key: fx.key, name: fx.name, description: fx.description, kind: "composite", schema: { version: 1, effect: fx.effect } };
     else payload = { key: arch.key, name: arch.name, description: arch.description, baseType: arch.baseType, definition: { version: 1, baseType: arch.baseType, defaults: arch.definition?.defaults || {} } };
+    if (editingId) delete payload.key;
     const url = editingId ? `/api/admin/studio/${resource}/${editingId}` : `/api/admin/studio/${resource}`;
     const r = await fetch(url, { method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
     const d = await r.json();
-    setMsg(d.ok ? (editingId ? "Draft atualizado." : "Draft criado. Valide/QA/publique pelo Production Studio.") : d.error || "Falha ao salvar");
+    setMsg(d.ok ? (editingId ? "Draft atualizado. A identity key foi preservada." : "Draft criado. Valide/QA/publique pelo Production Studio.") : d.error || "Falha ao salvar");
     if (d.ok) {
       await load();
       resetEditor();
@@ -100,7 +102,7 @@ export default function MechanicsStudio() {
           <div className="studio-brand-mark">⚙</div>
           <div>
             <div className="studio-kicker">RUNEFORGE // SAFE DSL</div>
-            <div className="studio-title">Mechanics Studio <span className="text-amber-300">1.2</span></div>
+            <div className="studio-title">Mechanics Studio <span className="text-amber-300">1.3</span></div>
           </div>
         </div>
         <Link href="/admin/studio" className="btn-ghost text-xs">Control Room</Link>
@@ -122,7 +124,7 @@ export default function MechanicsStudio() {
           {tab === "keyword" && <>
             <H t="Keyword Composer" />
             <Grid>
-              <F l="Key"><input className="input" value={kw.key} onChange={e => setKw({ ...kw, key: e.target.value })} /></F>
+              <F l="Identity key"><KeyInput value={kw.key} locked={identityLocked} set={key => setKw({ ...kw, key })} /></F>
               <F l="Name"><input className="input" value={kw.name} onChange={e => setKw({ ...kw, name: e.target.value })} /></F>
               <F l="Trigger"><Sel v={kw.trigger} xs={CARD_TRIGGERS as any} set={v => setKw({ ...kw, trigger: v })} /></F>
               <F l="Condition"><Sel v={kw.condition.kind} xs={MECHANIC_CONDITION_KINDS as any} set={v => setKw({ ...kw, condition: defaultCondition(v) })} /></F>
@@ -136,7 +138,7 @@ export default function MechanicsStudio() {
           {tab === "effect" && <>
             <H t="Effect Composer" />
             <Grid>
-              <F l="Key"><input className="input" value={fx.key} onChange={e => setFx({ ...fx, key: e.target.value })} /></F>
+              <F l="Identity key"><KeyInput value={fx.key} locked={identityLocked} set={key => setFx({ ...fx, key })} /></F>
               <F l="Name"><input className="input" value={fx.name} onChange={e => setFx({ ...fx, name: e.target.value })} /></F>
             </Grid>
             <Effect value={fx.effect} set={effect => setFx({ ...fx, effect })} />
@@ -144,13 +146,14 @@ export default function MechanicsStudio() {
           {tab === "archetype" && <>
             <H t="Card Type / Archetype Composer" />
             <Grid>
-              <F l="Key"><input className="input" value={arch.key} onChange={e => setArch({ ...arch, key: e.target.value })} /></F>
+              <F l="Identity key"><KeyInput value={arch.key} locked={identityLocked} set={key => setArch({ ...arch, key })} /></F>
               <F l="Display type"><input className="input" value={arch.name} onChange={e => setArch({ ...arch, name: e.target.value })} placeholder="Location" /></F>
               <F l="Structural base"><Sel v={arch.baseType} xs={CARD_TYPES as any} set={v => setArch({ ...arch, baseType: v })} /></F>
               <F l="Default max health"><input className="input" type="number" value={arch.definition.defaults?.maxHealth ?? 3} onChange={e => setArch({ ...arch, definition: { defaults: { ...arch.definition.defaults, maxHealth: Number(e.target.value) } } })} /></F>
             </Grid>
             <p className="mt-4 text-xs text-slate-400">Um novo tipo herda zona e regras estruturais do baseType. Ex.: Location → Enchantment, Relic → Artifact, Vehicle → Unit. Uma zona completamente nova continua exigindo uma nova primitiva de engine.</p>
           </>}
+          {identityLocked && <div className="mt-3 rounded-xl border border-cyan-400/15 bg-cyan-400/[.04] p-3 text-xs leading-5 text-slate-300"><b className="text-cyan-200">Identity key imutável.</b> A key é definida na criação e preservada durante edições para manter referências, histórico e diagnósticos de impacto estáveis. Para uma nova identidade, crie um novo draft.</div>}
           <div className="mt-5 flex gap-2">
             <button className="btn-primary" onClick={save}>{editingId ? "Update draft" : "Save draft mechanic"}</button>
             {editingId && <button className="btn-ghost" onClick={resetEditor}>Cancel edit</button>}
@@ -186,6 +189,9 @@ function H({ t }: { t: string }) {
 }
 function Grid({ children }: { children: any }) { return <div className="grid gap-3 md:grid-cols-2">{children}</div>; }
 function F({ l, children }: { l: string; children: any }) { return <label className="mb-3 block"><span className="label">{l}</span>{children}</label>; }
+function KeyInput({ value, locked, set }: { value: string; locked: boolean; set: (value: string) => void }) {
+  return <input className={`input font-mono ${locked ? "cursor-not-allowed opacity-70" : ""}`} value={value} readOnly={locked} aria-readonly={locked} title={locked ? "Identity key is immutable after creation" : "Stable identity key"} onChange={e => { if (!locked) set(e.target.value); }} />;
+}
 function Sel({ v, xs, set }: { v: string; xs: readonly string[]; set: (v: string) => void }) { return <select className="input" value={v} onChange={e => set(e.target.value)}>{xs.map(x => <option key={x}>{x}</option>)}</select>; }
 
 function Effect({ value, set }: { value: any; set: (v: any) => void }) {
