@@ -196,6 +196,19 @@ async function clickText(cdp, text) {
   assert.equal(clicked, true, `Could not click control containing text: ${text}`);
 }
 
+async function hoverSelector(cdp, selector) {
+  const encoded = JSON.stringify(selector);
+  const point = await evaluate(cdp, `(() => {
+    const target = document.querySelector(${encoded});
+    if (!target) return null;
+    target.scrollIntoView({ block: 'center', inline: 'center' });
+    const rect = target.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  })()`);
+  assert.ok(point && Number.isFinite(point.x) && Number.isFinite(point.y), `Could not locate hover target: ${selector}`);
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
+}
+
 async function navigate(cdp, path) {
   const target = `${baseUrl}${path}`;
   await cdp.call("Page.navigate", { url: target });
@@ -302,6 +315,34 @@ async function main() {
     await clickText(cdp, "Pular guia");
     await waitUntil(() => evaluate(cdp, "!document.querySelector('.match-guide-backdrop')"), "first match guide to close");
     await capture(cdp, "05-battlefield.png", "live battlefield", manifest);
+
+    await hoverSelector(cdp, "#player-hand-cards [data-card-tip-def-id]");
+    await waitForSelector(cdp, '[data-card-intelligence-panel="true"]', 10_000);
+    const tooltipEvidence = await evaluate(cdp, `(() => {
+      const panel = document.querySelector('[data-card-intelligence-panel="true"]');
+      const host = document.querySelector('[data-tooltip-panel="true"]');
+      if (!panel || !host) return null;
+      const rect = host.getBoundingClientRect();
+      return {
+        text: panel.textContent || '',
+        left: rect.left,
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        width: rect.width,
+        height: rect.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      };
+    })()`);
+    assert.ok(tooltipEvidence, "rich card tooltip did not produce inspectable evidence");
+    assert.match(tooltipEvidence.text, /Regras e propriedades/i, "rich tooltip must expose the rules section");
+    assert.ok(tooltipEvidence.width >= 300, `rich tooltip is unexpectedly narrow: ${tooltipEvidence.width}`);
+    assert.ok(tooltipEvidence.left >= 0 && tooltipEvidence.top >= 0, "rich tooltip must stay inside the top/left viewport bounds");
+    assert.ok(tooltipEvidence.right <= tooltipEvidence.viewportWidth + 1, "rich tooltip must stay inside the right viewport bound");
+    assert.ok(tooltipEvidence.bottom <= tooltipEvidence.viewportHeight + 1, "rich tooltip must stay inside the bottom viewport bound");
+    await capture(cdp, "05b-card-intelligence-tooltip.png", "rich card intelligence tooltip", manifest);
+    await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
 
     const staticStages = [
       ["/collection", "06-collection.png", "collection"],
