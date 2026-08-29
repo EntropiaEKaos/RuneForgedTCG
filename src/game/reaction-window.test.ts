@@ -12,7 +12,7 @@ const deck: DeckInput = {
 let state = createCustomGame("Reaction Tester", deck, deck, {
   skipMulligan: true,
   playerGoesFirst: false,
-  playerBench: ["ember_drake"],
+  playerBench: ["wood_ent"],
   playerStartingHand: 0,
   aiStartingHand: 0,
   playerStartingMana: 10,
@@ -35,6 +35,9 @@ if (!opened.awaitingReaction) {
 }
 if (opened.awaitingReaction.action.player !== "ai") {
   throw new Error(`AI reaction action lost ownership: ${String(opened.awaitingReaction.action.player)}`);
+}
+if (opened.awaitingReaction.action.instanceId !== "ai-bolt") {
+  throw new Error(`Unexpected AI action opened the reaction window: ${opened.awaitingReaction.action.instanceId}`);
 }
 
 const resolved = applyStackedActionWithAi(
