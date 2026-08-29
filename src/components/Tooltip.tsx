@@ -8,6 +8,8 @@ interface TooltipProps {
   content: ReactNode;
   children: ReactNode;
   disabled?: boolean;
+  panelWidth?: number;
+  panelHeightEstimate?: number;
 }
 
 // Tempo de toque-e-segure antes de considerar "quero inspecionar a carta"
@@ -17,8 +19,9 @@ const LONG_PRESS_MS = 320;
 // Distância (px) que o dedo pode se mover antes de cancelarmos o preview —
 // evita abrir a inspeção durante um scroll/arraste.
 const MOVE_CANCEL_PX = 12;
+const VIEWPORT_GUTTER = 12;
 
-export default function Tooltip({ content, children, disabled }: TooltipProps) {
+export default function Tooltip({ content, children, disabled, panelWidth = 280, panelHeightEstimate = 260 }: TooltipProps) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchOrigin = useRef<{ x: number; y: number } | null>(null);
@@ -55,7 +58,6 @@ export default function Tooltip({ content, children, disabled }: TooltipProps) {
     const dx = touch.clientX - origin.x;
     const dy = touch.clientY - origin.y;
     if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
-      // O dedo está deslizando (scroll/drag) — não é um press-and-hold.
       clearPressTimer();
       setPos(null);
     }
@@ -75,6 +77,18 @@ export default function Tooltip({ content, children, disabled }: TooltipProps) {
     }
   };
 
+  const positionStyle = () => {
+    if (!pos || typeof window === "undefined") return undefined;
+    const width = Math.min(panelWidth, window.innerWidth - VIEWPORT_GUTTER * 2);
+    const rightSideLeft = pos.x + 16;
+    const left = rightSideLeft + width <= window.innerWidth - VIEWPORT_GUTTER
+      ? rightSideLeft
+      : Math.max(VIEWPORT_GUTTER, pos.x - width - 16);
+    const height = Math.min(panelHeightEstimate, window.innerHeight - VIEWPORT_GUTTER * 2);
+    const top = Math.max(VIEWPORT_GUTTER, Math.min(pos.y + 16, window.innerHeight - height - VIEWPORT_GUTTER));
+    return { left, top, maxWidth: width, maxHeight: window.innerHeight - VIEWPORT_GUTTER * 2 };
+  };
+
   return (
     <span
       className="inline-block"
@@ -91,11 +105,9 @@ export default function Tooltip({ content, children, disabled }: TooltipProps) {
         typeof window !== "undefined" &&
         createPortal(
           <div
-            className="pointer-events-none fixed z-[100]"
-            style={{
-              left: Math.min(pos.x + 16, window.innerWidth - 280),
-              top: Math.min(pos.y + 16, window.innerHeight - 260),
-            }}
+            data-tooltip-panel="true"
+            className="pointer-events-none fixed z-[100] overflow-hidden"
+            style={positionStyle()}
           >
             {content}
           </div>,
