@@ -61,11 +61,14 @@ export function PvpStatus({ state, message, version, latency }: { state: PvpConn
         <button
           type="button"
           aria-label="Render-se"
-          className="rounded-lg border border-red-300/20 bg-red-400/[.06] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[.1em] text-red-200 transition hover:bg-red-400/[.12] disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-red-300/20 bg-red-400/[.06] px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[.1em] text-red-200 transition hover:bg-red-400/[.12] disabled:cursor-not-allowed disabled:opacity-50"
           onClick={() => setConfirming(true)}
           disabled={submitting || state === "sending" || state === "retrying"}
         >
-          <span aria-hidden="true">🏳</span> Render-se
+          <svg aria-hidden="true" viewBox="0 0 16 16" className="h-3 w-3 fill-current" focusable="false">
+            <path d="M3 1.5a.75.75 0 0 1 .75.75v.5h7.1c.55 0 .9.58.64 1.06L10.3 6l1.19 2.19c.26.48-.09 1.06-.64 1.06h-7.1v5a.75.75 0 0 1-1.5 0v-12A.75.75 0 0 1 3 1.5Z" />
+          </svg>
+          Render-se
         </button>
       )}
       {roomCode && confirming && (
