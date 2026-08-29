@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import type { PvpConnectionState } from "@/game/client/match-model";
 
 const LABEL: Record<PvpConnectionState, string> = {
@@ -12,16 +12,16 @@ const LABEL: Record<PvpConnectionState, string> = {
   conflict: "Ressincronizando",
 };
 
+const subscribeLocation = () => () => {};
+const readRoomCode = () => new URLSearchParams(window.location.search).get("pvpRoom");
+const readServerRoomCode = () => null;
+
 export function PvpStatus({ state, message, version, latency }: { state: PvpConnectionState; message?: string; version?: number | null; latency?: number | null }) {
   const quality = latency == null ? null : latency < 120 ? "ÓTIMA" : latency < 260 ? "ESTÁVEL" : "ALTA";
-  const [roomCode, setRoomCode] = useState<string | null>(null);
+  const roomCode = useSyncExternalStore(subscribeLocation, readRoomCode, readServerRoomCode);
   const [confirming, setConfirming] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [concedeMessage, setConcedeMessage] = useState("");
-
-  useEffect(() => {
-    setRoomCode(new URLSearchParams(window.location.search).get("pvpRoom"));
-  }, []);
 
   const concede = async () => {
     if (!roomCode || submitting) return;
