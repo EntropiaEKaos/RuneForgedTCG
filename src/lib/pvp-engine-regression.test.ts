@@ -9,6 +9,7 @@ const settlement = fs.readFileSync(path.join(root, "src/lib/pvp-settlement.ts"),
 const transition = fs.readFileSync(path.join(root, "src/lib/pvp-authoritative-transition.ts"), "utf8");
 const replay = fs.readFileSync(path.join(root, "src/lib/pvp-replay.ts"), "utf8");
 const gameClient = fs.readFileSync(path.join(root, "src/app/play/GameClient.tsx"), "utf8");
+const pvpTransport = fs.readFileSync(path.join(root, "src/app/play/hooks/usePvpTransport.ts"), "utf8");
 
 if (!reducer.includes('if (opponentIsBot && s.phase === "blocking"')) {
   throw new Error("PvP attack must not auto-assign AI blockers when opponentIsBot=false.");
@@ -38,5 +39,14 @@ if (!replay.includes('applyGameAction(state, action, false)')) {
 }
 if (!gameClient.includes('pvpRoomCode')) {
   throw new Error("Game client must support the authoritative PvP room mode.");
+}
+if (!pvpTransport.includes("classifyPvpPollFailure")) {
+  throw new Error("PvP polling must classify terminal room/session failures explicitly.");
+}
+if (!pvpTransport.includes('credentials: "include"')) {
+  throw new Error("PvP polling must explicitly preserve the stable player session.");
+}
+if (!pvpTransport.includes("if (failure.terminal) return")) {
+  throw new Error("Terminal PvP polling failures must stop retrying without falling back to local play.");
 }
 console.log("pvp engine regression: OK");
