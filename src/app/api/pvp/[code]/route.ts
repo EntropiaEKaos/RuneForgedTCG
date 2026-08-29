@@ -138,9 +138,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
           const host: DeckInput = locked.hostDeckSnapshot ? snapshotDeck(locked.hostDeckSnapshot as DeckInput) : hostPreview;
           const guestSnapshot = snapshotDeck(guest);
           const contentSnapshot = snapshotReplayBundle(host, guestSnapshot);
-          const gameState = withRegisteredCardSnapshot(contentSnapshot.cardDefs, () =>
+          const initialGameState = withRegisteredCardSnapshot(contentSnapshot.cardDefs, () =>
             createGame(locked.hostName, host, guestSnapshot, Boolean(locked.playerFirst), locked.seed ?? undefined),
           );
+          // createGame() defaults the internal "ai" seat to mulligan-complete for PvE.
+          // In Casual PvP that seat is occupied by the second human, so both human
+          // participants must start with their mulligan pending.
+          const gameState: GameState = {
+            ...initialGameState,
+            mulliganDone: { player: false, ai: false },
+          };
           const rows = await tx.update(pvpRooms).set({ guestName, guestPlayerId: identity.playerId, guestDeck: guestDeckId, guestDeckSnapshot: guestSnapshot, contentSnapshot, contentHash: contentSnapshot.contentHash, state: "playing", settledAt: null, gameState, version: locked.version + 1, actionLog: [], eventLog: [], winner: null, expiresAt: new Date(Date.now() + PVP_PLAYING_TTL_MS), updatedAt: new Date() }).where(eq(pvpRooms.id, locked.id)).returning();
           if (rows[0]) await tx.insert(pvpSpectatorSnapshots).values({ roomId: rows[0].id, roomVersion: rows[0].version, gameState }).onConflictDoNothing();
           return rows;

@@ -18,11 +18,38 @@ function deckCopy(deck: DeckInput): DeckInput {
   };
 }
 
+/**
+ * Produce the JSON value that is hashed for immutable match content.
+ *
+ * PostgreSQL JSONB does not preserve object-key insertion order. Hashing a
+ * plain JSON.stringify(cardDefs) therefore makes a valid snapshot depend on
+ * whether it has already made a database round-trip. Canonicalizing every
+ * object key keeps the digest stable while preserving array order (which is
+ * semantically meaningful for several card-definition fields).
+ *
+ * Undefined object properties are omitted to match JSON.stringify semantics;
+ * undefined array slots become null, also matching JSON.stringify.
+ */
+function canonicalJsonValue(value: unknown, inArray = false): unknown {
+  if (value === undefined || typeof value === "function" || typeof value === "symbol") {
+    return inArray ? null : undefined;
+  }
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return value.map((item) => canonicalJsonValue(item, true));
+
+  const canonical: Record<string, unknown> = {};
+  for (const key of Object.keys(value as Record<string, unknown>).sort()) {
+    const child = canonicalJsonValue((value as Record<string, unknown>)[key], false);
+    if (child !== undefined) canonical[key] = child;
+  }
+  return canonical;
+}
+
 export function cardDefinitionsHash(cardDefs: readonly CardDef[]): string {
   const canonical = [...cardDefs]
     .map((card) => structuredClone(card))
     .sort((a, b) => a.defId.localeCompare(b.defId));
-  return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
+  return createHash("sha256").update(JSON.stringify(canonicalJsonValue(canonical))).digest("hex");
 }
 
 function referencedCardIds(card: CardDef): string[] {

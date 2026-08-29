@@ -127,13 +127,13 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://ci.placeholder.invalid
         run: npm run build
 
-      - name: HTTP E2E — alpha journey, recovery, Ranked fail-closed, casual matchmaking and DTO isolation
+      - name: HTTP E2E — alpha journey, recovery, Ranked fail-closed, casual matchmaking, two-browser PvP and DTO isolation
         env:
           E2E_BASE_URL: http://127.0.0.1:3000
         run: |
           npm start > /tmp/runeforge-next.log 2>&1 &
           NEXT_PID=$!
-          trap 'kill $NEXT_PID 2>/dev/null || true' EXIT
+          trap 'status=$?; if [ "$status" -ne 0 ]; then echo "--- Next server log ---"; cat /tmp/runeforge-next.log; fi; kill $NEXT_PID 2>/dev/null || true; exit "$status"' EXIT
           for i in $(seq 1 45); do
             if curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then break; fi
             if [ "$i" = "45" ]; then cat /tmp/runeforge-next.log; exit 1; fi
@@ -141,8 +141,10 @@ jobs:
           done
           npm run test:e2e:alpha-journey
           npm run test:e2e:http
+          node scripts/alpha-pvp-lobby-preflight.mjs
           node scripts/alpha-visual-journey.mjs
           node scripts/alpha-runtime-tooltip-cert.mjs
+          node scripts/alpha-casual-pvp-journey.mjs
 
       - name: Upload Alpha visual journey
         if: always()

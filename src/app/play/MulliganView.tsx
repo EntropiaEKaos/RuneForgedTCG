@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import CardTip from "@/components/CardTip";
 import { getCard } from "@/game/cards";
 import { mulliganPlan } from "@/game/archetypes";
 import type { GameState } from "@/game/types";
+import { PVP_CLIENT_STATUS_EVENT, type PvpClientStatusDetail } from "@/lib/pvp-client";
 
 export function MulliganView({
   state,
@@ -16,6 +18,17 @@ export function MulliganView({
   onToggle: (instanceId: string) => void;
   onConfirm: () => void;
 }) {
+  const [pvpStatus, setPvpStatus] = useState<PvpClientStatusDetail | null>(null);
+
+  useEffect(() => {
+    const onStatus = (event: Event) => {
+      const detail = (event as CustomEvent<PvpClientStatusDetail>).detail;
+      if (detail) setPvpStatus(detail);
+    };
+    window.addEventListener(PVP_CLIENT_STATUS_EVENT, onStatus);
+    return () => window.removeEventListener(PVP_CLIENT_STATUS_EVENT, onStatus);
+  }, []);
+
   const hand = state.players.player.hand;
   const manaCounts = Array(11).fill(0) as number[];
   hand.forEach((cardInstance) => {
@@ -26,6 +39,7 @@ export function MulliganView({
   const coach = mulliganPlan(hand.map((card) => card.defId), state.players.player.deckId);
   const replacing = selection.length;
   const keeping = Math.max(0, hand.length - replacing);
+  const sending = pvpStatus?.state === "sending" || pvpStatus?.state === "retrying";
 
   return (
     <main className="rf-app-page">
@@ -126,9 +140,18 @@ export function MulliganView({
               ? `Você devolverá ${replacing} carta(s) e manterá ${keeping}.`
               : "Nenhuma carta está marcada para troca; confirmar manterá a mão atual."}
           </p>
-          <button onClick={onConfirm} className="btn-primary min-w-[240px] text-base">
-            {replacing > 0 ? `🔄 Confirmar troca de ${replacing}` : "✓ Manter mão inicial"}
+          <button onClick={onConfirm} disabled={sending} className="btn-primary min-w-[240px] text-base disabled:cursor-wait disabled:opacity-60">
+            {sending ? "⌛ Confirmando…" : replacing > 0 ? `🔄 Confirmar troca de ${replacing}` : "✓ Manter mão inicial"}
           </button>
+          {pvpStatus ? (
+            <div
+              className={`pvp-status mt-3 max-w-xl rounded-xl border px-3 py-2 text-center text-xs ${pvpStatus.state === "error" ? "border-rose-300/20 bg-rose-300/[.06] text-rose-200" : pvpStatus.state === "confirmed" ? "border-emerald-300/20 bg-emerald-300/[.06] text-emerald-200" : "border-sky-300/20 bg-sky-300/[.06] text-sky-200"}`}
+              role="status"
+              aria-live="polite"
+            >
+              {pvpStatus.message}{pvpStatus.status != null ? ` · HTTP ${pvpStatus.status}` : ""}
+            </div>
+          ) : null}
           <span className="mt-2 text-[10px] uppercase tracking-[.14em] text-slate-600">Uma única confirmação encerra esta fase</span>
         </section>
       </div>

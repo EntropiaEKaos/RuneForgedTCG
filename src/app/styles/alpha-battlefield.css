@@ -8,7 +8,69 @@
    Rows keep their own horizontal scrolling during active play; this clamp is
    intentionally limited to the game-over phase. */
 .tcg-arena[data-match-phase="gameover"] {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100vw;
+  min-width: 0;
   overflow-x: clip;
+}
+
+/* Combat feedback is deliberately short-lived, but a match can reach gameover
+   while fixed-position overlays still have animation frames left. Some of
+   those surfaces are mounted outside the arena, so key suppression off the
+   result dialog itself rather than relying on arena ancestry. Once the modal
+   owns interaction these controls/FX no longer communicate actionable state. */
+body:has(.match-result-backdrop) .fx-pop,
+body:has(.match-result-backdrop) .combat-feedback,
+body:has(.match-result-backdrop) .combat-screen-flash,
+body:has(.match-result-backdrop) .match-cinematic,
+body:has(.match-result-backdrop) .combat-choreography,
+body:has(.match-result-backdrop) .mechanic-cue,
+body:has(.match-result-backdrop) .match-settings-button,
+body:has(.match-result-backdrop) .tutorial-checklist,
+body:has(.match-result-backdrop) .player-journey,
+body:has(.match-result-backdrop) .tcg-arena > .pointer-events-none.fixed {
+  display: none !important;
+}
+
+/* The result surface already has inset:0 in the base visual system. Let those
+   opposing insets determine its used width instead of combining them with
+   100vw, whose scrollbar/viewport geometry can produce a few pixels of root
+   overflow on otherwise valid desktop layouts. The content tree is allowed to
+   shrink at every flex/grid boundary so dynamic mastery/reward copy can never
+   force the dialog wider than its containing block. */
+.match-result-backdrop {
+  box-sizing: border-box;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.match-result-card {
+  box-sizing: border-box;
+  width: min(440px, 100%);
+  max-width: 100%;
+  min-width: 0;
+}
+
+.match-result-card *,
+.match-mastery > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.match-result-card p,
+.match-result-actions button {
+  overflow-wrap: anywhere;
+}
+
+.match-result-actions {
+  max-width: 100%;
+}
+
+.match-result-actions button {
+  white-space: normal;
 }
 
 @media (min-width: 901px) {
