@@ -131,7 +131,14 @@ export function validateGameActionSemantics(state: GameState, action: GameAction
         action.abilityIndex,
         action.target,
       );
-      return validation.ok ? ok() : fail(validation.reason ?? "activated ability cannot be used");
+      if (!validation.ok) return fail(validation.reason ?? "activated ability cannot be used");
+      const targetKind = validation.ability?.effect.target;
+      const requiresTarget = targetKind !== undefined && !["none", "self", "spellOnStack"].includes(targetKind);
+      // Engine/replay compatibility may auto-target a legacy Sentinela when a
+      // trusted internal caller omits the target. Client-supplied PvP actions
+      // never get that privilege: their board target must be explicit.
+      if (requiresTarget && !action.target) return fail("activated ability requires an explicit client target");
+      return ok();
     }
 
     if (action.type === "mulligan") {
