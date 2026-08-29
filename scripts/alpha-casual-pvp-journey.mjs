@@ -410,15 +410,15 @@ async function main() {
     await waitForText(host.cdp, "PvP casual", 20_000);
     await waitForText(host.cdp, hostName, 20_000);
     await clickText(host.cdp, "Criar nova sala");
-    await waitForText(host.cdp, "Sua sala", 20_000);
-    const roomCode = await waitUntil(() => evaluate(host.cdp, `([...document.querySelectorAll('h2')].map((node) => (node.textContent || '').trim()).find((text) => /^[A-Z2-9]{6}$/.test(text)) || '')`), "host room code", 12_000);
+    const roomCode = await waitUntil(() => evaluate(host.cdp, `([...document.querySelectorAll('h2')].map((node) => (node.textContent || '').trim()).find((text) => /^[A-Z2-9]{6}$/.test(text)) || '')`), "host authoritative room code rendered in lobby", 20_000);
     assert.match(roomCode, /^[A-Z2-9]{6}$/);
     await capture(host, "15-pvp-host-lobby.png", "Casual PvP host waiting room", manifest);
 
     await navigate(guest.cdp, "/pvp");
     await waitForText(guest.cdp, "PvP casual", 20_000);
     await waitForText(guest.cdp, guestName, 20_000);
-    await waitForText(guest.cdp, `Sala ${roomCode}`, 20_000);
+    await waitForText(guest.cdp, roomCode, 20_000);
+    await waitForText(guest.cdp, hostName, 20_000);
     await capture(guest, "16-pvp-guest-lobby.png", "Casual PvP guest sees host room", manifest);
 
     await setInputValue(guest.cdp, '[aria-label="Código da sala PvP"]', roomCode);
