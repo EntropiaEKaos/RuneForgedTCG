@@ -16,15 +16,24 @@ Open `http://127.0.0.1:3000`, choose **Play Now**, select a deck and enter the N
 
 The local alpha keeps Ranked and real-money payments disabled. The admin login defaults are documented in `.env.example` and are strictly for local development.
 
-Run the complete dependency-independent alpha gate with:
+Run the dependency-independent source/build gate with:
 
 ```bash
 npm run alpha:verify
 ```
 
+After `alpha:setup`, run the complete playable-alpha certification with:
+
+```bash
+npm run alpha:certify
+```
+
+`alpha:certify` reruns the alpha verification gates, starts the production build locally and executes a real HTTP player journey against the persistent PostgreSQL database: account creation → catalog → Forge deck persistence → server-issued PvE token → complete authoritative match replay/settlement → exactly-once XP/gold/dust rewards → profile progression → account recovery with the same persisted deck and balances.
+
 ## Current release status
 
 - PvE / Casual PvP / Studio / Vanilla / Forge / Draft: candidate GO after clean deployment verification.
+- Playable Alpha journey: certified in CI only when the full persisted HTTP journey passes after the production build.
 - Ranked code + balance candidate: **PASS** for the `season-zero-r1` certified pool.
 - Ranked production activation remains **fail-closed by default** (`RANKED_RELEASE_CERTIFIED=false`) until the clean deployment machine completes the official dependency/toolchain/PostgreSQL release gate and deliberately switches it to `true`.
 - Mercado Pago: implementation is present and hardened; validate production/sandbox credentials and complete provider E2E before accepting real money.
@@ -73,6 +82,7 @@ RuneForge does not mix source-text checks with behavioral evidence:
 - `npm run audit:source-contracts` — static source/configuration contracts; useful lint, **not behavioral proof**.
 - `npm run audit:schema-static` — static SQL/Drizzle structural guards; PostgreSQL execution remains authoritative.
 - `npm run audit:test-taxonomy` — prevents source-reading tests from being counted as behavioral.
+- `npm run test:e2e:alpha-journey` — real HTTP/PostgreSQL certification of the core Alpha player loop against a running production build.
 
 Final local evidence in this environment:
 

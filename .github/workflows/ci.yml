@@ -127,7 +127,7 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://ci.placeholder.invalid
         run: npm run build
 
-      - name: HTTP E2E — recovery, Ranked fail-closed, casual matchmaking and DTO isolation
+      - name: HTTP E2E — alpha journey, recovery, Ranked fail-closed, casual matchmaking and DTO isolation
         env:
           E2E_BASE_URL: http://127.0.0.1:3000
         run: |
@@ -139,4 +139,5 @@ jobs:
             if [ "$i" = "45" ]; then cat /tmp/runeforge-next.log; exit 1; fi
             sleep 1
           done
+          npm run test:e2e:alpha-journey
           npm run test:e2e:http
