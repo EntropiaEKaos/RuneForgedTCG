@@ -203,8 +203,10 @@ async function clickTextPhysical(cdp, text, exact = false) {
       };
     });
     const usable = probes.find((probe) => probe.belongs);
+    if (usable) element.focus({ preventScroll: true });
     return {
       ok: Boolean(usable),
+      focused: Boolean(usable && document.activeElement === element),
       point: usable ? { x: usable.x, y: usable.y } : null,
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       ariaExpanded: element.getAttribute('aria-expanded'),
@@ -212,10 +214,9 @@ async function clickTextPhysical(cdp, text, exact = false) {
     };
   })()`);
   assert.equal(target?.ok, true, `Physical control is visible but not hit-testable for ${text}: ${JSON.stringify(target)}`);
-  console.log(`ALPHA CASUAL PVP: physical hit target ${text}`, JSON.stringify({ point: target.point, rect: target.rect, ariaExpanded: target.ariaExpanded }));
-  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: target.point.x, y: target.point.y, pointerType: "mouse" });
-  await cdp.call("Input.dispatchMouseEvent", { type: "mousePressed", x: target.point.x, y: target.point.y, button: "left", buttons: 1, clickCount: 1, pointerType: "mouse" });
-  await cdp.call("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.point.x, y: target.point.y, button: "left", buttons: 0, clickCount: 1, pointerType: "mouse" });
+  assert.equal(target?.focused, true, `Physical control could not receive keyboard focus for ${text}: ${JSON.stringify(target)}`);
+  console.log(`ALPHA CASUAL PVP: hit-testable keyboard target ${text}`, JSON.stringify({ point: target.point, rect: target.rect, ariaExpanded: target.ariaExpanded }));
+  await pressKey(cdp, "Enter", "Enter");
   await sleep(100);
 }
 
@@ -576,10 +577,10 @@ async function main() {
     assert.equal(mirrored.version, version, "reconnected guest must recover the current authoritative version");
     await capture(guest, "21-pvp-reconnected-guest.png", "guest restored from authoritative room after reconnect", manifest);
 
-    // Finish through the real in-battle concession UI using physical pointer
-    // input through CDP. Hit-testing is required before dispatch so a visually
-    // present but overlapped control fails certification instead of being
-    // activated through synthetic DOM methods.
+    // Finish through the real in-battle concession UI using native keyboard
+    // activation through CDP. Each control must first be physically visible,
+    // unobstructed by hit-testing and focusable; activation then comes from a
+    // real Enter key event instead of synthetic DOM click() or a test endpoint.
     await clickTextPhysical(guest.cdp, "Render-se", true);
     await waitForText(guest.cdp, "Confirmar rendição", 5_000);
     await clickTextPhysical(guest.cdp, "Confirmar rendição", true);
