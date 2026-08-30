@@ -314,7 +314,7 @@ async function matchSnapshot(cdp) {
     hand: [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')].map((host) => host.dataset.cardTipDefId),
     board: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')].map((host) => ({ defId: host.dataset.cardTipDefId, unitId: host.dataset.unitId })),
     boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length,
-    manaText: [...document.querySelectorAll('body *')].map((node) => node.textContent || '').find((text) => /^\\s*\\d+\\s*\\/\\s*\\d+\\s*MANA\\s*$/i.test(text)) || null,
+    manaText: [...document.querySelectorAll('body *')].map((node) => node.textContent || '').find((text) => /^\\s*\\d+\\s*\/\\s*\\d+\\s*MANA\\s*$/i.test(text)) || null,
   }))()`);
 }
 
@@ -323,6 +323,21 @@ async function playCheapBlocker(cdp, legend) {
     const legend = ${JSON.stringify(legend)};
     const boardCount = document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length;
     if (boardCount >= 2) return null;
+    const hosts = [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')];
+    const target = hosts.find((host) => host.dataset.cardTipDefId !== legend && !${JSON.stringify(activatedLegends)}.includes(host.dataset.cardTipDefId) && host.querySelector('button:not(:disabled)'));
+    const button = target?.querySelector('button:not(:disabled)');
+    if (!button) return null;
+    const defId = target.dataset.cardTipDefId;
+    button.click();
+    return defId;
+  })()`);
+  if (result) await sleep(350);
+  return result;
+}
+
+async function spendResidualMana(cdp, legend) {
+  const result = await evaluate(cdp, `(() => {
+    const legend = ${JSON.stringify(legend)};
     const hosts = [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')];
     const target = hosts.find((host) => host.dataset.cardTipDefId !== legend && !${JSON.stringify(activatedLegends)}.includes(host.dataset.cardTipDefId) && host.querySelector('button:not(:disabled)'));
     const button = target?.querySelector('button:not(:disabled)');
@@ -481,8 +496,17 @@ async function main() {
     await waitUntil(() => evaluate(cdp, "!document.querySelector('.match-guide-backdrop')"), "match guide to close");
 
     const played = await driveUntilLegendPlayed(cdp, chosen.legend);
+    const initialAbilityState = await abilityEvidence(cdp, chosen.legend);
+    let residualManaSpent = null;
+    if (initialAbilityState?.status === "ready") {
+      residualManaSpent = await spendResidualMana(cdp, chosen.legend);
+      assert.ok(
+        residualManaSpent,
+        `activated legend remained ready after being played and no legal filler could consume its residual mana: ${JSON.stringify({ chosen, played, initialAbilityState })}`,
+      );
+    }
     const blocked = await waitForAbilityState(cdp, chosen.legend, "blocked", /Mana insuficiente/i);
-    assert.equal(blocked.disabled, true, "newly played 8-mana legend must expose a disabled ability after spending its mana");
+    assert.equal(blocked.disabled, true, "played 8-mana legend must expose a disabled ability after residual mana is consumed");
     assert.match(blocked.text, /BLOQUEADA/i, "blocked state must be visible on the battlefield control");
     await capture(cdp, blockedScreenshot);
 
@@ -537,6 +561,8 @@ async function main() {
       actualOpeningHand,
       playedRound: played.round,
       refreshedRound: refreshed.round,
+      initialAbilityState,
+      residualManaSpent,
       blocked,
       ready,
       tooltip,
