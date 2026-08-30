@@ -1,10 +1,10 @@
 "use client";
 import RuleBuilder from "../RuleBuilder";
-import { EffectEditor, F, Json, Panel } from "./CardAuthoringFields";
+import { StudioEffectEditor } from "../AbilityComposerFields";
+import { F, Json, Panel } from "./CardAuthoringFields";
 import ActivatedAbilityEditor from "./ActivatedAbilityEditor";
 import {
   CARD_KEYWORDS as KWS,
-  CARD_EFFECT_KINDS as EFFECT_KINDS,
   CARD_TRIGGERS as TRIGGERS,
   CARD_LEVEL_UP_TYPES as LEVEL_UP_TYPES,
 } from "@/game/card-authoring";
@@ -39,7 +39,7 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
             {(card.sentinela?.abilities ?? []).map((ab: any, i: number) => (
               <div
                 key={i}
-                className="grid items-end gap-2 rounded-xl border border-white/10 bg-white/[.02] p-3 sm:grid-cols-[80px_1fr_1fr_90px_auto]"
+                className="grid items-end gap-2 rounded-xl border border-white/10 bg-white/[.02] p-3 sm:grid-cols-[100px_1fr_auto]"
               >
                 <F l="Custo">
                   <input
@@ -66,36 +66,9 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
                     }}
                   />
                 </F>
-                <F l="Efeito (kind)">
-                  <select
-                    className="input"
-                    value={ab.effect?.kind || "draw"}
-                    onChange={(e) => {
-                      const sen = card.sentinela || {};
-                      const abilities = [...(sen.abilities ?? [])];
-                      abilities[i] = { ...abilities[i], effect: { ...abilities[i].effect, kind: e.target.value } };
-                      set("sentinela", { ...sen, abilities });
-                    }}
-                  >
-                    {EFFECT_KINDS.map((k) => (
-                      <option key={k} value={k}>{k}</option>
-                    ))}
-                  </select>
-                </F>
-                <F l="Qtd">
-                  <input
-                    type="number"
-                    className="input"
-                    value={ab.effect?.amount ?? 0}
-                    onChange={(e) => {
-                      const sen = card.sentinela || {};
-                      const abilities = [...(sen.abilities ?? [])];
-                      abilities[i] = { ...abilities[i], effect: { ...abilities[i].effect, amount: Number(e.target.value) || 0 } };
-                      set("sentinela", { ...sen, abilities });
-                    }}
-                  />
-                </F>
                 <button
+                  type="button"
+                  aria-label={`Remover habilidade ${i + 1}`}
                   onClick={() => {
                     const sen = card.sentinela || {};
                     const abilities = [...(sen.abilities ?? [])];
@@ -106,11 +79,11 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
                 >
                   ✕
                 </button>
-                <div className="sm:col-span-5">
-                  <EffectEditor
+                <div className="sm:col-span-3">
+                  <StudioEffectEditor
                     value={ab.effect || { kind: "draw", amount: 1, target: "none" }}
                     classes={classes}
-                    onChange={(effect: any) => {
+                    onChange={(effect) => {
                       const sen = card.sentinela || {};
                       const abilities = [...(sen.abilities ?? [])];
                       abilities[i] = { ...abilities[i], effect };
@@ -127,6 +100,7 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
             )}
           </div>
           <button
+            type="button"
             onClick={() => {
               const sen = card.sentinela || {};
               const abilities = [...(sen.abilities ?? [])];
@@ -143,20 +117,26 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
       <ActivatedAbilityEditor model={model} />
 
       {card.type === "Spell" && (
-        <Panel title="Spell Contract" eyebrow="VISUAL EFFECT AUTHORING">
-          <EffectEditor value={card.spell || { kind: "damageUnit", amount: 1, target: "enemyUnit" }} classes={classes} onChange={(v: any) => set("spell", v)} />
+        <Panel title="Spell Contract" eyebrow="SEMANTIC EFFECT AUTHORING">
+          <StudioEffectEditor
+            value={card.spell || { kind: "damageUnit", amount: 1, target: "enemyUnit" }}
+            classes={classes}
+            onChange={(effect) => set("spell", effect)}
+          />
         </Panel>
       )}
-      <Panel title="Trigger Contract" eyebrow="VISUAL TRIGGER AUTHORING">
+      <Panel title="Trigger Contract" eyebrow="SEMANTIC TRIGGER AUTHORING">
         <div className="grid gap-3 md:grid-cols-[240px_1fr]">
           <F l="Trigger event">
             <select className="input" value={card.trigger?.when || "onSummon"} onChange={(e) => set("trigger", { when: e.target.value, effect: card.trigger?.effect || { kind: "buffUnit", amount: 0, target: "allyUnit" } })}>
               {TRIGGERS.map((x) => <option key={x} value={x}>{x}</option>)}
             </select>
           </F>
-          <div>
-            <EffectEditor value={card.trigger?.effect || { kind: "buffUnit", amount: 0, target: "allyUnit" }} classes={classes} onChange={(effect: any) => set("trigger", { when: card.trigger?.when || "onSummon", effect })} />
-          </div>
+          <StudioEffectEditor
+            value={card.trigger?.effect || { kind: "buffUnit", amount: 0, target: "allyUnit" }}
+            classes={classes}
+            onChange={(effect) => set("trigger", { when: card.trigger?.when || "onSummon", effect })}
+          />
         </div>
         <button type="button" className="btn-ghost mt-3 text-xs" onClick={() => set("trigger", undefined)}>Remove trigger</button>
       </Panel>

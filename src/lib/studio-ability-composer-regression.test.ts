@@ -7,6 +7,7 @@ const read = (relative: string) => fs.readFileSync(path.join(root, relative), "u
 
 const shared = read("src/app/admin/studio/AbilityComposerFields.tsx");
 const activated = read("src/app/admin/studio/cards/ActivatedAbilityEditor.tsx");
+const cardRules = read("src/app/admin/studio/cards/CardRulesTab.tsx");
 const mechanics = read("src/app/admin/studio/mechanics/MechanicsStudio.tsx");
 
 assert.match(shared, /CARD_EFFECT_CONTRACTS/, "shared composer must use canonical semantic effect contracts");
@@ -21,6 +22,12 @@ assert.match(activated, /StudioAbilityCostEditor/, "activated abilities share th
 assert.match(activated, /StudioEffectEditor/, "activated abilities share the canonical effect editor");
 assert.match(activated, /blockedTargets=\{\["spellOnStack"\]\}/, "activated authoring blocks stack-only reaction targeting before draft creation");
 
+assert.match(cardRules, /from "\.\.\/AbilityComposerFields"/, "Card Rules consumes the shared composer");
+assert.equal((cardRules.match(/<StudioEffectEditor/g) ?? []).length, 3, "Sentinela, Spell and Trigger must each use the canonical semantic effect editor");
+assert.doesNotMatch(cardRules, /\bEffectEditor\b/, "Card Rules must not keep the legacy parallel effect editor");
+assert.doesNotMatch(cardRules, /CARD_EFFECT_KINDS as EFFECT_KINDS/, "Card Rules must not keep a parallel primitive selector");
+assert.doesNotMatch(cardRules, /Efeito \(kind\)/, "Sentinela must not duplicate primitive selection outside the semantic composer");
+
 assert.match(mechanics, /from "\.\.\/AbilityComposerFields"/, "Mechanics Studio consumes the shared composer");
 assert.match(mechanics, /StudioConditionEditor/, "Mechanics Studio shares the canonical condition editor");
 assert.match(mechanics, /StudioEffectEditor/, "Mechanics Studio shares the canonical effect editor");
@@ -28,4 +35,4 @@ assert.doesNotMatch(mechanics, /CARD_TARGETS/, "Mechanics Studio must not expose
 assert.doesNotMatch(mechanics, /function Effect\(/, "Mechanics Studio must not keep a parallel effect editor");
 assert.doesNotMatch(mechanics, /function ConditionEditor\(/, "Mechanics Studio must not keep a parallel condition editor");
 
-console.log("STUDIO ABILITY COMPOSER REGRESSION: PASS — activated abilities and Mechanics Studio share canonical semantic authoring fields");
+console.log("STUDIO ABILITY COMPOSER REGRESSION: PASS — Card Rules, activated abilities and Mechanics Studio share canonical semantic authoring fields");
