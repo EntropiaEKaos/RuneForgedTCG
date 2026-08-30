@@ -1,6 +1,7 @@
 "use client";
 
-import { EffectEditor, F, Panel } from "./CardAuthoringFields";
+import { F, Panel } from "./CardAuthoringFields";
+import { AbilityGrammarReadiness, StudioAbilityCostEditor, StudioEffectEditor } from "../AbilityComposerFields";
 import type { CardAuthoringModel } from "./CardAuthoringModel";
 import type { ActivatedAbility } from "@/game/activated-ability-types";
 
@@ -21,30 +22,24 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
     next[index] = { ...next[index], ...patch };
     replace(next);
   };
-  const updateCost = (index: number, patch: Record<string, unknown>) => {
-    const current = abilities[index]?.cost ?? {};
-    const nextCost = { ...current, ...patch } as ActivatedAbility["cost"];
-    for (const key of Object.keys(nextCost ?? {})) {
-      if ((nextCost as Record<string, unknown>)[key] === undefined || (nextCost as Record<string, unknown>)[key] === false || (nextCost as Record<string, unknown>)[key] === 0) {
-        delete (nextCost as Record<string, unknown>)[key];
-      }
-    }
-    update(index, { cost: nextCost && Object.keys(nextCost).length ? nextCost : undefined });
-  };
 
   return (
-    <Panel title="Habilidades ativadas" eyebrow="COST → TARGET → EFFECT">
-      <p className="mb-4 max-w-4xl text-xs leading-5 text-slate-400">
-        Crie ações voluntárias para cartas que permanecem no campo. O motor valida custo, dono, limite de uso,
-        Hexproof e alvo no servidor. Mana é sempre mana regular; pagar vida do Nexus nunca pode ser letal.
-        Habilidades que miram a pilha permanecem bloqueadas até o protocolo autoritativo de reação suportá-las.
-      </p>
+    <Panel title="Habilidades ativadas" eyebrow="ABILITY SYSTEM 2.0 · COST → TARGET → EFFECT">
+      <div className="mb-4 grid gap-4 xl:grid-cols-[1fr_420px]">
+        <p className="max-w-4xl text-xs leading-5 text-slate-400">
+          Crie ações voluntárias para cartas que permanecem no campo. O mesmo compositor semântico usado pelo
+          Mechanics Studio limita cada primitiva aos targets aceitos pela engine. Mana é regular; pagar vida do
+          Nexus nunca pode ser letal. Negar spell continua indisponível aqui até habilidades ativadas participarem
+          do protocolo autoritativo de reação.
+        </p>
+        <AbilityGrammarReadiness />
+      </div>
 
       <div className="space-y-3">
         {abilities.map((ability, index) => {
           const unlimited = ability.maxUsesPerRound === null;
           return (
-            <section key={index} className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[.025] p-4">
+            <section key={index} data-studio-ability-composer="activated" className="rounded-2xl border border-cyan-300/15 bg-cyan-300/[.025] p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-[240px] flex-1">
                   <F l={`Habilidade ${index + 1} · descrição`}>
@@ -71,39 +66,15 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
                 </button>
               </div>
 
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <F l="Mana regular">
-                  <input
-                    className="input"
-                    type="number"
-                    min={0}
-                    max={20}
-                    value={ability.cost?.mana ?? 0}
-                    onChange={(event) => updateCost(index, { mana: Math.max(0, Math.min(20, Number(event.target.value) || 0)) })}
-                  />
-                </F>
-                <F l="Vida do Nexus">
-                  <input
-                    className="input"
-                    type="number"
-                    min={0}
-                    max={20}
-                    value={ability.cost?.nexusHealth ?? 0}
-                    onChange={(event) => updateCost(index, { nexusHealth: Math.max(0, Math.min(20, Number(event.target.value) || 0)) })}
-                  />
-                </F>
-                {card.type === "Sentinela" && (
-                  <F l="Δ Lealdade">
-                    <input
-                      className="input"
-                      type="number"
-                      min={-20}
-                      max={20}
-                      value={ability.cost?.loyaltyDelta ?? 0}
-                      onChange={(event) => updateCost(index, { loyaltyDelta: Math.max(-20, Math.min(20, Number(event.target.value) || 0)) })}
-                    />
-                  </F>
-                )}
+              <div className="mt-3">
+                <StudioAbilityCostEditor
+                  value={ability.cost}
+                  showLoyalty={card.type === "Sentinela"}
+                  onChange={(cost) => update(index, { cost })}
+                />
+              </div>
+
+              <div className="mt-3 grid max-w-xs gap-3">
                 <F l="Usos / rodada">
                   <input
                     className="input"
@@ -115,45 +86,22 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
                     onChange={(event) => update(index, { maxUsesPerRound: Math.max(1, Math.min(10, Number(event.target.value) || 1)) })}
                   />
                 </F>
-                <div className="flex flex-col justify-end gap-2 pb-1 text-xs text-slate-300">
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(ability.cost?.exhaustSelf)}
-                      onChange={(event) => updateCost(index, { exhaustSelf: event.target.checked })}
-                    />
-                    Exaurir fonte
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(ability.cost?.sacrificeSelf)}
-                      onChange={(event) => updateCost(index, { sacrificeSelf: event.target.checked })}
-                    />
-                    Sacrificar fonte
-                  </label>
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={unlimited}
-                      onChange={(event) => update(index, { maxUsesPerRound: event.target.checked ? null : 1 })}
-                    />
-                    Sem limite por rodada
-                  </label>
-                </div>
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={unlimited}
+                    onChange={(event) => update(index, { maxUsesPerRound: event.target.checked ? null : 1 })}
+                  />
+                  Sem limite por rodada
+                </label>
               </div>
 
               <div className="mt-4">
-                <EffectEditor
+                <StudioEffectEditor
                   value={ability.effect}
                   classes={classes}
-                  onChange={(effect: ActivatedAbility["effect"]) => {
-                    // Keep unsupported stack targeting out of draft data instead of
-                    // letting the designer discover the restriction only at publish.
-                    update(index, {
-                      effect: effect.target === "spellOnStack" ? { ...effect, target: "none" } : effect,
-                    });
-                  }}
+                  blockedTargets={["spellOnStack"]}
+                  onChange={(effect) => update(index, { effect })}
                 />
               </div>
             </section>
