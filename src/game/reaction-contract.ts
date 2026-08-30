@@ -1,8 +1,49 @@
 import { getCard } from "./cards";
-import type { BoardEntity, CardInstance, GameState, PlayerId, TargetKind } from "./types";
+import type { BoardEntity, CardDef, CardInstance, GameState, PlayerId, TargetKind } from "./types";
 import { canCastReaction, isValidTarget } from "./engine/actions";
 
 export type ReactionActionKind = "unit" | "spell" | "sentinela";
+export interface ReactionActionContext {
+  kind: ReactionActionKind;
+  defId?: string;
+  instanceId?: string;
+}
+
+export const UNCOUNTERABLE_RULE_KEY = "uncounterable" as const;
+export const COUNTER_FILTER_KEYS = {
+  unit: "counter_unit",
+  spell: "counter_spell",
+  sentinela: "counter_sentinela",
+} as const satisfies Record<ReactionActionKind, string>;
+export const COUNTER_ACTION_KINDS = ["unit", "spell", "sentinela"] as const satisfies readonly ReactionActionKind[];
+
+function actionContext(action: ReactionActionKind | ReactionActionContext): ReactionActionContext {
+  return typeof action === "string" ? { kind: action } : action;
+}
+
+/** Reserved engine keyword authored through `customKeywords` until Keyword 2.0 migrates it. */
+export function cannotBeCountered(card: CardDef): boolean {
+  return (card.customKeywords ?? []).includes(UNCOUNTERABLE_RULE_KEY);
+}
+
+/**
+ * Counter filters are opt-in. A counter card with no `counter_*` rule keys is
+ * universal across every action kind currently supported by the stack.
+ */
+export function counterActionKinds(card: CardDef): ReactionActionKind[] {
+  if (card.type !== "Spell" || card.spell?.kind !== "negateSpell") return [];
+  const authored = new Set(card.customKeywords ?? []);
+  const filtered = COUNTER_ACTION_KINDS.filter((kind) => authored.has(COUNTER_FILTER_KEYS[kind]));
+  return filtered.length ? [...filtered] : [...COUNTER_ACTION_KINDS];
+}
+
+export function canCounterPendingAction(counterCard: CardDef, action: ReactionActionKind | ReactionActionContext): boolean {
+  if (counterCard.type !== "Spell" || counterCard.spell?.kind !== "negateSpell") return false;
+  const pending = actionContext(action);
+  if (!counterActionKinds(counterCard).includes(pending.kind)) return false;
+  if (pending.defId && cannotBeCountered(getCard(pending.defId))) return false;
+  return true;
+}
 
 /**
  * Ability System 2.0 reaction contract.
@@ -20,6 +61,8 @@ export interface ReactionEligibility {
     | "speed-or-cost"
     | "missing-spell"
     | "stack-target-mismatch"
+    | "counter-kind-mismatch"
+    | "target-uncounterable"
     | "no-legal-target";
 }
 
@@ -37,10 +80,11 @@ export function reactionTargetAvailable(
   state: GameState,
   playerId: PlayerId,
   target: TargetKind,
-  actionKind: ReactionActionKind,
+  action: ReactionActionKind | ReactionActionContext,
 ): boolean {
+  const pending = actionContext(action);
   if (target === "none" || target === "self") return true;
-  if (target === "spellOnStack") return actionKind === "spell";
+  if (target === "spellOnStack") return pending.kind === "spell";
   return boardEntities(state).some((entity) => isValidTarget(state, playerId, target, entity));
 }
 
@@ -48,9 +92,10 @@ export function reactionEligibility(
   state: GameState,
   playerId: PlayerId,
   instanceId: string,
-  actionKind: ReactionActionKind,
+  action: ReactionActionKind | ReactionActionContext,
 ): ReactionEligibility {
-  if (!canCastReaction(state, playerId, instanceId, actionKind)) {
+  const pending = actionContext(action);
+  if (!canCastReaction(state, playerId, instanceId, pending.kind)) {
     return { allowed: false, reason: "speed-or-cost" };
   }
 
@@ -59,10 +104,20 @@ export function reactionEligibility(
   const def = getCard(instance.defId);
   if (def.type !== "Spell" || !def.spell) return { allowed: false, reason: "missing-spell" };
 
-  if (def.spell.target === "spellOnStack" && actionKind !== "spell") {
+  if (def.spell.kind === "negateSpell") {
+    if (!counterActionKinds(def).includes(pending.kind)) {
+      return { allowed: false, reason: "counter-kind-mismatch" };
+    }
+    if (pending.defId && cannotBeCountered(getCard(pending.defId))) {
+      return { allowed: false, reason: "target-uncounterable" };
+    }
+    return { allowed: true, reason: "allowed" };
+  }
+
+  if (def.spell.target === "spellOnStack" && pending.kind !== "spell") {
     return { allowed: false, reason: "stack-target-mismatch" };
   }
-  if (!reactionTargetAvailable(state, playerId, def.spell.target, actionKind)) {
+  if (!reactionTargetAvailable(state, playerId, def.spell.target, pending)) {
     return { allowed: false, reason: "no-legal-target" };
   }
   return { allowed: true, reason: "allowed" };
@@ -72,23 +127,23 @@ export function canReactWithCard(
   state: GameState,
   playerId: PlayerId,
   instanceId: string,
-  actionKind: ReactionActionKind,
+  action: ReactionActionKind | ReactionActionContext,
 ): boolean {
-  return reactionEligibility(state, playerId, instanceId, actionKind).allowed;
+  return reactionEligibility(state, playerId, instanceId, action).allowed;
 }
 
 export function eligibleReactionCards(
   state: GameState,
   playerId: PlayerId,
-  actionKind: ReactionActionKind,
+  action: ReactionActionKind | ReactionActionContext,
 ): CardInstance[] {
-  return state.players[playerId].hand.filter((card) => canReactWithCard(state, playerId, card.instanceId, actionKind));
+  return state.players[playerId].hand.filter((card) => canReactWithCard(state, playerId, card.instanceId, action));
 }
 
 export function hasReactionOpportunity(
   state: GameState,
   playerId: PlayerId,
-  actionKind: ReactionActionKind,
+  action: ReactionActionKind | ReactionActionContext,
 ): boolean {
-  return eligibleReactionCards(state, playerId, actionKind).length > 0;
+  return eligibleReactionCards(state, playerId, action).length > 0;
 }
