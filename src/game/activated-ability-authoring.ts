@@ -50,6 +50,16 @@ function sanitizeCost(raw: unknown, sourceType: CardDef["type"]): { ok: true; co
   return Object.keys(cost).length ? { ok: true, cost } : { ok: true };
 }
 
+function hasConsumingCost(cost: ActivatedAbilityCost | undefined): boolean {
+  return Boolean(
+    (cost?.mana ?? 0) > 0 ||
+    (cost?.nexusHealth ?? 0) > 0 ||
+    cost?.exhaustSelf ||
+    cost?.sacrificeSelf ||
+    (cost?.loyaltyDelta ?? 0) < 0
+  );
+}
+
 /**
  * Reuse the canonical CardEffect sanitizer without exporting another parallel
  * rules validator. A zero-cost throwaway Spell exercises exactly the same
@@ -125,6 +135,13 @@ export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDe
       const value = finiteInteger(input.maxUsesPerRound, 1, 10);
       if (value === null) return { ok: false, error: "maxUsesPerRound must be null or an integer from 1 to 10" };
       maxUsesPerRound = value;
+    }
+
+    if (maxUsesPerRound === null && !hasConsumingCost(costResult.cost)) {
+      return { ok: false, error: "Unlimited activated abilities require a consuming cost (mana, Nexus health, exhaust, sacrifice or negative loyalty)" };
+    }
+    if (base.card.type === "Sentinela" && maxUsesPerRound !== undefined && maxUsesPerRound !== 1) {
+      return { ok: false, error: "Sentinelas share one activation per round across all legacy and generic abilities" };
     }
 
     abilities.push({
