@@ -314,7 +314,7 @@ async function matchSnapshot(cdp) {
     hand: [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')].map((host) => host.dataset.cardTipDefId),
     board: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')].map((host) => ({ defId: host.dataset.cardTipDefId, unitId: host.dataset.unitId })),
     boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length,
-    manaText: [...document.querySelectorAll('body *')].map((node) => node.textContent || '').find((text) => /^\\s*\\d+\\s*\/\\s*\\d+\\s*MANA\\s*$/i.test(text)) || null,
+    manaText: [...document.querySelectorAll('body *')].map((node) => node.textContent || '').find((text) => /^\\s*\\d+\\s*\\/\\s*\\d+\\s*MANA\\s*$/i.test(text)) || null,
   }))()`);
 }
 
