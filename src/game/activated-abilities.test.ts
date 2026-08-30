@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   activateAbility,
   activateSentinelaAbility,
+  canActivateSentinela,
   canBeginActivateAbility,
   createCustomGame,
   endTurn,
@@ -11,6 +12,7 @@ import {
 } from "./engine";
 import { applyGameAction } from "./reducer";
 import { validateGameActionSemantics } from "./action-validator";
+import { validateAuthorableCardWithActivatedAbilities } from "./activated-ability-authoring";
 import { clearRegisteredCustomCards, registerCustomCards } from "./custom-registry";
 import type { CardDef, DeckInput, GameState } from "./types";
 
@@ -79,11 +81,30 @@ const cards: CardDef[] = [
     cost: 1,
     rarity: "Common",
     maxHealth: 3,
-    description: "Unlimited: deal 1 to the enemy Nexus.",
+    description: "Pay 1 mana: deal 1 to the enemy Nexus. Unlimited while mana remains.",
     emoji: "🔁",
     activatedAbilities: [
       {
         description: "Pulso Contínuo",
+        cost: { mana: 1 },
+        maxUsesPerRound: null,
+        effect: { kind: "damageNexus", amount: 1, target: "none" },
+      },
+    ],
+  },
+  {
+    defId: "test_unsafe_loop",
+    name: "Unsafe Loop",
+    region: "Tidecall",
+    type: "Artifact",
+    cost: 1,
+    rarity: "Common",
+    maxHealth: 3,
+    description: "Invalid regression fixture: zero-cost unlimited damage.",
+    emoji: "∞",
+    activatedAbilities: [
+      {
+        description: "Loop Infinito",
         maxUsesPerRound: null,
         effect: { kind: "damageNexus", amount: 1, target: "none" },
       },
@@ -124,6 +145,29 @@ const cards: CardDef[] = [
       {
         description: "Quebrar Relíquia",
         effect: { kind: "destroyPermanent", amount: 0, target: "enemyPermanent" },
+      },
+    ],
+  },
+  {
+    defId: "test_hybrid_sentinel",
+    name: "Hybrid Sentinel",
+    region: "Emberhold",
+    type: "Sentinela",
+    cost: 3,
+    rarity: "Rare",
+    description: "Legacy and generic abilities share one activation budget.",
+    emoji: "◆",
+    sentinela: {
+      startingLoyalty: 3,
+      abilities: [
+        { cost: 1, description: "+1: ping Nexus", effect: { kind: "damageNexus", amount: 1, target: "none" } },
+      ],
+    },
+    activatedAbilities: [
+      {
+        description: "Comprar conhecimento",
+        cost: { mana: 1 },
+        effect: { kind: "draw", amount: 1, target: "none" },
       },
     ],
   },
@@ -208,10 +252,26 @@ try {
     let state = game();
     const core = makePermanent(state, "test_repeat_core", "player");
     state.players.player.permanents.push(core);
+    state.players.player.mana = 2;
+    state.players.player.maxMana = 2;
     const enemyBefore = state.players.ai.nexusHealth;
     state = activateAbility(state, "player", core.instanceId, 0);
     state = activateAbility(state, "player", core.instanceId, 0);
-    assert.equal(state.players.ai.nexusHealth, enemyBefore - 2, "null maxUsesPerRound supports repeated activation");
+    assert.equal(state.players.ai.nexusHealth, enemyBefore - 2, "paid unlimited ability can repeat while its finite resource remains");
+    assert.equal(state.players.player.mana, 0, "each unlimited activation consumes mana");
+    assert.equal(canBeginActivateAbility(state, "player", core.instanceId, 0), false, "unlimited ability stops when its consuming resource is exhausted");
+  }
+
+  {
+    const state = game();
+    const unsafe = makePermanent(state, "test_unsafe_loop", "player");
+    state.players.player.permanents.push(unsafe);
+    const validation = validateActivatedAbilityActivation(state, "player", unsafe.instanceId, 0);
+    assert.equal(validation.ok, false, "zero-cost unlimited ability is rejected at runtime");
+    assert.match(validation.reason ?? "", /consuming cost/i);
+
+    const authored = validateAuthorableCardWithActivatedAbilities(cards.find((card) => card.defId === "test_unsafe_loop") as CardDef & Record<string, unknown>);
+    assert.equal(authored.ok, false, "Studio authoring also rejects zero-cost unlimited loops");
   }
 
   {
@@ -252,10 +312,31 @@ try {
     const sentinela = state.players.player.sentinelas[0];
     assert.ok(sentinela, "legacy Sentinela still enters play");
     const loyaltyBefore = sentinela.loyalty;
-    assert.equal(canBeginActivateAbility(state, "player", sentinela.instanceId, 0), true, "legacy Sentinela is exposed by generic preflight");
+    assert.equal(canActivateSentinela(state, "player", sentinela.instanceId, 0), true, "legacy eligibility API preserves target-independent timing/cost semantics");
     state = activateSentinelaAbility(state, "player", sentinela.instanceId, 0);
     assert.equal(state.players.player.sentinelas[0].loyalty, loyaltyBefore + 1, "legacy loyalty delta is preserved");
     assert.equal(state.players.player.sentinelas[0].activatedThisTurn, true, "legacy once-per-round flag is preserved");
+  }
+
+  {
+    let state = game();
+    state.players.player.hand = [{ instanceId: "hybrid-card", defId: "test_hybrid_sentinel" }];
+    state.players.player.mana = 10;
+    state.players.player.maxMana = 10;
+    state = applyGameAction(state, { type: "play", player: "player", instanceId: "hybrid-card" }, false).next;
+    const sentinela = state.players.player.sentinelas[0];
+    state = activateAbility(state, "player", sentinela.instanceId, 0);
+    assert.equal(sentinela.defId, "test_hybrid_sentinel");
+    assert.equal(canBeginActivateAbility(state, "player", sentinela.instanceId, 1), false, "generic Sentinela ability cannot bypass legacy activation already used this round");
+
+    state = endTurn(state, "player");
+    state = endTurn(state, "ai");
+    state.activePlayer = "player";
+    state.players.player.mana = 10;
+    assert.equal(canBeginActivateAbility(state, "player", sentinela.instanceId, 1), true, "generic Sentinela ability becomes available next round");
+    state = activateAbility(state, "player", sentinela.instanceId, 1);
+    assert.equal(state.players.player.sentinelas[0].activatedThisTurn, true, "generic Sentinela activation consumes shared Sentinela budget");
+    assert.equal(canActivateSentinela(state, "player", sentinela.instanceId, 0), false, "legacy ability cannot bypass generic activation in same round");
   }
 
   console.log("ACTIVATED ABILITIES: PASS");
