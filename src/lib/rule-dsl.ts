@@ -1,5 +1,5 @@
 import type { CardEffect, EffectKind, TargetKind, TriggerWhen } from "@/game/types";
-import { CARD_EFFECT_KINDS, CARD_TARGETS, CARD_TRIGGERS, sanitizeCardEffect } from "@/game/card-authoring";
+import { CARD_EFFECT_KINDS, CARD_TARGETS, CARD_TRIGGERS } from "@/game/card-authoring";
 
 export type RuleGraphNode = { id:string; kind:"trigger"|"condition"|"target"|"effect"|"followup"; label:string; data:Record<string, any> };
 export type RuleDslEvent = TriggerWhen | "onPlay" | "onSpellCast" | "always";
@@ -53,7 +53,5 @@ export function compileRuleDsl(input: Partial<RuleDsl>): { ok:true; effect:CardE
   for(const node of followups){const next=makeEffect(node.data,normalized);if(!next)return {ok:false,error:`Invalid follow-up effect: ${node.id}`};tail.also=next;tail=next;}
   if(effect.kind===normalized.effectKind && normalized.targetType==="class")effect.classKey=normalized.targetKey||undefined;
   if(effect.kind===normalized.effectKind && normalized.targetType==="race")effect.race=(normalized.targetKey||undefined) as any;
-  const sanitized = sanitizeCardEffect(effect);
-  if (!sanitized) return { ok:false, error:"Compiled effect violates the canonical CardEffect contract." };
-  return {ok:true,effect:sanitized,normalized};
+  return {ok:true,effect,normalized};
 }
