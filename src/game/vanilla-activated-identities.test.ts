@@ -89,7 +89,7 @@ for (const defId of REGIONAL_LATE_GAME) {
 {
   const state = game();
   const source = addUnit(state, "van_ember_u16", "player");
-  const enemy = addUnit(state, "tide_guard", "ai");
+  const enemy = addUnit(state, "van_ember_u07", "ai");
   const beforeHealth = enemy.health;
   const next = activateAbility(state, "player", source.instanceId, 0, enemy.instanceId);
   const enemyAfter = next.players.ai.bench.find((unit) => unit.instanceId === enemy.instanceId);
@@ -235,7 +235,7 @@ for (const defId of REGIONAL_LATE_GAME) {
 {
   const state = game();
   const source = addUnit(state, "van_storm_u15", "player");
-  const enemy = addUnit(state, "tide_guard", "ai");
+  const enemy = addUnit(state, "van_ember_u07", "ai");
   const before = enemy.health;
   const next = activateAbility(state, "player", source.instanceId, 0, enemy.instanceId);
   const enemyAfter = next.players.ai.bench.find((unit) => unit.instanceId === enemy.instanceId);
