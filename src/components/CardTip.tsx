@@ -54,6 +54,7 @@ export default function CardTip({ onActivateAbility, ...cardProps }: CardTipProp
                   disabled={!ui.canUse}
                   data-activated-ability-index={abilityIndex}
                   data-activated-ability-state={ui.status}
+                  data-activated-ability-status={ui.status}
                   data-activated-ability-reason={ui.reason ?? undefined}
                   aria-label={`${ability.description}. ${activatedAbilityCostDescription(ability)} ${statusText}`}
                   title={`${activatedAbilityCostDescription(ability)} ${statusText}`}

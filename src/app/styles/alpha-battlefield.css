@@ -15,6 +15,16 @@
   overflow-x: clip;
 }
 
+/* A lethal Nexus hit can flip the state to gameover while the arena-level
+   shake animation still has frames left. shakeX moves the whole arena by up
+   to 7px, which is outside the arena's own clipping boundary and therefore
+   enlarges the root scrollWidth by exactly those 7px. Combat has already
+   ended here, so finish with the arena at its stable origin. */
+.tcg-arena[data-match-phase="gameover"].animate-shake {
+  animation: none !important;
+  transform: none !important;
+}
+
 /* Combat feedback is deliberately short-lived, but a match can reach gameover
    while fixed-position overlays still have animation frames left. Some of
    those surfaces are mounted outside the arena, so key suppression off the

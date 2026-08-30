@@ -144,6 +144,7 @@ jobs:
           node scripts/alpha-pvp-lobby-preflight.mjs
           node scripts/alpha-visual-journey.mjs
           node scripts/alpha-runtime-tooltip-cert.mjs
+          node scripts/alpha-activated-ability-browser-cert.mjs
           node scripts/alpha-casual-pvp-journey.mjs
 
       - name: Upload Alpha visual journey
