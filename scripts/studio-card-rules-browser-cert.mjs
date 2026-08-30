@@ -9,9 +9,7 @@ const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 
-function sleep(ms) {
-  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
-}
+const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 
 async function freePort() {
   return new Promise((resolvePromise, reject) => {
@@ -27,13 +25,7 @@ async function freePort() {
 }
 
 function findChrome() {
-  const candidates = [
-    process.env.CHROME_BIN,
-    "google-chrome",
-    "google-chrome-stable",
-    "chromium",
-    "chromium-browser",
-  ].filter(Boolean);
+  const candidates = [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean);
   for (const candidate of candidates) {
     const result = spawnSync("which", [candidate], { encoding: "utf8" });
     if (result.status === 0 && result.stdout.trim()) return result.stdout.trim();
@@ -192,8 +184,7 @@ async function selectLabeledValue(cdp, label, value) {
   const selected = await evaluate(cdp, `(() => {
     const wantedLabel = ${JSON.stringify(label)};
     const wantedValue = ${JSON.stringify(value)};
-    const labels = [...document.querySelectorAll('label')];
-    const host = labels.find((candidate) => {
+    const host = [...document.querySelectorAll('label')].find((candidate) => {
       const labelNode = candidate.querySelector('.label');
       return (labelNode?.textContent || '').trim() === wantedLabel;
     });
@@ -211,6 +202,18 @@ async function selectLabeledValue(cdp, label, value) {
   assert.equal(selected.current, value, `${label} did not switch to ${value}`);
 }
 
+async function settle(cdp) {
+  await evaluate(cdp, `Promise.all([
+    document.fonts?.ready || Promise.resolve(),
+    Promise.all([...document.images].map((image) => image.complete ? Promise.resolve() : new Promise((resolveImage) => {
+      image.addEventListener('load', resolveImage, { once: true });
+      image.addEventListener('error', resolveImage, { once: true });
+      setTimeout(resolveImage, 3000);
+    })))
+  ])`);
+  await sleep(250);
+}
+
 async function navigate(cdp, path) {
   const target = `${baseUrl}${path}`;
   await cdp.call("Page.navigate", { url: target });
@@ -222,16 +225,43 @@ async function navigate(cdp, path) {
   await settle(cdp);
 }
 
-async function settle(cdp) {
-  await evaluate(cdp, `Promise.all([
-    document.fonts?.ready || Promise.resolve(),
-    Promise.all([...document.images].map((image) => image.complete ? Promise.resolve() : new Promise((resolveImage) => {
-      image.addEventListener('load', resolveImage, { once: true });
-      image.addEventListener('error', resolveImage, { once: true });
-      setTimeout(resolveImage, 3000);
-    })))
-  ])`);
-  await sleep(250);
+function adminCredentials() {
+  const password = process.env.ADMIN_PASSWORD?.trim();
+  assert.ok(password, "ADMIN_PASSWORD is required for Studio browser certification");
+  return { username: process.env.ADMIN_USERNAME?.trim() || "admin", password };
+}
+
+async function loginAdminInBrowser(cdp, credentials) {
+  const payload = JSON.stringify({ username: credentials.username, password: credentials.password });
+  const result = await evaluate(cdp, `(async () => {
+    const response = await fetch('/api/admin/login', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+      body: ${JSON.stringify(payload)}
+    });
+    const body = await response.json().catch(() => null);
+    return { status: response.status, body };
+  })()`);
+  assert.equal(result?.status, 200, `Browser admin login failed: ${JSON.stringify(result)}`);
+  assert.equal(result?.body?.ok, true, `Browser admin login did not return ok=true: ${JSON.stringify(result?.body)}`);
+  return {
+    username: result.body.user?.username || credentials.username,
+    role: result.body.user?.role || null,
+  };
+}
+
+async function waitForStudioWorkspace(cdp, timeoutMs = 30_000) {
+  return waitUntil(async () => {
+    const snapshot = await evaluate(cdp, `(() => ({
+      ready: Boolean(document.querySelector('.studio-shell')),
+      href: location.href,
+      title: document.title,
+      bodyText: (document.body?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 500)
+    }))()`);
+    if (snapshot?.ready) return snapshot;
+    throw new Error(`href=${snapshot?.href || 'unknown'} title=${snapshot?.title || 'unknown'} body=${snapshot?.bodyText || '<empty>'}`);
+  }, "authenticated Card Studio workspace", timeoutMs);
 }
 
 async function composerEvidence(cdp) {
@@ -252,8 +282,8 @@ async function composerEvidence(cdp) {
 async function focusText(cdp, text) {
   const focused = await evaluate(cdp, `(() => {
     const wanted = ${JSON.stringify(text)};
-    const elements = [...document.querySelectorAll('h1,h2,h3,h4,div,span,p')];
-    const target = elements.find((element) => (element.textContent || '').replace(/\\s+/g, ' ').trim() === wanted);
+    const target = [...document.querySelectorAll('h1,h2,h3,h4,div,span,p')]
+      .find((element) => (element.textContent || '').replace(/\\s+/g, ' ').trim() === wanted);
     if (!target) return false;
     target.scrollIntoView({ block: 'start', inline: 'nearest' });
     window.scrollBy(0, -120);
@@ -274,37 +304,15 @@ async function capture(cdp, filename, stage) {
   })`);
   assert.ok(metrics.scrollWidth <= metrics.innerWidth + 2, `${stage} has horizontal overflow: ${metrics.scrollWidth}px > ${metrics.innerWidth}px`);
   assert.ok(metrics.bodyText.trim().length > 20, `${stage} rendered suspiciously little visible text`);
-  const screenshot = await cdp.call("Page.captureScreenshot", {
-    format: "png",
-    fromSurface: true,
-    captureBeyondViewport: false,
-  });
+  const screenshot = await cdp.call("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
   await writeFile(join(outputDir, filename), Buffer.from(screenshot.data, "base64"));
   console.log(`STUDIO CARD RULES BROWSER CERT: captured ${filename} — ${stage}`);
   return metrics;
 }
 
-async function loginAdmin() {
-  const password = process.env.ADMIN_PASSWORD?.trim();
-  assert.ok(password, "ADMIN_PASSWORD is required for Studio browser certification");
-  const username = process.env.ADMIN_USERNAME?.trim() || "admin";
-  const response = await fetch(`${baseUrl}/api/admin/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  const body = await response.json().catch(() => null);
-  assert.equal(response.status, 200, `Admin login failed: ${response.status} ${JSON.stringify(body)}`);
-  assert.equal(body?.ok, true, `Admin login did not return ok=true: ${JSON.stringify(body)}`);
-  const setCookie = response.headers.get("set-cookie") || "";
-  const token = setCookie.match(/(?:^|[,;]\s*)rf_admin_session=([^;]+)/)?.[1];
-  assert.ok(token, "Admin login did not return rf_admin_session cookie");
-  return { token, username, role: body?.user?.role || null };
-}
-
 async function main() {
   await mkdir(outputDir, { recursive: true });
-  const login = await loginAdmin();
+  const credentials = adminCredentials();
   const profileDir = await mkdtemp(join(tmpdir(), "runeforge-studio-card-rules-chrome-"));
   const port = await freePort();
   const chromePath = findChrome();
@@ -333,18 +341,14 @@ async function main() {
     await cdp.call("Log.enable");
     await cdp.call("Network.enable");
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
-    const cookieResult = await cdp.call("Network.setCookie", {
-      name: "rf_admin_session",
-      value: login.token,
-      url: baseUrl,
-      httpOnly: true,
-      sameSite: "Lax",
-    });
-    assert.notEqual(cookieResult.success, false, "Chrome rejected admin session cookie");
 
+    // Establish the browser on the application origin first, then authenticate from
+    // the browser itself so the HttpOnly session cookie follows the real production path.
     await navigate(cdp, "/admin/studio/cards");
-    await waitForText(cdp, "Card Studio", 30_000);
-    await waitForText(cdp, "Identity", 30_000);
+    const login = await loginAdminInBrowser(cdp, credentials);
+    await navigate(cdp, "/admin/studio/cards");
+    const workspace = await waitForStudioWorkspace(cdp);
+    assert.ok(workspace.bodyText.includes("Identity"), `Authenticated Card Studio workspace is missing Identity tab: ${workspace.bodyText}`);
 
     await selectLabeledValue(cdp, "Type", "Spell");
     await clickText(cdp, "Rules");
@@ -383,13 +387,20 @@ async function main() {
     const evidence = {
       ok: true,
       gitSha: process.env.GITHUB_SHA || null,
-      admin: { username: login.username, role: login.role },
+      admin: login,
+      workspace,
       spell: { ...spellEvidence, screenshot: "24-studio-card-rules-spell.png", metrics: spellMetrics },
       sentinela: { ...sentinelaEvidence, screenshot: "25-studio-card-rules-sentinela.png", metrics: sentinelaMetrics },
     };
     await writeFile(join(outputDir, "24-25-studio-card-rules-browser-cert.json"), `${JSON.stringify(evidence, null, 2)}\n`);
     console.log("STUDIO CARD RULES BROWSER CERT: PASS — Spell and Sentinela render the canonical semantic effect composer in a real browser");
   } catch (error) {
+    if (cdp) {
+      try {
+        const snapshot = await evaluate(cdp, `({ href: location.href, title: document.title, bodyText: (document.body?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 1000) })`);
+        console.error(`--- Studio browser snapshot ---\n${JSON.stringify(snapshot)}`);
+      } catch {}
+    }
     if (browserStderr.trim()) console.error(`--- Chrome stderr ---\n${browserStderr.slice(-6000)}`);
     throw error;
   } finally {
