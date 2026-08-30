@@ -14,43 +14,53 @@ const readyScreenshot = "05e-activated-ability-ready.png";
 const usedScreenshot = "05f-activated-ability-used.png";
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 
-const activatedLegends = ["van_ember_u18", "van_tide_u18", "van_forest_u18"];
-// The authoritative bench cap is 6. Keep one slot reserved for the cost-8 legend
-// and develop up to five durable blockers so the browser proof does not depend on
-// surviving a late-game AI attack with an artificially sparse three-unit board.
+const sourceDefId = "van_tide_u15";
+const sourcePlayRound = 6;
+const sourceRefreshRound = 7;
+const maxDefensiveBench = 5;
+const maxTokenAttempts = 64;
+
+// Cost-6 Sábio das Nove Correntes pays 2 mana + exhaust for its native draw ability.
+// Playing it on round 6 spends all regular mana, so the real battlefield must show
+// "Mana insuficiente"; round 7 refresh then proves ready → used without requiring
+// a fragile round-8 survival scenario.
 const defensiveUnits = [
+  "tide_tidebarrier",
   "tide_guard",
   "tide_mystic",
-  "forest_moonfang",
+  "tide_frostguard",
+  "tide_mystic_2",
   "forest_canopy_warden",
+  "forest_moonfang",
   "forest_stalker",
   "tide_oracle",
   "forest_packrunner",
   "forest_cub",
   "tide_sprite",
   "ember_whelp",
-  "ember_drake",
 ];
-const maxDefensiveBench = 5;
+
 const certificationDeck = [
-  "van_ember_u18", "van_ember_u18", "van_ember_u18",
-  "van_tide_u18", "van_tide_u18", "van_tide_u18",
-  "van_forest_u18", "van_forest_u18", "van_forest_u18",
+  sourceDefId, sourceDefId, sourceDefId,
+  "tide_tidebarrier", "tide_tidebarrier", "tide_tidebarrier",
   "tide_guard", "tide_guard", "tide_guard",
   "tide_mystic", "tide_mystic", "tide_mystic",
-  "forest_moonfang", "forest_moonfang", "forest_moonfang",
+  "tide_frostguard", "tide_frostguard", "tide_frostguard",
+  "tide_mystic_2", "tide_mystic_2", "tide_mystic_2",
   "forest_canopy_warden", "forest_canopy_warden", "forest_canopy_warden",
+  "forest_moonfang", "forest_moonfang", "forest_moonfang",
   "forest_stalker", "forest_stalker", "forest_stalker",
   "tide_oracle", "tide_oracle", "tide_oracle",
   "forest_packrunner", "forest_packrunner", "forest_packrunner",
   "forest_cub", "forest_cub", "forest_cub",
   "tide_sprite", "tide_sprite", "tide_sprite",
-  "ember_whelp", "ember_whelp", "ember_whelp",
-  "ember_drake",
+  "ember_whelp",
 ];
 assert.equal(certificationDeck.length, 40, "browser certification deck must contain exactly 40 cards");
 
-function sleep(ms) { return new Promise((resolvePromise) => setTimeout(resolvePromise, ms)); }
+function sleep(ms) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+}
 
 async function freePort() {
   return new Promise((resolvePromise, reject) => {
@@ -66,7 +76,13 @@ async function freePort() {
 }
 
 function findChrome() {
-  const candidates = [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean);
+  const candidates = [
+    process.env.CHROME_BIN,
+    "google-chrome",
+    "google-chrome-stable",
+    "chromium",
+    "chromium-browser",
+  ].filter(Boolean);
   for (const candidate of candidates) {
     const result = spawnSync("which", [candidate], { encoding: "utf8" });
     if (result.status === 0 && result.stdout.trim()) return result.stdout.trim();
@@ -146,8 +162,14 @@ class CdpClient {
     const socket = new WebSocket(url);
     await new Promise((resolvePromise, reject) => {
       const timeout = setTimeout(() => reject(new Error("Timed out opening Chrome DevTools WebSocket")), 10_000);
-      socket.addEventListener("open", () => { clearTimeout(timeout); resolvePromise(); }, { once: true });
-      socket.addEventListener("error", () => { clearTimeout(timeout); reject(new Error("Failed to open Chrome DevTools WebSocket")); }, { once: true });
+      socket.addEventListener("open", () => {
+        clearTimeout(timeout);
+        resolvePromise();
+      }, { once: true });
+      socket.addEventListener("error", () => {
+        clearTimeout(timeout);
+        reject(new Error("Failed to open Chrome DevTools WebSocket"));
+      }, { once: true });
     });
     return new CdpClient(socket);
   }
@@ -158,12 +180,21 @@ class CdpClient {
     return new Promise((resolvePromise, reject) => this.pending.set(id, { resolve: resolvePromise, reject, method }));
   }
 
-  close() { this.socket.close(); }
+  close() {
+    this.socket.close();
+  }
 }
 
 async function evaluate(cdp, expression) {
-  const result = await cdp.call("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, userGesture: true });
-  if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Runtime evaluation failed");
+  const result = await cdp.call("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+    userGesture: true,
+  });
+  if (result.exceptionDetails) {
+    throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Runtime evaluation failed");
+  }
   return result.result?.value;
 }
 
@@ -174,7 +205,9 @@ async function waitUntil(check, label, timeoutMs = 20_000) {
     try {
       last = await check();
       if (last) return last;
-    } catch (error) { last = error; }
+    } catch (error) {
+      last = error;
+    }
     await sleep(125);
   }
   throw new Error(`Timed out waiting for ${label}${last instanceof Error ? `: ${last.message}` : ""}`);
@@ -182,12 +215,20 @@ async function waitUntil(check, label, timeoutMs = 20_000) {
 
 async function waitForText(cdp, text, timeoutMs = 20_000) {
   const encoded = JSON.stringify(text);
-  return waitUntil(() => evaluate(cdp, `document.body?.innerText?.includes(${encoded}) === true`), `text ${encoded}`, timeoutMs);
+  return waitUntil(
+    () => evaluate(cdp, `document.body?.innerText?.includes(${encoded}) === true`),
+    `text ${encoded}`,
+    timeoutMs,
+  );
 }
 
 async function waitForSelector(cdp, selector, timeoutMs = 20_000) {
   const encoded = JSON.stringify(selector);
-  return waitUntil(() => evaluate(cdp, `Boolean(document.querySelector(${encoded}))`), `selector ${encoded}`, timeoutMs);
+  return waitUntil(
+    () => evaluate(cdp, `Boolean(document.querySelector(${encoded}))`),
+    `selector ${encoded}`,
+    timeoutMs,
+  );
 }
 
 async function clickText(cdp, text) {
@@ -237,7 +278,10 @@ async function pressKey(cdp, key, code = key) {
 async function navigate(cdp, path) {
   const target = `${baseUrl}${path}`;
   await cdp.call("Page.navigate", { url: target });
-  await waitUntil(() => evaluate(cdp, `location.href === ${JSON.stringify(target)} && ['interactive','complete'].includes(document.readyState)`), `navigation to ${target}`);
+  await waitUntil(
+    () => evaluate(cdp, `location.href === ${JSON.stringify(target)} && ['interactive','complete'].includes(document.readyState)`),
+    `navigation to ${target}`,
+  );
 }
 
 function nextRng(state) {
@@ -265,8 +309,15 @@ async function seedDeck(cdp, attempt) {
   const candidateName = `${deckName} ${String(attempt).padStart(2, "0")}`;
   const result = await evaluate(cdp, `(async () => {
     const response = await fetch('/api/decks', {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: ${JSON.stringify(candidateName)}, emoji: '⚙️', formatId: 'eternal', cards: ${JSON.stringify(certificationDeck)} })
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: ${JSON.stringify(candidateName)},
+        emoji: '⚙️',
+        formatId: 'eternal',
+        cards: ${JSON.stringify(certificationDeck)}
+      })
     });
     const body = await response.json();
     return { status: response.status, ...body };
@@ -280,7 +331,9 @@ async function seedDeck(cdp, attempt) {
 async function issueAuthoritativeToken(cdp, deckId) {
   return evaluate(cdp, `(async () => {
     const response = await fetch('/api/matches/token', {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ deckId: ${JSON.stringify(deckId)}, difficulty: 'apprentice' })
     });
     const body = await response.json();
@@ -290,7 +343,9 @@ async function issueAuthoritativeToken(cdp, deckId) {
 
 async function prepareAuthoritativeFixture(cdp) {
   const attempts = [];
-  for (let attempt = 1; attempt <= 24; attempt++) {
+  for (let attempt = 1; attempt <= maxTokenAttempts; attempt++) {
+    // Match tokens are deterministic for a given custom deck id. Create a fresh
+    // deck id per attempt so the server produces a new authoritative seed.
     const deck = await seedDeck(cdp, attempt);
     const deckId = `custom_${deck.id}`;
     const token = await issueAuthoritativeToken(cdp, deckId);
@@ -300,16 +355,19 @@ async function prepareAuthoritativeFixture(cdp) {
     const startHand = Math.max(1, Number(token.engineRules?.startHand) || 4);
     const cards = Array.isArray(deck.cards) ? deck.cards : certificationDeck;
     const openingHand = seededShuffle(cards, (seed ^ 0x9e3779b9) >>> 0).slice(0, startHand);
-    const legend = activatedLegends.find((defId) => openingHand.includes(defId));
-    attempts.push({ attempt, deckId, deckName: deck.name, seed, playerFirst, openingHand, legend: legend || null });
-    // With playerFirst=true the round-8 Attack Token belongs to the AI. The
-    // player therefore plays the cost-8 legend as the second actor in round 8;
-    // passing immediately closes the round and opens round 9 with the player
-    // first, so no AI action can mutate/remove the source between blocked and
-    // ready evidence.
-    if (legend && playerFirst) return { deck, token, legend, openingHand, attempts };
+    const sourceInOpeningHand = openingHand.includes(sourceDefId);
+    attempts.push({ attempt, seed, playerFirst, openingHand, sourceInOpeningHand });
+
+    // Even round + playerFirst means the AI acts first. The player can cast the
+    // cost-6 source as the second actor in round 6, pass, and start round 7 with
+    // refreshed mana before the AI can mutate/remove the source.
+    if (sourceInOpeningHand && playerFirst) {
+      return { deck, token, sourceDefId, openingHand, attempts };
+    }
   }
-  throw new Error(`could not prepare a player-first authoritative fixture with an activated legend in the opening hand: ${JSON.stringify(attempts)}`);
+  throw new Error(
+    `could not prepare a player-first authoritative fixture with ${sourceDefId} in the opening hand: ${JSON.stringify(attempts)}`,
+  );
 }
 
 async function interceptNextMatchToken(cdp, token) {
@@ -322,7 +380,10 @@ async function interceptNextMatchToken(cdp, token) {
       const url = typeof input === 'string' ? input : (input?.url || '');
       if (!consumed && url.includes('/api/matches/token') && String(init?.method || 'GET').toUpperCase() === 'POST') {
         consumed = true;
-        return Promise.resolve(new Response(JSON.stringify(authoritativePayload), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+        return Promise.resolve(new Response(JSON.stringify(authoritativePayload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        }));
       }
       return originalFetch(input, init);
     };
@@ -344,7 +405,10 @@ async function matchSnapshot(cdp) {
       playerMana: manaMatch ? Number(manaMatch[1]) : null,
       playerMaxMana: manaMatch ? Number(manaMatch[2]) : null,
       hand: [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')].map((host) => host.dataset.cardTipDefId),
-      board: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')].map((host) => ({ defId: host.dataset.cardTipDefId, unitId: host.dataset.unitId })),
+      board: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')].map((host) => ({
+        defId: host.dataset.cardTipDefId,
+        unitId: host.dataset.unitId
+      })),
       boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length,
       manaText: manaText || null,
     };
@@ -358,9 +422,12 @@ async function playDefensiveUnit(cdp, snapshot) {
     const playable = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`);
     if (!playable) continue;
     const beforeCount = snapshot.boardCount;
-    const clicked = await clickSelector(cdp, selector);
-    if (!clicked) continue;
-    await waitUntil(async () => (await matchSnapshot(cdp)).boardCount > beforeCount, `defensive unit ${defId} to enter battlefield`, 10_000);
+    if (!await clickSelector(cdp, selector)) continue;
+    await waitUntil(
+      async () => (await matchSnapshot(cdp)).boardCount > beforeCount,
+      `defensive unit ${defId} to enter battlefield`,
+      10_000,
+    );
     return defId;
   }
   return null;
@@ -370,10 +437,12 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
   const layout = await evaluate(cdp, `(() => ({
     blockers: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')]
       .filter((host) => ${protectedDefId ? `host.dataset.cardTipDefId !== ${JSON.stringify(protectedDefId)}` : "true"})
-      .map((host) => host.dataset.unitId).filter(Boolean),
+      .map((host) => host.dataset.unitId)
+      .filter(Boolean),
     attackers: [...document.querySelectorAll('[data-bench-side="ai"] [data-unit-id]')]
       .filter((host) => host.querySelector('button[data-card-state="attacking"]:not(:disabled)'))
-      .map((host) => host.dataset.unitId).filter(Boolean),
+      .map((host) => host.dataset.unitId)
+      .filter(Boolean),
   }))()`);
   const blockCount = Math.min(layout?.blockers?.length || 0, layout?.attackers?.length || 0);
   for (let index = 0; index < blockCount; index++) {
@@ -389,22 +458,23 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
   return blockCount;
 }
 
-async function driveUntilLegendPlayed(cdp, legend, timeoutMs = 180_000) {
+async function driveUntilSourcePlayed(cdp, defId, timeoutMs = 150_000) {
   const deadline = Date.now() + timeoutMs;
   const actions = [];
   while (Date.now() < deadline) {
     const snapshot = await matchSnapshot(cdp);
-    if (snapshot.gameover) throw new Error(`match ended before ${legend} could be played: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
+    if (snapshot.gameover) {
+      throw new Error(`match ended before ${defId} could be played: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
+    }
 
     if (snapshot.phase === "main") {
-      const legendSelector = `#player-hand-cards [data-card-tip-def-id="${legend}"] button[data-card-state="playable"]:not(:disabled)`;
-      const playableLegend = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(legendSelector)}))`);
-      if (playableLegend) {
-        const clicked = await clickSelector(cdp, legendSelector);
-        assert.equal(clicked, true, `could not play opening activated legend ${legend}`);
-        await waitForSelector(cdp, `[data-bench-side="player"] [data-card-tip-def-id="${legend}"][data-unit-id]`, 10_000);
+      const sourceSelector = `#player-hand-cards [data-card-tip-def-id="${defId}"] button[data-card-state="playable"]:not(:disabled)`;
+      const playableSource = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(sourceSelector)}))`);
+      if (playableSource) {
+        assert.equal(await clickSelector(cdp, sourceSelector), true, `could not play activated source ${defId}`);
+        await waitForSelector(cdp, `[data-bench-side="player"] [data-card-tip-def-id="${defId}"][data-unit-id]`, 10_000);
         const played = await matchSnapshot(cdp);
-        actions.push({ round: snapshot.round, action: `play:${legend}` });
+        actions.push({ round: snapshot.round, action: `play:${defId}` });
         return { round: snapshot.round, actions, played };
       }
 
@@ -420,12 +490,14 @@ async function driveUntilLegendPlayed(cdp, legend, timeoutMs = 180_000) {
       await sleep(260);
       continue;
     }
+
     if (snapshot.phase === "response") {
       actions.push({ round: snapshot.round, action: "pass-response" });
       await pressKey(cdp, " ", "Space");
       await sleep(260);
       continue;
     }
+
     if (snapshot.phase === "combat") {
       const blocks = await assignDefensiveBlocks(cdp);
       actions.push({ round: snapshot.round, action: "confirm-combat", blocks });
@@ -433,14 +505,15 @@ async function driveUntilLegendPlayed(cdp, legend, timeoutMs = 180_000) {
       await sleep(260);
       continue;
     }
+
     await sleep(300);
   }
-  throw new Error(`timed out before playing ${legend}: ${JSON.stringify(actions.slice(-20))}`);
+  throw new Error(`timed out before playing ${defId}: ${JSON.stringify(actions.slice(-20))}`);
 }
 
-async function abilityEvidence(cdp, legend) {
+async function abilityEvidence(cdp, defId) {
   return evaluate(cdp, `(() => {
-    const source = document.querySelector('[data-bench-side="player"] [data-card-tip-def-id="${legend}"][data-unit-id]');
+    const source = document.querySelector('[data-bench-side="player"] [data-card-tip-def-id="${defId}"][data-unit-id]');
     const button = source?.querySelector('button[data-activated-ability-index="0"]');
     if (!source || !button) return null;
     return {
@@ -455,18 +528,22 @@ async function abilityEvidence(cdp, legend) {
   })()`);
 }
 
-async function waitForAbilityState(cdp, legend, status, reasonPattern, timeoutMs = 20_000) {
+async function waitForAbilityState(cdp, defId, status, reasonPattern, timeoutMs = 20_000) {
   return waitUntil(async () => {
-    const evidence = await abilityEvidence(cdp, legend);
+    const evidence = await abilityEvidence(cdp, defId);
     if (!evidence || evidence.status !== status) return null;
     if (reasonPattern && !reasonPattern.test(`${evidence.ariaLabel} ${evidence.title}`)) return null;
     return evidence;
-  }, `${legend} activated ability state ${status}`, timeoutMs);
+  }, `${defId} activated ability state ${status}`, timeoutMs);
 }
 
 async function capture(cdp, filename) {
   await mkdir(outputDir, { recursive: true });
-  const screenshot = await cdp.call("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
+  const screenshot = await cdp.call("Page.captureScreenshot", {
+    format: "png",
+    fromSurface: true,
+    captureBeyondViewport: false,
+  });
   await writeFile(join(outputDir, filename), Buffer.from(screenshot.data, "base64"));
 }
 
@@ -486,15 +563,18 @@ async function waitForNextPlayerMain(cdp, afterRound, protectedDefId, timeoutMs 
   return waitUntil(async () => {
     const snapshot = await matchSnapshot(cdp);
     if (snapshot.gameover) throw new Error("match ended before activated ability could refresh next round");
+
     if (snapshot.phase === "response") {
       await pressKey(cdp, " ", "Space");
       return null;
     }
+
     if (snapshot.phase === "combat") {
       await assignDefensiveBlocks(cdp, protectedDefId);
       await pressKey(cdp, "Enter", "Enter");
       return null;
     }
+
     if (snapshot.phase === "main" && snapshot.playerTurn && snapshot.round > afterRound) return snapshot;
     return null;
   }, "next player main phase", timeoutMs);
@@ -505,8 +585,16 @@ async function main() {
   const port = await freePort();
   const chromePath = findChrome();
   const chrome = spawn(chromePath, [
-    "--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage", "--hide-scrollbars", "--mute-audio",
-    `--remote-debugging-port=${port}`, `--user-data-dir=${profileDir}`, `--window-size=${viewport.width},${viewport.height}`, "about:blank",
+    "--headless=new",
+    "--disable-gpu",
+    "--no-sandbox",
+    "--disable-dev-shm-usage",
+    "--hide-scrollbars",
+    "--mute-audio",
+    `--remote-debugging-port=${port}`,
+    `--user-data-dir=${profileDir}`,
+    `--window-size=${viewport.width},${viewport.height}`,
+    "about:blank",
   ], { stdio: ["ignore", "ignore", "pipe"] });
 
   let cdp;
@@ -527,44 +615,80 @@ async function main() {
     await waitForText(cdp, "Escolha seu deck", 30_000);
     await waitForText(cdp, chosen.deck.name, 30_000);
     await clickText(cdp, chosen.deck.name);
-    await waitUntil(() => evaluate(cdp, `(() => [...document.querySelectorAll('button')].some((button) => button.getAttribute('aria-pressed') === 'true' && (button.textContent || '').includes(${JSON.stringify(chosen.deck.name)})))()`), "activated ability certification deck selection");
+    await waitUntil(
+      () => evaluate(
+        cdp,
+        `(() => [...document.querySelectorAll('button')].some((button) => button.getAttribute('aria-pressed') === 'true' && (button.textContent || '').includes(${JSON.stringify(chosen.deck.name)})))()`,
+      ),
+      "activated ability certification deck selection",
+    );
 
     await interceptNextMatchToken(cdp, chosen.token);
     await clickText(cdp, "ENTRAR NO NEXUS");
     await waitForText(cdp, "Prepare sua mão inicial", 30_000);
-    await waitForSelector(cdp, `[data-card-tip-def-id="${chosen.legend}"]`, 10_000);
-    const actualOpeningHand = await evaluate(cdp, `[...document.querySelectorAll('[data-card-tip-def-id]')].map((node) => node.dataset.cardTipDefId).filter(Boolean)`);
-    assert.ok(actualOpeningHand.includes(chosen.legend), `authoritative seed prediction diverged from browser opening hand: ${JSON.stringify({ chosen, actualOpeningHand })}`);
+    await waitForSelector(cdp, `[data-card-tip-def-id="${chosen.sourceDefId}"]`, 10_000);
+    const actualOpeningHand = await evaluate(
+      cdp,
+      `[...document.querySelectorAll('[data-card-tip-def-id]')].map((node) => node.dataset.cardTipDefId).filter(Boolean)`,
+    );
+    assert.ok(
+      actualOpeningHand.includes(chosen.sourceDefId),
+      `authoritative seed prediction diverged from browser opening hand: ${JSON.stringify({ chosen, actualOpeningHand })}`,
+    );
+
     await clickText(cdp, "Manter mão inicial");
     await waitForSelector(cdp, ".tcg-arena", 30_000);
     const guideOpen = await evaluate(cdp, "Boolean(document.querySelector('.match-guide-backdrop'))");
     if (guideOpen) await clickText(cdp, "Pular guia");
-    await waitUntil(() => evaluate(cdp, "!document.querySelector('.match-guide-backdrop')"), "match guide to close");
+    await waitUntil(
+      () => evaluate(cdp, "!document.querySelector('.match-guide-backdrop')"),
+      "match guide to close",
+    );
 
-    const played = await driveUntilLegendPlayed(cdp, chosen.legend);
-    assert.equal(played.round, 8, `cost-8 legend must be played in round 8 for deterministic refresh proof: ${JSON.stringify(played)}`);
-    const initialAbilityState = await abilityEvidence(cdp, chosen.legend);
-    const blocked = await waitForAbilityState(cdp, chosen.legend, "blocked", /Mana insuficiente/i);
-    assert.equal(blocked.disabled, true, "played 8-mana legend must immediately expose a disabled ability after spending all 8 mana");
+    cdp.notifications.length = 0;
+    const played = await driveUntilSourcePlayed(cdp, chosen.sourceDefId);
+    assert.equal(
+      played.round,
+      sourcePlayRound,
+      `cost-6 activated source must be played in round ${sourcePlayRound} for deterministic refresh proof: ${JSON.stringify(played)}`,
+    );
+
+    const initialAbilityState = await abilityEvidence(cdp, chosen.sourceDefId);
+    const blocked = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Mana insuficiente/i);
+    assert.equal(
+      blocked.disabled,
+      true,
+      "played 6-mana source must immediately expose a disabled ability after spending all 6 mana",
+    );
     assert.match(blocked.text, /BLOQUEADA/i, "blocked state must be visible on the battlefield control");
     await capture(cdp, blockedScreenshot);
 
     await pressKey(cdp, " ", "Space");
-    const refreshed = await waitForNextPlayerMain(cdp, played.round, chosen.legend);
-    assert.equal(refreshed.round, 9, `player-first fixture must advance directly from round 8 to player main in round 9: ${JSON.stringify(refreshed)}`);
-    assert.equal(refreshed.playerTurn, true, `round-9 refresh must visibly belong to the player: ${JSON.stringify(refreshed)}`);
-    assert.ok((refreshed.playerMana ?? 0) >= 2, `round-9 refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`);
-    const ready = await waitForAbilityState(cdp, chosen.legend, "ready", null);
+    const refreshed = await waitForNextPlayerMain(cdp, played.round, chosen.sourceDefId);
+    assert.equal(
+      refreshed.round,
+      sourceRefreshRound,
+      `player-first fixture must advance directly from round ${sourcePlayRound} to player main in round ${sourceRefreshRound}: ${JSON.stringify(refreshed)}`,
+    );
+    assert.equal(refreshed.playerTurn, true, `round-${sourceRefreshRound} refresh must visibly belong to the player: ${JSON.stringify(refreshed)}`);
+    assert.ok(
+      (refreshed.playerMana ?? 0) >= 2,
+      `round-${sourceRefreshRound} refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`,
+    );
+
+    const ready = await waitForAbilityState(cdp, chosen.sourceDefId, "ready", null);
     assert.equal(ready.disabled, false, "activated ability must become usable after mana refresh");
     assert.match(ready.text, /PRONTA/i, "ready state must be visible on the battlefield control");
 
-    const sourceSelector = `[data-bench-side="player"] [data-card-tip-def-id="${chosen.legend}"][data-unit-id="${ready.unitId}"]`;
+    const sourceSelector = `[data-bench-side="player"] [data-card-tip-def-id="${chosen.sourceDefId}"][data-unit-id="${ready.unitId}"]`;
     await hoverSelector(cdp, sourceSelector);
-    await waitForSelector(cdp, `[data-activated-ability-intelligence="${chosen.legend}"]`, 10_000);
+    await waitForSelector(cdp, `[data-activated-ability-intelligence="${chosen.sourceDefId}"]`, 10_000);
     const tooltip = await evaluate(cdp, `(() => {
-      const section = document.querySelector('[data-activated-ability-intelligence="${chosen.legend}"]');
+      const section = document.querySelector('[data-activated-ability-intelligence="${chosen.sourceDefId}"]');
       const detail = section?.querySelector('[data-activated-ability-detail-index="0"]');
-      return section && detail ? { text: section.textContent || '', state: detail.dataset.activatedAbilityDetailState } : null;
+      return section && detail
+        ? { text: section.textContent || '', state: detail.dataset.activatedAbilityDetailState }
+        : null;
     })()`);
     assert.ok(tooltip, "activated ability intelligence must be rendered inside the real card tooltip");
     assert.equal(tooltip.state, "ready", "tooltip must use the same authoritative ready state as the battlefield button");
@@ -580,13 +704,22 @@ async function main() {
         return text.includes('MANA') && [...text].some((char) => char >= '0' && char <= '9');
       });
       const enemyBar = document.querySelectorAll('.tcg-playerbar, [class*="player-bar"]')[0];
-      return { body: document.body.innerText, playerBar: playerBar?.textContent || '', enemyBar: enemyBar?.textContent || '', boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length };
+      return {
+        body: document.body.innerText,
+        playerBar: playerBar?.textContent || '',
+        enemyBar: enemyBar?.textContent || '',
+        boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length
+      };
     })()`);
 
     const abilitySelector = `${sourceSelector} button[data-activated-ability-index="0"][data-activated-ability-status="ready"]`;
-    const clicked = await clickSelector(cdp, abilitySelector);
-    assert.equal(clicked, true, "real battlefield activated ability button must be clickable when ready");
-    const used = await waitForAbilityState(cdp, chosen.legend, "blocked", /Já usada nesta rodada/i);
+    assert.equal(
+      await clickSelector(cdp, abilitySelector),
+      true,
+      "real battlefield activated ability button must be clickable when ready",
+    );
+
+    const used = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Já usada nesta rodada/i);
     assert.equal(used.disabled, true, "once-per-round ability must become disabled after activation");
     assert.match(used.text, /BLOQUEADA/i);
     const logText = await evaluate(cdp, `document.querySelector('.tcg-log')?.textContent || ''`);
@@ -594,12 +727,16 @@ async function main() {
     await capture(cdp, usedScreenshot);
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
-    assert.equal(runtimeExceptions.length, 0, `browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0, 3))}`);
+    assert.equal(
+      runtimeExceptions.length,
+      0,
+      `browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0, 3))}`,
+    );
 
     const evidence = {
       ok: true,
       type: "activated-ability-browser-certification",
-      legend: chosen.legend,
+      sourceDefId: chosen.sourceDefId,
       certificationDeckId: chosen.deck.id,
       certificationDeckName: chosen.deck.name,
       authoritativeSeed: Number(chosen.token.seed),
@@ -621,17 +758,37 @@ async function main() {
       gitSha: process.env.GITHUB_SHA || null,
       capturedAt: new Date().toISOString(),
     };
+
     await mkdir(outputDir, { recursive: true });
     await writeFile(join(outputDir, evidenceName), `${JSON.stringify(evidence, null, 2)}\n`);
     await appendManifest([
-      { stage: "activated ability blocked state", file: blockedScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.legend}: Mana insuficiente` },
-      { stage: "activated ability ready + tooltip intelligence", file: readyScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.legend}: PRONTA PARA ATIVAR` },
-      { stage: "activated ability used state", file: usedScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.legend}: Já usada nesta rodada` },
+      {
+        stage: "activated ability blocked state",
+        file: blockedScreenshot,
+        href: `${baseUrl}/play`,
+        evidence: `${chosen.sourceDefId}: Mana insuficiente`,
+      },
+      {
+        stage: "activated ability ready + tooltip intelligence",
+        file: readyScreenshot,
+        href: `${baseUrl}/play`,
+        evidence: `${chosen.sourceDefId}: PRONTA PARA ATIVAR`,
+      },
+      {
+        stage: "activated ability used state",
+        file: usedScreenshot,
+        href: `${baseUrl}/play`,
+        evidence: `${chosen.sourceDefId}: Já usada nesta rodada`,
+      },
     ]);
 
-    console.log(`ACTIVATED ABILITY BROWSER CERT: PASS — ${chosen.legend} blocked → ready → used in real browser; 3 screenshots captured`);
+    console.log(
+      `ACTIVATED ABILITY BROWSER CERT: PASS — ${chosen.sourceDefId} blocked → ready → used in real browser; 3 screenshots captured`,
+    );
   } finally {
-    try { cdp?.close(); } catch {}
+    try {
+      cdp?.close();
+    } catch {}
     await shutdownChrome(chrome, profileDir);
   }
 }

@@ -157,6 +157,40 @@ async function composerEvidence(cdp) {
   })()`);
 }
 
+async function visibleActionLabels(cdp) {
+  return evaluate(cdp, `(() => {
+    const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+    return [...document.querySelectorAll('button,a')]
+      .filter((node) => {
+        const style = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+      })
+      .map((node) => normalize(node.textContent))
+      .filter(Boolean);
+  })()`);
+}
+
+async function controlRoomEvidence(cdp) {
+  return evaluate(cdp, `(() => ({
+    roleText: document.querySelector('.studio-title')?.textContent?.replace(/\\s+/g, ' ').trim() || '',
+    nav: [...document.querySelectorAll('.studio-nav-item')].map((node) => (node.textContent || '').replace(/\\s+/g, ' ').trim()),
+    href: location.href,
+    bodyText: (document.body?.innerText || '').replace(/\\s+/g, ' ').trim(),
+  }))()`);
+}
+
+async function openPaletteEvidence(cdp) {
+  await clickText(cdp, "Command");
+  await waitForText(cdp, "WORKSPACES");
+  const evidence = await evaluate(cdp, `(() => ({
+    labels: [...document.querySelectorAll('.studio-command-item b')].map((node) => (node.textContent || '').trim()),
+    hrefs: [...document.querySelectorAll('.studio-command-item')].map((node) => node.getAttribute('href')).filter(Boolean),
+  }))()`);
+  await evaluate(cdp, `window.dispatchEvent(new KeyboardEvent('keydown', { key:'Escape', bubbles:true }))`);
+  return evidence;
+}
+
 async function capture(cdp, filename, stage) {
   const metrics = await evaluate(cdp, `({ innerWidth:window.innerWidth, scrollWidth:document.documentElement.scrollWidth, bodyText:(document.body?.innerText || '').slice(0,300) })`);
   assert.ok(metrics.scrollWidth <= metrics.innerWidth + 2, `${stage} has horizontal overflow`);
@@ -167,10 +201,10 @@ async function capture(cdp, filename, stage) {
   return metrics;
 }
 
-async function login(cdp) {
-  const password = process.env.ADMIN_PASSWORD?.trim();
-  assert.ok(password, "ADMIN_PASSWORD is required");
-  const username = process.env.ADMIN_USERNAME?.trim() || "admin";
+async function login(cdp, credentials = {}) {
+  const password = credentials.password || process.env.ADMIN_PASSWORD?.trim();
+  assert.ok(password, "Login password is required");
+  const username = credentials.username || process.env.ADMIN_USERNAME?.trim() || "admin";
   const payload = JSON.stringify({ username, password });
   const result = await evaluate(cdp, `(async () => {
     const response = await fetch('/api/admin/login', { method:'POST', credentials:'include', headers:{'content-type':'application/json'}, body:${JSON.stringify(payload)} });
@@ -179,6 +213,26 @@ async function login(cdp) {
   assert.equal(result?.status, 200, `Admin login failed: ${JSON.stringify(result)}`);
   assert.equal(result?.body?.ok, true, "Admin login did not return ok=true");
   return result.body.user;
+}
+
+async function logout(cdp) {
+  const status = await evaluate(cdp, `(async () => (await fetch('/api/admin/login', { method:'DELETE', credentials:'include' })).status)()`);
+  assert.equal(status, 200, "Admin logout failed");
+}
+
+async function createDesignerOperator(cdp) {
+  const currentPassword = process.env.ADMIN_PASSWORD?.trim();
+  assert.ok(currentPassword, "ADMIN_PASSWORD is required to create the designer cert operator");
+  const username = `designer-cert-${Date.now().toString(36)}`;
+  const password = "designer-cert-password-2026!";
+  const payload = JSON.stringify({ currentPassword, username, password, role:"designer", requireMfa:false });
+  const result = await evaluate(cdp, `(async () => {
+    const response = await fetch('/api/admin/operators', { method:'POST', credentials:'include', headers:{'content-type':'application/json'}, body:${JSON.stringify(payload)} });
+    return { status:response.status, body:await response.json().catch(() => null) };
+  })()`);
+  assert.equal(result?.status, 200, `Designer operator creation failed: ${JSON.stringify(result)}`);
+  assert.equal(result?.body?.row?.role, "designer", "Created cert operator must be designer");
+  return { username, password, id: result.body.row.id };
 }
 
 async function shutdown(chrome, profileDir) {
@@ -214,6 +268,11 @@ async function main() {
     await waitForText(cdp, "Identity");
     cdp.notifications.length = 0;
 
+    const adminActions = await visibleActionLabels(cdp);
+    assert.ok(adminActions.includes("QA"), "Admin must retain formal QA action");
+    assert.ok(adminActions.includes("Publish"), "Admin must retain Publish action");
+    assert.ok(adminActions.includes("⚖️ Balance Lab"), "Admin must retain Balance Lab action");
+
     await selectLabeled(cdp, "Type", "Spell");
     await clickText(cdp, "Rules");
     await waitForText(cdp, "Spell Contract");
@@ -237,11 +296,67 @@ async function main() {
     assert.ok(sentinela.text.some((text) => text.includes("Primitive") && text.includes("Target")));
     await capture(cdp, "25-studio-card-rules-sentinela.png", "Studio RBAC → Sentinela Rules");
 
+    const designerCredentials = await createDesignerOperator(cdp);
+    await logout(cdp);
+    await navigate(cdp, "/admin/studio");
+    await waitForText(cdp, "Runeforge Studio Access");
+    const designer = await login(cdp, designerCredentials);
+    assert.equal(designer?.role, "designer", `Designer cert login must resolve designer role, got ${designer?.role}`);
+
+    await navigate(cdp, "/admin/studio");
+    await waitForText(cdp, "AUTHORING CONTROL ROOM");
+    cdp.notifications.length = 0;
+    const designerControlRoom = await controlRoomEvidence(cdp);
+    for (const forbidden of ["Players", "Events", "Promotions"]) {
+      assert.equal(designerControlRoom.nav.some((label) => label.includes(forbidden)), false, `Designer Control Room must hide ${forbidden}`);
+    }
+    for (const allowed of ["Card Studio", "Mechanics Studio", "Keywords", "Effects", "Collections"]) {
+      assert.ok(designerControlRoom.nav.some((label) => label.includes(allowed)), `Designer Control Room must retain ${allowed}`);
+    }
+    const designerPalette = await openPaletteEvidence(cdp);
+    for (const forbidden of ["Production", "Live Ops", "Operations", "Admin Operators", "Total Game Control", "Payments", "Runtime Operations", "Balance Lab", "Card Laboratory", "Lab History", "Simulator", "Approval Queue", "Create event", "Create promotion", "Run matchup matrix", "Open total control", "Validate Brawl contract"]) {
+      assert.equal(designerPalette.labels.includes(forbidden), false, `Designer command palette must hide ${forbidden}`);
+    }
+    for (const allowed of ["Control Room", "Card Studio", "Mechanics Studio", "Dependency Graph", "Rule Graph", "Create card", "Create mechanic"]) {
+      assert.ok(designerPalette.labels.includes(allowed), `Designer command palette must retain ${allowed}`);
+    }
+    await capture(cdp, "26-studio-designer-control-room.png", "Studio role-aware UI → designer Control Room");
+
+    await navigate(cdp, "/admin/studio/cards");
+    await waitForText(cdp, "Card Authoring Studio");
+    await waitForText(cdp, "Identity");
+    const designerCardActions = await visibleActionLabels(cdp);
+    assert.equal(designerCardActions.includes("Production"), false, "Designer Card Studio must hide Production shortcut");
+    assert.equal(designerCardActions.includes("QA"), false, "Designer Card Studio must hide formal QA action");
+    assert.equal(designerCardActions.includes("Publish"), false, "Designer Card Studio must hide Publish action");
+    assert.equal(designerCardActions.includes("⚖️ Balance Lab"), false, "Designer Card Studio must hide Balance Lab action");
+    assert.ok(designerCardActions.includes("✓ Validate"), "Designer Card Studio must retain Validate");
+    assert.ok(designerCardActions.includes("Save Card + Metadata"), "Designer Card Studio must retain draft save");
+    await capture(cdp, "27-studio-designer-card-authoring.png", "Studio role-aware UI → designer Card Studio");
+
+    await navigate(cdp, "/admin/studio/mechanics");
+    await waitForText(cdp, "Mechanics Studio");
+    const designerMechanicsActions = await visibleActionLabels(cdp);
+    assert.equal(designerMechanicsActions.includes("Open Production Pipeline"), false, "Designer Mechanics Studio must hide Production shortcut");
+    assert.ok(designerMechanicsActions.includes("Save draft mechanic"), "Designer Mechanics Studio must retain draft authoring");
+    await capture(cdp, "28-studio-designer-mechanics.png", "Studio role-aware UI → designer Mechanics Studio");
+
     const severe = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown" || (message.method === "Log.entryAdded" && ["error","assert"].includes(message.params?.entry?.level)));
     assert.equal(severe.length, 0, `Browser emitted runtime errors: ${JSON.stringify(severe.slice(0,3))}`);
-    const evidence = { ok:true, gitSha:process.env.GITHUB_SHA || null, user, spell, sentinela, loginPath:"/admin/studio", authoringPath:"/admin/studio/cards" };
-    await writeFile(join(outputDir, "24-25-studio-card-rules-browser-cert.json"), `${JSON.stringify(evidence, null, 2)}\n`);
-    console.log("STUDIO RBAC BROWSER CERT: PASS — authenticated authoring flow + semantic Spell/Sentinela Card Rules certified");
+    const evidence = {
+      ok:true,
+      gitSha:process.env.GITHUB_SHA || null,
+      user,
+      designer:{ username:designer.username, role:designer.role, id:designerCredentials.id },
+      spell,
+      sentinela,
+      designerControlRoom:{ roleText:designerControlRoom.roleText, nav:designerControlRoom.nav },
+      designerPalette,
+      loginPath:"/admin/studio",
+      authoringPath:"/admin/studio/cards",
+    };
+    await writeFile(join(outputDir, "24-28-studio-card-rules-rbac-browser-cert.json"), `${JSON.stringify(evidence, null, 2)}\n`);
+    console.log("STUDIO RBAC BROWSER CERT: PASS — admin completeness + designer role-aware UI + semantic Spell/Sentinela Card Rules certified");
   } catch (error) {
     if (cdp) {
       try { console.error("--- Studio RBAC browser snapshot ---", await evaluate(cdp, `({href:location.href,title:document.title,bodyText:(document.body?.innerText || '').replace(/\\s+/g,' ').trim().slice(0,1000)})`)); } catch {}

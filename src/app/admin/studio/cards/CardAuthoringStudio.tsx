@@ -8,13 +8,16 @@ import CardClassificationTab from "./CardClassificationTab";
 import CardRulesTab from "./CardRulesTab";
 import CardReleaseTab from "./CardReleaseTab";
 import CardQaStudio from "./CardQaStudio";
+import { hasStudioUiCapability } from "@/lib/admin-studio-access";
 
-export default function CardAuthoringStudio() {
+export default function CardAuthoringStudio({ role }: { role: string }) {
 const model = useCardAuthoringModel();
 const {
   auth, rows, card, cm, id, tab, setTab, msg, busy, val, edit, reset, save, sandbox, impact, balance,
   validate, pipe, status, powerBudget, collectionIdentity, collectionForDefId, progress,
 } = model;
+  const canUseProductionActions = hasStudioUiCapability(role, "production");
+  const canUseBalanceLab = hasStudioUiCapability(role, "balance");
   if (!auth)
     return (
       <div className="grid min-h-screen place-items-center bg-[#05070c] text-white">
@@ -37,8 +40,8 @@ const {
   ];
   return (
     <div className="studio-shell min-h-screen">
-      <StudioCommandPalette />
-      <CardStudioHeader />
+      <StudioCommandPalette role={role} />
+      {canUseProductionActions ? <CardStudioHeader /> : <DesignerCardStudioHeader />}
       <div className="studio-layout">
         <CardCatalogSidebar rows={rows} id={id} reset={reset} edit={edit} collectionForDefId={collectionForDefId} />
         <main className="studio-main">
@@ -56,16 +59,18 @@ const {
               <button className="btn-ghost" onClick={validate} disabled={!id}>
                 ✓ Validate
               </button>
-              <button className="btn-ghost" onClick={() => pipe("qa")} disabled={!id || busy}>
-                QA
-              </button>
-              <button
-                className="btn-primary"
-                onClick={() => pipe("publish")}
-                disabled={!id || busy || val?.ok === false}
-              >
-                Publish
-              </button>
+              {canUseProductionActions && <>
+                <button className="btn-ghost" onClick={() => pipe("qa")} disabled={!id || busy}>
+                  QA
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={() => pipe("publish")}
+                  disabled={!id || busy || val?.ok === false}
+                >
+                  Publish
+                </button>
+              </>}
             </div>
           </div>
           {msg && (
@@ -94,7 +99,7 @@ const {
             <div className="text-[10px] text-slate-500">Engine-safe · Draft-first · Versioned on publish</div>
               <button className="btn-secondary" disabled={busy} onClick={sandbox}>🎮 Testar no jogo</button>
               <button className="btn-secondary" disabled={busy} onClick={()=>void impact()}>🔎 Impacto</button>
-              <button className="btn-secondary" disabled={busy} onClick={()=>void balance()}>⚖️ Balance Lab</button>
+              {canUseBalanceLab && <button className="btn-secondary" disabled={busy} onClick={()=>void balance()}>⚖️ Balance Lab</button>}
             <button className="btn-primary" disabled={busy} onClick={save}>
               {busy ? "Saving…" : "Save Card + Metadata"}
             </button>
@@ -112,5 +117,25 @@ const {
         </main>
       </div>
     </div>
+  );
+}
+
+function DesignerCardStudioHeader() {
+  return (
+    <header className="studio-topbar">
+      <div className="studio-topbar-inner flex items-center justify-between gap-4">
+        <div className="studio-brand">
+          <div className="studio-brand-mark">🃏</div>
+          <div>
+            <div className="studio-kicker">RUNEFORGE // CONTENT ENGINEERING</div>
+            <div className="studio-title">Card Authoring Studio <span className="text-amber-300">4.2.1</span></div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black text-emerald-300 md:inline">● ENGINE CONNECTED</span>
+          <Link href="/admin/studio" className="btn-ghost text-xs">Control Room</Link>
+        </div>
+      </div>
+    </header>
   );
 }

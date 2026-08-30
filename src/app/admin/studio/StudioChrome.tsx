@@ -2,39 +2,47 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { hasStudioUiCapability, type StudioUiCapability } from "@/lib/admin-studio-access";
 
-const routes = [
-  ["/admin/studio", "Control Room", "Overview"],
-  ["/admin/studio/cards", "Card Studio", "Create and edit cards"],
-  ["/admin/studio/mechanics", "Mechanics Studio", "Compose keywords, effects and card archetypes"],
-  ["/admin/studio/dependencies", "Dependency Graph", "Inspect content references and cycles"],
-  ["/admin/studio/production", "Production", "Validate, QA and publish"],
-  ["/admin/studio/ops", "Live Ops", "Events and promotions"],
-  ["/admin/studio/4", "Operations", "Content pipeline and approvals"],
-  ["/admin/studio/operators", "Admin Operators", "Manage individual RBAC and MFA"],
-  ["/admin/studio/control", "Total Game Control", "Engine, AI, modes, economy and presentation"],
-  ["/admin/studio/brawl-contract", "Brawl Contract Inspector", "Preflight Brawl definitions against the canonical runtime validator"],
-  ["/admin/studio/payments", "Payments", "Mercado Pago credentials, webhooks and commerce"],
-  ["/admin/studio/runtime", "Runtime Operations", "Matches, replays, decks, chat and sessions"],
-  ["/admin/studio/5", "Balance Lab", "Matchups and outliers"],
-  ["/admin/studio/lab", "Card Laboratory", "Run deterministic QA scenarios"],
-  ["/admin/studio/lab/history", "Lab History", "Compare persisted card QA regressions"],
-  ["/admin/studio?tab=interactions", "Rule Graph", "Build triggers, targets and effects"],
-  ["/admin/studio/production?tab=simulator", "Simulator", "Run content against the production engine"],
-  ["/admin/studio/4?tab=approvals", "Approval Queue", "Review QA and publish gates"],
+type StudioCommand = {
+  href: string;
+  label: string;
+  desc: string;
+  capability: StudioUiCapability;
+};
+
+const routes: StudioCommand[] = [
+  { href: "/admin/studio", label: "Control Room", desc: "Overview", capability: "authoring" },
+  { href: "/admin/studio/cards", label: "Card Studio", desc: "Create and edit cards", capability: "authoring" },
+  { href: "/admin/studio/mechanics", label: "Mechanics Studio", desc: "Compose keywords, effects and card archetypes", capability: "authoring" },
+  { href: "/admin/studio/dependencies", label: "Dependency Graph", desc: "Inspect content references and cycles", capability: "authoring" },
+  { href: "/admin/studio/production", label: "Production", desc: "Validate, QA and publish", capability: "production" },
+  { href: "/admin/studio/ops", label: "Live Ops", desc: "Events and promotions", capability: "liveops" },
+  { href: "/admin/studio/4", label: "Operations", desc: "Content pipeline and approvals", capability: "operations" },
+  { href: "/admin/studio/operators", label: "Admin Operators", desc: "Manage individual RBAC and MFA", capability: "operators" },
+  { href: "/admin/studio/control", label: "Total Game Control", desc: "Engine, AI, modes, economy and presentation", capability: "control" },
+  { href: "/admin/studio/brawl-contract", label: "Brawl Contract Inspector", desc: "Preflight Brawl definitions against the canonical runtime validator", capability: "brawl" },
+  { href: "/admin/studio/payments", label: "Payments", desc: "Mercado Pago credentials, webhooks and commerce", capability: "payments" },
+  { href: "/admin/studio/runtime", label: "Runtime Operations", desc: "Matches, replays, decks, chat and sessions", capability: "runtime" },
+  { href: "/admin/studio/5", label: "Balance Lab", desc: "Matchups and outliers", capability: "balance" },
+  { href: "/admin/studio/lab", label: "Card Laboratory", desc: "Run deterministic QA scenarios", capability: "qa-tools" },
+  { href: "/admin/studio/lab/history", label: "Lab History", desc: "Compare persisted card QA regressions", capability: "qa-tools" },
+  { href: "/admin/studio?tab=interactions", label: "Rule Graph", desc: "Build triggers, targets and effects", capability: "authoring" },
+  { href: "/admin/studio/production?tab=simulator", label: "Simulator", desc: "Run content against the production engine", capability: "production" },
+  { href: "/admin/studio/4?tab=approvals", label: "Approval Queue", desc: "Review QA and publish gates", capability: "production" },
 ];
 
-const quickActions = [
-  ["/admin/studio/cards?new=1", "Create card", "Start a new card draft"],
-  ["/admin/studio/mechanics", "Create mechanic", "Compose a safe keyword, effect or card type"],
-  ["/admin/studio/ops?new=event", "Create event", "Start a Live Ops event"],
-  ["/admin/studio/ops?new=promotion", "Create promotion", "Start a promotion draft"],
-  ["/admin/studio/5?tab=matrix", "Run matchup matrix", "Open Balance matrix controls"],
-  ["/admin/studio/control", "Open total control", "Manage every runtime content domain"],
-  ["/admin/studio/brawl-contract", "Validate Brawl contract", "Check a Brawl payload before publication"],
+const quickActions: StudioCommand[] = [
+  { href: "/admin/studio/cards?new=1", label: "Create card", desc: "Start a new card draft", capability: "authoring" },
+  { href: "/admin/studio/mechanics", label: "Create mechanic", desc: "Compose a safe keyword, effect or card type", capability: "authoring" },
+  { href: "/admin/studio/ops?new=event", label: "Create event", desc: "Start a Live Ops event", capability: "liveops" },
+  { href: "/admin/studio/ops?new=promotion", label: "Create promotion", desc: "Start a promotion draft", capability: "liveops" },
+  { href: "/admin/studio/5?tab=matrix", label: "Run matchup matrix", desc: "Open Balance matrix controls", capability: "balance" },
+  { href: "/admin/studio/control", label: "Open total control", desc: "Manage every runtime content domain", capability: "control" },
+  { href: "/admin/studio/brawl-contract", label: "Validate Brawl contract", desc: "Check a Brawl payload before publication", capability: "brawl" },
 ];
 
-export function StudioCommandPalette() {
+export function StudioCommandPalette({ role }: { role?: string | null }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const pathname = usePathname();
@@ -49,11 +57,22 @@ export function StudioCommandPalette() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-  const filtered = useMemo(
-    () => routes.filter(([href, label, desc]) => `${label} ${desc}`.toLowerCase().includes(query.toLowerCase())),
-    [query],
+  const allowedRoutes = useMemo(
+    () => routes.filter((command) => hasStudioUiCapability(role, command.capability)),
+    [role],
   );
-  const filteredActions = useMemo(() => quickActions.filter(([, label, desc]) => `${label} ${desc}`.toLowerCase().includes(query.toLowerCase())), [query]);
+  const allowedActions = useMemo(
+    () => quickActions.filter((command) => hasStudioUiCapability(role, command.capability)),
+    [role],
+  );
+  const filtered = useMemo(
+    () => allowedRoutes.filter(({ label, desc }) => `${label} ${desc}`.toLowerCase().includes(query.toLowerCase())),
+    [allowedRoutes, query],
+  );
+  const filteredActions = useMemo(
+    () => allowedActions.filter(({ label, desc }) => `${label} ${desc}`.toLowerCase().includes(query.toLowerCase())),
+    [allowedActions, query],
+  );
   return (
     <>
       <button aria-label="Open command palette" className="studio-command-button" onClick={() => setOpen(true)}>
@@ -76,7 +95,7 @@ export function StudioCommandPalette() {
             </div>
             <div className="studio-command-label">WORKSPACES</div>
             <div className="studio-command-list">
-              {filtered.map(([href, label, desc]) => (
+              {filtered.map(({ href, label, desc }) => (
                 <Link
                   key={href}
                   href={href}
@@ -93,7 +112,18 @@ export function StudioCommandPalette() {
               ))}
               {!filtered.length && !filteredActions.length && <div className="studio-empty">No command matches “{query}”.</div>}
             </div>
-            {!!filteredActions.length && <><div className="studio-command-label">ACTIONS</div><div className="studio-command-list">{filteredActions.map(([href,label,desc]) => <Link key={href} href={href} onClick={() => setOpen(false)} className="studio-command-item"><span className="studio-command-dot">＋</span><span><b>{label}</b><small>{desc}</small></span><span className="studio-command-arrow">↵</span></Link>)}</div></>}
+            {!!filteredActions.length && <>
+              <div className="studio-command-label">ACTIONS</div>
+              <div className="studio-command-list">
+                {filteredActions.map(({ href, label, desc }) => (
+                  <Link key={href} href={href} onClick={() => setOpen(false)} className="studio-command-item">
+                    <span className="studio-command-dot">＋</span>
+                    <span><b>{label}</b><small>{desc}</small></span>
+                    <span className="studio-command-arrow">↵</span>
+                  </Link>
+                ))}
+              </div>
+            </>}
           </div>
         </div>
       )}

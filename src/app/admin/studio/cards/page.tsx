@@ -10,5 +10,5 @@ export default async function Page() {
   const actor = await getStudioPageSession("/admin/studio/cards");
   if (!actor) redirect("/admin/studio");
   if (!canAccessStudioAuthoring(actor.role)) redirect(studioLandingForRole(actor.role));
-  return <CardAuthoringStudio />;
+  return <CardAuthoringStudio role={actor.role} />;
 }

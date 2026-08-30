@@ -1,16 +1,31 @@
+import type { StudioUiCapability } from "@/lib/admin-studio-access";
+
 export type Resource =
   | "overview" | "cards" | "mechanics" | "keywords" | "effects" | "races" | "classes"
   | "interactions" | "collections" | "card-meta" | "players" | "events" | "promotions";
 export type Row = Record<string, unknown> & { id?: string | number };
 
-export const resources: { id: Resource; label: string; icon: string }[] = [
-  { id: "overview", label: "Overview", icon: "◈" }, { id: "cards", label: "Card Studio", icon: "🃏" },
-  { id: "mechanics", label: "Mechanics Studio", icon: "⚙️" }, { id: "keywords", label: "Keywords", icon: "✦" },
-  { id: "effects", label: "Effects", icon: "⚡" }, { id: "races", label: "Races", icon: "🐉" },
-  { id: "classes", label: "Classes", icon: "⚔️" }, { id: "interactions", label: "Interactions", icon: "🔗" },
-  { id: "collections", label: "Collections", icon: "📚" }, { id: "card-meta", label: "Card Identity", icon: "🏷️" },
-  { id: "players", label: "Players", icon: "👤" }, { id: "events", label: "Events", icon: "🎪" },
-  { id: "promotions", label: "Promotions", icon: "🎁" },
+export type StudioResource = {
+  id: Resource;
+  label: string;
+  icon: string;
+  capability: StudioUiCapability;
+};
+
+export const resources: StudioResource[] = [
+  { id: "overview", label: "Overview", icon: "◈", capability: "authoring" },
+  { id: "cards", label: "Card Studio", icon: "🃏", capability: "authoring" },
+  { id: "mechanics", label: "Mechanics Studio", icon: "⚙️", capability: "authoring" },
+  { id: "keywords", label: "Keywords", icon: "✦", capability: "authoring" },
+  { id: "effects", label: "Effects", icon: "⚡", capability: "authoring" },
+  { id: "races", label: "Races", icon: "🐉", capability: "authoring" },
+  { id: "classes", label: "Classes", icon: "⚔️", capability: "authoring" },
+  { id: "interactions", label: "Interactions", icon: "🔗", capability: "authoring" },
+  { id: "collections", label: "Collections", icon: "📚", capability: "authoring" },
+  { id: "card-meta", label: "Card Identity", icon: "🏷️", capability: "authoring" },
+  { id: "players", label: "Players", icon: "👤", capability: "players" },
+  { id: "events", label: "Events", icon: "🎪", capability: "liveops" },
+  { id: "promotions", label: "Promotions", icon: "🎁", capability: "liveops" },
 ];
 
 export const defaults: Partial<Record<Resource, Row>> = {
