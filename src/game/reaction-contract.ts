@@ -1,40 +1,25 @@
 import { getCard } from "./cards";
+import { cannotBeCountered, counterActionKinds, type ReactionActionKind } from "./counter-rules";
 import type { BoardEntity, CardDef, CardInstance, GameState, PlayerId, TargetKind } from "./types";
 import { canCastReaction, isValidTarget } from "./engine/actions";
 
-export type ReactionActionKind = "unit" | "spell" | "sentinela";
+export {
+  COUNTER_ACTION_KINDS,
+  COUNTER_FILTER_KEYS,
+  UNCOUNTERABLE_RULE_KEY,
+  cannotBeCountered,
+  counterActionKinds,
+} from "./counter-rules";
+export type { ReactionActionKind } from "./counter-rules";
+
 export interface ReactionActionContext {
   kind: ReactionActionKind;
   defId?: string;
   instanceId?: string;
 }
 
-export const UNCOUNTERABLE_RULE_KEY = "uncounterable" as const;
-export const COUNTER_FILTER_KEYS = {
-  unit: "counter_unit",
-  spell: "counter_spell",
-  sentinela: "counter_sentinela",
-} as const satisfies Record<ReactionActionKind, string>;
-export const COUNTER_ACTION_KINDS = ["unit", "spell", "sentinela"] as const satisfies readonly ReactionActionKind[];
-
 function actionContext(action: ReactionActionKind | ReactionActionContext): ReactionActionContext {
   return typeof action === "string" ? { kind: action } : action;
-}
-
-/** Reserved engine keyword authored through `customKeywords` until Keyword 2.0 migrates it. */
-export function cannotBeCountered(card: CardDef): boolean {
-  return (card.customKeywords ?? []).includes(UNCOUNTERABLE_RULE_KEY);
-}
-
-/**
- * Counter filters are opt-in. A counter card with no `counter_*` rule keys is
- * universal across every action kind currently supported by the stack.
- */
-export function counterActionKinds(card: CardDef): ReactionActionKind[] {
-  if (card.type !== "Spell" || card.spell?.kind !== "negateSpell") return [];
-  const authored = new Set(card.customKeywords ?? []);
-  const filtered = COUNTER_ACTION_KINDS.filter((kind) => authored.has(COUNTER_FILTER_KEYS[kind]));
-  return filtered.length ? [...filtered] : [...COUNTER_ACTION_KINDS];
 }
 
 export function canCounterPendingAction(counterCard: CardDef, action: ReactionActionKind | ReactionActionContext): boolean {
