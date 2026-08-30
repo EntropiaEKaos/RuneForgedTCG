@@ -1,10 +1,14 @@
 import { sanitizeMechanicCondition } from "./card-authoring";
+import { sanitizeKeywordBehavior } from "./mechanics-authoring";
 import { previewMechanic } from "./mechanics-preview";
 const checks:string[]=[]; const ok=(x:boolean,m:string)=>{if(!x)throw new Error(m); checks.push(m)};
 const tree=sanitizeMechanicCondition({kind:"and",children:[{kind:"manaAtLeast",amount:3},{kind:"not",child:{kind:"selfDamaged"}}]});
 ok(!!tree && tree.kind==="and","nested AND/NOT condition compiles");
 ok(!sanitizeMechanicCondition({kind:"and",children:[]}),"empty condition group rejected");
 ok(!sanitizeMechanicCondition({kind:"not",child:{kind:"wat"}}),"invalid NOT child rejected");
+const behavior={version:1,trigger:"onAttack",condition:{kind:"always"},effect:{kind:"draw",target:"none",amount:1}};
+ok(!!sanitizeKeywordBehavior(behavior),"keyword behavior accepts executable Unit trigger");
+ok(!sanitizeKeywordBehavior({...behavior,trigger:"onPermanentSummon"}),"keyword behavior rejects permanent-only trigger for Unit mechanics");
 const p=previewMechanic({condition:{kind:"or",children:[{kind:"always"},{kind:"selfDamaged"}]},effect:{kind:"draw",target:"none",amount:1,also:{kind:"healNexus",target:"none",amount:2}}});
 ok(p.valid,"mechanic preview valid"); ok(p.effectChain.length===2,"preview preserves effect chain"); ok(p.conditionTree.length===3,"preview renders condition tree");
-console.log(`MECHANICS STUDIO 1.1: ${checks.length}/${checks.length} PASS`);
+console.log(`MECHANICS STUDIO 1.1: ${checks.length}/${checks.length} PASS · Trigger Source Contract certified`);
