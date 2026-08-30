@@ -7,7 +7,7 @@ import net from "node:net";
 
 const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
-const deckName = "Activated Ability Browser Certification";
+const deckName = "Activated Ability Browser Cert";
 const evidenceName = "05d-05f-activated-ability-browser-cert.json";
 const blockedScreenshot = "05d-activated-ability-blocked.png";
 const readyScreenshot = "05e-activated-ability-ready.png";
