@@ -296,14 +296,20 @@ async function prepareAuthoritativeFixture(cdp) {
     const token = await issueAuthoritativeToken(cdp, deckId);
     assert.equal(token?.ok, true, `authoritative match token attempt ${attempt} failed: ${JSON.stringify(token)}`);
     const seed = Number(token.seed);
+    const playerFirst = token.playerFirst === true;
     const startHand = Math.max(1, Number(token.engineRules?.startHand) || 4);
     const cards = Array.isArray(deck.cards) ? deck.cards : certificationDeck;
     const openingHand = seededShuffle(cards, (seed ^ 0x9e3779b9) >>> 0).slice(0, startHand);
     const legend = activatedLegends.find((defId) => openingHand.includes(defId));
-    attempts.push({ attempt, deckId, deckName: deck.name, seed, openingHand, legend: legend || null });
-    if (legend) return { deck, token, legend, openingHand, attempts };
+    attempts.push({ attempt, deckId, deckName: deck.name, seed, playerFirst, openingHand, legend: legend || null });
+    // With playerFirst=true the round-8 Attack Token belongs to the AI. The
+    // player therefore plays the cost-8 legend as the second actor in round 8;
+    // passing immediately closes the round and opens round 9 with the player
+    // first, so no AI action can mutate/remove the source between blocked and
+    // ready evidence.
+    if (legend && playerFirst) return { deck, token, legend, openingHand, attempts };
   }
-  throw new Error(`could not prepare a fresh authoritative deck/token fixture with an activated legend in the opening hand: ${JSON.stringify(attempts)}`);
+  throw new Error(`could not prepare a player-first authoritative fixture with an activated legend in the opening hand: ${JSON.stringify(attempts)}`);
 }
 
 async function interceptNextMatchToken(cdp, token) {
@@ -326,15 +332,23 @@ async function interceptNextMatchToken(cdp, token) {
 }
 
 async function matchSnapshot(cdp) {
-  return evaluate(cdp, `(() => ({
-    phase: document.querySelector('.tcg-arena')?.dataset?.matchPhase || null,
-    round: Number.parseInt((document.querySelector('.tcg-round-pill')?.textContent || '').replace('RODADA ', '').trim(), 10) || 0,
-    gameover: Boolean(document.querySelector('.match-result-backdrop')) || document.querySelector('.tcg-arena')?.dataset?.matchPhase === 'gameover',
-    hand: [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')].map((host) => host.dataset.cardTipDefId),
-    board: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')].map((host) => ({ defId: host.dataset.cardTipDefId, unitId: host.dataset.unitId })),
-    boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length,
-    manaText: [...document.querySelectorAll('body *')].map((node) => (node.textContent || '').trim()).find((text) => text.endsWith('MANA') && text.includes('/')) || null,
-  }))()`);
+  return evaluate(cdp, `(() => {
+    const playerBar = document.querySelector('.tcg-avatar-player')?.closest('.tcg-playerbar');
+    const manaText = playerBar?.querySelector('.tcg-mana-label b')?.textContent || '';
+    const manaMatch = manaText.match(/(\\d+)\\s*\\/\\s*(\\d+)/);
+    return {
+      phase: document.querySelector('.tcg-arena')?.dataset?.matchPhase || null,
+      round: Number.parseInt((document.querySelector('.tcg-round-pill')?.textContent || '').replace('RODADA ', '').trim(), 10) || 0,
+      gameover: Boolean(document.querySelector('.match-result-backdrop')) || document.querySelector('.tcg-arena')?.dataset?.matchPhase === 'gameover',
+      playerTurn: Boolean(playerBar?.classList.contains('tcg-playerbar-active')),
+      playerMana: manaMatch ? Number(manaMatch[1]) : null,
+      playerMaxMana: manaMatch ? Number(manaMatch[2]) : null,
+      hand: [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')].map((host) => host.dataset.cardTipDefId),
+      board: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')].map((host) => ({ defId: host.dataset.cardTipDefId, unitId: host.dataset.unitId })),
+      boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length,
+      manaText: manaText || null,
+    };
+  })()`);
 }
 
 async function playDefensiveUnit(cdp, snapshot) {
@@ -481,7 +495,7 @@ async function waitForNextPlayerMain(cdp, afterRound, protectedDefId, timeoutMs 
       await pressKey(cdp, "Enter", "Enter");
       return null;
     }
-    if (snapshot.phase === "main" && snapshot.round > afterRound) return snapshot;
+    if (snapshot.phase === "main" && snapshot.playerTurn && snapshot.round > afterRound) return snapshot;
     return null;
   }, "next player main phase", timeoutMs);
 }
@@ -507,6 +521,7 @@ async function main() {
     await navigate(cdp, "/play");
     await waitForText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL", 30_000);
     const chosen = await prepareAuthoritativeFixture(cdp);
+    assert.equal(chosen.token.playerFirst, true, "certification fixture must be server-authoritative player-first");
 
     await clickText(cdp, "COMEÇAR TREINAMENTO");
     await waitForText(cdp, "Escolha seu deck", 30_000);
@@ -527,6 +542,7 @@ async function main() {
     await waitUntil(() => evaluate(cdp, "!document.querySelector('.match-guide-backdrop')"), "match guide to close");
 
     const played = await driveUntilLegendPlayed(cdp, chosen.legend);
+    assert.equal(played.round, 8, `cost-8 legend must be played in round 8 for deterministic refresh proof: ${JSON.stringify(played)}`);
     const initialAbilityState = await abilityEvidence(cdp, chosen.legend);
     const blocked = await waitForAbilityState(cdp, chosen.legend, "blocked", /Mana insuficiente/i);
     assert.equal(blocked.disabled, true, "played 8-mana legend must immediately expose a disabled ability after spending all 8 mana");
@@ -535,6 +551,9 @@ async function main() {
 
     await pressKey(cdp, " ", "Space");
     const refreshed = await waitForNextPlayerMain(cdp, played.round, chosen.legend);
+    assert.equal(refreshed.round, 9, `player-first fixture must advance directly from round 8 to player main in round 9: ${JSON.stringify(refreshed)}`);
+    assert.equal(refreshed.playerTurn, true, `round-9 refresh must visibly belong to the player: ${JSON.stringify(refreshed)}`);
+    assert.ok((refreshed.playerMana ?? 0) >= 2, `round-9 refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`);
     const ready = await waitForAbilityState(cdp, chosen.legend, "ready", null);
     assert.equal(ready.disabled, false, "activated ability must become usable after mana refresh");
     assert.match(ready.text, /PRONTA/i, "ready state must be visible on the battlefield control");
@@ -584,11 +603,13 @@ async function main() {
       certificationDeckId: chosen.deck.id,
       certificationDeckName: chosen.deck.name,
       authoritativeSeed: Number(chosen.token.seed),
+      authoritativePlayerFirst: chosen.token.playerFirst === true,
       tokenAttempts: chosen.attempts.length,
       predictedOpeningHand: chosen.openingHand,
       actualOpeningHand,
       playedRound: played.round,
       refreshedRound: refreshed.round,
+      refreshed,
       initialAbilityState,
       blocked,
       ready,

@@ -9,7 +9,11 @@ const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
 const screenshotName = "05c-runtime-card-intelligence-tooltip.png";
 const evidenceName = "05c-runtime-card-intelligence-tooltip.json";
-const deckName = "Runtime Tooltip Certification";
+// Use the official Emberhold preset for the visual/runtime proof. It already
+// contains the equipment, anthem and summon-buff primitives this certificate
+// needs, so the test does not depend on a just-created custom deck appearing
+// in React state before the selection screen renders.
+const deckName = "Emberhold Blitz";
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 const runtimeDeck = [
   "ember_whelp", "ember_whelp", "ember_whelp",
@@ -245,12 +249,12 @@ async function seedDeck(cdp) {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: ${JSON.stringify(deckName)}, emoji: '🧪', formatId: 'eternal', cards: ${JSON.stringify(runtimeDeck)} })
+      body: JSON.stringify({ name: 'Runtime Tooltip Certification Fixture', emoji: '🧪', formatId: 'eternal', cards: ${JSON.stringify(runtimeDeck)} })
     });
     const body = await response.json();
     return { status: response.status, ...body };
   })()`);
-  assert.equal(result?.ok, true, `failed to seed runtime certification deck: ${JSON.stringify(result)}`);
+  assert.equal(result?.ok, true, `failed to seed runtime certification support fixture: ${JSON.stringify(result)}`);
   return result.deck;
 }
 
@@ -431,13 +435,13 @@ async function main() {
     await navigate(cdp, "/play");
     await waitForText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL", 30_000);
     const deck = await seedDeck(cdp);
-    assert.ok(deck?.id, "seeded certification deck must expose an id");
+    assert.ok(deck?.id, "seeded certification support fixture must expose an id");
 
     await clickText(cdp, "COMEÇAR TREINAMENTO");
     await waitForText(cdp, "Escolha seu deck", 30_000);
     await waitForText(cdp, deckName, 30_000);
     await clickText(cdp, deckName);
-    await waitUntil(() => evaluate(cdp, `(() => [...document.querySelectorAll('button')].some((button) => button.getAttribute('aria-pressed') === 'true' && (button.textContent || '').includes(${JSON.stringify(deckName)})))()`), "runtime certification deck selection");
+    await waitUntil(() => evaluate(cdp, `(() => [...document.querySelectorAll('button')].some((button) => button.getAttribute('aria-pressed') === 'true' && (button.textContent || '').includes(${JSON.stringify(deckName)})))()`), "runtime certification preset selection");
     await clickText(cdp, "ENTRAR NO NEXUS");
     await waitForText(cdp, "Prepare sua mão inicial", 30_000);
     await clickText(cdp, "Manter mão inicial");
