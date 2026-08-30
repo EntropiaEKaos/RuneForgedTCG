@@ -6,6 +6,7 @@ import { StudioBreadcrumb, StudioCommandPalette } from "../StudioChrome";
 import { CARD_TRIGGERS, CARD_TYPES } from "@/game/card-authoring";
 import type { CardEffect, MechanicCondition } from "@/game/types";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
+import { hasStudioUiCapability } from "@/lib/admin-studio-access";
 import MechanicsImpactPreflight, { type MechanicsImpactReport } from "./MechanicsImpactPreflight";
 import {
   AbilityGrammarReadiness,
@@ -35,7 +36,7 @@ const freshKeyword = (): KeywordDraft => ({ key: "", name: "", description: "", 
 const freshEffect = (): EffectDraft => ({ key: "", name: "", description: "", effect: structuredClone(baseEffect) });
 const freshArchetype = (): ArchetypeDraft => ({ key: "", name: "", description: "", baseType: "Enchantment", definition: { defaults: { maxHealth: 3 } } });
 
-export default function MechanicsStudio() {
+export default function MechanicsStudio({ role }: { role: string }) {
   const [tab, setTab] = useState<MechanicsTab>("keyword");
   const [msg, setMsg] = useState("");
   const [rows, setRows] = useState<any[]>([]);
@@ -47,6 +48,7 @@ export default function MechanicsStudio() {
   const [fx, setFx] = useState<EffectDraft>(freshEffect);
   const [arch, setArch] = useState<ArchetypeDraft>(freshArchetype);
   const resource = tab === "keyword" ? "keywords" : tab === "effect" ? "effects" : "archetypes";
+  const canOpenProduction = hasStudioUiCapability(role, "production");
 
   async function load() {
     const response = await fetch(`/api/admin/studio/${resource}?limit=300`, { credentials: "include" });
@@ -125,7 +127,7 @@ export default function MechanicsStudio() {
   }
 
   return <div className="studio-shell min-h-screen">
-    <StudioCommandPalette />
+    <StudioCommandPalette role={role} />
     <header className="studio-topbar">
       <div className="studio-topbar-inner flex items-center justify-between">
         <div className="studio-brand">
@@ -198,7 +200,7 @@ export default function MechanicsStudio() {
               </div>
             </div>)}
           </div>
-          <Link href="/admin/studio/production" className="btn-ghost mt-4 inline-flex text-xs">Open Production Pipeline</Link>
+          {canOpenProduction && <Link href="/admin/studio/production" className="btn-ghost mt-4 inline-flex text-xs">Open Production Pipeline</Link>}
         </aside>
       </div>
       <MechanicsImpactPreflight report={impactReport} loading={impactLoading} error={impactError} />
