@@ -1,6 +1,12 @@
 import { aiChooseAction, aiChooseReaction } from "./ai";
 import { replayAuthoritativeMatch } from "./authoritative";
-import { applyStackedActionWithAi, createCustomGame } from "./engine";
+import {
+  applyStackedActionWithAi,
+  canReactWithCard,
+  createCustomGame,
+  eligibleReactionCards,
+  reactionEligibility,
+} from "./engine";
 import { applyGameAction } from "./reducer";
 import type { DeckInput } from "./types";
 
@@ -9,6 +15,51 @@ const deck: DeckInput = {
   name: "Reaction regression",
   cards: Array(20).fill("ember_whelp"),
 };
+
+// Ability System 2.0 contract: reaction windows are opened by legal responses,
+// not merely by the presence of an affordable Fast/Burst spell in hand.
+const contractState = createCustomGame("Reaction Contract", deck, deck, {
+  skipMulligan: true,
+  playerGoesFirst: false,
+  playerBench: ["wood_ent"],
+  playerStartingHand: 0,
+  aiStartingHand: 0,
+  playerStartingMana: 10,
+  aiStartingMana: 10,
+  seed: 202020,
+});
+contractState.phase = "main";
+contractState.activePlayer = "ai";
+contractState.players.player.mana = 10;
+contractState.players.player.maxMana = 10;
+contractState.players.player.hand = [
+  { instanceId: "contract-deny", defId: "tide_deny" },
+  { instanceId: "contract-shield", defId: "tide_shield" },
+  { instanceId: "contract-dispel", defId: "tide_dispel" },
+];
+
+if (canReactWithCard(contractState, "player", "contract-deny", "unit")) {
+  throw new Error("Deny must not open a reaction window for a unit action");
+}
+if (reactionEligibility(contractState, "player", "contract-deny", "unit").reason !== "stack-target-mismatch") {
+  throw new Error("Deny unit mismatch must be explained by the canonical stack-target contract");
+}
+if (!canReactWithCard(contractState, "player", "contract-deny", "spell")) {
+  throw new Error("Deny must remain a legal response to a spell action");
+}
+if (!canReactWithCard(contractState, "player", "contract-shield", "spell")) {
+  throw new Error("Burst Barrier must remain a legal response while an allied unit is targetable");
+}
+if (canReactWithCard(contractState, "player", "contract-dispel", "unit")) {
+  throw new Error("Disenchant must not open a reaction window when no enemy permanent exists");
+}
+if (reactionEligibility(contractState, "player", "contract-dispel", "unit").reason !== "no-legal-target") {
+  throw new Error("Targetless Disenchant opportunity must fail through the canonical target gate");
+}
+const unitReactionIds = eligibleReactionCards(contractState, "player", "unit").map((card) => card.instanceId);
+if (!unitReactionIds.includes("contract-shield") || unitReactionIds.includes("contract-deny") || unitReactionIds.includes("contract-dispel")) {
+  throw new Error(`Unit reaction candidates drifted from the canonical contract: ${unitReactionIds.join(",")}`);
+}
 
 let state = createCustomGame("Reaction Tester", deck, deck, {
   skipMulligan: true,
@@ -57,6 +108,29 @@ if (resolved.next.players.ai.hand.some((card) => card.instanceId === "ai-bolt"))
 }
 if (resolved.next === opened.next) {
   throw new Error("Resolving the skipped reaction must advance the authoritative game state");
+}
+
+// A Burst spell with no legal target must not create a false human prompt.
+const noTargetState = createCustomGame("No False Reaction", deck, deck, {
+  skipMulligan: true,
+  playerGoesFirst: false,
+  playerStartingHand: 0,
+  aiStartingHand: 0,
+  playerStartingMana: 10,
+  aiStartingMana: 10,
+  seed: 303030,
+});
+noTargetState.phase = "main";
+noTargetState.activePlayer = "ai";
+noTargetState.players.player.mana = 10;
+noTargetState.players.player.maxMana = 10;
+noTargetState.players.player.hand = [{ instanceId: "player-dispel", defId: "tide_dispel" }];
+noTargetState.players.ai.mana = 10;
+noTargetState.players.ai.maxMana = 10;
+noTargetState.players.ai.hand = [{ instanceId: "ai-bolt-no-window", defId: "ember_bolt" }];
+const noFalseWindow = applyGameAction(noTargetState, { type: "aiStep" });
+if (noFalseWindow.awaitingReaction) {
+  throw new Error("An uncastable Disenchant response opened a false reaction window");
 }
 
 // Target-contract regression: `damageUnit` describes the effect implementation,
@@ -135,4 +209,4 @@ if (replay.state.phase === "blocking") {
   throw new Error("Replay remained stuck in blocking after the recorded human block decision");
 }
 
-console.log("Reaction-window regression tests passed.");
+console.log("Reaction-window regression tests passed — canonical Ability System 2.0 reaction eligibility certified.");
