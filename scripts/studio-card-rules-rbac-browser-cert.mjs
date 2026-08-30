@@ -305,6 +305,7 @@ async function main() {
 
     await navigate(cdp, "/admin/studio");
     await waitForText(cdp, "AUTHORING CONTROL ROOM");
+    cdp.notifications.length = 0;
     const designerControlRoom = await controlRoomEvidence(cdp);
     for (const forbidden of ["Players", "Events", "Promotions"]) {
       assert.equal(designerControlRoom.nav.some((label) => label.includes(forbidden)), false, `Designer Control Room must hide ${forbidden}`);
