@@ -38,6 +38,7 @@ const activated: ActivatedAbility = {
   },
 };
 const activatedBlueprint = blueprintFromActivatedAbility(activated);
+assert.equal(activatedBlueprint.origin, "activated");
 assert.equal(activatedBlueprint.kind, "activated");
 assert.equal(activatedBlueprint.timing, "mainPhase");
 assert.deepEqual(activatedBlueprint.costs, [
@@ -49,6 +50,9 @@ assert.deepEqual(activatedBlueprint.costs, [
 assert.deepEqual(activatedBlueprint.features.sort(), ["chained", "repeatable", "targeted"]);
 assert.equal(activatedBlueprint.target, "enemyUnit");
 
+// Mechanics Studio content is persisted/published dynamically rather than
+// embedded in today's 429 base CardDefs, so certify its adapter independently
+// instead of pretending the canonical catalog currently contains that origin.
 const mechanic: CardMechanic = {
   key: "ability_system_probe",
   name: "Probe condicional",
@@ -57,6 +61,7 @@ const mechanic: CardMechanic = {
   effect: { kind: "draw", amount: 1, target: "none" },
 };
 const mechanicBlueprint = blueprintFromMechanic(mechanic);
+assert.equal(mechanicBlueprint.origin, "mechanic");
 assert.equal(mechanicBlueprint.kind, "triggered");
 assert.equal(mechanicBlueprint.timing, "automatic");
 assert.equal(mechanicBlueprint.trigger, "onSummon");
@@ -93,9 +98,12 @@ for (const card of cards) {
   }
 }
 
-for (const origin of ["keyword", "legacyTrigger", "mechanic", "activated", "sentinela", "levelUp"]) {
+// These origins are genuinely present in the static catalog today. Dynamic
+// Mechanics Studio compatibility is proven by the dedicated adapter probe above.
+for (const origin of ["keyword", "legacyTrigger", "activated", "sentinela", "levelUp"]) {
   assert.ok(origins.has(origin), `canonical catalog exercises ${origin} compatibility`);
 }
+assert.equal(origins.has("mechanic"), false, "base catalog truthfully records that mechanics are dynamic/published content today");
 assert.ok(blueprintCount > 0);
 assert.ok(cardsWithGrammar > 0);
 
