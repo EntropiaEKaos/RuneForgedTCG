@@ -7,6 +7,7 @@ import {
   CARD_RACES,
   MECHANIC_CONDITION_KINDS,
 } from "@/game/card-authoring";
+import type { CardEffectContract } from "@/game/card-authoring";
 import { ABILITY_GRAMMAR_CATALOG } from "@/game/ability-system";
 import type { ActivatedAbilityCost } from "@/game/activated-ability-types";
 import type { CardEffect, EffectKind, MechanicCondition, TargetKind } from "@/game/types";
@@ -21,7 +22,7 @@ function Select({ value, options, onChange, disabled = false }: { value: string;
   return <select className="input" value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>{options.map((option) => <option key={option}>{option}</option>)}</select>;
 }
 
-function contractFor(kind: EffectKind) {
+function contractFor(kind: EffectKind): CardEffectContract {
   return CARD_EFFECT_CONTRACTS[kind];
 }
 
