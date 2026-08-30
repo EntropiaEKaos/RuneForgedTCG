@@ -1,5 +1,5 @@
 import { getCard } from "../cards";
-import { canReactWithCard, hasReactionOpportunity } from "../reaction-contract";
+import { canCounterPendingAction, canReactWithCard, hasReactionOpportunity } from "../reaction-contract";
 import type { GameState, PlayerId } from "../types";
 import { castSpell, playUnit } from "./actions";
 
@@ -24,12 +24,12 @@ export interface CardAction {
 
 interface StackFrame extends CardAction {
   player: PlayerId;
-  /** If this is a counter-targeting spell, the instance id of the spell it negates. */
+  /** Pending stack frame this counter attempts to prevent from resolving. */
   negates?: string;
 }
 
 function canRespondTo(state: GameState, playerId: PlayerId, action: CardAction): boolean {
-  return hasReactionOpportunity(state, playerId, action.kind);
+  return hasReactionOpportunity(state, playerId, action);
 }
 
 function aiChooseReactionAction(state: GameState, action: CardAction): CardAction | null {
@@ -66,7 +66,7 @@ export function applyStackedAction(
   const sourcePlayer: PlayerId = action.player ?? "player";
   const respondingSide: PlayerId = sourcePlayer === "player" ? "ai" : "player";
 
-  // Determine if the responder has a counter and prepare the stack.
+  // Determine if the responder has a legal reaction and prepare the stack.
   const baseState = state;
   const stack: StackFrame[] = [{ ...action, player: sourcePlayer }];
 
@@ -84,7 +84,7 @@ export function applyStackedAction(
 
   if (
     chosenCounter &&
-    canReactWithCard(baseState, respondingSide, chosenCounter.instanceId, action.kind) &&
+    canReactWithCard(baseState, respondingSide, chosenCounter.instanceId, action) &&
     !stack.some((x) => x.instanceId === chosenCounter.instanceId)
   ) {
     const counterItem: StackFrame = {
@@ -109,7 +109,7 @@ export function applyStackedAction(
   return resolveStack(baseState, stack);
 }
 
-/** Finalize the stack: resolve from top to bottom, applying counterspells. */
+/** Finalize the stack: resolve from top to bottom, applying counters. */
 function resolveStack(state: GameState, stack: StackFrame[]): StackResolution {
   let s = state;
   const negated = new Set<string>();
@@ -123,11 +123,14 @@ function resolveStack(state: GameState, stack: StackFrame[]): StackResolution {
 
     const card = getCard(item.defId);
     if (card.spell?.kind === "negateSpell" && item.negates) {
-      negated.add(item.negates);
       const target = stack.find((x) => x.instanceId === item.negates);
-      const targetName = target ? getCard(target.defId).name : "the spell";
-      s.log.push(`✨ ${card.name} negates ${targetName}!`);
-      s = castSpell(s, item.player, item.instanceId, item.negates);
+      if (target && canCounterPendingAction(card, target)) {
+        negated.add(item.negates);
+        const targetName = getCard(target.defId).name;
+        s.log.push(`✨ ${card.name} negates ${targetName}!`);
+        // Secondary effects (`also`) resolve only after the counter succeeded.
+        s = castSpell(s, item.player, item.instanceId, item.negates);
+      }
       continue;
     }
 
@@ -166,7 +169,7 @@ export function applyStackedActionWithAi(
 
   if (
     chosenCounter &&
-    canReactWithCard(baseState, respondingSide, chosenCounter.instanceId, action.kind) &&
+    canReactWithCard(baseState, respondingSide, chosenCounter.instanceId, action) &&
     !stack.some((x) => x.instanceId === chosenCounter.instanceId)
   ) {
     stack.push({ ...chosenCounter, player: respondingSide, negates: action.instanceId });
