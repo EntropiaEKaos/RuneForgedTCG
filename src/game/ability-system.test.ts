@@ -6,6 +6,8 @@ import {
   ABILITY_TIMING_SUPPORT,
   abilityBlueprintsForCard,
   blueprintFromActivatedAbility,
+  blueprintFromCostReduction,
+  blueprintFromEquipment,
   blueprintFromMechanic,
   blueprintFromReactionSpell,
 } from "./ability-system";
@@ -15,6 +17,7 @@ import type { CardMechanic } from "./types";
 
 assert.equal(ABILITY_GRAMMAR_VERSION, 2);
 assert.equal(ABILITY_GRAMMAR_CATALOG.version, 2);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.rules, ["costReduction", "equipmentAttachment"]);
 assert.equal(ABILITY_KIND_SUPPORT.keyword, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.triggered, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.activated, "supported");
@@ -26,6 +29,7 @@ assert.equal(ABILITY_KIND_SUPPORT.linked, "partial");
 assert.equal(ABILITY_KIND_SUPPORT.modal, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.replacement, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.delayed, "planned");
+assert.equal(ABILITY_TIMING_SUPPORT.static, "supported");
 assert.equal(ABILITY_TIMING_SUPPORT.reaction, "supported");
 assert.equal(ABILITY_TIMING_SUPPORT.priority, "planned");
 
@@ -75,6 +79,41 @@ assert.equal(mechanicBlueprint.timing, "automatic");
 assert.equal(mechanicBlueprint.trigger, "onSummon");
 assert.deepEqual(mechanicBlueprint.features, ["conditional"]);
 
+const swarmlord = getCard("ember_swarmlord");
+assert.ok(swarmlord.costReduction, "canonical Swarmlord must retain its Affinity cost reduction");
+const affinityBlueprint = blueprintFromCostReduction(swarmlord.costReduction);
+assert.equal(affinityBlueprint.origin, "costReduction");
+assert.equal(affinityBlueprint.kind, "static");
+assert.equal(affinityBlueprint.timing, "static");
+assert.deepEqual(affinityBlueprint.features, ["conditional"]);
+assert.deepEqual(affinityBlueprint.rule, {
+  kind: "costReduction",
+  costReduction: { kind: "creatures", per: 1 },
+});
+const powerReductionBlueprint = blueprintFromCostReduction({ kind: "power", per: 2, threshold: 4, max: 6 });
+assert.deepEqual(powerReductionBlueprint.rule, {
+  kind: "costReduction",
+  costReduction: { kind: "power", per: 2, threshold: 4, max: 6 },
+});
+
+const claw = getCard("wood_claw");
+const equipmentBlueprint = blueprintFromEquipment(claw);
+assert.ok(equipmentBlueprint, "canonical Thornfang Claw must project its persistent attachment contract");
+assert.equal(equipmentBlueprint.origin, "equipment");
+assert.equal(equipmentBlueprint.kind, "linked");
+assert.equal(equipmentBlueprint.timing, "static");
+assert.equal(equipmentBlueprint.target, "allyUnit");
+assert.deepEqual(equipmentBlueprint.features, ["targeted"]);
+assert.deepEqual(equipmentBlueprint.rule, {
+  kind: "equipmentAttachment",
+  equipment: { buffPower: 1, buffHealth: 1, keywords: [] },
+});
+assert.equal(
+  blueprintFromEquipment({ ...claw, type: "Unit" }),
+  null,
+  "equipment projection fails closed when the structural card type is not Equipment",
+);
+
 const denyBlueprint = blueprintFromReactionSpell(getCard("tide_deny"));
 assert.ok(denyBlueprint, "canonical Tide Deny is projected as a reaction ability");
 assert.equal(denyBlueprint.origin, "spell");
@@ -91,11 +130,14 @@ assert.equal(cards.length, 429, "Ability grammar certification covers the comple
 let blueprintCount = 0;
 let cardsWithGrammar = 0;
 const origins = new Set<string>();
+const ruleKinds = new Set<string>();
 for (const card of cards) {
   const before = JSON.stringify(card);
   const blueprints = abilityBlueprintsForCard(card);
   const expected =
     (card.keywords?.length ?? 0) +
+    (card.costReduction ? 1 : 0) +
+    (card.type === "Equipment" && card.equipment ? 1 : 0) +
     (card.trigger ? 1 : 0) +
     (card.mechanics?.length ?? 0) +
     (card.type === "Spell" && card.speed && card.spell ? 1 : 0) +
@@ -113,15 +155,20 @@ for (const card of cards) {
     assert.ok(ABILITY_GRAMMAR_CATALOG.kinds.includes(blueprint.kind), `${card.defId} uses a canonical ability kind`);
     assert.ok(ABILITY_GRAMMAR_CATALOG.timings.includes(blueprint.timing), `${card.defId} uses a canonical timing`);
     if (blueprint.effect) assert.equal(blueprint.target, blueprint.effect.target, `${card.defId} keeps effect targeting authoritative`);
+    if (blueprint.rule) {
+      assert.ok(ABILITY_GRAMMAR_CATALOG.rules.includes(blueprint.rule.kind), `${card.defId} uses a canonical persistent rule kind`);
+      ruleKinds.add(blueprint.rule.kind);
+    }
     origins.add(blueprint.origin);
   }
 }
 
 // These origins are genuinely present in the static catalog today. Dynamic
 // Mechanics Studio compatibility is proven by the dedicated adapter probe above.
-for (const origin of ["keyword", "legacyTrigger", "spell", "activated", "sentinela", "levelUp"]) {
+for (const origin of ["keyword", "costReduction", "equipment", "legacyTrigger", "spell", "activated", "sentinela", "levelUp"]) {
   assert.ok(origins.has(origin), `canonical catalog exercises ${origin} compatibility`);
 }
+assert.deepEqual([...ruleKinds].sort(), ["costReduction", "equipmentAttachment"]);
 assert.equal(origins.has("mechanic"), false, "base catalog truthfully records that mechanics are dynamic/published content today");
 assert.ok(blueprintCount > 0);
 assert.ok(cardsWithGrammar > 0);
