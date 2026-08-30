@@ -307,10 +307,10 @@ async function main() {
     await waitForText(cdp, "Authoring Control Room");
     const designerControlRoom = await controlRoomEvidence(cdp);
     for (const forbidden of ["Players", "Events", "Promotions"]) {
-      assert.equal(designerControlRoom.nav.includes(forbidden), false, `Designer Control Room must hide ${forbidden}`);
+      assert.equal(designerControlRoom.nav.some((label) => label.includes(forbidden)), false, `Designer Control Room must hide ${forbidden}`);
     }
     for (const allowed of ["Card Studio", "Mechanics Studio", "Keywords", "Effects", "Collections"]) {
-      assert.ok(designerControlRoom.nav.includes(allowed), `Designer Control Room must retain ${allowed}`);
+      assert.ok(designerControlRoom.nav.some((label) => label.includes(allowed)), `Designer Control Room must retain ${allowed}`);
     }
     const designerPalette = await openPaletteEvidence(cdp);
     for (const forbidden of ["Production", "Live Ops", "Operations", "Admin Operators", "Total Game Control", "Payments", "Runtime Operations", "Balance Lab", "Card Laboratory", "Lab History", "Simulator", "Approval Queue", "Create event", "Create promotion", "Run matchup matrix", "Open total control", "Validate Brawl contract"]) {
@@ -323,7 +323,9 @@ async function main() {
 
     await navigate(cdp, "/admin/studio/cards");
     await waitForText(cdp, "Card Authoring Studio");
+    await waitForText(cdp, "Identity");
     const designerCardActions = await visibleActionLabels(cdp);
+    assert.equal(designerCardActions.includes("Production"), false, "Designer Card Studio must hide Production shortcut");
     assert.equal(designerCardActions.includes("QA"), false, "Designer Card Studio must hide formal QA action");
     assert.equal(designerCardActions.includes("Publish"), false, "Designer Card Studio must hide Publish action");
     assert.equal(designerCardActions.includes("⚖️ Balance Lab"), false, "Designer Card Studio must hide Balance Lab action");
