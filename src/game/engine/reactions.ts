@@ -1,6 +1,7 @@
 import { getCard } from "../cards";
+import { canReactWithCard, hasReactionOpportunity } from "../reaction-contract";
 import type { GameState, PlayerId } from "../types";
-import { canCastReaction, castSpell, playUnit } from "./actions";
+import { castSpell, playUnit } from "./actions";
 
 /**
  * Result of a stack resolution. If awaitingReaction is set, the human must
@@ -28,15 +29,7 @@ interface StackFrame extends CardAction {
 }
 
 function canRespondTo(state: GameState, playerId: PlayerId, action: CardAction): boolean {
-  if (state.phase !== "main") return false;
-  const p = state.players[playerId];
-  return p.hand.some((c) => {
-    const def = getCard(c.defId);
-    if (def.type !== "Spell" || !def.speed) return false;
-    if (action.kind === "spell" && def.speed !== "Burst") return false;
-    if (p.mana + p.spellMana < def.cost) return false;
-    return true;
-  });
+  return hasReactionOpportunity(state, playerId, action.kind);
 }
 
 function aiChooseReactionAction(state: GameState, action: CardAction): CardAction | null {
@@ -44,12 +37,16 @@ function aiChooseReactionAction(state: GameState, action: CardAction): CardActio
 }
 
 /**
- * Drives an action through the LIFO stack. If the responding player can
- * respond with a Burst/Fast spell, the stack pauses and returns
- * awaitingReaction. If the human explicitly chose to "skip" or "pass",
- * the stack resolves immediately. If the AI is the responder and the
- * human did not pre-supply a counter, the AI brain (`aiChooseReaction`)
- * decides whether to counter and the stack resolves on the same call.
+ * Drives an action through the LIFO stack. If the responding player has a
+ * legal reaction, the stack pauses and returns awaitingReaction. If the human
+ * explicitly chose to "skip" or "pass", the stack resolves immediately. If
+ * the AI is the responder and the human did not pre-supply a counter, the AI
+ * brain (`aiChooseReaction`) decides whether to react and the stack resolves
+ * on the same call.
+ *
+ * Reaction eligibility is authoritative in reaction-contract.ts: the exact
+ * same speed/mana/target contract gates both opening the window and inserting
+ * the chosen response into the stack.
  *
  * This function is the single source of truth for stack resolution and
  * is used by /api/simulate, /api/replays, the in-browser GameClient and
@@ -87,7 +84,7 @@ export function applyStackedAction(
 
   if (
     chosenCounter &&
-    canCastReaction(baseState, respondingSide, chosenCounter.instanceId, action.kind) &&
+    canReactWithCard(baseState, respondingSide, chosenCounter.instanceId, action.kind) &&
     !stack.some((x) => x.instanceId === chosenCounter.instanceId)
   ) {
     const counterItem: StackFrame = {
@@ -169,7 +166,7 @@ export function applyStackedActionWithAi(
 
   if (
     chosenCounter &&
-    canCastReaction(baseState, respondingSide, chosenCounter.instanceId, action.kind) &&
+    canReactWithCard(baseState, respondingSide, chosenCounter.instanceId, action.kind) &&
     !stack.some((x) => x.instanceId === chosenCounter.instanceId)
   ) {
     stack.push({ ...chosenCounter, player: respondingSide, negates: action.instanceId });
