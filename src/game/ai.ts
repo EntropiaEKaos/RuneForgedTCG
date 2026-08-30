@@ -18,6 +18,7 @@ import {
 import type { CardInstance, GameState, PlayerId, UnitInstance } from "./types";
 import { seededFloat } from "./rng";
 import { aiRulesFor } from "./match-rules";
+import { aiChooseActivatedAbilityAction } from "./ai-activated-abilities";
 
 /**
  * Every function in this file is parameterized by `playerId` (defaulting to
@@ -205,8 +206,8 @@ function pickChallenges(state: GameState, playerId: PlayerId, attackerIds: strin
 export function aiChooseAction(state: GameState, playerId: PlayerId = "ai"): AiAction | null {
   const me = state.players[playerId];
   const enemyId = other(playerId);
-  const sentinelAction = aiChooseSentinelaAction(state, playerId);
-  if (sentinelAction) return sentinelAction;
+  const activatedAction = aiChooseActivatedAbilityAction(state, playerId);
+  if (activatedAction) return activatedAction;
   const playable = me.hand.filter((c) => canPlayCard(state, playerId, c.instanceId));
   if (playable.length === 0) return null;
   const difficulty = state.aiDifficulty ?? "tactician";
