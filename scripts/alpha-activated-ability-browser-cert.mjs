@@ -313,12 +313,12 @@ async function interceptNextMatchToken(cdp, token) {
 async function matchSnapshot(cdp) {
   return evaluate(cdp, `(() => ({
     phase: document.querySelector('.tcg-arena')?.dataset?.matchPhase || null,
-    round: Number((document.querySelector('.tcg-round-pill')?.textContent || '').match(/(\\d+)/)?.[1] || 0),
+    round: Number.parseInt((document.querySelector('.tcg-round-pill')?.textContent || '').replace('RODADA ', '').trim(), 10) || 0,
     gameover: Boolean(document.querySelector('.match-result-backdrop')) || document.querySelector('.tcg-arena')?.dataset?.matchPhase === 'gameover',
     hand: [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')].map((host) => host.dataset.cardTipDefId),
     board: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')].map((host) => ({ defId: host.dataset.cardTipDefId, unitId: host.dataset.unitId })),
     boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length,
-    manaText: [...document.querySelectorAll('body *')].map((node) => node.textContent || '').find((text) => /^\\s*\\d+\\s*\/\\s*\\d+\\s*MANA\\s*$/i.test(text)) || null,
+    manaText: [...document.querySelectorAll('body *')].map((node) => (node.textContent || '').trim()).find((text) => text.endsWith('MANA') && text.includes('/')) || null,
   }))()`);
 }
 
@@ -421,7 +421,7 @@ async function abilityEvidence(cdp, legend) {
       ariaLabel: button.getAttribute('aria-label') || '',
       title: button.getAttribute('title') || '',
       text: button.textContent || '',
-      round: Number((document.querySelector('.tcg-round-pill')?.textContent || '').match(/(\\d+)/)?.[1] || 0),
+      round: Number.parseInt((document.querySelector('.tcg-round-pill')?.textContent || '').replace('RODADA ', '').trim(), 10) || 0,
     };
   })()`);
 }
@@ -541,7 +541,10 @@ async function main() {
     await sleep(120);
 
     const beforeActivation = await evaluate(cdp, `(() => {
-      const playerBar = [...document.querySelectorAll('.tcg-playerbar, [class*="player-bar"], body *')].find((node) => /MANA/i.test(node.textContent || '') && /\\d/.test(node.textContent || ''));
+      const playerBar = [...document.querySelectorAll('.tcg-playerbar, [class*="player-bar"], body *')].find((node) => {
+        const text = (node.textContent || '').toUpperCase();
+        return text.includes('MANA') && [...text].some((char) => char >= '0' && char <= '9');
+      });
       const enemyBar = document.querySelectorAll('.tcg-playerbar, [class*="player-bar"]')[0];
       return { body: document.body.innerText, playerBar: playerBar?.textContent || '', enemyBar: enemyBar?.textContent || '', boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length };
     })()`);
