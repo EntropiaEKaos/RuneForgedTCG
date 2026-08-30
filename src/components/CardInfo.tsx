@@ -6,6 +6,12 @@ import { KEYWORD_INFO, RACE_INFO } from "@/game/keywords";
 import { strategicRoleForCard } from "@/game/card-role";
 import { getCardCollection } from "@/game/card-collections";
 import { cardRegions, identityForRegions, regionalRuleText } from "@/game/region-identity";
+import {
+  cardRulesDescription,
+  counterProtectionText,
+  playerVisibleCustomKeywords,
+  reactionSpeedRuleText,
+} from "@/game/reaction-presentation";
 import type { CardDef, GameState, SentinelaInstance, UnitInstance } from "@/game/types";
 import { REGION_STYLE } from "./CardView";
 
@@ -45,6 +51,10 @@ export default function CardInfo({ defId, definition, unit, sentinela, state, co
   const races = [def.race, ...(def.secondaryRaces ?? [])].filter(Boolean) as string[];
   const classes = unit?.classes?.length ? unit.classes : def.classes ?? [];
   const mechanicNames = [...new Set((def.mechanics ?? []).map((mechanic) => mechanic.name).filter((name): name is string => Boolean(name)))];
+  const rulesDescription = cardRulesDescription(def);
+  const counterProtection = counterProtectionText(def);
+  const visibleCustomKeywords = playerVisibleCustomKeywords(def);
+  const speedRuleText = reactionSpeedRuleText(def);
   const inPlay = Boolean(unit || sentinela);
   const runtimeUnit = Boolean(runtime && def.type === "Unit");
   const runtimePermanent = Boolean(runtime && (def.type === "Enchantment" || def.type === "Artifact"));
@@ -83,7 +93,7 @@ export default function CardInfo({ defId, definition, unit, sentinela, state, co
         </div>
       </div>
 
-      <p className="mt-3 text-[11px] leading-relaxed text-slate-100">{def.description}</p>
+      <p className="mt-3 text-[11px] leading-relaxed text-slate-100">{rulesDescription}</p>
       {def.flavor && <p className="mt-2 border-l-2 border-white/10 pl-2 text-[10px] italic leading-relaxed text-slate-500">“{def.flavor}”</p>}
 
       {runtimeUnit && runtime && (
@@ -149,12 +159,13 @@ export default function CardInfo({ defId, definition, unit, sentinela, state, co
       <section className="mt-4 border-t border-white/10 pt-3">
         <SectionTitle>Regras e propriedades</SectionTitle>
         <div className="space-y-1.5 text-[10px] leading-relaxed text-slate-300">
-          {def.speed && <p><span className="font-black text-violet-300">⚡ {def.speed}:</span> {def.speed === "Burst" ? "pode responder a feitiços ou unidades inimigas." : "pode responder a unidades inimigas."}</p>}
+          {def.speed && speedRuleText && <p><span className="font-black text-violet-300">⚡ {def.speed}:</span> {speedRuleText}</p>}
+          {counterProtection && <p><span className="font-black text-amber-300">🛡 Proteção contra anulação:</span> {counterProtection}</p>}
           {def.costReduction && <p><span className="font-black text-emerald-300">🔻 Afinidade:</span> {def.costReduction.kind === "creatures" ? `custa ${def.costReduction.per ?? 1} a menos por criatura que você controla` : `custa ${def.costReduction.per ?? 1} a menos por unidade com ${def.costReduction.threshold ?? 4}+ de poder`}{def.costReduction.max !== undefined ? ` (máx. -${def.costReduction.max})` : ""}.</p>}
           {masteryText && <p><span className="font-black text-cyan-300">◆ Identidade regional:</span> {masteryText}</p>}
           {def.type === "Enchantment" || def.type === "Artifact" ? <p><span className="font-black text-fuchsia-300">✦ {def.archetypeName || def.type}:</span> {def.maxHealth ?? runtime?.printedHealth ?? 0} de vida · pode ser alvo de efeitos compatíveis.</p> : null}
           {def.type === "Equipment" && def.equipment && <p><span className="font-black text-cyan-300">⚙ Equipamento:</span> {signed(def.equipment.buffPower)}/{signed(def.equipment.buffHealth)}{def.equipment.keywords?.length ? ` · concede ${def.equipment.keywords.join(", ")}` : ""}.</p>}
-          {def.customKeywords?.length ? <p><span className="font-black text-amber-300">✦ Habilidades customizadas:</span> {def.customKeywords.join(", ")}.</p> : null}
+          {visibleCustomKeywords.length ? <p><span className="font-black text-amber-300">✦ Habilidades customizadas:</span> {visibleCustomKeywords.join(", ")}.</p> : null}
           {mechanicNames.length ? <p><span className="font-black text-sky-300">◈ Mecânicas adicionais:</span> {mechanicNames.join(", ")}.</p> : null}
           {def.doctrineAffinities?.length ? <p><span className="font-black text-indigo-300">◇ Sinergia de doutrina:</span> {def.doctrineAffinities.join(", ")}.</p> : null}
         </div>

@@ -10,6 +10,7 @@ import { getClientArtFallbackUrl } from "@/game/client-game-config";
 import CollectionSymbolMark from "./CollectionSymbolMark";
 import { useCatalogRevision } from "./CatalogContext";
 import { cardRegions, identityForRegions, REGION_IDENTITY_STYLE, regionalRuleText } from "@/game/region-identity";
+import { cardRulesDescription } from "@/game/reaction-presentation";
 
 export const REGION_STYLE: Record<Region, { grad: string; border: string; text: string; ring: string; label: string; aura: string; sigil: string; art: string }> = {
   Emberhold: { grad: "from-orange-500 via-red-700 to-slate-950", border: "border-orange-300/80", text: "text-orange-100", ring: "ring-orange-300", label: "Emberhold", aura: "card-aura-ember", sigil: "🔥", art: "/art/regions/emberhold.svg" },
@@ -68,6 +69,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
   const regions = cardRegions(def);
   const identity = identityForRegions(regions);
   const masteryText = regionalRuleText(def);
+  const rulesDescription = cardRulesDescription(def);
   const spectrum = "linear-gradient(90deg, " + regions.map((region) => REGION_IDENTITY_STYLE[region].color).join(", ") + ")";
   const dims = size === "sm" ? "w-20 h-28 text-[9px]" : size === "lg" ? "w-40 h-60 text-xs" : "w-28 h-40 text-[10px]";
   const power = unit ? unit.power : def.power;
@@ -128,7 +130,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
           <div className="card-progress-wrap"><span>{prog.current}/{prog.goal}</span><div className="card-progress"><div style={{ width: `${Math.min(100, Math.round((prog.current / prog.goal) * 100))}%` }} /></div></div>
         )}
 
-        {size !== "sm" && <div className="card-textbox"><p className="line-clamp-4 text-[8px] leading-[1.15] text-white/95">{def.description}</p>{size === "lg" && def.flavor && <p className="mt-1 line-clamp-2 border-t border-white/10 pt-1 text-[7px] italic leading-tight text-white/55">“{def.flavor}”</p>}{masteryText && <p className="card-mastery">{masteryText}</p>}</div>}
+        {size !== "sm" && <div className="card-textbox"><p className="line-clamp-4 text-[8px] leading-[1.15] text-white/95">{rulesDescription}</p>{size === "lg" && def.flavor && <p className="mt-1 line-clamp-2 border-t border-white/10 pt-1 text-[7px] italic leading-tight text-white/55">“{def.flavor}”</p>}{masteryText && <p className="card-mastery">{masteryText}</p>}</div>}
 
         <div className="card-bottom">
           <KeywordChips keywords={keywords} compact={size === "sm"} />

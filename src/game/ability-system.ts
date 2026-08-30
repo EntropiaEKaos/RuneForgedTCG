@@ -20,7 +20,7 @@ import type {
 
 /**
  * Ability System 2.0 is a compatibility grammar, not a new execution engine.
- * It gives authoring, Studio and future runtime work one vocabulary while the
+ * It gives authoring, Studio and runtime work one vocabulary while the
  * existing 2.97 execution paths remain authoritative and replay-compatible.
  */
 export const ABILITY_GRAMMAR_VERSION = 2 as const;
@@ -58,6 +58,7 @@ export type AbilityOrigin =
   | "keyword"
   | "legacyTrigger"
   | "mechanic"
+  | "spell"
   | "activated"
   | "sentinela"
   | "levelUp";
@@ -143,7 +144,7 @@ export const ABILITY_KIND_SUPPORT = {
   static: "partial",
   triggered: "supported",
   activated: "supported",
-  reaction: "partial",
+  reaction: "supported",
   replacement: "planned",
   delayed: "planned",
   modal: "planned",
@@ -157,7 +158,7 @@ export const ABILITY_TIMING_SUPPORT = {
   automatic: "supported",
   mainPhase: "supported",
   combat: "partial",
-  reaction: "partial",
+  reaction: "supported",
   priority: "planned",
 } as const satisfies Record<AbilityTiming, AbilityRuntimeSupport>;
 
@@ -252,6 +253,27 @@ export function blueprintFromLegacyTrigger(trigger: NonNullable<CardDef["trigger
   };
 }
 
+/**
+ * Fast/Burst spell rules are the current authorable reaction surface. Their
+ * actual eligibility is enforced by reaction-contract.ts at runtime; this
+ * adapter makes the same surface visible to Ability Grammar 2.0 and Studio.
+ */
+export function blueprintFromReactionSpell(card: CardDef): AbilityBlueprint | null {
+  if (card.type !== "Spell" || !card.speed || !card.spell) return null;
+  return {
+    version: ABILITY_GRAMMAR_VERSION,
+    origin: "spell",
+    kind: "reaction",
+    features: effectFeatures(card.spell),
+    timing: "reaction",
+    description: card.description,
+    condition: ALWAYS,
+    costs: card.cost > 0 ? [{ kind: "mana", amount: card.cost }] : [],
+    target: card.spell.target,
+    effect: card.spell,
+  };
+}
+
 export function blueprintFromSentinelaAbility(ability: SentinelaAbility): AbilityBlueprint {
   return {
     version: ABILITY_GRAMMAR_VERSION,
@@ -305,6 +327,8 @@ export function abilityBlueprintsForCard(card: CardDef): AbilityBlueprint[] {
   for (const keyword of card.keywords ?? []) blueprints.push(blueprintFromKeyword(keyword));
   if (card.trigger) blueprints.push(blueprintFromLegacyTrigger(card.trigger));
   for (const mechanic of card.mechanics ?? []) blueprints.push(blueprintFromMechanic(mechanic));
+  const reaction = blueprintFromReactionSpell(card);
+  if (reaction) blueprints.push(reaction);
   for (const ability of card.activatedAbilities ?? []) blueprints.push(blueprintFromActivatedAbility(ability));
   for (const ability of card.sentinela?.abilities ?? []) blueprints.push(blueprintFromSentinelaAbility(ability));
   if (card.levelUp) blueprints.push(blueprintFromLevelUp(card.levelUp));

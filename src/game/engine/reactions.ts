@@ -1,6 +1,7 @@
 import { getCard } from "../cards";
+import { canCounterPendingAction, canReactWithCard, hasReactionOpportunity } from "../reaction-contract";
 import type { GameState, PlayerId } from "../types";
-import { canCastReaction, castSpell, playUnit } from "./actions";
+import { castSpell, effectiveCost, playUnit } from "./actions";
 
 /**
  * Result of a stack resolution. If awaitingReaction is set, the human must
@@ -23,20 +24,12 @@ export interface CardAction {
 
 interface StackFrame extends CardAction {
   player: PlayerId;
-  /** If this is a counter-targeting spell, the instance id of the spell it negates. */
+  /** Pending stack frame this counter attempts to prevent from resolving. */
   negates?: string;
 }
 
 function canRespondTo(state: GameState, playerId: PlayerId, action: CardAction): boolean {
-  if (state.phase !== "main") return false;
-  const p = state.players[playerId];
-  return p.hand.some((c) => {
-    const def = getCard(c.defId);
-    if (def.type !== "Spell" || !def.speed) return false;
-    if (action.kind === "spell" && def.speed !== "Burst") return false;
-    if (p.mana + p.spellMana < def.cost) return false;
-    return true;
-  });
+  return hasReactionOpportunity(state, playerId, action);
 }
 
 function aiChooseReactionAction(state: GameState, action: CardAction): CardAction | null {
@@ -44,12 +37,42 @@ function aiChooseReactionAction(state: GameState, action: CardAction): CardActio
 }
 
 /**
- * Drives an action through the LIFO stack. If the responding player can
- * respond with a Burst/Fast spell, the stack pauses and returns
- * awaitingReaction. If the human explicitly chose to "skip" or "pass",
- * the stack resolves immediately. If the AI is the responder and the
- * human did not pre-supply a counter, the AI brain (`aiChooseReaction`)
- * decides whether to counter and the stack resolves on the same call.
+ * A counter prevents resolution; it does not rewind the fact that the target
+ * card was committed to the stack. RuneForge has no graveyard zone yet, so the
+ * authoritative equivalent is to consume the card from hand and pay its cast
+ * cost without applying any summon/play/spell effects.
+ */
+function consumeNegatedCard(state: GameState, item: StackFrame): void {
+  const player = state.players[item.player];
+  const instance = player.hand.find((card) => card.instanceId === item.instanceId);
+  if (!instance) return;
+
+  const def = getCard(instance.defId);
+  const cost = effectiveCost(state, item.player, def);
+  const usesSpellMana = def.type !== "Unit" && def.type !== "Sentinela";
+
+  if (usesSpellMana) {
+    const regularMana = Math.min(player.mana, cost);
+    player.mana -= regularMana;
+    player.spellMana = Math.max(0, player.spellMana - (cost - regularMana));
+    player.stats.spellsCast += 1;
+  } else {
+    player.mana = Math.max(0, player.mana - cost);
+  }
+  player.hand = player.hand.filter((card) => card.instanceId !== item.instanceId);
+}
+
+/**
+ * Drives an action through the LIFO stack. If the responding player has a
+ * legal reaction, the stack pauses and returns awaitingReaction. If the human
+ * explicitly chose to "skip" or "pass", the stack resolves immediately. If
+ * the AI is the responder and the human did not pre-supply a counter, the AI
+ * brain (`aiChooseReaction`) decides whether to react and the stack resolves
+ * on the same call.
+ *
+ * Reaction eligibility is authoritative in reaction-contract.ts: the exact
+ * same speed/mana/target contract gates both opening the window and inserting
+ * the chosen response into the stack.
  *
  * This function is the single source of truth for stack resolution and
  * is used by /api/simulate, /api/replays, the in-browser GameClient and
@@ -69,7 +92,7 @@ export function applyStackedAction(
   const sourcePlayer: PlayerId = action.player ?? "player";
   const respondingSide: PlayerId = sourcePlayer === "player" ? "ai" : "player";
 
-  // Determine if the responder has a counter and prepare the stack.
+  // Determine if the responder has a legal reaction and prepare the stack.
   const baseState = state;
   const stack: StackFrame[] = [{ ...action, player: sourcePlayer }];
 
@@ -87,7 +110,7 @@ export function applyStackedAction(
 
   if (
     chosenCounter &&
-    canCastReaction(baseState, respondingSide, chosenCounter.instanceId, action.kind) &&
+    canReactWithCard(baseState, respondingSide, chosenCounter.instanceId, action) &&
     !stack.some((x) => x.instanceId === chosenCounter.instanceId)
   ) {
     const counterItem: StackFrame = {
@@ -112,7 +135,7 @@ export function applyStackedAction(
   return resolveStack(baseState, stack);
 }
 
-/** Finalize the stack: resolve from top to bottom, applying counterspells. */
+/** Finalize the stack: resolve from top to bottom, applying counters. */
 function resolveStack(state: GameState, stack: StackFrame[]): StackResolution {
   let s = state;
   const negated = new Set<string>();
@@ -120,17 +143,21 @@ function resolveStack(state: GameState, stack: StackFrame[]): StackResolution {
     if (s.phase === "gameover") break;
 
     if (negated.has(item.instanceId)) {
+      consumeNegatedCard(s, item);
       s.log.push(`✨ ${getCard(item.defId).name} was negated and did not resolve.`);
       continue;
     }
 
     const card = getCard(item.defId);
     if (card.spell?.kind === "negateSpell" && item.negates) {
-      negated.add(item.negates);
       const target = stack.find((x) => x.instanceId === item.negates);
-      const targetName = target ? getCard(target.defId).name : "the spell";
-      s.log.push(`✨ ${card.name} negates ${targetName}!`);
-      s = castSpell(s, item.player, item.instanceId, item.negates);
+      if (target && canCounterPendingAction(card, target)) {
+        negated.add(item.negates);
+        const targetName = getCard(target.defId).name;
+        s.log.push(`✨ ${card.name} negates ${targetName}!`);
+        // Secondary effects (`also`) resolve only after the counter succeeded.
+        s = castSpell(s, item.player, item.instanceId, item.negates);
+      }
       continue;
     }
 
@@ -169,7 +196,7 @@ export function applyStackedActionWithAi(
 
   if (
     chosenCounter &&
-    canCastReaction(baseState, respondingSide, chosenCounter.instanceId, action.kind) &&
+    canReactWithCard(baseState, respondingSide, chosenCounter.instanceId, action) &&
     !stack.some((x) => x.instanceId === chosenCounter.instanceId)
   ) {
     stack.push({ ...chosenCounter, player: respondingSide, negates: action.instanceId });
