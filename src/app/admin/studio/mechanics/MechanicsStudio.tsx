@@ -3,21 +3,37 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StudioBreadcrumb, StudioCommandPalette } from "../StudioChrome";
-import {
-  CARD_EFFECT_KINDS,
-  CARD_TARGETS,
-  CARD_TRIGGERS,
-  CARD_TYPES,
-  MECHANIC_CONDITION_KINDS,
-  CARD_RACES,
-  CARD_KEYWORDS,
-} from "@/game/card-authoring";
+import { CARD_TRIGGERS, CARD_TYPES } from "@/game/card-authoring";
+import type { CardEffect, MechanicCondition } from "@/game/types";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import MechanicsImpactPreflight, { type MechanicsImpactReport } from "./MechanicsImpactPreflight";
+import {
+  AbilityGrammarReadiness,
+  StudioConditionEditor,
+  StudioEffectEditor,
+} from "../AbilityComposerFields";
 
-const baseEffect = { kind: "draw", amount: 1, target: "none" };
+const baseEffect: CardEffect = { kind: "draw", amount: 1, target: "none" };
+const baseCondition: MechanicCondition = { kind: "always" };
 
 type MechanicsTab = "keyword" | "effect" | "archetype";
+
+type KeywordDraft = {
+  key: string;
+  name: string;
+  description: string;
+  icon: string;
+  trigger: string;
+  condition: MechanicCondition;
+  effect: CardEffect;
+};
+
+type EffectDraft = { key: string; name: string; description: string; effect: CardEffect };
+type ArchetypeDraft = { key: string; name: string; description: string; baseType: string; definition: { defaults: Record<string, unknown> } };
+
+const freshKeyword = (): KeywordDraft => ({ key: "", name: "", description: "", icon: "✦", trigger: "onSummon", condition: structuredClone(baseCondition), effect: structuredClone(baseEffect) });
+const freshEffect = (): EffectDraft => ({ key: "", name: "", description: "", effect: structuredClone(baseEffect) });
+const freshArchetype = (): ArchetypeDraft => ({ key: "", name: "", description: "", baseType: "Enchantment", definition: { defaults: { maxHealth: 3 } } });
 
 export default function MechanicsStudio() {
   const [tab, setTab] = useState<MechanicsTab>("keyword");
@@ -27,15 +43,15 @@ export default function MechanicsStudio() {
   const [impactReport, setImpactReport] = useState<MechanicsImpactReport | null>(null);
   const [impactLoading, setImpactLoading] = useState(false);
   const [impactError, setImpactError] = useState("");
-  const [kw, setKw] = useState<any>({ key: "", name: "", description: "", icon: "✦", trigger: "onSummon", condition: { kind: "always" }, effect: { ...baseEffect } });
-  const [fx, setFx] = useState<any>({ key: "", name: "", description: "", effect: { ...baseEffect } });
-  const [arch, setArch] = useState<any>({ key: "", name: "", description: "", baseType: "Enchantment", definition: { defaults: { maxHealth: 3 } } });
+  const [kw, setKw] = useState<KeywordDraft>(freshKeyword);
+  const [fx, setFx] = useState<EffectDraft>(freshEffect);
+  const [arch, setArch] = useState<ArchetypeDraft>(freshArchetype);
   const resource = tab === "keyword" ? "keywords" : tab === "effect" ? "effects" : "archetypes";
 
   async function load() {
-    const r = await fetch(`/api/admin/studio/${resource}?limit=300`, { credentials: "include" });
-    const d = await r.json();
-    setRows(d.rows || []);
+    const response = await fetch(`/api/admin/studio/${resource}?limit=300`, { credentials: "include" });
+    const data = await response.json();
+    setRows(data.rows || []);
   }
 
   useDeferredEffect(() => {
@@ -47,16 +63,28 @@ export default function MechanicsStudio() {
 
   function resetEditor() {
     setEditingId(null);
-    if (tab === "keyword") setKw({ key: "", name: "", description: "", icon: "✦", trigger: "onSummon", condition: { kind: "always" }, effect: { ...baseEffect } });
-    else if (tab === "effect") setFx({ key: "", name: "", description: "", effect: { ...baseEffect } });
-    else setArch({ key: "", name: "", description: "", baseType: "Enchantment", definition: { defaults: { maxHealth: 3 } } });
+    if (tab === "keyword") setKw(freshKeyword());
+    else if (tab === "effect") setFx(freshEffect());
+    else setArch(freshArchetype());
   }
 
   function editRow(row: any) {
     setEditingId(row.id);
-    if (tab === "keyword") setKw({ key: row.key, name: row.name, description: row.description || "", icon: row.icon || "✦", trigger: row.behavior?.trigger || "onSummon", condition: row.behavior?.condition || { kind: "always" }, effect: row.behavior?.effect || { ...baseEffect } });
-    else if (tab === "effect") setFx({ key: row.key, name: row.name, description: row.description || "", effect: row.schema?.effect || { ...baseEffect } });
-    else setArch({ key: row.key, name: row.name, description: row.description || "", baseType: row.baseType || "Enchantment", definition: row.definition || { defaults: { maxHealth: 3 } } });
+    if (tab === "keyword") {
+      setKw({
+        key: row.key,
+        name: row.name,
+        description: row.description || "",
+        icon: row.icon || "✦",
+        trigger: row.behavior?.trigger || "onSummon",
+        condition: row.behavior?.condition || structuredClone(baseCondition),
+        effect: row.behavior?.effect || structuredClone(baseEffect),
+      });
+    } else if (tab === "effect") {
+      setFx({ key: row.key, name: row.name, description: row.description || "", effect: row.schema?.effect || structuredClone(baseEffect) });
+    } else {
+      setArch({ key: row.key, name: row.name, description: row.description || "", baseType: row.baseType || "Enchantment", definition: row.definition || { defaults: { maxHealth: 3 } } });
+    }
   }
 
   async function inspectImpact(row: any) {
@@ -65,10 +93,10 @@ export default function MechanicsStudio() {
     setImpactReport(null);
     try {
       const query = new URLSearchParams({ kind: tab, key: String(row.key || "") });
-      const r = await fetch(`/api/admin/studio/dependencies/impact?${query}`, { credentials: "include" });
-      const d = await r.json();
-      if (!r.ok || !d.ok) throw new Error(d.error || "Impact diagnostics unavailable");
-      setImpactReport(d as MechanicsImpactReport);
+      const response = await fetch(`/api/admin/studio/dependencies/impact?${query}`, { credentials: "include" });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Impact diagnostics unavailable");
+      setImpactReport(data as MechanicsImpactReport);
     } catch (error) {
       setImpactError(error instanceof Error ? error.message : "Impact diagnostics unavailable");
     } finally {
@@ -77,15 +105,19 @@ export default function MechanicsStudio() {
   }
 
   async function save() {
-    let payload: any;
-    if (tab === "keyword") payload = { key: kw.key, name: kw.name, description: kw.description, icon: kw.icon, behavior: { version: 1, trigger: kw.trigger, condition: kw.condition, effect: kw.effect } };
-    else if (tab === "effect") payload = { key: fx.key, name: fx.name, description: fx.description, kind: "composite", schema: { version: 1, effect: fx.effect } };
-    else payload = { key: arch.key, name: arch.name, description: arch.description, baseType: arch.baseType, definition: { version: 1, baseType: arch.baseType, defaults: arch.definition?.defaults || {} } };
+    let payload: Record<string, unknown>;
+    if (tab === "keyword") {
+      payload = { key: kw.key, name: kw.name, description: kw.description, icon: kw.icon, behavior: { version: 1, trigger: kw.trigger, condition: kw.condition, effect: kw.effect } };
+    } else if (tab === "effect") {
+      payload = { key: fx.key, name: fx.name, description: fx.description, kind: "composite", schema: { version: 1, effect: fx.effect } };
+    } else {
+      payload = { key: arch.key, name: arch.name, description: arch.description, baseType: arch.baseType, definition: { version: 1, baseType: arch.baseType, defaults: arch.definition?.defaults || {} } };
+    }
     const url = editingId ? `/api/admin/studio/${resource}/${editingId}` : `/api/admin/studio/${resource}`;
-    const r = await fetch(url, { method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
-    const d = await r.json();
-    setMsg(d.ok ? (editingId ? "Draft atualizado." : "Draft criado. Valide/QA/publique pelo Production Studio.") : d.error || "Falha ao salvar");
-    if (d.ok) {
+    const response = await fetch(url, { method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
+    const data = await response.json();
+    setMsg(data.ok ? (editingId ? "Draft atualizado." : "Draft criado. Valide/QA/publique pelo Production Studio.") : data.error || "Falha ao salvar");
+    if (data.ok) {
       await load();
       resetEditor();
       setImpactReport(null);
@@ -99,8 +131,8 @@ export default function MechanicsStudio() {
         <div className="studio-brand">
           <div className="studio-brand-mark">⚙</div>
           <div>
-            <div className="studio-kicker">RUNEFORGE // SAFE DSL</div>
-            <div className="studio-title">Mechanics Studio <span className="text-amber-300">1.2</span></div>
+            <div className="studio-kicker">RUNEFORGE // ABILITY SYSTEM 2.0</div>
+            <div className="studio-title">Mechanics Studio <span className="text-amber-300">2.0</span></div>
           </div>
         </div>
         <Link href="/admin/studio" className="btn-ghost text-xs">Control Room</Link>
@@ -109,45 +141,45 @@ export default function MechanicsStudio() {
     <main className="studio-main">
       <StudioBreadcrumb section="Authoring" current="Mechanics Studio" />
       <section className="studio-hero mb-5">
-        <p className="studio-kicker">MECHANICS AUTHORING</p>
-        <h2>Crie comportamento sem executar código arbitrário.</h2>
-        <p>Keywords compilam para trigger + condição + efeitos nativos. Effects são macros de primitivas. Novos tipos são arquétipos sobre contratos estruturais já auditados.</p>
+        <p className="studio-kicker">SEMANTIC MECHANICS AUTHORING</p>
+        <h2>Uma linguagem de gameplay, um único contrato de efeito.</h2>
+        <p>Keywords compilam para trigger + condição + efeitos nativos. Effects são macros de primitivas. O compositor limita targets e campos conforme o mesmo contrato usado pela validação de engine.</p>
       </section>
+      <div className="mb-5"><AbilityGrammarReadiness /></div>
       <div className="mb-5 flex gap-2">
-        {[["keyword", "✦ Keyword"], ["effect", "⚡ Effect"], ["archetype", "🃏 Card Type"]].map(([k, l]) => <button key={k} onClick={() => setTab(k as MechanicsTab)} className={tab === k ? "btn-primary" : "btn-ghost"}>{l}</button>)}
+        {[["keyword", "✦ Keyword"], ["effect", "⚡ Effect"], ["archetype", "🃏 Card Type"]].map(([key, label]) => <button key={key} onClick={() => setTab(key as MechanicsTab)} className={tab === key ? "btn-primary" : "btn-ghost"}>{label}</button>)}
       </div>
       {msg && <div className="mb-4 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs text-amber-100">{msg}</div>}
       <div className="grid gap-5 xl:grid-cols-[1fr_420px]">
         <section className="studio-section p-5">
           {tab === "keyword" && <>
-            <H t="Keyword Composer" />
+            <Heading title="Keyword Composer" />
             <Grid>
-              <F l="Key"><input className="input" value={kw.key} onChange={e => setKw({ ...kw, key: e.target.value })} /></F>
-              <F l="Name"><input className="input" value={kw.name} onChange={e => setKw({ ...kw, name: e.target.value })} /></F>
-              <F l="Trigger"><Sel v={kw.trigger} xs={CARD_TRIGGERS as any} set={v => setKw({ ...kw, trigger: v })} /></F>
-              <F l="Condition"><Sel v={kw.condition.kind} xs={MECHANIC_CONDITION_KINDS as any} set={v => setKw({ ...kw, condition: defaultCondition(v) })} /></F>
+              <Field label="Key"><input className="input font-mono" value={kw.key} onChange={(event) => setKw({ ...kw, key: event.target.value })} /></Field>
+              <Field label="Name"><input className="input" value={kw.name} onChange={(event) => setKw({ ...kw, name: event.target.value })} /></Field>
+              <Field label="Icon"><input className="input" maxLength={8} value={kw.icon} onChange={(event) => setKw({ ...kw, icon: event.target.value })} /></Field>
+              <Field label="Trigger"><Select value={kw.trigger} options={CARD_TRIGGERS} onChange={(trigger) => setKw({ ...kw, trigger })} /></Field>
             </Grid>
-            {kw.condition.kind === "allyRace" && <F l="Race"><Sel v={kw.condition.race || "Dragon"} xs={CARD_RACES as any} set={v => setKw({ ...kw, condition: { kind: "allyRace", race: v, min: 1 } })} /></F>}
-            {kw.condition.kind === "allyClass" && <F l="Class key"><input className="input" value={kw.condition.classKey || ""} onChange={e => setKw({ ...kw, condition: { kind: "allyClass", classKey: e.target.value, min: 1 } })} /></F>}
-            {["nexusBelow", "manaAtLeast"].includes(kw.condition.kind) && <F l="Amount"><input className="input" type="number" value={kw.condition.amount || 0} onChange={e => setKw({ ...kw, condition: { kind: kw.condition.kind, amount: Number(e.target.value) } })} /></F>}
-            <ConditionEditor value={kw.condition} set={condition => setKw({ ...kw, condition })} />
-            <Effect value={kw.effect} set={effect => setKw({ ...kw, effect })} />
+            <Field label="Description"><textarea className="input min-h-20" value={kw.description} onChange={(event) => setKw({ ...kw, description: event.target.value })} /></Field>
+            <div className="mt-4"><StudioConditionEditor value={kw.condition} onChange={(condition) => setKw({ ...kw, condition })} /></div>
+            <div className="mt-4"><StudioEffectEditor value={kw.effect} onChange={(effect) => setKw({ ...kw, effect })} /></div>
           </>}
           {tab === "effect" && <>
-            <H t="Effect Composer" />
+            <Heading title="Effect Composer" />
             <Grid>
-              <F l="Key"><input className="input" value={fx.key} onChange={e => setFx({ ...fx, key: e.target.value })} /></F>
-              <F l="Name"><input className="input" value={fx.name} onChange={e => setFx({ ...fx, name: e.target.value })} /></F>
+              <Field label="Key"><input className="input font-mono" value={fx.key} onChange={(event) => setFx({ ...fx, key: event.target.value })} /></Field>
+              <Field label="Name"><input className="input" value={fx.name} onChange={(event) => setFx({ ...fx, name: event.target.value })} /></Field>
             </Grid>
-            <Effect value={fx.effect} set={effect => setFx({ ...fx, effect })} />
+            <Field label="Description"><textarea className="input min-h-20" value={fx.description} onChange={(event) => setFx({ ...fx, description: event.target.value })} /></Field>
+            <div className="mt-4"><StudioEffectEditor value={fx.effect} onChange={(effect) => setFx({ ...fx, effect })} /></div>
           </>}
           {tab === "archetype" && <>
-            <H t="Card Type / Archetype Composer" />
+            <Heading title="Card Type / Archetype Composer" />
             <Grid>
-              <F l="Key"><input className="input" value={arch.key} onChange={e => setArch({ ...arch, key: e.target.value })} /></F>
-              <F l="Display type"><input className="input" value={arch.name} onChange={e => setArch({ ...arch, name: e.target.value })} placeholder="Location" /></F>
-              <F l="Structural base"><Sel v={arch.baseType} xs={CARD_TYPES as any} set={v => setArch({ ...arch, baseType: v })} /></F>
-              <F l="Default max health"><input className="input" type="number" value={arch.definition.defaults?.maxHealth ?? 3} onChange={e => setArch({ ...arch, definition: { defaults: { ...arch.definition.defaults, maxHealth: Number(e.target.value) } } })} /></F>
+              <Field label="Key"><input className="input font-mono" value={arch.key} onChange={(event) => setArch({ ...arch, key: event.target.value })} /></Field>
+              <Field label="Display type"><input className="input" value={arch.name} onChange={(event) => setArch({ ...arch, name: event.target.value })} placeholder="Location" /></Field>
+              <Field label="Structural base"><Select value={arch.baseType} options={CARD_TYPES} onChange={(baseType) => setArch({ ...arch, baseType })} /></Field>
+              <Field label="Default max health"><input className="input" type="number" value={Number(arch.definition.defaults?.maxHealth ?? 3)} onChange={(event) => setArch({ ...arch, definition: { defaults: { ...arch.definition.defaults, maxHealth: Number(event.target.value) } } })} /></Field>
             </Grid>
             <p className="mt-4 text-xs text-slate-400">Um novo tipo herda zona e regras estruturais do baseType. Ex.: Location → Enchantment, Relic → Artifact, Vehicle → Unit. Uma zona completamente nova continua exigindo uma nova primitiva de engine.</p>
           </>}
@@ -157,19 +189,12 @@ export default function MechanicsStudio() {
           </div>
         </section>
         <aside className="studio-section p-5">
-          <H t={`Drafts / ${resource}`} />
+          <Heading title={`Drafts / ${resource}`} />
           <div className="space-y-2">
-            {rows.map(r => <div key={r.id} className="rounded-xl border border-white/10 bg-white/[.025] p-3">
+            {rows.map((row) => <div key={row.id} className="rounded-xl border border-white/10 bg-white/[.025] p-3">
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="font-bold">{r.name}</div>
-                  <div className="font-mono text-[10px] text-slate-500">{r.key}</div>
-                  <div className="mt-1 text-[10px] text-slate-400">{r.enabled ? "LIVE" : "DRAFT"}</div>
-                </div>
-                <div className="flex gap-1">
-                  <button className="btn-ghost !px-2 !py-1 text-[10px]" onClick={() => inspectImpact(r)}>Impact</button>
-                  {!r.enabled && <button className="btn-ghost !px-2 !py-1 text-[10px]" onClick={() => editRow(r)}>Edit</button>}
-                </div>
+                <div><div className="font-bold">{row.name}</div><div className="font-mono text-[10px] text-slate-500">{row.key}</div><div className="mt-1 text-[10px] text-slate-400">{row.enabled ? "LIVE" : "DRAFT"}</div></div>
+                <div className="flex gap-1"><button className="btn-ghost !px-2 !py-1 text-[10px]" onClick={() => inspectImpact(row)}>Impact</button>{!row.enabled && <button className="btn-ghost !px-2 !py-1 text-[10px]" onClick={() => editRow(row)}>Edit</button>}</div>
               </div>
             </div>)}
           </div>
@@ -181,54 +206,7 @@ export default function MechanicsStudio() {
   </div>;
 }
 
-function H({ t }: { t: string }) {
-  return <><div className="studio-kicker">SAFE AUTHORING</div><h2 className="mb-4 mt-1 text-xl font-black">{t}</h2></>;
-}
-function Grid({ children }: { children: any }) { return <div className="grid gap-3 md:grid-cols-2">{children}</div>; }
-function F({ l, children }: { l: string; children: any }) { return <label className="mb-3 block"><span className="label">{l}</span>{children}</label>; }
-function Sel({ v, xs, set }: { v: string; xs: readonly string[]; set: (v: string) => void }) { return <select className="input" value={v} onChange={e => set(e.target.value)}>{xs.map(x => <option key={x}>{x}</option>)}</select>; }
-
-function Effect({ value, set }: { value: any; set: (v: any) => void }) {
-  const v = value || baseEffect;
-  const s = (k: string, x: any) => set({ ...v, [k]: x });
-  return <div className="mt-4 rounded-xl border border-cyan-400/15 bg-cyan-400/[.03] p-4">
-    <div className="grid gap-3 md:grid-cols-3">
-      <F l="Primitive"><Sel v={v.kind} xs={CARD_EFFECT_KINDS as any} set={x => s("kind", x)} /></F>
-      <F l="Target"><Sel v={v.target} xs={CARD_TARGETS as any} set={x => s("target", x)} /></F>
-      <F l="Amount"><input className="input" type="number" value={v.amount ?? 0} onChange={e => s("amount", Number(e.target.value))} /></F>
-      <F l="Power buff"><input className="input" type="number" value={v.buffPower ?? ""} onChange={e => s("buffPower", e.target.value === "" ? undefined : Number(e.target.value))} /></F>
-      <F l="Health buff"><input className="input" type="number" value={v.buffHealth ?? ""} onChange={e => s("buffHealth", e.target.value === "" ? undefined : Number(e.target.value))} /></F>
-      <F l="Keyword"><select className="input" value={v.keyword || ""} onChange={e => s("keyword", e.target.value || undefined)}><option value="">None</option>{CARD_KEYWORDS.map(x => <option key={x}>{x}</option>)}</select></F>
-      <F l="Race"><select className="input" value={v.race || ""} onChange={e => s("race", e.target.value || undefined)}><option value="">None</option>{CARD_RACES.map(x => <option key={x}>{x}</option>)}</select></F>
-      <F l="Class key"><input className="input" value={v.classKey || ""} onChange={e => s("classKey", e.target.value || undefined)} /></F>
-      <F l="Token defId"><input className="input font-mono" value={v.tokenDefId || ""} onChange={e => s("tokenDefId", e.target.value || undefined)} /></F>
-      <F l="Equipment defId"><input className="input font-mono" value={v.equipmentDefId || ""} onChange={e => s("equipmentDefId", e.target.value || undefined)} /></F>
-    </div>
-    {v.also ? <>
-      <button className="btn-ghost text-xs" onClick={() => s("also", undefined)}>Remove follow-up</button>
-      <Effect value={v.also} set={x => s("also", x)} />
-    </> : <button className="btn-ghost text-xs" onClick={() => s("also", { ...baseEffect })}>＋ Follow-up effect</button>}
-  </div>;
-}
-
-function defaultCondition(kind: string): any {
-  if (kind === "and" || kind === "or") return { kind, children: [{ kind: "always" }, { kind: "selfDamaged" }] };
-  if (kind === "not") return { kind, child: { kind: "selfDamaged" } };
-  if (kind === "allyRace") return { kind, race: "Dragon", min: 1 };
-  if (kind === "allyClass") return { kind, classKey: "mage", min: 1 };
-  if (kind === "nexusBelow" || kind === "manaAtLeast") return { kind, amount: 1 };
-  return { kind };
-}
-
-function ConditionEditor({ value, set }: { value: any; set: (v: any) => void }) {
-  if (!value || !["and", "or", "not"].includes(value.kind)) return null;
-  if (value.kind === "not") return <div className="rounded-xl border border-violet-400/15 bg-violet-400/[.03] p-3"><div className="label">NOT child</div><Sel v={value.child?.kind || "selfDamaged"} xs={MECHANIC_CONDITION_KINDS.filter(x => !["and", "or", "not"].includes(x)) as any} set={k => set({ kind: "not", child: defaultCondition(k) })} /></div>;
-  const children = Array.isArray(value.children) ? value.children : [];
-  return <div className="rounded-xl border border-violet-400/15 bg-violet-400/[.03] p-3">
-    <div className="label">{value.kind.toUpperCase()} conditions</div>
-    <div className="grid gap-2 md:grid-cols-2">
-      {children.map((c: any, i: number) => <div key={i}><Sel v={c.kind} xs={MECHANIC_CONDITION_KINDS.filter(x => !["and", "or", "not"].includes(x)) as any} set={k => set({ ...value, children: children.map((x: any, j: number) => j === i ? defaultCondition(k) : x) })} /></div>)}
-    </div>
-    <button type="button" className="btn-ghost mt-2 text-xs" onClick={() => set({ ...value, children: [...children, { kind: "always" }].slice(0, 8) })}>＋ Condition</button>
-  </div>;
-}
+function Heading({ title }: { title: string }) { return <><div className="studio-kicker">SAFE AUTHORING</div><h2 className="mb-4 mt-1 text-xl font-black">{title}</h2></>; }
+function Grid({ children }: { children: React.ReactNode }) { return <div className="grid gap-3 md:grid-cols-2">{children}</div>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="mb-3 block"><span className="label">{label}</span>{children}</label>; }
+function Select({ value, options, onChange }: { value: string; options: readonly string[]; onChange: (value: string) => void }) { return <select className="input" value={value} onChange={(event) => onChange(event.target.value)}>{options.map((option) => <option key={option}>{option}</option>)}</select>; }
