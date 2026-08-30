@@ -305,14 +305,15 @@ function seededShuffle(cards, seed) {
   return out;
 }
 
-async function seedDeck(cdp) {
+async function seedDeck(cdp, attempt) {
+  const candidateName = `${deckName} ${String(attempt).padStart(2, "0")}`;
   const result = await evaluate(cdp, `(async () => {
     const response = await fetch('/api/decks', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: ${JSON.stringify(deckName)},
+        name: ${JSON.stringify(candidateName)},
         emoji: '⚙️',
         formatId: 'eternal',
         cards: ${JSON.stringify(certificationDeck)}
@@ -321,7 +322,7 @@ async function seedDeck(cdp) {
     const body = await response.json();
     return { status: response.status, ...body };
   })()`);
-  assert.equal(result?.ok, true, `failed to seed activated ability certification deck: ${JSON.stringify(result)}`);
+  assert.equal(result?.ok, true, `failed to seed activated ability certification deck ${attempt}: ${JSON.stringify(result)}`);
   assert.ok(result.deck?.id, "seeded certification deck must expose an id");
   assert.equal(result.deck.cards?.length, 40, "server must preserve the 40-card certification deck");
   return result.deck;
@@ -341,10 +342,12 @@ async function issueAuthoritativeToken(cdp, deckId) {
 }
 
 async function prepareAuthoritativeFixture(cdp) {
-  const deck = await seedDeck(cdp);
-  const deckId = `custom_${deck.id}`;
   const attempts = [];
   for (let attempt = 1; attempt <= maxTokenAttempts; attempt++) {
+    // Match tokens are deterministic for a given custom deck id. Create a fresh
+    // deck id per attempt so the server produces a new authoritative seed.
+    const deck = await seedDeck(cdp, attempt);
+    const deckId = `custom_${deck.id}`;
     const token = await issueAuthoritativeToken(cdp, deckId);
     assert.equal(token?.ok, true, `authoritative match token attempt ${attempt} failed: ${JSON.stringify(token)}`);
     const seed = Number(token.seed);
