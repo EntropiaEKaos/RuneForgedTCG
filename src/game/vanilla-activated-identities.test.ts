@@ -95,7 +95,7 @@ for (const defId of LEGENDS) {
 {
   const state = game();
   const source = addUnit(state, "van_void_u18", "player");
-  const enemy = addUnit(state, "wood_ent", "ai");
+  const enemy = addUnit(state, "void_duelist", "ai");
   state.players.player.nexusHealth = 10;
   const next = activateAbility(state, "player", source.instanceId, 0, enemy.instanceId);
   const enemyAfter = next.players.ai.bench.find((unit) => unit.instanceId === enemy.instanceId);
