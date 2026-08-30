@@ -41,7 +41,13 @@ ok(/balance-audit-2\.(?:96|97)\.ts/.test(ranked) && ranked.includes("RANKED_RELE
 checks.push("historical 2.96 balance artifact is no longer required in the active source package");
 
 const sentinelaActions = read("src/game/engine/sentinela-actions.ts");
-ok(sentinelaActions.includes("cleanupDead(s)") && sentinelaActions.includes("cleanupSentinelas(s)"), "Sentinela ability resolution cleans dead units and zero-loyalty Sentinelas immediately");
+const activatedActions = read("src/game/engine/activated-actions.ts");
+ok(
+  sentinelaActions.includes("return activateAbility(state, playerId, instanceId, abilityIndex, targetInstanceId)") &&
+  activatedActions.includes("cleanupDead(next)") &&
+  activatedActions.includes("cleanupSentinelas(next)"),
+  "Sentinela ability resolution delegates to the generic executor that immediately cleans dead units and zero-loyalty Sentinelas",
+);
 const actions = read("src/game/engine/actions.ts");
 ok(actions.includes('def.type !== "Unit" && def.type !== "Sentinela"') && actions.includes("payCost(p, cost, false)"), "Sentinelas consume regular mana and never Spell Mana");
 const ai = read("src/game/ai.ts");

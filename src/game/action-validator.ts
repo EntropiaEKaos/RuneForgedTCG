@@ -1,5 +1,5 @@
 import { getCard } from "./cards";
-import { canActivateSentinela, canBlock, isValidTarget, spellNeedsTarget } from "./engine";
+import { canBlock, isValidTarget, spellNeedsTarget, validateActivatedAbilityActivation } from "./engine";
 import type { GameAction } from "./reducer";
 import type { BoardEntity, GameState, PlayerId } from "./types";
 
@@ -48,7 +48,7 @@ function validateCardTarget(state: GameState, actor: PlayerId, defId: string, ta
 /**
  * Strict semantic validation for client-supplied GameAction values.
  * This complements turn/phase authorization by validating referenced instances,
- * duplicate ids, blocker legality, target ownership, sentinela ids and mulligan ids.
+ * duplicate ids, blocker legality, target ownership, activated-ability sources and mulligan ids.
  */
 export function validateGameActionSemantics(state: GameState, action: GameAction, actor: PlayerId): ActionValidationResult {
   try {
@@ -121,19 +121,23 @@ export function validateGameActionSemantics(state: GameState, action: GameAction
     }
 
     if (action.type === "sentinela") {
-      const sen = state.players[actor].sentinelas.find((s) => s.instanceId === action.sentinelaId);
-      if (!sen) return fail("sentinela instance does not exist for actor");
-      const def = getCard(sen.defId);
-      if (!def.sentinela || !Number.isInteger(action.abilityIndex) || action.abilityIndex < 0 || action.abilityIndex >= def.sentinela.abilities.length) return fail("invalid sentinela ability index");
-      const ability = def.sentinela.abilities[action.abilityIndex];
-      if (!canActivateSentinela(state, actor, action.sentinelaId, action.abilityIndex)) return fail("sentinela ability cannot be activated in current state");
-      const targetKind = ability.effect.target;
-      const requiresBoardTarget = !["none", "self", "spellOnStack"].includes(targetKind);
-      if (requiresBoardTarget) {
-        if (!action.target) return fail("sentinela ability requires target");
-        const ent = findBoardEntity(state, action.target);
-        if (!ent || !isValidTarget(state, actor, targetKind, ent)) return fail("invalid sentinela ability target");
-      } else if (action.target) return fail("sentinela ability does not accept target");
+      // Backwards-compatible opcode: `sentinela` now means "activate a board
+      // ability". Legacy Sentinelas keep identical ids/indexes while Units,
+      // Artifacts and Enchantments can use the same authoritative transport.
+      const validation = validateActivatedAbilityActivation(
+        state,
+        actor,
+        action.sentinelaId,
+        action.abilityIndex,
+        action.target,
+      );
+      if (!validation.ok) return fail(validation.reason ?? "activated ability cannot be used");
+      const targetKind = validation.ability?.effect.target;
+      const requiresTarget = targetKind !== undefined && !["none", "self", "spellOnStack"].includes(targetKind);
+      // Engine/replay compatibility may auto-target a legacy Sentinela when a
+      // trusted internal caller omits the target. Client-supplied PvP actions
+      // never get that privilege: their board target must be explicit.
+      if (requiresTarget && !action.target) return fail("activated ability requires an explicit client target");
       return ok();
     }
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { getCard } from "@/game/cards";
-import { canActivateSentinela } from "@/game/engine";
+import { activatedAbilitiesForInstance, canBeginActivateAbility } from "@/game/engine";
+import type { ActivatedAbility } from "@/game/activated-ability-types";
 import { REGION_STYLE } from "./CardView";
 import CardInfo from "./CardInfo";
 import Tooltip from "./Tooltip";
@@ -12,18 +13,29 @@ interface SentinelaViewProps {
   instance: SentinelaInstance;
   state: GameState;
   size?: "sm" | "md";
-  /** Chamado com o índice da habilidade quando o jogador ativa. */
+  /** Chamado com o índice unificado da habilidade quando o jogador ativa. */
   onActivate?: (abilityIndex: number) => void;
+}
+
+function abilityCostLabel(ability: ActivatedAbility): string {
+  const parts: string[] = [];
+  const cost = ability.cost;
+  if (cost?.loyaltyDelta !== undefined) parts.push(`${cost.loyaltyDelta > 0 ? "+" : ""}${cost.loyaltyDelta}◆`);
+  if (cost?.mana) parts.push(`💧${cost.mana}`);
+  if (cost?.nexusHealth) parts.push(`♥${cost.nexusHealth}`);
+  if (cost?.exhaustSelf) parts.push("↷");
+  if (cost?.sacrificeSelf) parts.push("✕");
+  return parts.length ? parts.join(" ") : "ATIVAR";
 }
 
 /** Renderiza uma Sentinela em jogo: lealdade, habilidades e inspeção completa. */
 export default function SentinelaView({ instance, state, size = "md", onActivate }: SentinelaViewProps) {
   const def = getCard(instance.defId);
   const style = REGION_STYLE[def.region];
-  const isOwnerTurn = state.activePlayer === instance.owner && state.phase === "main";
   const dims = size === "sm" ? "w-24 min-h-36" : "w-32 min-h-44";
   const configuredFallbackArt = getClientArtFallbackUrl();
   const artUrl = def.art || configuredFallbackArt;
+  const abilities = activatedAbilitiesForInstance(state, instance.owner, instance.instanceId);
 
   return (
     <Tooltip
@@ -50,18 +62,21 @@ export default function SentinelaView({ instance, state, size = "md", onActivate
           <p className="text-[9px] uppercase tracking-wider text-white/70">Sentinela</p>
 
           <div className="mt-2 flex flex-col gap-1">
-            {def.sentinela?.abilities.map((ability, index) => {
-              const canUse = isOwnerTurn && onActivate && canActivateSentinela(state, instance.owner, instance.instanceId, index);
-              const costLabel = ability.cost > 0 ? `+${ability.cost}` : `${ability.cost}`;
+            {abilities.map((ability, index) => {
+              const canUse = Boolean(onActivate) && canBeginActivateAbility(state, instance.owner, instance.instanceId, index);
               return (
                 <button
                   key={index}
                   type="button"
                   disabled={!canUse}
-                  onClick={() => onActivate?.(index)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (canUse) onActivate?.(index);
+                  }}
                   className={`tcg-sentinel-ability rounded px-1.5 py-1 text-left text-[9px] leading-tight transition ${canUse ? "bg-white/20 text-white hover:bg-white/30" : "bg-black/30 text-white/50"}`}
                 >
-                  <span className="font-black text-amber-200">{costLabel}</span>: {ability.description}
+                  <span className="font-black text-amber-200">{abilityCostLabel(ability)}</span>: {ability.description}
                 </button>
               );
             })}
