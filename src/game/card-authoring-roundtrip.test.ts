@@ -1,9 +1,15 @@
 import { baseCardsOnly } from "./cards";
 import {
-  CARD_EFFECT_KINDS, CARD_KEYWORDS, CARD_RACES, CARD_REGIONS,
-  normalizeCardForRoundTrip, sanitizeCardEffect,
+  CARD_EFFECT_KINDS, CARD_KEYWORDS, CARD_RACES, CARD_REGIONS, CARD_TRIGGERS,
+  normalizeCardForRoundTrip, sanitizeCardEffect, sanitizeCardMechanic, validateAuthorableCard,
 } from "./card-authoring";
-import type { CardDef, CardEffect } from "./types";
+import {
+  cardTriggerIsExecutable,
+  isTriggerSupported,
+  supportedTriggerEvents,
+  triggerContractError,
+} from "./trigger-contract";
+import type { CardDef, CardEffect, CardType, TriggerWhen } from "./types";
 
 let passed = 0;
 const failures: string[] = [];
@@ -32,7 +38,6 @@ const composite: CardEffect = {
 };
 check(same(sanitizeCardEffect(composite), composite), "recursive CardEffect round-trip lost fields");
 
-
 const typeSamples: CardDef[] = [
   { defId:"rt_unit", name:"Unit", region:"Florestia", type:"Unit", cost:1, power:1, health:1, race:"Besta", keywords:["Reach"], description:"x", rarity:"Common", emoji:"U" },
   { defId:"rt_spell", name:"Spell", region:"Tempestade", type:"Spell", cost:1, spell:{kind:"mill",amount:2,target:"none",also:{kind:"draw",amount:1,target:"none"}}, speed:"Burst", description:"x", rarity:"Rare", emoji:"S" },
@@ -42,6 +47,31 @@ const typeSamples: CardDef[] = [
   { defId:"rt_sentinel", name:"Sent", region:"Tempestade", type:"Sentinela", cost:5, sentinela:{startingLoyalty:4,abilities:[{cost:-1,description:"x",effect:{kind:"grantKeyword",amount:0,target:"allyUnit",keyword:"Flying",also:{kind:"buffUnit",amount:0,target:"allyUnit",buffPower:1,buffHealth:1}}}]}, description:"x", rarity:"Legend", emoji:"P" },
 ];
 for (const sample of typeSamples) { const r = normalizeCardForRoundTrip(sample); check(r.type === sample.type, `type sample failed: ${sample.type}`); }
+
+const triggerEffect: CardEffect = { kind: "draw", amount: 1, target: "none" };
+const expectedTriggerEvents: Record<CardType, readonly TriggerWhen[]> = {
+  Unit: ["onSummon", "onStrike", "onNexusStrike", "onRoundStart", "onLevelUp", "onKill", "onAttack", "onBlock", "onAllyDeath", "onDeath"],
+  Spell: [],
+  Enchantment: ["onRoundStart", "onPermanentSummon"],
+  Artifact: ["onRoundStart", "onPermanentSummon"],
+  Equipment: ["onStrike", "onNexusStrike", "onKill", "onAllyDeath"],
+  Sentinela: [],
+};
+for (const sample of typeSamples) {
+  check(same(supportedTriggerEvents(sample.type), expectedTriggerEvents[sample.type]), `${sample.type} trigger matrix drifted from certified runtime dispatch`);
+  for (const when of CARD_TRIGGERS) {
+    const candidate = structuredClone(sample);
+    candidate.trigger = { when, effect: structuredClone(triggerEffect) };
+    const result = validateAuthorableCard(candidate);
+    const expected = isTriggerSupported(sample.type, when);
+    check(result.ok === expected, `${sample.type}.${when} authoring support does not match Trigger Source Contract`);
+    check((triggerContractError(sample.type, when) === null) === expected, `${sample.type}.${when} contract error mismatch`);
+  }
+}
+
+check(!!sanitizeCardMechanic({ key:"unit_attack", trigger:"onAttack", condition:{kind:"always"}, effect:triggerEffect }), "Unit mechanic should accept executable onAttack trigger");
+check(!sanitizeCardMechanic({ key:"unit_perm", trigger:"onPermanentSummon", condition:{kind:"always"}, effect:triggerEffect }), "Unit mechanic must reject permanent-only trigger");
+
 const effectSamples: Partial<Record<(typeof CARD_EFFECT_KINDS)[number], Partial<CardEffect>>> = {
   damageUnit: { target: "enemyUnit" }, healUnit: { target: "allyUnit" }, buffUnit: { target: "allyUnit", buffPower: 1 },
   buffSelf: { target: "self", buffPower: 1 }, buffAllies: { target: "none", buffPower: 1 }, buffRace: { target: "none", buffPower: 1, race: "Dragon" },
@@ -56,6 +86,12 @@ for (const kind of CARD_EFFECT_KINDS) {
 }
 for (const original of baseCardsOnly()) {
   try {
+    if (original.trigger) {
+      check(cardTriggerIsExecutable(original), `${original.defId} contains a trigger the runtime source contract cannot execute`);
+    }
+    for (const mechanic of original.mechanics ?? []) {
+      check(isTriggerSupported("Unit", mechanic.trigger), `${original.defId}.${mechanic.key} contains a mechanic trigger Unit runtime cannot execute`);
+    }
     const rebuilt = normalizeCardForRoundTrip(original);
     const keys = Object.keys(original) as (keyof CardDef)[];
     for (const key of keys) {
@@ -73,4 +109,4 @@ if (failures.length) {
   for (const f of failures.slice(0, 100)) console.error(" -", f);
   process.exit(1);
 }
-console.log(`CARD AUTHORING ROUND-TRIP PASS: ${passed} checks across ${baseCardsOnly().length} cards`);
+console.log(`CARD AUTHORING ROUND-TRIP PASS: ${passed} checks across ${baseCardsOnly().length} cards · Trigger Source Contract certified`);
