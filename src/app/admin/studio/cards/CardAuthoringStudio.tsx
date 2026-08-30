@@ -41,7 +41,7 @@ const {
   return (
     <div className="studio-shell min-h-screen">
       <StudioCommandPalette role={role} />
-      <CardStudioHeader />
+      {canUseProductionActions ? <CardStudioHeader /> : <DesignerCardStudioHeader />}
       <div className="studio-layout">
         <CardCatalogSidebar rows={rows} id={id} reset={reset} edit={edit} collectionForDefId={collectionForDefId} />
         <main className="studio-main">
@@ -117,5 +117,25 @@ const {
         </main>
       </div>
     </div>
+  );
+}
+
+function DesignerCardStudioHeader() {
+  return (
+    <header className="studio-topbar">
+      <div className="studio-topbar-inner flex items-center justify-between gap-4">
+        <div className="studio-brand">
+          <div className="studio-brand-mark">🃏</div>
+          <div>
+            <div className="studio-kicker">RUNEFORGE // CONTENT ENGINEERING</div>
+            <div className="studio-title">Card Authoring Studio <span className="text-amber-300">4.2.1</span></div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="hidden rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black text-emerald-300 md:inline">● ENGINE CONNECTED</span>
+          <Link href="/admin/studio" className="btn-ghost text-xs">Control Room</Link>
+        </div>
+      </div>
+    </header>
   );
 }
