@@ -15,23 +15,38 @@ const usedScreenshot = "05f-activated-ability-used.png";
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 
 const activatedLegends = ["van_ember_u18", "van_tide_u18", "van_forest_u18"];
-const defensiveUnits = ["forest_cub", "ember_whelp", "tide_sprite", "forest_packrunner", "ember_drake", "ember_sprinter", "tide_guard"];
-const maxDefensiveBench = 3;
+// The authoritative bench cap is 6. Keep one slot reserved for the cost-8 legend
+// and develop up to five durable blockers so the browser proof does not depend on
+// surviving a late-game AI attack with an artificially sparse three-unit board.
+const defensiveUnits = [
+  "tide_guard",
+  "tide_mystic",
+  "forest_moonfang",
+  "forest_canopy_warden",
+  "forest_stalker",
+  "tide_oracle",
+  "forest_packrunner",
+  "forest_cub",
+  "tide_sprite",
+  "ember_whelp",
+  "ember_drake",
+];
+const maxDefensiveBench = 5;
 const certificationDeck = [
   "van_ember_u18", "van_ember_u18", "van_ember_u18",
   "van_tide_u18", "van_tide_u18", "van_tide_u18",
   "van_forest_u18", "van_forest_u18", "van_forest_u18",
-  "ember_whelp", "ember_whelp", "ember_whelp",
-  "ember_drake", "ember_drake", "ember_drake",
-  "ember_herald", "ember_herald", "ember_herald",
-  "ember_raider", "ember_raider", "ember_raider",
-  "ember_sprinter", "ember_sprinter", "ember_sprinter",
-  "tide_sprite", "tide_sprite", "tide_sprite",
-  "tide_oracle", "tide_oracle", "tide_oracle",
   "tide_guard", "tide_guard", "tide_guard",
-  "forest_cub", "forest_cub", "forest_cub",
+  "tide_mystic", "tide_mystic", "tide_mystic",
+  "forest_moonfang", "forest_moonfang", "forest_moonfang",
+  "forest_canopy_warden", "forest_canopy_warden", "forest_canopy_warden",
+  "forest_stalker", "forest_stalker", "forest_stalker",
+  "tide_oracle", "tide_oracle", "tide_oracle",
   "forest_packrunner", "forest_packrunner", "forest_packrunner",
-  "forest_stalker",
+  "forest_cub", "forest_cub", "forest_cub",
+  "tide_sprite", "tide_sprite", "tide_sprite",
+  "ember_whelp", "ember_whelp", "ember_whelp",
+  "ember_drake",
 ];
 assert.equal(certificationDeck.length, 40, "browser certification deck must contain exactly 40 cards");
 
