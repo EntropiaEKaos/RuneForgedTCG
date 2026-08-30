@@ -5,9 +5,9 @@ import { F, Json, Panel } from "./CardAuthoringFields";
 import ActivatedAbilityEditor from "./ActivatedAbilityEditor";
 import {
   CARD_KEYWORDS as KWS,
-  CARD_TRIGGERS as TRIGGERS,
   CARD_LEVEL_UP_TYPES as LEVEL_UP_TYPES,
 } from "@/game/card-authoring";
+import { isTriggerSupported, supportedTriggerEvents } from "@/game/trigger-contract";
 
 import type { CardAuthoringModel } from "./CardAuthoringModel";
 
@@ -21,6 +21,11 @@ const UNCOUNTERABLE_RULE = "uncounterable";
 export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
   const { card, set, classes, mechanicsCatalog } = model;
   const customKeywords = (card.customKeywords ?? []) as string[];
+  const triggerEvents = supportedTriggerEvents(card.type);
+  const currentTriggerSupported = Boolean(card.trigger && isTriggerSupported(card.type, card.trigger.when));
+  const triggerEvent = currentTriggerSupported ? card.trigger.when : triggerEvents[0];
+  const hasAutomaticTriggerContract = triggerEvents.length > 0;
+  const staleTrigger = Boolean(card.trigger && !currentTriggerSupported);
   const setRule = (key: string, enabled: boolean) => {
     const next = customKeywords.filter((item) => item !== key);
     if (enabled) next.push(key);
@@ -191,21 +196,45 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
           )}
         </Panel>
       )}
+
       <Panel title="Trigger Contract" eyebrow="SEMANTIC TRIGGER AUTHORING">
-        <div className="grid gap-3 md:grid-cols-[240px_1fr]">
-          <F l="Trigger event">
-            <select className="input" value={card.trigger?.when || "onSummon"} onChange={(e) => set("trigger", { when: e.target.value, effect: card.trigger?.effect || { kind: "buffUnit", amount: 0, target: "allyUnit" } })}>
-              {TRIGGERS.map((x) => <option key={x} value={x}>{x}</option>)}
-            </select>
-          </F>
-          <StudioEffectEditor
-            value={card.trigger?.effect || { kind: "buffUnit", amount: 0, target: "allyUnit" }}
-            classes={classes}
-            onChange={(effect) => set("trigger", { when: card.trigger?.when || "onSummon", effect })}
-          />
-        </div>
-        <button type="button" className="btn-ghost mt-3 text-xs" onClick={() => set("trigger", undefined)}>Remove trigger</button>
+        {hasAutomaticTriggerContract && triggerEvent ? (
+          <>
+            {staleTrigger && (
+              <div className="mb-3 rounded-xl border border-amber-300/20 bg-amber-300/[.06] p-3 text-xs text-amber-100">
+                O tipo da carta mudou e o trigger anterior não é executável nesta fonte. Escolha um evento suportado abaixo ou remova o trigger.
+              </div>
+            )}
+            <div className="grid gap-3 md:grid-cols-[240px_1fr]">
+              <F l="Trigger event">
+                <select
+                  className="input"
+                  value={triggerEvent}
+                  onChange={(e) => set("trigger", { when: e.target.value, effect: card.trigger?.effect || { kind: "buffUnit", amount: 0, target: "allyUnit" } })}
+                >
+                  {triggerEvents.map((x) => <option key={x} value={x}>{x}</option>)}
+                </select>
+              </F>
+              <StudioEffectEditor
+                value={card.trigger?.effect || { kind: "buffUnit", amount: 0, target: "allyUnit" }}
+                classes={classes}
+                onChange={(effect) => set("trigger", { when: triggerEvent, effect })}
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" className="btn-ghost text-xs" onClick={() => set("trigger", undefined)}>Remove trigger</button>
+              <span className="text-[10px] text-emerald-300/70">Eventos executáveis para {card.type}: {triggerEvents.join(", ")}</span>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-xl border border-white/10 bg-white/[.025] p-4 text-xs leading-5 text-slate-400">
+            <div className="font-black text-slate-200">{card.type} usa contratos estruturais próprios.</div>
+            <p className="mt-1">O runtime não dispara Trigger Contract automático para este tipo de carta. O Studio não oferece eventos que seriam publicados sem execução.</p>
+            {card.trigger && <button type="button" className="btn-ghost mt-3 text-xs text-amber-200" onClick={() => set("trigger", undefined)}>Remover trigger incompatível</button>}
+          </div>
+        )}
       </Panel>
+
       {card.type === "Equipment" && (
         <Panel title="Equipment Contract" eyebrow="VISUAL EQUIPMENT AUTHORING">
           <div className="grid gap-3 md:grid-cols-2">
@@ -226,29 +255,40 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
           </div>
         </Panel>
       )}
-      <Panel title="Card Rule Composer" eyebrow="ENGINE-BACKED AUTHORING">
-        <p className="mb-4 text-xs leading-5 text-slate-400">
-          Compose the behavior using the same Rule Graph contract used by Interaction Studio. The preview is
-          editorial; execution remains authoritative inside the Runeforge engine.
-        </p>
-        <RuleBuilder
-          value={{
-            name: card.name,
-            sourceType: "card",
-            sourceKey: card.defId,
-            event: card.trigger?.when || "onSummon",
-            targetType: "anyUnit",
-            targetKey: "",
-            condition: {},
-            effect: card.trigger?.effect || { kind: "buffUnit", target: "allyUnit", amount: 0 },
-            testFixture: { sourceDefId: card.defId, targetDefId: card.defId, enemyDefId: "ember_drake" },
-          }}
-          setValue={(v: any) => {
-            if (v?.effect?.kind) set("trigger", { when: v.event || "onSummon", effect: { ...v.effect } });
-          }}
-        />
-      </Panel>
-      {!!(mechanicsCatalog.effects || []).length && <Panel title="Effect Library" eyebrow="COMPOSITE MACROS"><p className="mb-3 text-xs text-slate-400">Macros são expandidas para CardEffect nativos antes de salvar; replay e engine não dependem do nome da macro.</p><div className="flex flex-wrap gap-2">{mechanicsCatalog.effects.map((x:any)=><div key={x.key} className="rounded-xl border border-white/10 bg-white/[.025] p-3"><div className="text-xs font-black">{x.name}</div><div className="mt-2 flex gap-2">{card.type==="Spell"&&<button className="btn-ghost text-[10px]" onClick={()=>set("spell",structuredClone(x.definition.effect))}>Use as Spell</button>}<button className="btn-ghost text-[10px]" onClick={()=>set("trigger",{when:card.trigger?.when||"onSummon",effect:structuredClone(x.definition.effect)})}>Use as Trigger</button></div></div>)}</div></Panel>}
+
+      {hasAutomaticTriggerContract && triggerEvent ? (
+        <Panel title="Card Rule Composer" eyebrow="ENGINE-BACKED AUTHORING">
+          <p className="mb-4 text-xs leading-5 text-slate-400">
+            Compose the behavior using the same Rule Graph contract used by Interaction Studio. Event selection is restricted to the executable Trigger Source Contract for this card type.
+          </p>
+          <RuleBuilder
+            eventOptions={triggerEvents}
+            value={{
+              name: card.name,
+              sourceType: "card",
+              sourceKey: card.defId,
+              event: triggerEvent,
+              targetType: "anyUnit",
+              targetKey: "",
+              condition: {},
+              effect: card.trigger?.effect || { kind: "buffUnit", target: "allyUnit", amount: 0 },
+              testFixture: { sourceDefId: card.defId, targetDefId: card.defId, enemyDefId: "ember_drake" },
+            }}
+            setValue={(v: any) => {
+              const nextEvent = v?.event || triggerEvent;
+              if (v?.effect?.kind && isTriggerSupported(card.type, nextEvent)) {
+                set("trigger", { when: nextEvent, effect: { ...v.effect } });
+              }
+            }}
+          />
+        </Panel>
+      ) : (
+        <Panel title="Card Rule Composer" eyebrow="ENGINE-BACKED AUTHORING">
+          <p className="text-xs leading-5 text-slate-400">Rule Graph automático não é oferecido para {card.type}, porque este tipo não possui eventos automáticos no Trigger Source Contract atual.</p>
+        </Panel>
+      )}
+
+      {!!(mechanicsCatalog.effects || []).length && <Panel title="Effect Library" eyebrow="COMPOSITE MACROS"><p className="mb-3 text-xs text-slate-400">Macros são expandidas para CardEffect nativos antes de salvar; replay e engine não dependem do nome da macro.</p><div className="flex flex-wrap gap-2">{mechanicsCatalog.effects.map((x:any)=><div key={x.key} className="rounded-xl border border-white/10 bg-white/[.025] p-3"><div className="text-xs font-black">{x.name}</div><div className="mt-2 flex gap-2">{card.type==="Spell"&&<button className="btn-ghost text-[10px]" onClick={()=>set("spell",structuredClone(x.definition.effect))}>Use as Spell</button>}{triggerEvent&&<button className="btn-ghost text-[10px]" onClick={()=>set("trigger",{when:triggerEvent,effect:structuredClone(x.definition.effect)})}>Use as Trigger</button>}</div></div>)}</div></Panel>}
       <Panel title="Raw Contracts" eyebrow="EXPERT / ROUND-TRIP FALLBACK">
         <Json title="Spell" value={card.spell} onChange={(v) => set("spell", v)} />
         <Json title="Trigger" value={card.trigger} onChange={(v) => set("trigger", v)} />
