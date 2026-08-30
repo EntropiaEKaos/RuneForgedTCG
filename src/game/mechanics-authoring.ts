@@ -1,5 +1,6 @@
 import type { CardDef, CardEffect, CardMechanic, CardType, MechanicCondition, TriggerWhen } from "./types";
 import { CARD_TRIGGERS, CARD_TYPES, sanitizeCardEffect, sanitizeMechanicCondition } from "./card-authoring";
+import { isTriggerSupported } from "./trigger-contract";
 
 export type KeywordBehaviorDefinition = {
   version: 1;
@@ -55,7 +56,7 @@ export function sanitizeKeywordBehavior(raw: unknown): KeywordBehaviorDefinition
   const value = raw as Record<string, unknown>;
   if (value.version !== undefined && Number(value.version) !== 1) return null;
   const trigger = String(value.trigger || "") as TriggerWhen;
-  if (!(CARD_TRIGGERS as readonly string[]).includes(trigger)) return null;
+  if (!(CARD_TRIGGERS as readonly string[]).includes(trigger) || !isTriggerSupported("Unit", trigger)) return null;
   const condition = sanitizeMechanicCondition(value.condition ?? { kind: "always" });
   const effect = sanitizeCardEffect(value.effect);
   if (!condition || !effect) return null;

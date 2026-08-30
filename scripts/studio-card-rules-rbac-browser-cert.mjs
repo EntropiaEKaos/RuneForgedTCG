@@ -157,6 +157,18 @@ async function composerEvidence(cdp) {
   })()`);
 }
 
+async function triggerSourceEvidence(cdp) {
+  return evaluate(cdp, `(() => {
+    const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+    const triggerHost = [...document.querySelectorAll('label')].find((candidate) => (candidate.querySelector('.label')?.textContent || '').trim() === 'Trigger event');
+    const triggerSelect = triggerHost?.querySelector('select');
+    return {
+      bodyText: normalize(document.body?.innerText),
+      triggerOptions: triggerSelect ? [...triggerSelect.options].map((option) => option.value) : [],
+    };
+  })()`);
+}
+
 async function visibleActionLabels(cdp) {
   return evaluate(cdp, `(() => {
     const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
@@ -276,25 +288,64 @@ async function main() {
     await selectLabeled(cdp, "Type", "Spell");
     await clickText(cdp, "Rules");
     await waitForText(cdp, "Spell Contract");
+    await waitForText(cdp, "Spell usa contratos estruturais próprios.");
     const spell = await waitUntil(async () => {
       const evidence = await composerEvidence(cdp);
-      return evidence.count === 2 ? evidence : null;
-    }, "two semantic Spell composers");
+      if (evidence.count !== 1) return null;
+      const source = await triggerSourceEvidence(cdp);
+      return {
+        ...evidence,
+        triggerOptions: source.triggerOptions,
+        automaticTriggerDisabled: source.bodyText.includes("O runtime não dispara Trigger Contract automático para este tipo de carta."),
+        automaticRuleGraphDisabled: source.bodyText.includes("Rule Graph automático não é oferecido para Spell"),
+      };
+    }, "Spell source contract without automatic trigger composer");
     assert.equal(spell.legacyKindLabelVisible, false);
-    await capture(cdp, "24-studio-card-rules-spell.png", "Studio RBAC → Spell Rules");
+    assert.deepEqual(spell.triggerOptions, [], "Spell must not expose automatic Trigger event options");
+    assert.equal(spell.automaticTriggerDisabled, true, "Spell must explain that automatic Trigger Contract is unavailable");
+    assert.equal(spell.automaticRuleGraphDisabled, true, "Spell must not offer automatic Rule Graph trigger authoring");
+    assert.ok(spell.text.some((text) => text.includes("Primitive") && text.includes("Target")), "Spell semantic effect composer must remain present");
+    await capture(cdp, "24-studio-card-rules-spell.png", "Studio RBAC → Spell source-scoped Rules");
 
     await clickText(cdp, "Identity");
     await selectLabeled(cdp, "Type", "Sentinela");
     await clickText(cdp, "Rules");
     await waitForText(cdp, "Sentinela (Planeswalker)");
+    await waitForText(cdp, "Sentinela usa contratos estruturais próprios.");
     await clickText(cdp, "+ Adicionar habilidade");
     const sentinela = await waitUntil(async () => {
       const evidence = await composerEvidence(cdp);
-      return evidence.count === 2 ? evidence : null;
-    }, "two semantic Sentinela composers");
+      if (evidence.count !== 1) return null;
+      const source = await triggerSourceEvidence(cdp);
+      return {
+        ...evidence,
+        triggerOptions: source.triggerOptions,
+        automaticTriggerDisabled: source.bodyText.includes("O runtime não dispara Trigger Contract automático para este tipo de carta."),
+        automaticRuleGraphDisabled: source.bodyText.includes("Rule Graph automático não é oferecido para Sentinela"),
+      };
+    }, "Sentinela native ability composer without automatic trigger composer");
     assert.equal(sentinela.legacyKindLabelVisible, false);
-    assert.ok(sentinela.text.some((text) => text.includes("Primitive") && text.includes("Target")));
-    await capture(cdp, "25-studio-card-rules-sentinela.png", "Studio RBAC → Sentinela Rules");
+    assert.deepEqual(sentinela.triggerOptions, [], "Sentinela must not expose automatic Trigger event options");
+    assert.equal(sentinela.automaticTriggerDisabled, true, "Sentinela must explain that automatic Trigger Contract is unavailable");
+    assert.equal(sentinela.automaticRuleGraphDisabled, true, "Sentinela must not offer automatic Rule Graph trigger authoring");
+    assert.ok(sentinela.text.some((text) => text.includes("Primitive") && text.includes("Target")), "Sentinela loyalty ability semantic composer must remain present");
+    await capture(cdp, "25-studio-card-rules-sentinela.png", "Studio RBAC → Sentinela source-scoped Rules");
+
+    await clickText(cdp, "Identity");
+    await selectLabeled(cdp, "Type", "Unit");
+    await clickText(cdp, "Rules");
+    await waitForText(cdp, "Trigger Contract");
+    await waitForText(cdp, "Eventos executáveis para Unit:");
+    await waitForText(cdp, "Card Rule Composer");
+    const unit = await waitUntil(async () => {
+      const source = await triggerSourceEvidence(cdp);
+      return source.triggerOptions.length ? source : null;
+    }, "Unit executable trigger-source options");
+    const expectedUnitTriggers = ["onSummon", "onStrike", "onNexusStrike", "onRoundStart", "onLevelUp", "onKill", "onAttack", "onBlock", "onAllyDeath", "onDeath"];
+    assert.deepEqual(unit.triggerOptions, expectedUnitTriggers, "Unit Trigger selector must exactly match authoritative executable events");
+    assert.equal(unit.triggerOptions.includes("onPermanentSummon"), false, "Unit must not expose permanent-only onPermanentSummon");
+    assert.ok(unit.bodyText.includes("Rule Graph contract"), "Unit must retain automatic Rule Graph authoring");
+    await capture(cdp, "25b-studio-card-rules-unit-trigger-source.png", "Studio Trigger Source Contract → Unit executable events");
 
     const designerCredentials = await createDesignerOperator(cdp);
     await logout(cdp);
@@ -350,13 +401,14 @@ async function main() {
       designer:{ username:designer.username, role:designer.role, id:designerCredentials.id },
       spell,
       sentinela,
+      unit,
       designerControlRoom:{ roleText:designerControlRoom.roleText, nav:designerControlRoom.nav },
       designerPalette,
       loginPath:"/admin/studio",
       authoringPath:"/admin/studio/cards",
     };
     await writeFile(join(outputDir, "24-28-studio-card-rules-rbac-browser-cert.json"), `${JSON.stringify(evidence, null, 2)}\n`);
-    console.log("STUDIO RBAC BROWSER CERT: PASS — admin completeness + designer role-aware UI + semantic Spell/Sentinela Card Rules certified");
+    console.log("STUDIO RBAC BROWSER CERT: PASS — admin completeness + designer role-aware UI + source-scoped Unit/Spell/Sentinela Card Rules certified");
   } catch (error) {
     if (cdp) {
       try { console.error("--- Studio RBAC browser snapshot ---", await evaluate(cdp, `({href:location.href,title:document.title,bodyText:(document.body?.innerText || '').replace(/\\s+/g,' ').trim().slice(0,1000)})`)); } catch {}

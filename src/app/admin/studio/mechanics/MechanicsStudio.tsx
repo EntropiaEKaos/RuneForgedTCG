@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StudioBreadcrumb, StudioCommandPalette } from "../StudioChrome";
-import { CARD_TRIGGERS, CARD_TYPES } from "@/game/card-authoring";
-import type { CardEffect, MechanicCondition } from "@/game/types";
+import { CARD_TYPES } from "@/game/card-authoring";
+import { supportedTriggerEvents } from "@/game/trigger-contract";
+import type { CardEffect, MechanicCondition, TriggerWhen } from "@/game/types";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { hasStudioUiCapability } from "@/lib/admin-studio-access";
 import MechanicsImpactPreflight, { type MechanicsImpactReport } from "./MechanicsImpactPreflight";
@@ -16,6 +17,7 @@ import {
 
 const baseEffect: CardEffect = { kind: "draw", amount: 1, target: "none" };
 const baseCondition: MechanicCondition = { kind: "always" };
+const UNIT_TRIGGER_EVENTS = supportedTriggerEvents("Unit");
 
 type MechanicsTab = "keyword" | "effect" | "archetype";
 
@@ -24,7 +26,7 @@ type KeywordDraft = {
   name: string;
   description: string;
   icon: string;
-  trigger: string;
+  trigger: TriggerWhen;
   condition: MechanicCondition;
   effect: CardEffect;
 };
@@ -73,12 +75,13 @@ export default function MechanicsStudio({ role }: { role: string }) {
   function editRow(row: any) {
     setEditingId(row.id);
     if (tab === "keyword") {
+      const authoredTrigger = row.behavior?.trigger as TriggerWhen | undefined;
       setKw({
         key: row.key,
         name: row.name,
         description: row.description || "",
         icon: row.icon || "✦",
-        trigger: row.behavior?.trigger || "onSummon",
+        trigger: authoredTrigger && UNIT_TRIGGER_EVENTS.includes(authoredTrigger) ? authoredTrigger : UNIT_TRIGGER_EVENTS[0],
         condition: row.behavior?.condition || structuredClone(baseCondition),
         effect: row.behavior?.effect || structuredClone(baseEffect),
       });
@@ -145,7 +148,7 @@ export default function MechanicsStudio({ role }: { role: string }) {
       <section className="studio-hero mb-5">
         <p className="studio-kicker">SEMANTIC MECHANICS AUTHORING</p>
         <h2>Uma linguagem de gameplay, um único contrato de efeito.</h2>
-        <p>Keywords compilam para trigger + condição + efeitos nativos. Effects são macros de primitivas. O compositor limita targets e campos conforme o mesmo contrato usado pela validação de engine.</p>
+        <p>Keywords compilam para trigger + condição + efeitos nativos. Effects são macros de primitivas. O compositor limita targets, eventos e campos conforme o mesmo contrato usado pela validação de engine.</p>
       </section>
       <div className="mb-5"><AbilityGrammarReadiness /></div>
       <div className="mb-5 flex gap-2">
@@ -160,8 +163,9 @@ export default function MechanicsStudio({ role }: { role: string }) {
               <Field label="Key"><input className="input font-mono" value={kw.key} onChange={(event) => setKw({ ...kw, key: event.target.value })} /></Field>
               <Field label="Name"><input className="input" value={kw.name} onChange={(event) => setKw({ ...kw, name: event.target.value })} /></Field>
               <Field label="Icon"><input className="input" maxLength={8} value={kw.icon} onChange={(event) => setKw({ ...kw, icon: event.target.value })} /></Field>
-              <Field label="Trigger"><Select value={kw.trigger} options={CARD_TRIGGERS} onChange={(trigger) => setKw({ ...kw, trigger })} /></Field>
+              <Field label="Trigger"><Select value={kw.trigger} options={UNIT_TRIGGER_EVENTS} onChange={(trigger) => setKw({ ...kw, trigger: trigger as TriggerWhen })} /></Field>
             </Grid>
+            <p className="mb-3 text-[11px] leading-5 text-emerald-300/70">Keywords compiladas são Unit mechanics; por isso o seletor contém somente eventos que o dispatcher de Unidades executa.</p>
             <Field label="Description"><textarea className="input min-h-20" value={kw.description} onChange={(event) => setKw({ ...kw, description: event.target.value })} /></Field>
             <div className="mt-4"><StudioConditionEditor value={kw.condition} onChange={(condition) => setKw({ ...kw, condition })} /></div>
             <div className="mt-4"><StudioEffectEditor value={kw.effect} onChange={(effect) => setKw({ ...kw, effect })} /></div>

@@ -5,17 +5,30 @@ import { EventTimeline, StatePanel, makeGraph, type GraphNode } from "./RuleBuil
 import RuleBuilderCanvas from "./RuleBuilderCanvas";
 import { effects, emptyRule, events, sources, targets, targetTypes, type CardFixture, type Rule } from "./RuleBuilderModel";
 
-export default function RuleBuilder({ value, setValue }: { value: any; setValue: (v: any) => void }) {
-  const initial = useMemo<Rule>(
-    () => ({
+export default function RuleBuilder({
+  value,
+  setValue,
+  eventOptions = events,
+}: {
+  value: any;
+  setValue: (v: any) => void;
+  eventOptions?: readonly string[];
+}) {
+  const allowedEvents = eventOptions.length ? eventOptions : events;
+  const initial = useMemo<Rule>(() => {
+    const candidate: Rule = {
       ...emptyRule,
       ...(value?.condition || {}),
       ...(value?.effect?.__ruleDsl || {}),
       fixture: { ...emptyRule.fixture, ...(value?.testFixture || {}) },
       graph: value?.graph,
-    }),
-    [value],
-  );
+    };
+    const requestedEvent = String(value?.event ?? candidate.event);
+    return {
+      ...candidate,
+      event: allowedEvents.includes(requestedEvent) ? requestedEvent : (allowedEvents[0] ?? candidate.event),
+    };
+  }, [allowedEvents, value]);
   const [rule, setRule] = useState<Rule>(initial);
   const [result, setResult] = useState<any>(null);
   const [busy, setBusy] = useState(false);
@@ -45,28 +58,31 @@ export default function RuleBuilder({ value, setValue }: { value: any; setValue:
   const graph = useMemo(() => (rule.graph?.nodes?.length ? rule.graph : makeGraph(rule)), [rule]);
   const selected = graph.nodes.find((node) => node.id === selectedNode);
   const sync = (next: Rule) => {
-    setRule(next);
+    const safeEvent = allowedEvents.includes(next.event) ? next.event : (allowedEvents[0] ?? next.event);
+    const safeNext = safeEvent === next.event ? next : { ...next, event: safeEvent };
+    setRule(safeNext);
     setValue({
       ...value,
       name: value?.name || "New Interaction",
-      sourceType: next.sourceType,
-      sourceKey: next.sourceKey,
-      targetType: next.targetType,
-      targetKey: next.targetKey,
-      condition: { ...next },
+      sourceType: safeNext.sourceType,
+      sourceKey: safeNext.sourceKey,
+      event: safeNext.event,
+      targetType: safeNext.targetType,
+      targetKey: safeNext.targetKey,
+      condition: { ...safeNext },
       effect: {
-        kind: next.effectKind,
-        amount: Number(next.amount) || 0,
-        target: next.target,
-        buffPower: Number(next.buffPower) || 0,
-        buffHealth: Number(next.buffHealth) || 0,
-        classKey: next.targetType === "class" ? next.targetKey : undefined,
-        race: next.targetType === "race" ? next.targetKey : undefined,
-        keyword: next.keyword || undefined,
-        __ruleDsl: { ...next },
+        kind: safeNext.effectKind,
+        amount: Number(safeNext.amount) || 0,
+        target: safeNext.target,
+        buffPower: Number(safeNext.buffPower) || 0,
+        buffHealth: Number(safeNext.buffHealth) || 0,
+        classKey: safeNext.targetType === "class" ? safeNext.targetKey : undefined,
+        race: safeNext.targetType === "race" ? safeNext.targetKey : undefined,
+        keyword: safeNext.keyword || undefined,
+        __ruleDsl: { ...safeNext },
       },
-      graph: next.graph,
-      testFixture: next.fixture,
+      graph: safeNext.graph,
+      testFixture: safeNext.fixture,
     });
   };
   const set = (k: keyof Rule, v: any) => sync({ ...rule, [k]: v });
@@ -197,7 +213,7 @@ export default function RuleBuilder({ value, setValue }: { value: any; setValue:
             )}
             {field(
               "Event",
-              select(rule.event, (v) => set("event", v), events),
+              select(rule.event, (v) => set("event", v), allowedEvents),
             )}
             {field(
               "Target group",
@@ -254,7 +270,8 @@ export default function RuleBuilder({ value, setValue }: { value: any; setValue:
             <button
               className="btn-ghost"
               onClick={() => {
-                sync({ ...emptyRule, graph: makeGraph(emptyRule) });
+                const resetRule: Rule = { ...emptyRule, event: allowedEvents[0] ?? emptyRule.event };
+                sync({ ...resetRule, graph: makeGraph(resetRule) });
                 setSelectedNode("effect");
                 setZoom(1);
               }}

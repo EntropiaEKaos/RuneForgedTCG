@@ -1,11 +1,12 @@
-import type { CardEffect, EffectKind, TargetKind } from "@/game/types";
-import { CARD_EFFECT_KINDS, CARD_TARGETS, sanitizeCardEffect } from "@/game/card-authoring";
+import type { CardEffect, EffectKind, TargetKind, TriggerWhen } from "@/game/types";
+import { CARD_EFFECT_KINDS, CARD_TARGETS, CARD_TRIGGERS } from "@/game/card-authoring";
 
 export type RuleGraphNode = { id:string; kind:"trigger"|"condition"|"target"|"effect"|"followup"; label:string; data:Record<string, any> };
+export type RuleDslEvent = TriggerWhen | "onPlay" | "onSpellCast" | "always";
 export type RuleDsl = {
   sourceType: "class" | "race" | "keyword" | "collection" | "card" | "any";
   sourceKey: string;
-  event: "onPlay" | "onSummon" | "onSpellCast" | "onAttack" | "onStrike" | "onDeath" | "onRoundStart" | "always";
+  event: RuleDslEvent;
   targetType: "self" | "allies" | "enemy" | "race" | "class" | "card" | "anyUnit";
   targetKey: string;
   effectKind: EffectKind;
@@ -19,7 +20,7 @@ export type RuleDsl = {
 
 const EFFECTS: readonly EffectKind[] = CARD_EFFECT_KINDS;
 const TARGETS: readonly TargetKind[] = CARD_TARGETS;
-const EVENTS = ["onPlay","onSummon","onSpellCast","onAttack","onStrike","onDeath","onRoundStart","always"] as const;
+const EVENTS = ["onPlay", "onSpellCast", "always", ...CARD_TRIGGERS] as const satisfies readonly RuleDslEvent[];
 const SOURCES = ["class","race","keyword","collection","card","any"] as const;
 const TARGET_TYPES = ["self","allies","enemy","race","class","card","anyUnit"] as const;
 
@@ -39,7 +40,7 @@ export function compileRuleDsl(input: Partial<RuleDsl>): { ok:true; effect:CardE
   const event = (input.event || "onPlay") as RuleDsl["event"];
   const targetType = (input.targetType || "allies") as RuleDsl["targetType"];
   if (!SOURCES.includes(sourceType)) return {ok:false,error:`Unsupported source type: ${sourceType}`};
-  if (!EVENTS.includes(event)) return {ok:false,error:`Unsupported event: ${event}`};
+  if (!(EVENTS as readonly RuleDslEvent[]).includes(event)) return {ok:false,error:`Unsupported event: ${event}`};
   if (!TARGET_TYPES.includes(targetType)) return {ok:false,error:`Unsupported target type: ${targetType}`};
   const sourceKey=String(input.sourceKey||"").trim();
   if(sourceType!=="any"&&!sourceKey)return {ok:false,error:"Source key is required unless source type is any."};

@@ -9,4 +9,5 @@ export * from "./engine/reactions";
 export * from "./engine/sentinela-actions";
 export * from "./engine/activated-actions";
 export * from "./reaction-contract";
+export * from "./trigger-contract";
 export * from "./activated-ability-types";
