@@ -11,8 +11,27 @@ import {
 
 import type { CardAuthoringModel } from "./CardAuthoringModel";
 
+const COUNTER_RULES = [
+  { kind: "unit", key: "counter_unit", label: "Unidades" },
+  { kind: "spell", key: "counter_spell", label: "Magias" },
+  { kind: "sentinela", key: "counter_sentinela", label: "Sentinelas" },
+] as const;
+const UNCOUNTERABLE_RULE = "uncounterable";
+
 export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
   const { card, set, classes, mechanicsCatalog } = model;
+  const customKeywords = (card.customKeywords ?? []) as string[];
+  const setRule = (key: string, enabled: boolean) => {
+    const next = customKeywords.filter((item) => item !== key);
+    if (enabled) next.push(key);
+    set("customKeywords", [...new Set(next)]);
+  };
+  const clearCounterFilters = () => {
+    const counterKeys = new Set(COUNTER_RULES.map((rule) => rule.key));
+    set("customKeywords", customKeywords.filter((item) => !counterKeys.has(item as typeof COUNTER_RULES[number]["key"])));
+  };
+  const hasSpecificCounterFilter = COUNTER_RULES.some((rule) => customKeywords.includes(rule.key));
+
   return (
     <div className="space-y-4">
       {card.type === "Sentinela" && (
@@ -116,6 +135,20 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
 
       <ActivatedAbilityEditor model={model} />
 
+      <Panel title="Proteção contra Anulação" eyebrow="STACK IMMUNITY">
+        <button
+          type="button"
+          onClick={() => setRule(UNCOUNTERABLE_RULE, !customKeywords.includes(UNCOUNTERABLE_RULE))}
+          className={`rounded-xl border px-4 py-3 text-left text-xs font-bold ${customKeywords.includes(UNCOUNTERABLE_RULE) ? "border-amber-300/40 bg-amber-400/10 text-amber-200" : "border-white/10 bg-white/[.025] text-slate-400"}`}
+        >
+          <span className="mr-2">{customKeywords.includes(UNCOUNTERABLE_RULE) ? "✓" : "○"}</span>
+          Não pode ser anulada
+        </button>
+        <p className="mt-2 text-[11px] leading-5 text-slate-500">
+          Keyword semântica reservada do motor. Quando ativa, nenhuma anulação universal ou específica pode impedir esta carta de resolver.
+        </p>
+      </Panel>
+
       {card.type === "Spell" && (
         <Panel title="Spell Contract" eyebrow="SEMANTIC EFFECT AUTHORING">
           <StudioEffectEditor
@@ -123,6 +156,39 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
             classes={classes}
             onChange={(effect) => set("spell", effect)}
           />
+          {card.spell?.kind === "negateSpell" && (
+            <div className="mt-4 rounded-xl border border-cyan-400/15 bg-cyan-400/[.04] p-4">
+              <div className="studio-kicker">COUNTER TARGET CONTRACT</div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={clearCounterFilters}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-black ${!hasSpecificCounterFilter ? "border-cyan-300/50 bg-cyan-300 text-slate-950" : "border-white/10 text-slate-400"}`}
+                >
+                  Qualquer ação
+                </button>
+                {COUNTER_RULES.map((rule) => {
+                  const selected = customKeywords.includes(rule.key);
+                  return (
+                    <button
+                      type="button"
+                      key={rule.kind}
+                      onClick={() => setRule(rule.key, !selected)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-black ${selected ? "border-violet-300/50 bg-violet-300 text-slate-950" : "border-white/10 text-slate-400"}`}
+                    >
+                      {selected ? "✓ " : ""}{rule.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-[11px] leading-5 text-slate-400">
+                Sem filtros, a anulação é universal e pode anular Unidade, Magia ou Sentinela. Marque um ou mais tipos apenas para criar uma anulação específica.
+              </p>
+              <p className="mt-1 text-[11px] leading-5 text-emerald-300/80">
+                O “Follow-up effect” acima só é executado quando a anulação realmente é bem-sucedida.
+              </p>
+            </div>
+          )}
         </Panel>
       )}
       <Panel title="Trigger Contract" eyebrow="SEMANTIC TRIGGER AUTHORING">
