@@ -22,18 +22,67 @@ interface VanillaActivatedIdentity {
 }
 
 /**
- * The six regional Vanilla legends are intentionally outside the eight
- * certified Alpha decklists. They are therefore the safest native cards on
- * which to expose the generic activated-ability system without silently
- * rebalance-patching starter/Ranked decks.
+ * Late-game Vanilla units are intentionally outside the eight certified Alpha
+ * decklists. They are therefore the safest native cards on which to deepen the
+ * generic activated-ability system without silently rebalance-patching starter
+ * or certified decks.
  */
 const VANILLA_ACTIVATED_IDENTITIES: Record<string, VanillaActivatedIdentity> = {
+  van_ember_u15: {
+    reminder: "Ativada — 2 Mana, Exaurir: conceda +2/+0 a uma unidade aliada.",
+    activatedAbilities: [{
+      description: "Ordem da Forja — conceda +2/+0 a uma unidade aliada.",
+      cost: { mana: 2, exhaustSelf: true },
+      effect: { kind: "buffUnit", amount: 0, buffPower: 2, buffHealth: 0, target: "allyUnit" },
+    }],
+  },
+  van_ember_u16: {
+    reminder: "Ativada — 2 Mana, Exaurir: cause 2 de dano a uma unidade inimiga.",
+    activatedAbilities: [{
+      description: "Punho de Obsidiana — cause 2 de dano a uma unidade inimiga.",
+      cost: { mana: 2, exhaustSelf: true },
+      effect: { kind: "damageUnit", amount: 2, target: "enemyUnit" },
+    }],
+  },
+  van_ember_u17: {
+    reminder: "Ativada — 3 Mana, Exaurir: cause 2 de dano ao Nexus inimigo.",
+    activatedAbilities: [{
+      description: "Clarão de Guerra — cause 2 de dano ao Nexus inimigo.",
+      cost: { mana: 3, exhaustSelf: true },
+      effect: { kind: "damageNexus", amount: 2, target: "none" },
+    }],
+  },
   van_ember_u18: {
     reminder: "Ativada — 2 Mana, Exaurir: cause 3 de dano ao Nexus inimigo.",
     activatedAbilities: [{
       description: "Coração da Forja — cause 3 de dano ao Nexus inimigo.",
       cost: { mana: 2, exhaustSelf: true },
       effect: { kind: "damageNexus", amount: 3, target: "none" },
+    }],
+  },
+
+  van_tide_u15: {
+    reminder: "Ativada — 2 Mana, Exaurir: compre 1 carta.",
+    activatedAbilities: [{
+      description: "Leitura das Correntes — compre 1 carta.",
+      cost: { mana: 2, exhaustSelf: true },
+      effect: { kind: "draw", amount: 1, target: "none" },
+    }],
+  },
+  van_tide_u16: {
+    reminder: "Ativada — 2 Mana: conceda Barreira a uma unidade aliada.",
+    activatedAbilities: [{
+      description: "Horizonte Protetor — conceda Barreira a uma unidade aliada.",
+      cost: { mana: 2 },
+      effect: { kind: "grantBarrier", amount: 0, target: "allyUnit" },
+    }],
+  },
+  van_tide_u17: {
+    reminder: "Ativada — 3 Mana, Exaurir: retorne uma unidade inimiga para a mão.",
+    activatedAbilities: [{
+      description: "Dilúvio Reverso — retorne uma unidade inimiga para a mão.",
+      cost: { mana: 3, exhaustSelf: true },
+      effect: { kind: "recall", amount: 0, target: "enemyUnit" },
     }],
   },
   van_tide_u18: {
@@ -49,6 +98,31 @@ const VANILLA_ACTIVATED_IDENTITIES: Record<string, VanillaActivatedIdentity> = {
       },
     }],
   },
+
+  van_wood_u15: {
+    reminder: "Ativada — 2 Mana, Exaurir: cure 3 de uma unidade aliada.",
+    activatedAbilities: [{
+      description: "Seiva Ancestral — cure 3 de uma unidade aliada.",
+      cost: { mana: 2, exhaustSelf: true },
+      effect: { kind: "healUnit", amount: 3, target: "allyUnit" },
+    }],
+  },
+  van_wood_u16: {
+    reminder: "Ativada — 2 Mana: conceda Resistente a uma unidade aliada.",
+    activatedAbilities: [{
+      description: "Casca Profunda — conceda Resistente a uma unidade aliada.",
+      cost: { mana: 2 },
+      effect: { kind: "grantKeyword", amount: 0, keyword: "Tough", target: "allyUnit" },
+    }],
+  },
+  van_wood_u17: {
+    reminder: "Ativada — 3 Mana, Exaurir: Bestas e Feras aliadas recebem +1/+1.",
+    activatedAbilities: [{
+      description: "Pulso do Bosque — Bestas e Feras aliadas recebem +1/+1.",
+      cost: { mana: 3, exhaustSelf: true },
+      effect: { kind: "buffRace", amount: 0, buffPower: 1, buffHealth: 1, target: "none", races: ["Beast", "Besta"] },
+    }],
+  },
   van_wood_u18: {
     reminder: "Ativada — 2 Mana: conceda Regeneração a uma unidade aliada.",
     activatedAbilities: [{
@@ -57,12 +131,62 @@ const VANILLA_ACTIVATED_IDENTITIES: Record<string, VanillaActivatedIdentity> = {
       effect: { kind: "grantKeyword", amount: 0, keyword: "Regeneration", target: "allyUnit" },
     }],
   },
+
+  van_void_u15: {
+    reminder: "Ativada — pague 2 de vida do Nexus: compre 1 carta.",
+    activatedAbilities: [{
+      description: "Conhecimento da Desolação — compre 1 carta.",
+      cost: { nexusHealth: 2 },
+      effect: { kind: "draw", amount: 1, target: "none" },
+    }],
+  },
+  van_void_u16: {
+    reminder: "Ativada — Sacrifique esta unidade: destrua uma unidade inimiga.",
+    activatedAbilities: [{
+      description: "Nome Apagado — destrua uma unidade inimiga.",
+      cost: { sacrificeSelf: true },
+      effect: { kind: "killUnit", amount: 0, target: "enemyUnit" },
+    }],
+  },
+  van_void_u17: {
+    reminder: "Ativada — 2 Mana: conceda Murchar a uma unidade aliada.",
+    activatedAbilities: [{
+      description: "Profecia do Fim — conceda Murchar a uma unidade aliada.",
+      cost: { mana: 2 },
+      effect: { kind: "grantKeyword", amount: 0, keyword: "Wither", target: "allyUnit" },
+    }],
+  },
   van_void_u18: {
     reminder: "Ativada — pague 2 de vida do Nexus: cause 3 de dano a uma unidade inimiga.",
     activatedAbilities: [{
       description: "Olhar do Vazio — cause 3 de dano a uma unidade inimiga.",
       cost: { nexusHealth: 2 },
       effect: { kind: "damageUnit", amount: 3, target: "enemyUnit" },
+    }],
+  },
+
+  van_forest_u15: {
+    reminder: "Ativada — 2 Mana, Exaurir: invoque um Filhote da Matilha.",
+    activatedAbilities: [{
+      description: "Chamado Dourado — invoque um Filhote da Matilha.",
+      cost: { mana: 2, exhaustSelf: true },
+      effect: { kind: "summonToken", amount: 1, tokenDefId: "forest_cub_token", target: "none" },
+    }],
+  },
+  van_forest_u16: {
+    reminder: "Ativada — 2 Mana: conceda Alcance a uma unidade aliada.",
+    activatedAbilities: [{
+      description: "Instinto da Copa — conceda Alcance a uma unidade aliada.",
+      cost: { mana: 2 },
+      effect: { kind: "grantKeyword", amount: 0, keyword: "Reach", target: "allyUnit" },
+    }],
+  },
+  van_forest_u17: {
+    reminder: "Ativada — 3 Mana, Exaurir: Bestas e Feras aliadas recebem +1/+1.",
+    activatedAbilities: [{
+      description: "Uivo da Grande Caçada — Bestas e Feras aliadas recebem +1/+1.",
+      cost: { mana: 3, exhaustSelf: true },
+      effect: { kind: "buffRace", amount: 0, buffPower: 1, buffHealth: 1, target: "none", races: ["Beast", "Besta"] },
     }],
   },
   van_forest_u18: {
@@ -77,6 +201,31 @@ const VANILLA_ACTIVATED_IDENTITIES: Record<string, VanillaActivatedIdentity> = {
         target: "none",
         also: { kind: "summonToken", amount: 1, tokenDefId: "forest_cub_token", target: "none" },
       },
+    }],
+  },
+
+  van_storm_u15: {
+    reminder: "Ativada — 2 Mana, Exaurir: cause 2 de dano a uma unidade inimiga.",
+    activatedAbilities: [{
+      description: "Trovão Conduzido — cause 2 de dano a uma unidade inimiga.",
+      cost: { mana: 2, exhaustSelf: true },
+      effect: { kind: "damageUnit", amount: 2, target: "enemyUnit" },
+    }],
+  },
+  van_storm_u16: {
+    reminder: "Ativada — 2 Mana: conceda Ímpeto a uma unidade aliada.",
+    activatedAbilities: [{
+      description: "Ruptura Instantânea — conceda Ímpeto a uma unidade aliada.",
+      cost: { mana: 2 },
+      effect: { kind: "grantKeyword", amount: 0, keyword: "Haste", target: "allyUnit" },
+    }],
+  },
+  van_storm_u17: {
+    reminder: "Ativada — 3 Mana, Exaurir: atordoe uma unidade inimiga.",
+    activatedAbilities: [{
+      description: "Céu Partido — atordoe uma unidade inimiga.",
+      cost: { mana: 3, exhaustSelf: true },
+      effect: { kind: "stun", amount: 0, target: "enemyUnit" },
     }],
   },
   van_storm_u18: {
