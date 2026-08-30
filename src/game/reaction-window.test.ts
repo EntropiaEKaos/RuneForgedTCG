@@ -8,6 +8,12 @@ import {
   eligibleReactionCards,
   reactionEligibility,
 } from "./engine";
+import {
+  cardRulesDescription,
+  counterProtectionText,
+  playerVisibleCustomKeywords,
+  reactionSpeedRuleText,
+} from "./reaction-presentation";
 import { applyGameAction } from "./reducer";
 import type { DeckInput } from "./types";
 
@@ -69,6 +75,29 @@ if (!unitReactionIds.includes("contract-shield") || !unitReactionIds.includes("c
 // Specific counters are opt-in rule keys; no filter means universal.
 const denyDef = getCard("tide_deny");
 const originalDenyRules = [...(denyDef.customKeywords ?? [])];
+
+// Player-facing copy must be derived from the executable counter contract, not
+// from stale authored prose or internal `customKeywords` rule keys.
+const universalCounterText = cardRulesDescription(denyDef);
+if (!universalCounterText.includes("Unidade") || !universalCounterText.includes("Magia") || !universalCounterText.includes("Sentinela")) {
+  throw new Error(`Universal counter presentation omitted an action kind: ${universalCounterText}`);
+}
+if (!reactionSpeedRuleText(denyDef)?.includes("Sentinelas")) {
+  throw new Error("Burst presentation did not expose the supported Sentinela response window");
+}
+const spellOnlyPresentation = {
+  ...denyDef,
+  customKeywords: [...originalDenyRules, "counter_spell", "designer_visible"],
+};
+const spellOnlyText = cardRulesDescription(spellOnlyPresentation);
+if (!spellOnlyText.includes("Magia") || spellOnlyText.includes("Unidade") || spellOnlyText.includes("Sentinela")) {
+  throw new Error(`Spell-only counter presentation drifted from its filter: ${spellOnlyText}`);
+}
+const visibleCounterKeywords = playerVisibleCustomKeywords(spellOnlyPresentation);
+if (visibleCounterKeywords.length !== 1 || visibleCounterKeywords[0] !== "designer_visible") {
+  throw new Error(`Reserved counter metadata leaked into player keywords: ${visibleCounterKeywords.join(",")}`);
+}
+
 denyDef.customKeywords = [...originalDenyRules, "counter_spell"];
 if (canReactWithCard(contractState, "player", "contract-deny", unitAction)) {
   throw new Error("Spell-only counter must reject a unit action");
@@ -84,6 +113,18 @@ denyDef.customKeywords = originalDenyRules;
 // `uncounterable` is the explicit exception to universal counters.
 const protectedDef = getCard("ember_whelp");
 const originalProtectedRules = [...(protectedDef.customKeywords ?? [])];
+const protectedPresentation = {
+  ...protectedDef,
+  customKeywords: [...originalProtectedRules, "uncounterable", "designer_visible"],
+};
+if (!counterProtectionText(protectedPresentation)?.includes("não pode ser anulada")) {
+  throw new Error("Uncounterable protection did not receive player-facing rules text");
+}
+const visibleProtectedKeywords = playerVisibleCustomKeywords(protectedPresentation);
+if (visibleProtectedKeywords.length !== 1 || visibleProtectedKeywords[0] !== "designer_visible") {
+  throw new Error(`Reserved uncounterable metadata leaked into player keywords: ${visibleProtectedKeywords.join(",")}`);
+}
+
 protectedDef.customKeywords = [...originalProtectedRules, "uncounterable"];
 if (canReactWithCard(contractState, "player", "contract-deny", unitAction)) {
   throw new Error("An uncounterable unit must not be a legal target for a universal counter");
@@ -313,4 +354,4 @@ if (replay.state.phase === "blocking") {
   throw new Error("Replay remained stuck in blocking after the recorded human block decision");
 }
 
-console.log("Reaction-window regression tests passed — universal/specific counters, uncounterable protection, committed-card lifecycle and successful follow-ups certified.");
+console.log("Reaction-window regression tests passed — universal/specific counters, uncounterable protection, committed-card lifecycle, follow-ups and player-facing semantics certified.");
