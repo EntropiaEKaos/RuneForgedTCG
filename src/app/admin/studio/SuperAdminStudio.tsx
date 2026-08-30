@@ -4,7 +4,7 @@ import { StudioCommandPalette, StudioBreadcrumb } from "./StudioChrome";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { CardStudioLink, MechanicsStudioLink, Overview, ResourceStudio } from "./SuperAdminPanels";
 import { resources, type Resource, type Row } from "./SuperAdminModel";
-import { canAccessStudioAuthoring, studioLandingForRole } from "@/lib/admin-studio-access";
+import { canAccessStudioAuthoring, hasStudioUiCapability, studioLandingForRole } from "@/lib/admin-studio-access";
 
 type StudioUser = { username: string; role: string };
 
@@ -21,6 +21,12 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
+  const role = user?.role;
+  const visibleResources = useMemo(
+    () => resources.filter((resource) => hasStudioUiCapability(role, resource.capability)),
+    [role],
+  );
+  const canDelete = hasStudioUiCapability(role, "delete");
 
   const check = useCallback(async () => {
     const r = await fetch("/api/admin/session", { credentials: "include" });
@@ -43,9 +49,13 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
   useDeferredEffect(() => {
     check();
   }, [check]);
+  useDeferredEffect(() => {
+    if (auth && !visibleResources.some((resource) => resource.id === tab)) setTab("overview");
+  }, [auth, tab, visibleResources]);
 
   const load = useCallback(async () => {
     if (!auth || tab === "overview" || tab === "cards" || tab === "mechanics") return;
+    if (!visibleResources.some((resource) => resource.id === tab)) return;
     setBusy(true);
     setError("");
     try {
@@ -58,7 +68,7 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
     } finally {
       setBusy(false);
     }
-  }, [auth, tab]);
+  }, [auth, tab, visibleResources]);
   useDeferredEffect(() => {
     load();
     setEditing(null);
@@ -95,6 +105,7 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
 
   const save = async () => {
     if (!editing || !tab || tab === "overview" || tab === "cards") return;
+    if (!visibleResources.some((resource) => resource.id === tab)) return;
     setBusy(true);
     setError("");
     try {
@@ -118,6 +129,7 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
     }
   };
   const remove = async (row: Row) => {
+    if (!canDelete) return;
     if (!confirm(`Delete ${row.name || row.key || row.defId || row.id}?`)) return;
     const r = await fetch(`/api/admin/studio/${tab}/${row.id}`, { method: "DELETE", credentials: "include" });
     const d = await r.json();
@@ -182,7 +194,7 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
 
   return (
     <div className="studio-shell">
-      <StudioCommandPalette />
+      <StudioCommandPalette role={role} />
       <header className="studio-topbar">
         <div className="studio-topbar-inner flex items-center justify-between gap-4">
           <div className="studio-brand">
@@ -203,7 +215,7 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
         <aside className="studio-sidebar">
           <div className="studio-nav-label">Control Plane</div>
           <div className="studio-nav-list">
-            {resources.map((x) => (
+            {visibleResources.map((x) => (
               <button
                 key={x.id}
                 onClick={() => setTab(x.id)}
@@ -217,7 +229,7 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
         </aside>
         <main className="studio-main">
           <StudioBreadcrumb
-            current={tab === "overview" ? "Overview" : resources.find((x) => x.id === tab)?.label || tab}
+            current={tab === "overview" ? "Overview" : visibleResources.find((x) => x.id === tab)?.label || tab}
           />
           {notice && (
             <div className="mb-4 rounded-lg border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-xs text-emerald-200">
@@ -230,9 +242,9 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
             </div>
           )}
           {tab === "overview" ? (
-            <Overview onTab={setTab} />
+            <Overview onTab={setTab} visibleResources={visibleResources} />
           ) : tab === "cards" ? (
-            <CardStudioLink />
+            <CardStudioLink role={role} />
           ) : tab === "mechanics" ? (
             <MechanicsStudioLink />
           ) : (
@@ -246,6 +258,7 @@ export default function SuperAdminStudio({ initialUser = null }: { initialUser?:
               save={save}
               remove={remove}
               busy={busy}
+              canDelete={canDelete}
             />
           )}
         </main>
