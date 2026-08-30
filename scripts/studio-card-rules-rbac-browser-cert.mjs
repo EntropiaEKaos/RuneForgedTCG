@@ -304,7 +304,7 @@ async function main() {
     assert.equal(designer?.role, "designer", `Designer cert login must resolve designer role, got ${designer?.role}`);
 
     await navigate(cdp, "/admin/studio");
-    await waitForText(cdp, "Authoring Control Room");
+    await waitForText(cdp, "AUTHORING CONTROL ROOM");
     const designerControlRoom = await controlRoomEvidence(cdp);
     for (const forbidden of ["Players", "Events", "Promotions"]) {
       assert.equal(designerControlRoom.nav.some((label) => label.includes(forbidden)), false, `Designer Control Room must hide ${forbidden}`);
