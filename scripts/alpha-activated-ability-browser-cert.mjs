@@ -555,7 +555,7 @@ async function main() {
     const used = await waitForAbilityState(cdp, chosen.legend, "blocked", /Já usada nesta rodada/i);
     assert.equal(used.disabled, true, "once-per-round ability must become disabled after activation");
     assert.match(used.text, /BLOQUEADA/i);
-    const logText = await evaluate(cdp, `document.querySelector('.tcg-log')?.innerText || ''`);
+    const logText = await evaluate(cdp, `document.querySelector('.tcg-log')?.textContent || ''`);
     assert.match(logText, /ativa/i, "battle log must record the activated ability resolution");
     await capture(cdp, usedScreenshot);
 
