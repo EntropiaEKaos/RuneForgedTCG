@@ -1,9 +1,14 @@
 "use client";
 
 import { getCard } from "@/game/cards";
-import { activatedAbilitiesForInstance, canBeginActivateAbility } from "@/game/engine";
-import type { ActivatedAbility } from "@/game/activated-ability-types";
+import { activatedAbilitiesForInstance } from "@/game/engine";
+import {
+  activatedAbilityCostDescription,
+  activatedAbilityCostLabel,
+  activatedAbilityUiState,
+} from "@/game/activated-ability-presentation";
 import { REGION_STYLE } from "./CardView";
+import ActivatedAbilityIntelligence from "./ActivatedAbilityIntelligence";
 import CardInfo from "./CardInfo";
 import Tooltip from "./Tooltip";
 import type { GameState, SentinelaInstance } from "@/game/types";
@@ -17,17 +22,6 @@ interface SentinelaViewProps {
   onActivate?: (abilityIndex: number) => void;
 }
 
-function abilityCostLabel(ability: ActivatedAbility): string {
-  const parts: string[] = [];
-  const cost = ability.cost;
-  if (cost?.loyaltyDelta !== undefined) parts.push(`${cost.loyaltyDelta > 0 ? "+" : ""}${cost.loyaltyDelta}◆`);
-  if (cost?.mana) parts.push(`💧${cost.mana}`);
-  if (cost?.nexusHealth) parts.push(`♥${cost.nexusHealth}`);
-  if (cost?.exhaustSelf) parts.push("↷");
-  if (cost?.sacrificeSelf) parts.push("✕");
-  return parts.length ? parts.join(" ") : "ATIVAR";
-}
-
 /** Renderiza uma Sentinela em jogo: lealdade, habilidades e inspeção completa. */
 export default function SentinelaView({ instance, state, size = "md", onActivate }: SentinelaViewProps) {
   const def = getCard(instance.defId);
@@ -36,12 +30,24 @@ export default function SentinelaView({ instance, state, size = "md", onActivate
   const configuredFallbackArt = getClientArtFallbackUrl();
   const artUrl = def.art || configuredFallbackArt;
   const abilities = activatedAbilitiesForInstance(state, instance.owner, instance.instanceId);
+  const legacyAbilityCount = def.sentinela?.abilities.length ?? 0;
 
   return (
     <Tooltip
-      content={<CardInfo defId={instance.defId} sentinela={instance} state={state} />}
+      content={(
+        <div className="space-y-2">
+          <CardInfo defId={instance.defId} sentinela={instance} state={state} />
+          <ActivatedAbilityIntelligence
+            definition={def}
+            state={state}
+            owner={instance.owner}
+            instanceId={instance.instanceId}
+            fromIndex={legacyAbilityCount}
+          />
+        </div>
+      )}
       panelWidth={420}
-      panelHeightEstimate={720}
+      panelHeightEstimate={860}
     >
       <div
         data-sentinela-id={instance.instanceId}
@@ -63,20 +69,37 @@ export default function SentinelaView({ instance, state, size = "md", onActivate
 
           <div className="mt-2 flex flex-col gap-1">
             {abilities.map((ability, index) => {
-              const canUse = Boolean(onActivate) && canBeginActivateAbility(state, instance.owner, instance.instanceId, index);
+              const availability = activatedAbilityUiState(state, instance.owner, instance.instanceId, index);
+              const canUse = Boolean(onActivate) && availability.canUse;
+              const reason = !onActivate
+                ? "Apenas o controlador pode ativar esta habilidade."
+                : availability.reason;
+              const statusText = canUse ? "Pronta para ativar." : reason ?? "Indisponível agora.";
               return (
                 <button
                   key={index}
                   type="button"
                   disabled={!canUse}
+                  data-activated-ability-index={index}
+                  data-activated-ability-state={canUse ? "ready" : "blocked"}
+                  data-activated-ability-reason={canUse ? undefined : reason ?? undefined}
+                  aria-label={`${ability.description}. ${activatedAbilityCostDescription(ability)} ${statusText}`}
+                  title={`${activatedAbilityCostDescription(ability)} ${statusText}`}
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
                     if (canUse) onActivate?.(index);
                   }}
-                  className={`tcg-sentinel-ability rounded px-1.5 py-1 text-left text-[9px] leading-tight transition ${canUse ? "bg-white/20 text-white hover:bg-white/30" : "bg-black/30 text-white/50"}`}
+                  className={`tcg-sentinel-ability rounded px-1.5 py-1 text-left text-[9px] leading-tight transition ${canUse ? "bg-white/20 text-white hover:bg-white/30" : "bg-black/35 text-white/55"}`}
                 >
-                  <span className="font-black text-amber-200">{abilityCostLabel(ability)}</span>: {ability.description}
+                  <span className="flex items-center justify-between gap-1">
+                    <span className="font-black text-amber-200">{activatedAbilityCostLabel(ability)}</span>
+                    <span className={`text-[7px] font-black uppercase tracking-wider ${canUse ? "text-emerald-300" : "text-rose-300"}`}>
+                      {canUse ? "PRONTA" : "BLOQUEADA"}
+                    </span>
+                  </span>
+                  <span className="mt-0.5 block">{ability.description}</span>
+                  {!canUse && <span className="mt-0.5 block text-[7px] font-semibold leading-tight text-rose-200/80">{reason}</span>}
                 </button>
               );
             })}
