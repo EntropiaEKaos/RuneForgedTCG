@@ -70,7 +70,13 @@ const VANILLA_ACTIVATED_IDENTITIES: Record<string, VanillaActivatedIdentity> = {
     activatedAbilities: [{
       description: "Primeiro Uivo — invoque dois Filhotes da Matilha.",
       cost: { mana: 2 },
-      effect: { kind: "summonToken", amount: 2, tokenDefId: "forest_cub_token", target: "none" },
+      effect: {
+        kind: "summonToken",
+        amount: 1,
+        tokenDefId: "forest_cub_token",
+        target: "none",
+        also: { kind: "summonToken", amount: 1, tokenDefId: "forest_cub_token", target: "none" },
+      },
     }],
   },
   van_storm_u18: {
