@@ -1,6 +1,7 @@
 // Behavioral tests execute imported product logic. Source-contract audits inspect repository files and are never reported as behavioral tests.
 export const behavioralTests = [
   "src/components/MatchExperience.test.ts",
+  "src/game/ability-system.test.ts",
   "src/game/activated-abilities.test.ts",
   "src/game/activated-ability-presentation.test.ts",
   "src/game/ai-activated-abilities.test.ts",
