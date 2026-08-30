@@ -244,16 +244,17 @@ function seededShuffle(cards, seed) {
   return out;
 }
 
-async function seedDeck(cdp) {
+async function seedDeck(cdp, attempt) {
+  const candidateName = `${deckName} ${String(attempt).padStart(2, "0")}`;
   const result = await evaluate(cdp, `(async () => {
     const response = await fetch('/api/decks', {
       method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: ${JSON.stringify(deckName)}, emoji: '⚙️', formatId: 'eternal', cards: ${JSON.stringify(certificationDeck)} })
+      body: JSON.stringify({ name: ${JSON.stringify(candidateName)}, emoji: '⚙️', formatId: 'eternal', cards: ${JSON.stringify(certificationDeck)} })
     });
     const body = await response.json();
     return { status: response.status, ...body };
   })()`);
-  assert.equal(result?.ok, true, `failed to seed activated ability certification deck: ${JSON.stringify(result)}`);
+  assert.equal(result?.ok, true, `failed to seed activated ability certification deck ${attempt}: ${JSON.stringify(result)}`);
   assert.ok(result.deck?.id, "seeded certification deck must expose an id");
   assert.equal(result.deck.cards?.length, 40, "server must preserve the 40-card certification deck");
   return result.deck;
@@ -270,21 +271,22 @@ async function issueAuthoritativeToken(cdp, deckId) {
   })()`);
 }
 
-async function chooseTokenWithOpeningLegend(cdp, deck) {
-  const deckId = `custom_${deck.id}`;
-  const cards = Array.isArray(deck.cards) ? deck.cards : certificationDeck;
+async function prepareAuthoritativeFixture(cdp) {
   const attempts = [];
-  for (let attempt = 1; attempt <= 16; attempt++) {
+  for (let attempt = 1; attempt <= 24; attempt++) {
+    const deck = await seedDeck(cdp, attempt);
+    const deckId = `custom_${deck.id}`;
     const token = await issueAuthoritativeToken(cdp, deckId);
     assert.equal(token?.ok, true, `authoritative match token attempt ${attempt} failed: ${JSON.stringify(token)}`);
     const seed = Number(token.seed);
     const startHand = Math.max(1, Number(token.engineRules?.startHand) || 4);
+    const cards = Array.isArray(deck.cards) ? deck.cards : certificationDeck;
     const openingHand = seededShuffle(cards, (seed ^ 0x9e3779b9) >>> 0).slice(0, startHand);
     const legend = activatedLegends.find((defId) => openingHand.includes(defId));
-    attempts.push({ attempt, seed, openingHand, legend: legend || null });
-    if (legend) return { token, legend, openingHand, attempts };
+    attempts.push({ attempt, deckId, deckName: deck.name, seed, openingHand, legend: legend || null });
+    if (legend) return { deck, token, legend, openingHand, attempts };
   }
-  throw new Error(`could not obtain an authoritative seed with an activated legend in the opening hand: ${JSON.stringify(attempts)}`);
+  throw new Error(`could not prepare a fresh authoritative deck/token fixture with an activated legend in the opening hand: ${JSON.stringify(attempts)}`);
 }
 
 async function interceptNextMatchToken(cdp, token) {
@@ -474,15 +476,14 @@ async function main() {
 
     await navigate(cdp, "/play");
     await waitForText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL", 30_000);
-    const deck = await seedDeck(cdp);
+    const chosen = await prepareAuthoritativeFixture(cdp);
 
     await clickText(cdp, "COMEÇAR TREINAMENTO");
     await waitForText(cdp, "Escolha seu deck", 30_000);
-    await waitForText(cdp, deckName, 30_000);
-    await clickText(cdp, deckName);
-    await waitUntil(() => evaluate(cdp, `(() => [...document.querySelectorAll('button')].some((button) => button.getAttribute('aria-pressed') === 'true' && (button.textContent || '').includes(${JSON.stringify(deckName)})))()`), "activated ability certification deck selection");
+    await waitForText(cdp, chosen.deck.name, 30_000);
+    await clickText(cdp, chosen.deck.name);
+    await waitUntil(() => evaluate(cdp, `(() => [...document.querySelectorAll('button')].some((button) => button.getAttribute('aria-pressed') === 'true' && (button.textContent || '').includes(${JSON.stringify(chosen.deck.name)})))()`), "activated ability certification deck selection");
 
-    const chosen = await chooseTokenWithOpeningLegend(cdp, deck);
     await interceptNextMatchToken(cdp, chosen.token);
     await clickText(cdp, "ENTRAR NO NEXUS");
     await waitForText(cdp, "Prepare sua mão inicial", 30_000);
@@ -555,6 +556,8 @@ async function main() {
       ok: true,
       type: "activated-ability-browser-certification",
       legend: chosen.legend,
+      certificationDeckId: chosen.deck.id,
+      certificationDeckName: chosen.deck.name,
       authoritativeSeed: Number(chosen.token.seed),
       tokenAttempts: chosen.attempts.length,
       predictedOpeningHand: chosen.openingHand,
