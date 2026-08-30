@@ -320,38 +320,6 @@ async function matchSnapshot(cdp) {
   }))()`);
 }
 
-async function playCheapBlocker(cdp, legend) {
-  const result = await evaluate(cdp, `(() => {
-    const legend = ${JSON.stringify(legend)};
-    const boardCount = document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length;
-    if (boardCount >= 2) return null;
-    const hosts = [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')];
-    const target = hosts.find((host) => host.dataset.cardTipDefId !== legend && !${JSON.stringify(activatedLegends)}.includes(host.dataset.cardTipDefId) && host.querySelector('button:not(:disabled)'));
-    const button = target?.querySelector('button:not(:disabled)');
-    if (!button) return null;
-    const defId = target.dataset.cardTipDefId;
-    button.click();
-    return defId;
-  })()`);
-  if (result) await sleep(350);
-  return result;
-}
-
-async function spendResidualMana(cdp, legend) {
-  const result = await evaluate(cdp, `(() => {
-    const legend = ${JSON.stringify(legend)};
-    const hosts = [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')];
-    const target = hosts.find((host) => host.dataset.cardTipDefId !== legend && !${JSON.stringify(activatedLegends)}.includes(host.dataset.cardTipDefId) && host.querySelector('button:not(:disabled)'));
-    const button = target?.querySelector('button:not(:disabled)');
-    if (!button) return null;
-    const defId = target.dataset.cardTipDefId;
-    button.click();
-    return defId;
-  })()`);
-  if (result) await sleep(350);
-  return result;
-}
-
 async function driveUntilLegendPlayed(cdp, legend, timeoutMs = 180_000) {
   const deadline = Date.now() + timeoutMs;
   const actions = [];
@@ -371,9 +339,7 @@ async function driveUntilLegendPlayed(cdp, legend, timeoutMs = 180_000) {
         return { round: snapshot.round, actions, played };
       }
 
-      const blocker = await playCheapBlocker(cdp, legend);
-      if (blocker) actions.push({ round: snapshot.round, action: `play-blocker:${blocker}` });
-      actions.push({ round: snapshot.round, action: "end-main" });
+      actions.push({ round: snapshot.round, action: "hold-mana-and-end-main" });
       await pressKey(cdp, " ", "Space");
       await sleep(260);
       continue;
@@ -498,16 +464,8 @@ async function main() {
 
     const played = await driveUntilLegendPlayed(cdp, chosen.legend);
     const initialAbilityState = await abilityEvidence(cdp, chosen.legend);
-    let residualManaSpent = null;
-    if (initialAbilityState?.status === "ready") {
-      residualManaSpent = await spendResidualMana(cdp, chosen.legend);
-      assert.ok(
-        residualManaSpent,
-        `activated legend remained ready after being played and no legal filler could consume its residual mana: ${JSON.stringify({ chosen, played, initialAbilityState })}`,
-      );
-    }
     const blocked = await waitForAbilityState(cdp, chosen.legend, "blocked", /Mana insuficiente/i);
-    assert.equal(blocked.disabled, true, "played 8-mana legend must expose a disabled ability after residual mana is consumed");
+    assert.equal(blocked.disabled, true, "played 8-mana legend must immediately expose a disabled ability after spending all 8 mana");
     assert.match(blocked.text, /BLOQUEADA/i, "blocked state must be visible on the battlefield control");
     await capture(cdp, blockedScreenshot);
 
@@ -565,7 +523,6 @@ async function main() {
       playedRound: played.round,
       refreshedRound: refreshed.round,
       initialAbilityState,
-      residualManaSpent,
       blocked,
       ready,
       tooltip,
