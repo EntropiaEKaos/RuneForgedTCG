@@ -15,6 +15,7 @@ import type {
   StrategicRole,
   RegionalPerk,
 } from "./types";
+import type { ActivatedAbility, ActivatedAbilityCost } from "./activated-ability-types";
 
 /**
  * Canonical authoring catalog. Keep every closed engine vocabulary here so UI,
@@ -212,6 +213,87 @@ export function sanitizeCardEffect(raw: unknown, depth = 0): CardEffect | null {
   return effect;
 }
 
+function nonNegativeInteger(value: unknown): number | undefined | null {
+  if (value === undefined) return undefined;
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric < 0) return null;
+  return numeric;
+}
+
+function sanitizeActivatedAbilityCost(raw: unknown): ActivatedAbilityCost | null | undefined {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const cost: ActivatedAbilityCost = {};
+
+  const mana = nonNegativeInteger(value.mana);
+  if (mana === null) return null;
+  if (mana !== undefined) cost.mana = mana;
+
+  const nexusHealth = nonNegativeInteger(value.nexusHealth);
+  if (nexusHealth === null) return null;
+  if (nexusHealth !== undefined) cost.nexusHealth = nexusHealth;
+
+  if (value.exhaustSelf !== undefined) {
+    if (typeof value.exhaustSelf !== "boolean") return null;
+    if (value.exhaustSelf) cost.exhaustSelf = true;
+  }
+  if (value.sacrificeSelf !== undefined) {
+    if (typeof value.sacrificeSelf !== "boolean") return null;
+    if (value.sacrificeSelf) cost.sacrificeSelf = true;
+  }
+  if (value.loyaltyDelta !== undefined) {
+    const loyaltyDelta = Number(value.loyaltyDelta);
+    if (!Number.isInteger(loyaltyDelta)) return null;
+    cost.loyaltyDelta = loyaltyDelta;
+  }
+
+  return cost;
+}
+
+export function sanitizeActivatedAbility(raw: unknown): ActivatedAbility | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const description = typeof value.description === "string" ? value.description.trim().slice(0, 200) : "";
+  if (!description) return null;
+
+  const effect = sanitizeCardEffect(value.effect);
+  if (!effect) return null;
+
+  const cost = sanitizeActivatedAbilityCost(value.cost);
+  if (cost === null) return null;
+
+  let maxUsesPerRound: number | null | undefined;
+  if (value.maxUsesPerRound === null) {
+    maxUsesPerRound = null;
+  } else if (value.maxUsesPerRound !== undefined) {
+    const numeric = Number(value.maxUsesPerRound);
+    if (!Number.isInteger(numeric) || numeric <= 0) return null;
+    maxUsesPerRound = numeric;
+  }
+
+  // Mirror the authoritative engine's fail-closed rule: unlimited abilities
+  // must consume a finite resource or the source itself, otherwise authored
+  // content could create an infinite zero-cost activation loop.
+  if (maxUsesPerRound === null) {
+    const consumes = Boolean(
+      (cost?.mana ?? 0) > 0 ||
+      (cost?.nexusHealth ?? 0) > 0 ||
+      cost?.exhaustSelf ||
+      cost?.sacrificeSelf ||
+      (cost?.loyaltyDelta ?? 0) < 0,
+    );
+    if (!consumes) return null;
+  }
+
+  if (cost?.sacrificeSelf && effect.target === "self") return null;
+
+  const ability: ActivatedAbility = { description, effect };
+  if (cost && Object.keys(cost).length > 0) ability.cost = cost;
+  if (maxUsesPerRound !== undefined) ability.maxUsesPerRound = maxUsesPerRound;
+  return ability;
+}
+
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || `card_${Date.now()}`;
 }
@@ -302,6 +384,19 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
     const effect = sanitizeCardEffect(raw.trigger.effect);
     if (!effect) return { ok: false, error: "Invalid trigger effect" };
     card.trigger = { when: raw.trigger.when, effect };
+  }
+
+  if (raw.activatedAbilities !== undefined) {
+    if (!Array.isArray(raw.activatedAbilities) || raw.activatedAbilities.length > 8) {
+      return { ok: false, error: "Activated abilities must be an array with at most 8 entries" };
+    }
+    const activatedAbilities: ActivatedAbility[] = [];
+    for (const rawAbility of raw.activatedAbilities) {
+      const ability = sanitizeActivatedAbility(rawAbility);
+      if (!ability) return { ok: false, error: "Invalid activated ability" };
+      activatedAbilities.push(ability);
+    }
+    if (activatedAbilities.length > 0) card.activatedAbilities = activatedAbilities;
   }
 
   if (raw.equipment !== undefined) {
