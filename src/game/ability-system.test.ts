@@ -3,11 +3,13 @@ import {
   ABILITY_GRAMMAR_CATALOG,
   ABILITY_GRAMMAR_VERSION,
   ABILITY_KIND_SUPPORT,
+  ABILITY_TIMING_SUPPORT,
   abilityBlueprintsForCard,
   blueprintFromActivatedAbility,
   blueprintFromMechanic,
+  blueprintFromReactionSpell,
 } from "./ability-system";
-import { baseCardsOnly } from "./cards";
+import { baseCardsOnly, getCard } from "./cards";
 import type { ActivatedAbility } from "./activated-ability-types";
 import type { CardMechanic } from "./types";
 
@@ -16,10 +18,16 @@ assert.equal(ABILITY_GRAMMAR_CATALOG.version, 2);
 assert.equal(ABILITY_KIND_SUPPORT.keyword, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.triggered, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.activated, "supported");
+assert.equal(ABILITY_KIND_SUPPORT.reaction, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.transformation, "supported");
+assert.equal(ABILITY_KIND_SUPPORT.static, "partial");
+assert.equal(ABILITY_KIND_SUPPORT.aura, "partial");
+assert.equal(ABILITY_KIND_SUPPORT.linked, "partial");
 assert.equal(ABILITY_KIND_SUPPORT.modal, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.replacement, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.delayed, "planned");
+assert.equal(ABILITY_TIMING_SUPPORT.reaction, "supported");
+assert.equal(ABILITY_TIMING_SUPPORT.priority, "planned");
 
 const activated: ActivatedAbility = {
   description: "Canalize o Nexus.",
@@ -67,6 +75,16 @@ assert.equal(mechanicBlueprint.timing, "automatic");
 assert.equal(mechanicBlueprint.trigger, "onSummon");
 assert.deepEqual(mechanicBlueprint.features, ["conditional"]);
 
+const denyBlueprint = blueprintFromReactionSpell(getCard("tide_deny"));
+assert.ok(denyBlueprint, "canonical Tide Deny is projected as a reaction ability");
+assert.equal(denyBlueprint.origin, "spell");
+assert.equal(denyBlueprint.kind, "reaction");
+assert.equal(denyBlueprint.timing, "reaction");
+assert.equal(denyBlueprint.target, "spellOnStack");
+assert.deepEqual(denyBlueprint.costs, [{ kind: "mana", amount: 4 }]);
+assert.deepEqual(denyBlueprint.features, ["targeted"]);
+assert.equal(blueprintFromReactionSpell(getCard("tide_draw")), null, "ordinary main-phase spells are not mislabeled as reactions");
+
 const cards = baseCardsOnly();
 assert.equal(cards.length, 429, "Ability grammar certification covers the complete canonical 429-card catalog");
 
@@ -80,6 +98,7 @@ for (const card of cards) {
     (card.keywords?.length ?? 0) +
     (card.trigger ? 1 : 0) +
     (card.mechanics?.length ?? 0) +
+    (card.type === "Spell" && card.speed && card.spell ? 1 : 0) +
     (card.activatedAbilities?.length ?? 0) +
     (card.sentinela?.abilities.length ?? 0) +
     (card.levelUp ? 1 : 0);
@@ -100,7 +119,7 @@ for (const card of cards) {
 
 // These origins are genuinely present in the static catalog today. Dynamic
 // Mechanics Studio compatibility is proven by the dedicated adapter probe above.
-for (const origin of ["keyword", "legacyTrigger", "activated", "sentinela", "levelUp"]) {
+for (const origin of ["keyword", "legacyTrigger", "spell", "activated", "sentinela", "levelUp"]) {
   assert.ok(origins.has(origin), `canonical catalog exercises ${origin} compatibility`);
 }
 assert.equal(origins.has("mechanic"), false, "base catalog truthfully records that mechanics are dynamic/published content today");
