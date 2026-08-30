@@ -1,7 +1,7 @@
 import { getCard } from "../cards";
 import { canCounterPendingAction, canReactWithCard, hasReactionOpportunity } from "../reaction-contract";
 import type { GameState, PlayerId } from "../types";
-import { castSpell, playUnit } from "./actions";
+import { castSpell, effectiveCost, playUnit } from "./actions";
 
 /**
  * Result of a stack resolution. If awaitingReaction is set, the human must
@@ -34,6 +34,32 @@ function canRespondTo(state: GameState, playerId: PlayerId, action: CardAction):
 
 function aiChooseReactionAction(state: GameState, action: CardAction): CardAction | null {
   return null; // overridden via ai module
+}
+
+/**
+ * A counter prevents resolution; it does not rewind the fact that the target
+ * card was committed to the stack. RuneForge has no graveyard zone yet, so the
+ * authoritative equivalent is to consume the card from hand and pay its cast
+ * cost without applying any summon/play/spell effects.
+ */
+function consumeNegatedCard(state: GameState, item: StackFrame): void {
+  const player = state.players[item.player];
+  const instance = player.hand.find((card) => card.instanceId === item.instanceId);
+  if (!instance) return;
+
+  const def = getCard(instance.defId);
+  const cost = effectiveCost(state, item.player, def);
+  const usesSpellMana = def.type !== "Unit" && def.type !== "Sentinela";
+
+  if (usesSpellMana) {
+    const regularMana = Math.min(player.mana, cost);
+    player.mana -= regularMana;
+    player.spellMana = Math.max(0, player.spellMana - (cost - regularMana));
+    player.stats.spellsCast += 1;
+  } else {
+    player.mana = Math.max(0, player.mana - cost);
+  }
+  player.hand = player.hand.filter((card) => card.instanceId !== item.instanceId);
 }
 
 /**
@@ -117,6 +143,7 @@ function resolveStack(state: GameState, stack: StackFrame[]): StackResolution {
     if (s.phase === "gameover") break;
 
     if (negated.has(item.instanceId)) {
+      consumeNegatedCard(s, item);
       s.log.push(`✨ ${getCard(item.defId).name} was negated and did not resolve.`);
       continue;
     }
