@@ -16,6 +16,7 @@ import type {
   RegionalPerk,
 } from "./types";
 import type { ActivatedAbility, ActivatedAbilityCost } from "./activated-ability-types";
+import { isTriggerSupported, triggerContractError } from "./trigger-contract";
 
 /**
  * Canonical authoring catalog. Keep every closed engine vocabulary here so UI,
@@ -159,7 +160,7 @@ export function sanitizeCardMechanic(raw: unknown): CardMechanic | null {
   if (!raw || typeof raw !== "object") return null;
   const m = raw as Record<string, unknown>;
   const key = typeof m.key === "string" && /^[a-z0-9][a-z0-9_-]{1,63}$/.test(m.key) ? m.key : "";
-  if (!key || !has(CARD_TRIGGERS, m.trigger)) return null;
+  if (!key || !has(CARD_TRIGGERS, m.trigger) || !isTriggerSupported("Unit", m.trigger)) return null;
   const condition = sanitizeMechanicCondition(m.condition);
   const effect = sanitizeCardEffect(m.effect);
   if (!condition || !effect) return null;
@@ -381,6 +382,8 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
 
   if (raw.trigger !== undefined) {
     if (!raw.trigger || !has(CARD_TRIGGERS, raw.trigger.when)) return { ok: false, error: "Invalid trigger when" };
+    const triggerError = triggerContractError(card.type, raw.trigger.when);
+    if (triggerError) return { ok: false, error: triggerError };
     const effect = sanitizeCardEffect(raw.trigger.effect);
     if (!effect) return { ok: false, error: "Invalid trigger effect" };
     card.trigger = { when: raw.trigger.when, effect };
