@@ -111,6 +111,7 @@ followUpState.activePlayer = "ai";
 followUpState.players.player.mana = 10;
 followUpState.players.player.nexusHealth = 10;
 followUpState.players.player.hand = [{ instanceId: "follow-counter", defId: "tide_deny" }];
+followUpState.players.ai.mana = 10;
 followUpState.players.ai.hand = [{ instanceId: "follow-unit", defId: "ember_whelp" }];
 const followed = applyStackedActionWithAi(
   followUpState,
@@ -121,6 +122,15 @@ const followed = applyStackedActionWithAi(
 ).next;
 if (followed.players.player.nexusHealth !== 12) {
   throw new Error(`Successful counter did not resolve its follow-up effect: ${followed.players.player.nexusHealth}`);
+}
+if (followed.players.ai.hand.some((card) => card.instanceId === "follow-unit")) {
+  throw new Error("Countered unit remained in hand and could be replayed");
+}
+if (followed.players.ai.bench.some((unit) => unit.instanceId === "follow-unit" || unit.defId === "ember_whelp")) {
+  throw new Error("Countered unit resolved onto the battlefield");
+}
+if (followed.players.ai.mana !== 9) {
+  throw new Error(`Countered unit did not pay its committed mana cost: ${followed.players.ai.mana}`);
 }
 
 const blockedFollowUpState = createCustomGame("Blocked Counter Follow-up", deck, deck, {
@@ -303,4 +313,4 @@ if (replay.state.phase === "blocking") {
   throw new Error("Replay remained stuck in blocking after the recorded human block decision");
 }
 
-console.log("Reaction-window regression tests passed — universal/specific counters, uncounterable protection and successful follow-ups certified.");
+console.log("Reaction-window regression tests passed — universal/specific counters, uncounterable protection, committed-card lifecycle and successful follow-ups certified.");
