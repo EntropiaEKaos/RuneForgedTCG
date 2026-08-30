@@ -15,6 +15,8 @@ const usedScreenshot = "05f-activated-ability-used.png";
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 
 const activatedLegends = ["van_ember_u18", "van_tide_u18", "van_forest_u18"];
+const defensiveUnits = ["forest_cub", "ember_whelp", "tide_sprite", "forest_packrunner", "ember_drake", "ember_sprinter", "tide_guard"];
+const maxDefensiveBench = 3;
 const certificationDeck = [
   "van_ember_u18", "van_ember_u18", "van_ember_u18",
   "van_tide_u18", "van_tide_u18", "van_tide_u18",
@@ -316,8 +318,46 @@ async function matchSnapshot(cdp) {
     hand: [...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')].map((host) => host.dataset.cardTipDefId),
     board: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')].map((host) => ({ defId: host.dataset.cardTipDefId, unitId: host.dataset.unitId })),
     boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length,
-    manaText: [...document.querySelectorAll('body *')].map((node) => node.textContent || '').find((text) => /^\\s*\\d+\\s*\\/\\s*\\d+\\s*MANA\\s*$/i.test(text)) || null,
+    manaText: [...document.querySelectorAll('body *')].map((node) => node.textContent || '').find((text) => /^\\s*\\d+\\s*\/\\s*\\d+\\s*MANA\\s*$/i.test(text)) || null,
   }))()`);
+}
+
+async function playDefensiveUnit(cdp, snapshot) {
+  if (snapshot.boardCount >= maxDefensiveBench) return null;
+  for (const defId of defensiveUnits) {
+    const selector = `#player-hand-cards [data-card-tip-def-id="${defId}"] button[data-card-state="playable"]:not(:disabled)`;
+    const playable = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`);
+    if (!playable) continue;
+    const beforeCount = snapshot.boardCount;
+    const clicked = await clickSelector(cdp, selector);
+    if (!clicked) continue;
+    await waitUntil(async () => (await matchSnapshot(cdp)).boardCount > beforeCount, `defensive unit ${defId} to enter battlefield`, 10_000);
+    return defId;
+  }
+  return null;
+}
+
+async function assignDefensiveBlocks(cdp, protectedDefId = null) {
+  const layout = await evaluate(cdp, `(() => ({
+    blockers: [...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')]
+      .filter((host) => ${protectedDefId ? `host.dataset.cardTipDefId !== ${JSON.stringify(protectedDefId)}` : "true"})
+      .map((host) => host.dataset.unitId).filter(Boolean),
+    attackers: [...document.querySelectorAll('[data-bench-side="ai"] [data-unit-id]')]
+      .filter((host) => host.querySelector('button[data-card-state="attacking"]:not(:disabled)'))
+      .map((host) => host.dataset.unitId).filter(Boolean),
+  }))()`);
+  const blockCount = Math.min(layout?.blockers?.length || 0, layout?.attackers?.length || 0);
+  for (let index = 0; index < blockCount; index++) {
+    const blockerId = layout.blockers[index];
+    const attackerId = layout.attackers[index];
+    const blockerSelector = `[data-bench-side="player"] [data-unit-id="${blockerId}"] button[data-card-state]:not(:disabled)`;
+    const attackerSelector = `[data-bench-side="ai"] [data-unit-id="${attackerId}"] button[data-card-state="attacking"]:not(:disabled)`;
+    assert.equal(await clickSelector(cdp, blockerSelector), true, `could not select defensive blocker ${blockerId}`);
+    await sleep(80);
+    assert.equal(await clickSelector(cdp, attackerSelector), true, `could not assign blocker ${blockerId} to attacker ${attackerId}`);
+    await sleep(80);
+  }
+  return blockCount;
 }
 
 async function driveUntilLegendPlayed(cdp, legend, timeoutMs = 180_000) {
@@ -328,7 +368,7 @@ async function driveUntilLegendPlayed(cdp, legend, timeoutMs = 180_000) {
     if (snapshot.gameover) throw new Error(`match ended before ${legend} could be played: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
 
     if (snapshot.phase === "main") {
-      const legendSelector = `#player-hand-cards [data-card-tip-def-id="${legend}"] button:not(:disabled)`;
+      const legendSelector = `#player-hand-cards [data-card-tip-def-id="${legend}"] button[data-card-state="playable"]:not(:disabled)`;
       const playableLegend = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(legendSelector)}))`);
       if (playableLegend) {
         const clicked = await clickSelector(cdp, legendSelector);
@@ -337,6 +377,13 @@ async function driveUntilLegendPlayed(cdp, legend, timeoutMs = 180_000) {
         const played = await matchSnapshot(cdp);
         actions.push({ round: snapshot.round, action: `play:${legend}` });
         return { round: snapshot.round, actions, played };
+      }
+
+      const developed = await playDefensiveUnit(cdp, snapshot);
+      if (developed) {
+        actions.push({ round: snapshot.round, action: `develop:${developed}` });
+        await sleep(160);
+        continue;
       }
 
       actions.push({ round: snapshot.round, action: "hold-mana-and-end-main" });
@@ -351,7 +398,8 @@ async function driveUntilLegendPlayed(cdp, legend, timeoutMs = 180_000) {
       continue;
     }
     if (snapshot.phase === "combat") {
-      actions.push({ round: snapshot.round, action: "confirm-combat" });
+      const blocks = await assignDefensiveBlocks(cdp);
+      actions.push({ round: snapshot.round, action: "confirm-combat", blocks });
       await pressKey(cdp, "Enter", "Enter");
       await sleep(260);
       continue;
@@ -405,7 +453,7 @@ async function appendManifest(entries) {
   }
 }
 
-async function waitForNextPlayerMain(cdp, afterRound, timeoutMs = 60_000) {
+async function waitForNextPlayerMain(cdp, afterRound, protectedDefId, timeoutMs = 60_000) {
   return waitUntil(async () => {
     const snapshot = await matchSnapshot(cdp);
     if (snapshot.gameover) throw new Error("match ended before activated ability could refresh next round");
@@ -414,6 +462,7 @@ async function waitForNextPlayerMain(cdp, afterRound, timeoutMs = 60_000) {
       return null;
     }
     if (snapshot.phase === "combat") {
+      await assignDefensiveBlocks(cdp, protectedDefId);
       await pressKey(cdp, "Enter", "Enter");
       return null;
     }
@@ -470,7 +519,7 @@ async function main() {
     await capture(cdp, blockedScreenshot);
 
     await pressKey(cdp, " ", "Space");
-    const refreshed = await waitForNextPlayerMain(cdp, played.round);
+    const refreshed = await waitForNextPlayerMain(cdp, played.round, chosen.legend);
     const ready = await waitForAbilityState(cdp, chosen.legend, "ready", null);
     assert.equal(ready.disabled, false, "activated ability must become usable after mana refresh");
     assert.match(ready.text, /PRONTA/i, "ready state must be visible on the battlefield control");
