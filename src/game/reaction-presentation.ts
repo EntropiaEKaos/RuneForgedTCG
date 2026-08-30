@@ -6,7 +6,7 @@ import {
   cannotBeCountered,
   counterActionKinds,
   type ReactionActionKind,
-} from "./reaction-contract";
+} from "./counter-rules";
 
 const COUNTER_KIND_LABEL: Record<ReactionActionKind, string> = {
   unit: "Unidade",
