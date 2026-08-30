@@ -255,13 +255,16 @@ async function waitForStudioWorkspace(cdp, timeoutMs = 30_000) {
   return waitUntil(async () => {
     const snapshot = await evaluate(cdp, `(() => ({
       ready: Boolean(document.querySelector('.studio-shell')),
+      identityTab: [...document.querySelectorAll('button')].some((button) =>
+        (button.textContent || '').replace(/\\s+/g, ' ').trim().toUpperCase().includes('IDENTITY')
+      ),
       href: location.href,
       title: document.title,
-      bodyText: (document.body?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 500)
+      bodyText: (document.body?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 1000)
     }))()`);
-    if (snapshot?.ready) return snapshot;
-    throw new Error(`href=${snapshot?.href || 'unknown'} title=${snapshot?.title || 'unknown'} body=${snapshot?.bodyText || '<empty>'}`);
-  }, "authenticated Card Studio workspace", timeoutMs);
+    if (snapshot?.ready && snapshot.identityTab) return snapshot;
+    throw new Error(`href=${snapshot?.href || 'unknown'} title=${snapshot?.title || 'unknown'} identityTab=${snapshot?.identityTab === true} body=${snapshot?.bodyText || '<empty>'}`);
+  }, "authenticated Card Studio workspace with Identity tab", timeoutMs);
 }
 
 async function composerEvidence(cdp) {
@@ -348,7 +351,6 @@ async function main() {
     const login = await loginAdminInBrowser(cdp, credentials);
     await navigate(cdp, "/admin/studio/cards");
     const workspace = await waitForStudioWorkspace(cdp);
-    assert.ok(workspace.bodyText.includes("Identity"), `Authenticated Card Studio workspace is missing Identity tab: ${workspace.bodyText}`);
 
     await selectLabeledValue(cdp, "Type", "Spell");
     await clickText(cdp, "Rules");
