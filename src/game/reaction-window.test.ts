@@ -1,5 +1,6 @@
 import { aiChooseAction, aiChooseReaction } from "./ai";
 import { replayAuthoritativeMatch } from "./authoritative";
+import { getCard } from "./cards";
 import {
   applyStackedActionWithAi,
   canReactWithCard,
@@ -38,28 +39,121 @@ contractState.players.player.hand = [
   { instanceId: "contract-dispel", defId: "tide_dispel" },
 ];
 
-if (canReactWithCard(contractState, "player", "contract-deny", "unit")) {
-  throw new Error("Deny must not open a reaction window for a unit action");
+const unitAction = { kind: "unit" as const, instanceId: "pending-unit", defId: "ember_whelp", player: "ai" as const };
+const spellAction = { kind: "spell" as const, instanceId: "pending-spell", defId: "ember_bolt", player: "ai" as const };
+const sentinelaAction = { kind: "sentinela" as const, instanceId: "pending-sentinela", defId: "rf296_sent_ilyra", player: "ai" as const };
+
+if (!canReactWithCard(contractState, "player", "contract-deny", unitAction)) {
+  throw new Error("Universal Deny must be able to counter a unit action");
 }
-if (reactionEligibility(contractState, "player", "contract-deny", "unit").reason !== "stack-target-mismatch") {
-  throw new Error("Deny unit mismatch must be explained by the canonical stack-target contract");
+if (!canReactWithCard(contractState, "player", "contract-deny", spellAction)) {
+  throw new Error("Universal Deny must remain a legal response to a spell action");
 }
-if (!canReactWithCard(contractState, "player", "contract-deny", "spell")) {
-  throw new Error("Deny must remain a legal response to a spell action");
+if (!canReactWithCard(contractState, "player", "contract-deny", sentinelaAction)) {
+  throw new Error("Universal Deny must be able to counter a Sentinela action");
 }
-if (!canReactWithCard(contractState, "player", "contract-shield", "spell")) {
+if (!canReactWithCard(contractState, "player", "contract-shield", spellAction)) {
   throw new Error("Burst Barrier must remain a legal response while an allied unit is targetable");
 }
-if (canReactWithCard(contractState, "player", "contract-dispel", "unit")) {
+if (canReactWithCard(contractState, "player", "contract-dispel", unitAction)) {
   throw new Error("Disenchant must not open a reaction window when no enemy permanent exists");
 }
-if (reactionEligibility(contractState, "player", "contract-dispel", "unit").reason !== "no-legal-target") {
+if (reactionEligibility(contractState, "player", "contract-dispel", unitAction).reason !== "no-legal-target") {
   throw new Error("Targetless Disenchant opportunity must fail through the canonical target gate");
 }
-const unitReactionIds = eligibleReactionCards(contractState, "player", "unit").map((card) => card.instanceId);
-if (!unitReactionIds.includes("contract-shield") || unitReactionIds.includes("contract-deny") || unitReactionIds.includes("contract-dispel")) {
+const unitReactionIds = eligibleReactionCards(contractState, "player", unitAction).map((card) => card.instanceId);
+if (!unitReactionIds.includes("contract-shield") || !unitReactionIds.includes("contract-deny") || unitReactionIds.includes("contract-dispel")) {
   throw new Error(`Unit reaction candidates drifted from the canonical contract: ${unitReactionIds.join(",")}`);
 }
+
+// Specific counters are opt-in rule keys; no filter means universal.
+const denyDef = getCard("tide_deny");
+const originalDenyRules = [...(denyDef.customKeywords ?? [])];
+denyDef.customKeywords = [...originalDenyRules, "counter_spell"];
+if (canReactWithCard(contractState, "player", "contract-deny", unitAction)) {
+  throw new Error("Spell-only counter must reject a unit action");
+}
+if (reactionEligibility(contractState, "player", "contract-deny", unitAction).reason !== "counter-kind-mismatch") {
+  throw new Error("Specific counter mismatch must be explained by the canonical counter contract");
+}
+if (!canReactWithCard(contractState, "player", "contract-deny", spellAction)) {
+  throw new Error("Spell-only counter must accept a spell action");
+}
+denyDef.customKeywords = originalDenyRules;
+
+// `uncounterable` is the explicit exception to universal counters.
+const protectedDef = getCard("ember_whelp");
+const originalProtectedRules = [...(protectedDef.customKeywords ?? [])];
+protectedDef.customKeywords = [...originalProtectedRules, "uncounterable"];
+if (canReactWithCard(contractState, "player", "contract-deny", unitAction)) {
+  throw new Error("An uncounterable unit must not be a legal target for a universal counter");
+}
+if (reactionEligibility(contractState, "player", "contract-deny", unitAction).reason !== "target-uncounterable") {
+  throw new Error("Uncounterable protection must be explained by the canonical reaction contract");
+}
+protectedDef.customKeywords = originalProtectedRules;
+
+// Counter follow-up effects run only after a successful counter.
+const originalAlso = denyDef.spell?.also;
+if (!denyDef.spell) throw new Error("Deny definition lost its spell contract");
+denyDef.spell.also = { kind: "healNexus", amount: 2, target: "none" };
+const followUpState = createCustomGame("Counter Follow-up", deck, deck, {
+  skipMulligan: true,
+  playerGoesFirst: false,
+  playerStartingHand: 0,
+  aiStartingHand: 0,
+  playerStartingMana: 10,
+  aiStartingMana: 10,
+  seed: 212121,
+});
+followUpState.phase = "main";
+followUpState.activePlayer = "ai";
+followUpState.players.player.mana = 10;
+followUpState.players.player.nexusHealth = 10;
+followUpState.players.player.hand = [{ instanceId: "follow-counter", defId: "tide_deny" }];
+followUpState.players.ai.hand = [{ instanceId: "follow-unit", defId: "ember_whelp" }];
+const followed = applyStackedActionWithAi(
+  followUpState,
+  { kind: "unit", player: "ai", instanceId: "follow-unit", defId: "ember_whelp" },
+  "react",
+  { kind: "spell", player: "player", instanceId: "follow-counter", defId: "tide_deny" },
+  () => null,
+).next;
+if (followed.players.player.nexusHealth !== 12) {
+  throw new Error(`Successful counter did not resolve its follow-up effect: ${followed.players.player.nexusHealth}`);
+}
+
+const blockedFollowUpState = createCustomGame("Blocked Counter Follow-up", deck, deck, {
+  skipMulligan: true,
+  playerGoesFirst: false,
+  playerStartingHand: 0,
+  aiStartingHand: 0,
+  playerStartingMana: 10,
+  aiStartingMana: 10,
+  seed: 222222,
+});
+blockedFollowUpState.phase = "main";
+blockedFollowUpState.activePlayer = "ai";
+blockedFollowUpState.players.player.mana = 10;
+blockedFollowUpState.players.player.nexusHealth = 10;
+blockedFollowUpState.players.player.hand = [{ instanceId: "blocked-counter", defId: "tide_deny" }];
+blockedFollowUpState.players.ai.hand = [{ instanceId: "blocked-unit", defId: "ember_whelp" }];
+protectedDef.customKeywords = [...originalProtectedRules, "uncounterable"];
+const blocked = applyStackedActionWithAi(
+  blockedFollowUpState,
+  { kind: "unit", player: "ai", instanceId: "blocked-unit", defId: "ember_whelp" },
+  "react",
+  { kind: "spell", player: "player", instanceId: "blocked-counter", defId: "tide_deny" },
+  () => null,
+).next;
+if (blocked.players.player.nexusHealth !== 10) {
+  throw new Error("Counter follow-up effect fired even though the target could not be countered");
+}
+if (!blocked.players.ai.bench.some((unit) => unit.defId === "ember_whelp")) {
+  throw new Error("Uncounterable unit failed to resolve after the illegal counter attempt");
+}
+protectedDef.customKeywords = originalProtectedRules;
+denyDef.spell.also = originalAlso;
 
 let state = createCustomGame("Reaction Tester", deck, deck, {
   skipMulligan: true,
@@ -209,4 +303,4 @@ if (replay.state.phase === "blocking") {
   throw new Error("Replay remained stuck in blocking after the recorded human block decision");
 }
 
-console.log("Reaction-window regression tests passed — canonical Ability System 2.0 reaction eligibility certified.");
+console.log("Reaction-window regression tests passed — universal/specific counters, uncounterable protection and successful follow-ups certified.");
