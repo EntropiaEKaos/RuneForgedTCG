@@ -4,6 +4,7 @@ import { adminKeywords, adminEffects, adminCardArchetypes } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
 import { CARD_EFFECT_KINDS, CARD_TARGETS, CARD_TRIGGERS, CARD_KEYWORDS, CARD_TYPES } from "@/game/card-authoring";
+import { ABILITY_GRAMMAR_CATALOG } from "@/game/ability-system";
 import { sanitizeKeywordBehavior, sanitizeCompositeEffectDefinition, sanitizeArchetypeDefinition } from "@/game/mechanics-authoring";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,14 @@ export async function GET(req: NextRequest) {
   ]);
   return Response.json({
     ok:true,
-    primitives:{ effectKinds:CARD_EFFECT_KINDS, targets:CARD_TARGETS, triggers:CARD_TRIGGERS, engineKeywords:CARD_KEYWORDS, baseTypes:CARD_TYPES },
+    primitives:{
+      effectKinds:CARD_EFFECT_KINDS,
+      targets:CARD_TARGETS,
+      triggers:CARD_TRIGGERS,
+      engineKeywords:CARD_KEYWORDS,
+      baseTypes:CARD_TYPES,
+      abilityGrammar:ABILITY_GRAMMAR_CATALOG,
+    },
     keywords: keywords.map((x) => ({ key:x.key, name:x.name, icon:x.icon, behavior:sanitizeKeywordBehavior(x.behavior) })).filter((x) => x.behavior),
     effects: effects.map((x) => ({ key:x.key, name:x.name, definition:String(x.kind)==="composite" ? sanitizeCompositeEffectDefinition(x.schema) : null })).filter((x) => x.definition),
     archetypes: archetypes.map((x) => ({ key:x.key, name:x.name, description:x.description, baseType:x.baseType, definition:sanitizeArchetypeDefinition(x.definition, x.baseType) })).filter((x) => x.definition),
