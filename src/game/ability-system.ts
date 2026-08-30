@@ -10,6 +10,8 @@ import type {
   CardDef,
   CardEffect,
   CardMechanic,
+  CostReduction,
+  EquipmentEffect,
   Keyword,
   LevelUpDef,
   MechanicCondition,
@@ -56,6 +58,8 @@ export type AbilityRuntimeSupport = "supported" | "partial" | "planned";
 
 export type AbilityOrigin =
   | "keyword"
+  | "costReduction"
+  | "equipment"
   | "legacyTrigger"
   | "mechanic"
   | "spell"
@@ -77,6 +81,17 @@ export type AbilityCostNode =
   | { kind: "sacrificeSelf" }
   | { kind: "loyalty"; delta: number };
 
+/**
+ * Persistent/static rules are not CardEffects: they are continuously consumed
+ * by authoritative engine paths such as effectiveCost() and equipment stat
+ * recomputation. Keep them structurally distinct instead of inventing effects.
+ */
+export type AbilityRuleKind = "costReduction" | "equipmentAttachment";
+
+export type AbilityRule =
+  | { kind: "costReduction"; costReduction: CostReduction }
+  | { kind: "equipmentAttachment"; equipment: EquipmentEffect };
+
 export interface AbilityBlueprint {
   version: typeof ABILITY_GRAMMAR_VERSION;
   origin: AbilityOrigin;
@@ -90,6 +105,7 @@ export interface AbilityBlueprint {
   costs: AbilityCostNode[];
   target?: TargetKind;
   effect?: CardEffect;
+  rule?: AbilityRule;
   maxUsesPerRound?: number | null;
   progression?: LevelUpDef;
 }
@@ -134,6 +150,11 @@ export const ABILITY_COST_KINDS = [
   "loyalty",
 ] as const satisfies readonly AbilityCostKind[];
 
+export const ABILITY_RULE_KINDS = [
+  "costReduction",
+  "equipmentAttachment",
+] as const satisfies readonly AbilityRuleKind[];
+
 /**
  * Explicit capability matrix. "Partial" means RuneForge has a concrete
  * mechanic in this family, but not yet the generic authoring/runtime contract
@@ -168,6 +189,7 @@ export const ABILITY_GRAMMAR_CATALOG = {
   features: ABILITY_FEATURES,
   timings: ABILITY_TIMINGS,
   costs: ABILITY_COST_KINDS,
+  rules: ABILITY_RULE_KINDS,
   kindSupport: ABILITY_KIND_SUPPORT,
   timingSupport: ABILITY_TIMING_SUPPORT,
   effects: CARD_EFFECT_KINDS,
@@ -235,6 +257,50 @@ export function blueprintFromMechanic(mechanic: CardMechanic): AbilityBlueprint 
     costs: [],
     target: mechanic.effect.target,
     effect: mechanic.effect,
+  };
+}
+
+export function blueprintFromCostReduction(costReduction: CostReduction): AbilityBlueprint {
+  return {
+    version: ABILITY_GRAMMAR_VERSION,
+    origin: "costReduction",
+    kind: "static",
+    features: ["conditional"],
+    timing: "static",
+    condition: ALWAYS,
+    costs: [],
+    rule: {
+      kind: "costReduction",
+      costReduction: { ...costReduction },
+    },
+  };
+}
+
+/**
+ * Equipment is the concrete linked/persistent contract that exists today.
+ * Attaching is handled by authoritative card-play code; once linked, stat and
+ * keyword grants are recomputed from the attached Equipment CardDef.
+ */
+export function blueprintFromEquipment(card: CardDef): AbilityBlueprint | null {
+  if (card.type !== "Equipment" || !card.equipment) return null;
+  return {
+    version: ABILITY_GRAMMAR_VERSION,
+    origin: "equipment",
+    kind: "linked",
+    features: ["targeted"],
+    timing: "static",
+    description: card.description,
+    condition: ALWAYS,
+    costs: [],
+    target: "allyUnit",
+    rule: {
+      kind: "equipmentAttachment",
+      equipment: {
+        buffPower: card.equipment.buffPower,
+        buffHealth: card.equipment.buffHealth,
+        keywords: [...(card.equipment.keywords ?? [])],
+      },
+    },
   };
 }
 
@@ -325,6 +391,9 @@ export function blueprintFromKeyword(keyword: Keyword): AbilityBlueprint {
 export function abilityBlueprintsForCard(card: CardDef): AbilityBlueprint[] {
   const blueprints: AbilityBlueprint[] = [];
   for (const keyword of card.keywords ?? []) blueprints.push(blueprintFromKeyword(keyword));
+  if (card.costReduction) blueprints.push(blueprintFromCostReduction(card.costReduction));
+  const equipment = blueprintFromEquipment(card);
+  if (equipment) blueprints.push(equipment);
   if (card.trigger) blueprints.push(blueprintFromLegacyTrigger(card.trigger));
   for (const mechanic of card.mechanics ?? []) blueprints.push(blueprintFromMechanic(mechanic));
   const reaction = blueprintFromReactionSpell(card);
