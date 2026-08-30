@@ -351,6 +351,10 @@ async function main() {
     const login = await loginAdminInBrowser(cdp, credentials);
     await navigate(cdp, "/admin/studio/cards");
     const workspace = await waitForStudioWorkspace(cdp);
+    // Ignore expected unauthenticated bootstrap requests and favicon noise from the
+    // pre-login navigation. From this point onward, any browser error is actionable.
+    await sleep(250);
+    cdp.notifications.length = 0;
 
     await selectLabeledValue(cdp, "Type", "Spell");
     await clickText(cdp, "Rules");
