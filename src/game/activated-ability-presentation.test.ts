@@ -9,6 +9,7 @@ import {
   activatedAbilityCostDescription,
   activatedAbilityCostLabel,
   activatedAbilityUiState,
+  activatedAbilityUnavailableLabel,
 } from "./activated-ability-presentation";
 import type { DeckInput, GameState, PlayerId } from "./types";
 
@@ -61,8 +62,12 @@ function addReadyUnit(state: GameState, defId: string, owner: PlayerId = "player
   asterion.summonedThisTurn = true;
   state.players.player.bench.push(asterion);
   const ui = activatedAbilityUiState(state, "player", asterion.instanceId, 0);
-  assert.equal(ui.canUse, false);
-  assert.equal(ui.reason, "Unidade recém-invocada precisa de Haste para pagar exaustão.");
+  assert.equal(ui.canUse, true, "Asterion has native Haste, so summoning sickness must not falsely block its exhaust cost");
+  assert.equal(
+    activatedAbilityUnavailableLabel("summoning-sick unit cannot pay an exhaust cost"),
+    "Unidade recém-invocada precisa de Haste para pagar exaustão.",
+    "presentation still explains summoning sickness for non-Haste exhaust abilities",
+  );
 }
 
 {
