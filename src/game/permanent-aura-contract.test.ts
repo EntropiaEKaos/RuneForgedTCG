@@ -1,14 +1,18 @@
 import assert from "node:assert/strict";
+import "./aura-2-types";
 import { withRegisteredCardSnapshot } from "./custom-registry";
 import { DECKS } from "./decks";
 import {
+  PERMANENT_KEYWORD_AURA_CONTRACT,
   PERMANENT_STAT_AURA_CONTRACT,
+  applyCardEffectForSandbox,
   cleanupDead,
   createGame,
   makePermanent,
   makeUnit,
   permanentAuraAppliesToUnit,
   permanentAuraBonusForUnit,
+  permanentAuraKeywordsForUnit,
   playUnit,
   recomputeContinuousAuras,
   recomputeHealth,
@@ -38,6 +42,11 @@ assert.deepEqual(PERMANENT_STAT_AURA_CONTRACT, {
   stacking: "additive",
   support: "supported",
 });
+assert.equal(PERMANENT_KEYWORD_AURA_CONTRACT.rule, "permanentKeywordAura");
+assert.equal(PERMANENT_KEYWORD_AURA_CONTRACT.stacking, "setUnion");
+assert.ok(PERMANENT_KEYWORD_AURA_CONTRACT.keywords.includes("Flying"));
+assert.equal(PERMANENT_KEYWORD_AURA_CONTRACT.keywords.includes("Barrier"), false, "consumable Barrier is deliberately not continuously re-grantable");
+assert.equal(PERMANENT_KEYWORD_AURA_CONTRACT.keywords.includes("LastBreath"), false, "trigger-bound LastBreath is not a plain Aura grant");
 
 withRegisteredCardSnapshot([auraCard({ buffPower: 2, buffHealth: 3 })], () => {
   const state = createGame("Aura", DECKS[2], DECKS[0], true, 640001);
@@ -157,4 +166,40 @@ withRegisteredCardSnapshot([auraCard({ buffPower: 2, buffHealth: 2 })], () => {
   assert.equal(played.players.player.bench[0].maxHealth, baseHealth + 2, "normal card-play path immediately derives Aura health");
 });
 
-console.log("PERMANENT STAT AURA: PASS — continuous lifecycle, stacking, filters, damage preservation, lethal removal and normal play path certified");
+withRegisteredCardSnapshot([
+  auraCard({ buffPower: 0, buffHealth: 0, keywords: ["Flying", "Hexproof"] }, "test_keyword_aura"),
+], () => {
+  const state = createGame("Aura Keywords", DECKS[2], DECKS[0], true, 640006);
+  state.players.player.bench = [];
+  state.players.ai.bench = [];
+  const ally = makeUnit(state, "wood_cub", "player");
+  const enemy = makeUnit(state, "wood_cub", "ai");
+  state.players.player.bench.push(ally);
+  state.players.ai.bench.push(enemy);
+  state.players.player.permanents = [makePermanent(state, "test_keyword_aura", "player")];
+
+  recomputeContinuousAuras(state);
+  assert.deepEqual(permanentAuraKeywordsForUnit(state, ally).sort(), ["Flying", "Hexproof"]);
+  assert.deepEqual(ally.auraKeywords?.sort(), ["Flying", "Hexproof"]);
+  assert.equal(ally.keywords.includes("Flying"), true, "Aura keyword becomes effective immediately");
+  assert.equal(ally.keywords.includes("Hexproof"), true);
+  assert.equal(ally.durableKeywords?.includes("Flying"), false, "Aura keyword is not persisted as a durable grant");
+  assert.equal(enemy.keywords.includes("Flying"), false, "enemy units never inherit allied Aura keywords");
+
+  const granted = applyCardEffectForSandbox(
+    state,
+    "player",
+    { kind: "grantKeyword", amount: 0, target: "allyUnit", keyword: "Flying" },
+    ally.instanceId,
+  );
+  const grantedAlly = granted.players.player.bench.find((unit) => unit.instanceId === ally.instanceId)!;
+  assert.equal(grantedAlly.durableKeywords?.includes("Flying"), true, "one-shot grant is recorded durably even while the same Aura keyword is active");
+
+  granted.players.player.permanents[0].health = 0;
+  cleanupDead(granted);
+  assert.equal(grantedAlly.keywords.includes("Flying"), true, "durably granted overlap survives Aura departure");
+  assert.equal(grantedAlly.keywords.includes("Hexproof"), false, "Aura-only keyword disappears with its source");
+  assert.deepEqual(grantedAlly.auraKeywords, []);
+});
+
+console.log("PERMANENT AURA 2.0: PASS — stats, continuous keywords, provenance, stacking, filters, damage preservation, lethal removal and play path certified");

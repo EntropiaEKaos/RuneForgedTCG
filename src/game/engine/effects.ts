@@ -1,5 +1,6 @@
 import { getCard } from "../cards";
 import { canAttachEquipment, unitsWithEquipmentCapacity } from "../equipment-link-contract";
+import { grantDurableKeyword } from "../permanent-aura-contract";
 import type { CardEffect, GameState, PermanentInstance, PlayerId, Race, SentinelaInstance, TriggerWhen, UnitInstance } from "../types";
 import { engineRulesFor } from "../match-rules";
 import { applyDamageToPermanent, applyDamageToSentinela, applyDamageToUnit, autoTarget, checkWin, clone, damageNexus, drawCards, findAnyBoardEntity, findPermanent, findSentinela, findUnit, hasClass, hasKw, hasRace, healNexus, makeUnit, other, poisonPlayer, recomputeContinuousAuras, recomputeHealth, recomputeStats, uid, unitClasses, unitRaces } from "./state";
@@ -196,13 +197,13 @@ export function applyEffect(
           for (const unit of state.players[playerId].bench) {
             if (!hasRace(unit, races)) continue;
             unit.barrier = true;
-            if (!unit.keywords.includes("Barrier")) unit.keywords.push("Barrier");
+            grantDurableKeyword(unit, "Barrier");
           }
         } else {
           const candidate = eff.target === "self" ? self : (ent?.kind === "unit" ? ent.unit : autoTarget(state, playerId, eff.target, self));
           if (candidate && "equipment" in candidate) {
             candidate.barrier = true;
-            if (!candidate.keywords.includes("Barrier")) candidate.keywords.push("Barrier");
+            grantDurableKeyword(candidate, "Barrier");
           }
         }
         break;
@@ -212,15 +213,15 @@ export function applyEffect(
           const races = eff.races ?? (eff.race ? [eff.race] : undefined);
           for (const u of state.players[playerId].bench) {
             if (!hasRace(u, races)) continue;
-            if (eff.keyword && !u.keywords.includes(eff.keyword)) {
-              u.keywords.push(eff.keyword);
+            if (eff.keyword) {
+              grantDurableKeyword(u, eff.keyword);
               if (eff.keyword === "Barrier") u.barrier = true;
             }
           }
         } else {
           const candidate = eff.target === "self" ? self : (ent?.kind === "unit" ? ent.unit : autoTarget(state, playerId, eff.target, self));
-          if (candidate && "equipment" in candidate && eff.keyword && !candidate.keywords.includes(eff.keyword)) {
-            candidate.keywords.push(eff.keyword);
+          if (candidate && "equipment" in candidate && eff.keyword) {
+            grantDurableKeyword(candidate, eff.keyword);
             if (eff.keyword === "Barrier") candidate.barrier = true;
           }
         }
@@ -268,7 +269,7 @@ export function applyEffect(
             const healthGain = eqDef.equipment.buffHealth;
             targetUnit.equipment.push(slot);
             for (const k of eqDef.equipment.keywords ?? []) {
-              if (!targetUnit.keywords.includes(k)) targetUnit.keywords.push(k);
+              grantDurableKeyword(targetUnit, k);
             }
             if (targetUnit.keywords.includes("Barrier")) targetUnit.barrier = true;
             // Recompute base from definition + equipment, then keep current buffs.
@@ -502,16 +503,18 @@ export function tryLevelUnit(state: GameState, unit: UnitInstance): void {
   unit.race = next.race ?? unit.race;
   unit.races = unitRaces(next.defId);
   unit.classes = unitClasses(next.defId);
-  unit.keywords = [...(next.keywords ?? [])];
-  // Re-merge keywords from equipment and recompute from the new defId.
+  unit.durableKeywords = [...(next.keywords ?? [])];
+  unit.auraKeywords = [];
+  unit.keywords = [...unit.durableKeywords];
+  // Re-merge durable Equipment keywords from the new definition baseline.
   for (const eq of unit.equipment) {
     const eqDef = getCard(eq.defId);
     if (!eqDef.equipment) continue;
     for (const k of eqDef.equipment.keywords ?? []) {
-      if (!unit.keywords.includes(k)) unit.keywords.push(k);
+      grantDurableKeyword(unit, k);
     }
   }
-  if (unit.keywords.includes("Barrier")) unit.barrier = true;
+  unit.barrier = unit.keywords.includes("Barrier");
   // Keep the same durable buff deltas, but recompute effective power/health
   // based on the new base definition + equipment + currently cached Aura.
   unit.powerBuffs = preservedPowerBuffs;
