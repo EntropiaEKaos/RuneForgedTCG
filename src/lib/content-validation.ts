@@ -1,4 +1,5 @@
 import { CARD_EFFECT_KINDS, CARD_KEYWORDS } from "@/game/card-authoring";
+import { validateAuthorableCardWithActivatedAbilities } from "@/game/activated-ability-authoring";
 import {
   sanitizeArchetypeDefinition,
   sanitizeCompositeEffectDefinition,
@@ -40,6 +41,8 @@ export function validateContent(resource: string, row: any) {
       if (data.cost !== undefined && (Number(data.cost) < 0 || Number(data.cost) > 20)) {
         errors.push("Card cost must be between 0 and 20.");
       }
+      const cardValidation = validateAuthorableCardWithActivatedAbilities(data);
+      if (!cardValidation.ok) errors.push(cardValidation.error);
     }
   }
   const stableKey = resource === "cards" ? row?.key ?? row?.defId ?? row?.data?.defId : row?.key;

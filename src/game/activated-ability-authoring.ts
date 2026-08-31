@@ -1,4 +1,4 @@
-import type { ActivatedAbility, ActivatedAbilityCost } from "./activated-ability-types";
+import type { ActivatedAbility, ActivatedAbilityCost, ActivatedAbilityMode } from "./activated-ability-types";
 import { validateAuthorableCard } from "./card-authoring";
 import type { CardDef, CardEffect } from "./types";
 
@@ -8,6 +8,9 @@ const ACTIVATED_SOURCE_TYPES = new Set<CardDef["type"]>([
   "Artifact",
   "Sentinela",
 ]);
+const MAX_ACTIVATED_ABILITIES = 4;
+const MAX_ACTIVATED_MODES = 4;
+const MODE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
 
 function finiteInteger(value: unknown, min: number, max: number): number | null {
   const number = typeof value === "number" ? value : Number(value);
@@ -82,27 +85,91 @@ function sanitizeEffect(raw: unknown, region: CardDef["region"]): { ok: true; ef
   return { ok: true, effect: probe.card.spell };
 }
 
+function sanitizeAuthorableEffect(
+  raw: unknown,
+  region: CardDef["region"],
+  sourceType: CardDef["type"],
+  context: string,
+): { ok: true; effect: CardEffect } | { ok: false; error: string } {
+  const effectResult = sanitizeEffect(raw, region);
+  if (!effectResult.ok) return { ok: false, error: `${context}: ${effectResult.error}` };
+  if (effectResult.effect.target === "spellOnStack") {
+    return { ok: false, error: "Activated abilities targeting the spell stack are disabled until the authoritative reaction protocol supports them" };
+  }
+  if (effectResult.effect.target === "self" && sourceType !== "Unit") {
+    return { ok: false, error: "Generic self-target activated effects currently require a Unit source" };
+  }
+  return effectResult;
+}
+
+function sanitizeModes(
+  raw: unknown,
+  region: CardDef["region"],
+  sourceType: CardDef["type"],
+  abilityIndex: number,
+): { ok: true; modes: ActivatedAbilityMode[] } | { ok: false; error: string } {
+  if (!Array.isArray(raw)) return { ok: false, error: `Activated ability ${abilityIndex + 1} modes must be an array` };
+  if (raw.length === 0) return { ok: false, error: `Activated ability ${abilityIndex + 1} modal contract requires at least one mode` };
+  if (raw.length > MAX_ACTIVATED_MODES) return { ok: false, error: `Activated ability ${abilityIndex + 1} may define at most ${MAX_ACTIVATED_MODES} modes` };
+
+  const ids = new Set<string>();
+  const modes: ActivatedAbilityMode[] = [];
+  for (const [modeIndex, rawMode] of raw.entries()) {
+    if (!rawMode || typeof rawMode !== "object" || Array.isArray(rawMode)) {
+      return { ok: false, error: `Activated ability ${abilityIndex + 1} mode ${modeIndex + 1} must be an object` };
+    }
+    const input = rawMode as Record<string, unknown>;
+    if (input.cost !== undefined || input.condition !== undefined || input.maxUsesPerRound !== undefined) {
+      return { ok: false, error: "Modal choices cannot override cost, condition or usage limits; those remain shared or uncertified at the base activated ability level" };
+    }
+    const id = typeof input.id === "string" ? input.id.trim() : "";
+    if (!MODE_ID_PATTERN.test(id)) {
+      return { ok: false, error: `Activated ability ${abilityIndex + 1} mode ${modeIndex + 1} requires a stable id (1-64 safe identifier characters)` };
+    }
+    if (ids.has(id)) return { ok: false, error: `Activated ability ${abilityIndex + 1} contains duplicate mode id "${id}"` };
+    ids.add(id);
+
+    const description = typeof input.description === "string" ? input.description.trim().slice(0, 200) : "";
+    if (!description) return { ok: false, error: `Activated ability ${abilityIndex + 1} mode ${modeIndex + 1} requires a description` };
+
+    const effectResult = sanitizeAuthorableEffect(
+      input.effect,
+      region,
+      sourceType,
+      `Activated ability ${abilityIndex + 1} mode ${modeIndex + 1}`,
+    );
+    if (!effectResult.ok) return effectResult;
+    modes.push({ id, description, effect: effectResult.effect });
+  }
+
+  return { ok: true, modes };
+}
+
 export type ActivatedAuthoringResult =
   | { ok: true; card: CardDef }
   | { ok: false; error: string };
 
 /**
  * Canonical Card Creator validation plus the generic activated-ability
- * extension. Existing card sanitization stays untouched; this layer only adds
- * a bounded, data-driven contract that the authoritative engine understands.
+ * extension. `validateAuthorableCard` still owns the base CardDef grammar, but
+ * this layer is the sole authority for `activatedAbilities`: the extension is
+ * removed before base validation so the legacy single-effect sanitizer cannot
+ * reject or silently rewrite the certified modal shape.
  */
 export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDef> & Record<string, unknown>): ActivatedAuthoringResult {
-  const base = validateAuthorableCard(raw);
+  const supplied = raw.activatedAbilities;
+  const baseInput = { ...raw } as Partial<CardDef> & Record<string, unknown>;
+  delete baseInput.activatedAbilities;
+  const base = validateAuthorableCard(baseInput);
   if (!base.ok) return base;
 
-  const supplied = raw.activatedAbilities;
   if (supplied === undefined) return base;
   if (!Array.isArray(supplied)) return { ok: false, error: "activatedAbilities must be an array" };
   if (supplied.length === 0) return base;
   if (!ACTIVATED_SOURCE_TYPES.has(base.card.type)) {
     return { ok: false, error: "Activated abilities require a persistent battlefield source: Unit, Enchantment, Artifact or Sentinela" };
   }
-  if (supplied.length > 4) return { ok: false, error: "A card may define at most 4 generic activated abilities" };
+  if (supplied.length > MAX_ACTIVATED_ABILITIES) return { ok: false, error: `A card may define at most ${MAX_ACTIVATED_ABILITIES} generic activated abilities` };
 
   const abilities: ActivatedAbility[] = [];
   for (const [index, rawAbility] of supplied.entries()) {
@@ -112,23 +179,29 @@ export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDe
     const input = rawAbility as unknown as Record<string, unknown>;
     const description = typeof input.description === "string" ? input.description.trim().slice(0, 200) : "";
     if (!description) return { ok: false, error: `Activated ability ${index + 1} requires a description` };
-    if (input.modes !== undefined) {
-      return { ok: false, error: "Modal activated ability authoring is disabled until the Studio modal contract is certified" };
+
+    const isModal = input.modes !== undefined;
+    if (isModal && input.effect !== undefined) {
+      return { ok: false, error: `Activated ability ${index + 1} cannot define both effect and modes` };
     }
 
-    const effectResult = sanitizeEffect(input.effect, base.card.region);
-    if (!effectResult.ok) return { ok: false, error: `Activated ability ${index + 1}: ${effectResult.error}` };
-    if (effectResult.effect.target === "spellOnStack") {
-      return { ok: false, error: "Activated abilities targeting the spell stack are disabled until the authoritative reaction protocol supports them" };
-    }
-    if (effectResult.effect.target === "self" && base.card.type !== "Unit") {
-      return { ok: false, error: "Generic self-target activated effects currently require a Unit source" };
+    let effect: CardEffect | undefined;
+    let modes: ActivatedAbilityMode[] | undefined;
+    if (isModal) {
+      const modesResult = sanitizeModes(input.modes, base.card.region, base.card.type, index);
+      if (!modesResult.ok) return modesResult;
+      modes = modesResult.modes;
+    } else {
+      const effectResult = sanitizeAuthorableEffect(input.effect, base.card.region, base.card.type, `Activated ability ${index + 1}`);
+      if (!effectResult.ok) return effectResult;
+      effect = effectResult.effect;
     }
 
     const costResult = sanitizeCost(input.cost, base.card.type);
     if (!costResult.ok) return { ok: false, error: `Activated ability ${index + 1}: ${costResult.error}` };
-    if (costResult.cost?.sacrificeSelf && effectResult.effect.target === "self") {
-      return { ok: false, error: "A sacrificed source cannot also be the activated effect's self target" };
+    if (costResult.cost?.sacrificeSelf) {
+      const selfTargeted = effect?.target === "self" || modes?.some((mode) => mode.effect.target === "self");
+      if (selfTargeted) return { ok: false, error: "A sacrificed source cannot also be the activated effect's self target" };
     }
 
     let maxUsesPerRound: number | null | undefined;
@@ -149,7 +222,8 @@ export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDe
 
     abilities.push({
       description,
-      effect: effectResult.effect,
+      ...(effect ? { effect } : {}),
+      ...(modes ? { modes } : {}),
       ...(costResult.cost ? { cost: costResult.cost } : {}),
       ...(maxUsesPerRound !== undefined ? { maxUsesPerRound } : {}),
     });

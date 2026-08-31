@@ -101,6 +101,11 @@ jobs:
           NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
         run: node --import tsx scripts/studio-functional-certification-2.97.6.ts
 
+      - name: Studio modal ability functional certification — save, reload, sandbox and engine
+        env:
+          NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
+        run: node --import tsx scripts/studio-modal-ability-functional-certification.ts
+
       - name: Studio version rollback certification — immutable history and coupled card metadata
         env:
           NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
@@ -147,6 +152,7 @@ jobs:
           node scripts/alpha-activated-ability-browser-cert.mjs
           node scripts/alpha-casual-pvp-journey.mjs
           node scripts/studio-card-rules-rbac-browser-cert.mjs
+          node scripts/studio-modal-ability-browser-cert.mjs
 
       - name: Upload Alpha visual journey
         if: always()
