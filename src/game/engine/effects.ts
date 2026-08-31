@@ -324,7 +324,6 @@ export function applyEffect(
         } else {
           const t = autoTarget(state, playerId, eff.target || "enemyPermanent", self);
           if (t && !("equipment" in t)) {
-            applyDamageToPermanent(t as PermanentInstance).health = (t as PermanentInstance).health;
             applyDamageToPermanent(t as PermanentInstance, eff.amount);
           }
         }
