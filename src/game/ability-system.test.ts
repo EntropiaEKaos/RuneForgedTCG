@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  ABILITY_FEATURE_SUPPORT,
   ABILITY_GRAMMAR_CATALOG,
   ABILITY_GRAMMAR_VERSION,
   ABILITY_KIND_SUPPORT,
@@ -14,6 +15,10 @@ import {
   blueprintFromReactionSpell,
 } from "./ability-system";
 import { baseCardsOnly, getCard } from "./cards";
+import {
+  CONDITION_AUTHORING_CONTRACT,
+  CONDITION_RUNTIME_SUPPORT,
+} from "./condition-contract";
 import { CANONICAL_KEYWORDS, KEYWORD_INFO } from "./keywords";
 import {
   COMBAT_TRIGGER_EVENTS,
@@ -29,6 +34,8 @@ assert.deepEqual(ABILITY_GRAMMAR_CATALOG.rules, ["costReduction", "equipmentAtta
 assert.deepEqual(ABILITY_GRAMMAR_CATALOG.triggerTiming, TRIGGER_TIMING_BY_EVENT);
 assert.deepEqual(ABILITY_GRAMMAR_CATALOG.keywords, CANONICAL_KEYWORDS);
 assert.deepEqual(ABILITY_GRAMMAR_CATALOG.keywordContracts, KEYWORD_INFO);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.conditionContracts, CONDITION_RUNTIME_SUPPORT);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.conditionAuthoring, CONDITION_AUTHORING_CONTRACT);
 assert.equal(ABILITY_KIND_SUPPORT.keyword, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.triggered, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.activated, "supported");
@@ -40,6 +47,10 @@ assert.equal(ABILITY_KIND_SUPPORT.linked, "partial");
 assert.equal(ABILITY_KIND_SUPPORT.modal, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.replacement, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.delayed, "planned");
+assert.equal(ABILITY_FEATURE_SUPPORT.conditional, "supported");
+assert.equal(ABILITY_FEATURE_SUPPORT.chained, "supported");
+assert.equal(ABILITY_FEATURE_SUPPORT.repeatable, "supported");
+assert.equal(ABILITY_FEATURE_SUPPORT.targeted, "supported");
 assert.equal(ABILITY_TIMING_SUPPORT.static, "supported");
 assert.equal(ABILITY_TIMING_SUPPORT.combat, "partial", "generic combat timing remains partial beyond the supported trigger subset");
 assert.equal(ABILITY_TIMING_SUPPORT.reaction, "supported");
@@ -48,6 +59,9 @@ assert.deepEqual(COMBAT_TRIGGER_EVENTS, ["onAttack", "onBlock", "onStrike", "onN
 for (const when of ABILITY_GRAMMAR_CATALOG.triggers) {
   const expectedTiming: "automatic" | "combat" = (COMBAT_TRIGGER_EVENTS as readonly string[]).includes(when) ? "combat" : "automatic";
   assert.equal(triggerTiming(when), expectedTiming, `${when} uses the canonical semantic trigger timing`);
+}
+for (const condition of ABILITY_GRAMMAR_CATALOG.conditions) {
+  assert.equal(ABILITY_GRAMMAR_CATALOG.conditionContracts[condition], "supported", `${condition} is backed by the runtime condition evaluator`);
 }
 
 for (const keyword of CANONICAL_KEYWORDS) {
@@ -211,6 +225,9 @@ for (const card of cards) {
     assert.equal(blueprint.version, 2, `${card.defId} blueprint uses grammar v2`);
     assert.ok(ABILITY_GRAMMAR_CATALOG.kinds.includes(blueprint.kind), `${card.defId} uses a canonical ability kind`);
     assert.ok(ABILITY_GRAMMAR_CATALOG.timings.includes(blueprint.timing), `${card.defId} uses a canonical timing`);
+    for (const feature of blueprint.features) {
+      assert.equal(ABILITY_GRAMMAR_CATALOG.featureSupport[feature], "supported", `${card.defId} only projects certified ability features`);
+    }
     if (blueprint.effect) assert.equal(blueprint.target, blueprint.effect.target, `${card.defId} keeps effect targeting authoritative`);
     if (blueprint.keyword) {
       const contract = KEYWORD_INFO[blueprint.keyword];
