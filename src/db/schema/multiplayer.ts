@@ -162,7 +162,7 @@ export const playerPacks = pgTable("player_packs", {
 export const packOpenings = pgTable("pack_openings", {
   id: serial("id").primaryKey(),
   playerId: integer("player_id").notNull(),
-  packType: text("pack_type").notNull(), // basic, epic, legendary
+  packType: text("pack_type").notNull(),
   cardsReceived: text("cards_received").notNull(), // JSON of card defIds
   dustBonus: integer("dust_bonus").notNull().default(0),
   packSeed: integer("pack_seed"),
