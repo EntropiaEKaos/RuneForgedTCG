@@ -26,9 +26,11 @@ export function useActivatedAbilityPayment({
 }) {
   const [pendingActivatedDiscard, setPendingActivatedDiscard] = useState<PendingActivatedDiscard | null>(null);
 
+  const cancelActivatedDiscard = useCallback(() => setPendingActivatedDiscard(null), []);
+
   useEffect(() => {
-    if (screen === "select") setPendingActivatedDiscard(null);
-  }, [screen]);
+    if (screen === "select") cancelActivatedDiscard();
+  }, [screen, cancelActivatedDiscard]);
 
   const commitActivatedAbility = useCallback((
     sourceInstanceId: string,
@@ -47,14 +49,14 @@ export function useActivatedAbilityPayment({
       ...(modeId ? { modeId } : {}),
       ...(costDiscardInstanceIds?.length ? { costDiscardInstanceIds } : {}),
     };
-    setPendingActivatedDiscard(null);
+    cancelActivatedDiscard();
     if (isPvp) {
       void sendPvpAction(action);
       return;
     }
     recordAction(action);
     setState(activateAbility(state, "player", sourceInstanceId, abilityIndex, target, modeId, costDiscardInstanceIds));
-  }, [state, isPvp, sendPvpAction, recordAction, setState]);
+  }, [state, isPvp, sendPvpAction, recordAction, setState, cancelActivatedDiscard]);
 
   const beginActivatedAbilityPayment = useCallback((
     sourceInstanceId: string,
@@ -111,6 +113,6 @@ export function useActivatedAbilityPayment({
     beginActivatedAbilityPayment,
     toggleActivatedDiscard,
     confirmActivatedDiscard,
-    cancelActivatedDiscard: () => setPendingActivatedDiscard(null),
+    cancelActivatedDiscard,
   };
 }
