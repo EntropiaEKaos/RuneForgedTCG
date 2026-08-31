@@ -149,6 +149,7 @@ jobs:
           node scripts/alpha-activated-ability-browser-cert.mjs
           node scripts/alpha-casual-pvp-journey.mjs
           node scripts/studio-card-rules-rbac-browser-cert.mjs
+          node scripts/studio-modal-ability-browser-cert.mjs
 
       - name: Upload Alpha visual journey
         if: always()
