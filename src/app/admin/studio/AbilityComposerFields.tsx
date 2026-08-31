@@ -14,6 +14,7 @@ import {
   conditionCanAddChild,
   conditionKindsAtDepth,
 } from "@/game/condition-contract";
+import { effectCanAddFollowUp } from "@/game/effect-chain-contract";
 import { keywordIsGrantable } from "@/game/keywords";
 import type { CardEffect, EffectKind, MechanicCondition, TargetKind } from "@/game/types";
 
@@ -92,8 +93,9 @@ export function StudioEffectEditor({
   const set = (key: keyof CardEffect, nextValue: unknown) => onChange({ ...safeValue, [key]: nextValue });
   const amountMin = contract.amount === "positive" ? 1 : contract.amount === "nonNegative" ? 0 : undefined;
   const safeKeyword = safeValue.keyword && keywordIsGrantable(safeValue.keyword) ? safeValue.keyword : GRANTABLE_KEYWORDS[0];
+  const canAddFollowUp = effectCanAddFollowUp(depth);
 
-  return <div data-studio-effect-composer="semantic" className={`rounded-xl border ${depth ? "border-violet-400/20 bg-violet-400/[.03]" : "border-cyan-400/15 bg-cyan-400/[.03]"} p-4`}>
+  return <div data-studio-effect-composer="semantic" data-effect-chain-depth={depth} className={`rounded-xl border ${depth ? "border-violet-400/20 bg-violet-400/[.03]" : "border-cyan-400/15 bg-cyan-400/[.03]"} p-4`}>
     <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
       <Field label="Primitive">
         <Select value={kind} options={kinds} onChange={(nextKind) => onChange(normalizeEffectKind(safeValue, nextKind as EffectKind, blockedTargets))} />
@@ -121,11 +123,12 @@ export function StudioEffectEditor({
       </>}
     </div>
     <div className="mt-3 flex flex-wrap items-center gap-2">
-      {!safeValue.also && depth < 12 && <button type="button" className="btn-ghost text-xs" onClick={() => set("also", { ...DEFAULT_EFFECT })}>＋ Follow-up effect</button>}
+      {!safeValue.also && canAddFollowUp && <button type="button" className="btn-ghost text-xs" onClick={() => set("also", { ...DEFAULT_EFFECT })}>＋ Follow-up effect</button>}
       {safeValue.also && <button type="button" className="btn-ghost text-xs text-red-300" onClick={() => set("also", undefined)}>Remove follow-up</button>}
       <span className="text-[10px] text-slate-500">Targets permitidos: {targets.join(", ")}</span>
+      {!canAddFollowUp && <span data-effect-chain-limit="reached" className="text-[10px] text-amber-200/75">Limite de efeitos encadeados atingido.</span>}
     </div>
-    {safeValue.also && depth < 12 && <div className="mt-3"><div className="label mb-2">Follow-up #{depth + 1}</div><StudioEffectEditor value={safeValue.also} onChange={(also) => set("also", also)} classes={classes} blockedTargets={blockedTargets} depth={depth + 1} /></div>}
+    {safeValue.also && canAddFollowUp && <div className="mt-3"><div className="label mb-2">Follow-up #{depth + 1}</div><StudioEffectEditor value={safeValue.also} onChange={(also) => set("also", also)} classes={classes} blockedTargets={blockedTargets} depth={depth + 1} /></div>}
   </div>;
 }
 
