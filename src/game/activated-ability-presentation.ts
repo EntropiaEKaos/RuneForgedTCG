@@ -51,7 +51,7 @@ export function activatedAbilityUnavailableLabel(reason?: string | null): string
     case "activated abilities require the owner's main phase":
       return "Disponível apenas na fase principal do controlador.";
     case "not enough regular mana for activated ability":
-      return "Mana regular insuficiente.";
+      return "Mana insuficiente (mana regular).";
     case "not enough spell mana for activated ability":
       return "Mana de feitiço insuficiente.";
     case "Nexus health cost cannot be paid lethally":
