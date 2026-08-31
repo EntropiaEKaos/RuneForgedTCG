@@ -1,5 +1,6 @@
 import type { GameAction } from "@/game/reducer";
 import type { GameState } from "@/game/types";
+import type { PvpReactionPriorityState } from "@/lib/pvp-reaction-priority";
 
 export interface PvpDeliveryRequest {
   code: string;
@@ -17,6 +18,7 @@ export interface PvpDeliveryResult {
   duplicate?: boolean;
   version?: number;
   gameState?: GameState;
+  reactionState?: PvpReactionPriorityState | null;
 }
 
 export interface PvpPollFailure {
@@ -49,6 +51,16 @@ export function classifyPvpPollFailure(status: number, serverError?: string): Pv
   return { terminal: false, message: serverError?.trim() || "Conexão instável; tentando novamente." };
 }
 
+function roomProjection(data: any) {
+  return {
+    version: Number.isInteger(data?.room?.version) ? data.room.version as number : undefined,
+    gameState: (data?.gameState ?? data?.room?.gameState) as GameState | undefined,
+    reactionState: data?.room && "reactionState" in data.room
+      ? data.room.reactionState as PvpReactionPriorityState | null
+      : undefined,
+  };
+}
+
 export async function deliverPvpAction(request: PvpDeliveryRequest): Promise<PvpDeliveryResult> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const controller = new AbortController();
@@ -75,6 +87,7 @@ export async function deliverPvpAction(request: PvpDeliveryRequest): Promise<Pvp
         }),
       });
       const data = await response.json().catch(() => ({}));
+      const projection = roomProjection(data);
       if (response.ok && data.ok) {
         publishPvpClientStatus({
           state: "confirmed",
@@ -86,8 +99,7 @@ export async function deliverPvpAction(request: PvpDeliveryRequest): Promise<Pvp
           ok: true,
           status: response.status,
           duplicate: Boolean(data.duplicate),
-          version: data.room?.version,
-          gameState: data.gameState ?? data.room?.gameState,
+          ...projection,
         };
       }
       const error = response.status === 409
@@ -95,7 +107,7 @@ export async function deliverPvpAction(request: PvpDeliveryRequest): Promise<Pvp
         : data.error || "Ação recusada pelo servidor.";
       if (response.status === 409 || response.status < 500 || attempt === 1) {
         publishPvpClientStatus({ state: "error", message: error, status: response.status, actionType: request.gameAction.type });
-        return { ok: false, status: response.status, error };
+        return { ok: false, status: response.status, error, ...projection };
       }
     } catch {
       if (attempt === 1) {
