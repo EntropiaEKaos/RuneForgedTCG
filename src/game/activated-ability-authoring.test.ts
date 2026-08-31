@@ -140,6 +140,10 @@ expectRejected(artifact({
 }), /spell stack|reaction protocol/i, "modal authoring cannot bypass the reaction/stack boundary");
 
 expectRejected(artifact({
+  type: "Unit",
+  maxHealth: undefined,
+  power: 2,
+  health: 2,
   activatedAbilities: [{
     description: "Sacrifice self conflict",
     cost: { sacrificeSelf: true },
