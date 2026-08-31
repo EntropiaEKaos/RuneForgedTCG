@@ -54,10 +54,10 @@ Campos ausentes são intencionais. Por exemplo, uma keyword não possui custo ne
 - `automatic` — resolução iniciada por gatilho/evento.
 - `mainPhase` — ativação voluntária pelo jogador durante a fase principal.
 - `combat` — família parcialmente suportada pelos eventos de ataque/bloqueio; authoring genérico ainda não liberado.
-- `reaction` — suportado para spells reativos e, neste corte, para `reactionActivatedAbilities` de battlefield contra ações pendentes.
-- `priority` — reservado para uma futura janela geral de prioridade, incluindo persistência multiplayer concorrente.
+- `reaction` — suportado para spells reativos e `reactionActivatedAbilities` de battlefield contra ações pendentes.
+- `priority` — janela de rede persistida no Casual PvP para uma oportunidade de resposta autoritativa antes da resolução da ação-base.
 
-`reaction` e `priority` não são sinônimos. O runtime PvE possui uma janela autoritativa de reação LIFO; o Casual PvP atual ainda não persiste uma janela de prioridade compartilhada no servidor e, portanto, reações humanas de qualquer origem permanecem fail-closed nesse modo até o corte multiplayer específico.
+`reaction` e `priority` não são sinônimos. `reaction` descreve o timing/legibilidade da resposta; `priority` descreve quem pode responder e por quanto tempo. No PvE a janela continua local ao fluxo autoritativo da partida. No Casual PvP, a janela é persistida em `pvp_rooms.reaction_state`, versionada junto com a sala e recuperável por polling/reconexão. O protocolo PvP v1 certifica uma oportunidade de resposta por ação-base; encadeamento arbitrário de múltiplas respostas humanas ainda permanece fail-closed.
 
 ## Custos atualmente executáveis
 
@@ -90,7 +90,7 @@ Isso impede o Studio de prometer uma habilidade que a engine ainda não consegue
 
 `abilityBlueprintsForCard(card)` continua sendo uma projeção somente-leitura. Ela não altera `CardDef`, seed, decks ou balanceamento.
 
-Novos campos de transporte são aditivos. Replays históricos sem `modeId`, `costDiscardInstanceIds` ou `responseKind` continuam válidos. A ação histórica `react` permanece o opcode do log de reação; respostas de battlefield acrescentam `responseKind: "activatedAbility"`, `abilityIndex`, `modeId`, target e seleção de descarte apenas quando necessários.
+Novos campos de transporte são aditivos. Replays históricos sem `modeId`, `costDiscardInstanceIds` ou `responseKind` continuam válidos. A ação histórica `react` permanece o opcode do log de reação; respostas de battlefield acrescentam `responseKind: "activatedAbility"`, `abilityIndex`, `modeId`, target e seleção de descarte apenas quando necessários. O opcode histórico `resolve` é preservado no PvP como passe explícito de prioridade e também como registro determinístico de timeout autoritativo.
 
 ## Caminho de evolução
 
@@ -170,18 +170,39 @@ No PvE humano, `ReactionStack` oferece um picker de **Resposta do campo**. A UI 
 
 O Card Studio possui painel **Habilidades de reação** com `respondsTo`, efeitos clássicos/modais, custos e limites compartilhados. `spellOnStack` é authorable somente nesse timing. O sanitizer do servidor continua sendo a autoridade final e rejeita fontes não persistentes, timings vazios/duplicados, overrides por modo e combinações inválidas.
 
-#### Limite multiplayer explícito
+### Fase 4.5 — Persistent PvP Reaction Priority
 
-O servidor atual de Casual PvP não persiste uma janela de prioridade/reação compartilhada. `react`, `resolve` e qualquer transição que tente retornar `awaitingReaction` são rejeitados pelo boundary PvP. Por isso, este corte **não declara suporte de reaction activated abilities no Casual PvP**; a funcionalidade permanece fail-closed nesse modo em vez de simular prioridade apenas no cliente.
+O Casual PvP agora persiste a oportunidade de reação em `pvp_rooms.reaction_state`. O estado de jogo continua no snapshot **pré-ação** enquanto a janela está aberta; a ação-base não é resolvida e depois “desfeita”. Isso preserva atomicidade e torna resposta, passe, reconnect e timeout determinísticos.
 
-O próximo corte multiplayer deverá modelar prioridade pendente no estado/snapshot do room, ownership da janela, CAS/versionamento concorrente, timeout, reconexão, replay e dois browsers antes de habilitar reações humanas PvP.
+O contrato v1 registra:
 
-`reaction` permanece `partial` no Ability System 2.0 mesmo após este corte: a família já é funcional e authorable em PvE/replay/IA, mas prioridade geral, reação multiplayer persistida e futuros eventos/timings reativos ainda não formam uma linguagem universal completa.
+- versão do protocolo;
+- ação pendente;
+- ator que comprometeu a ação;
+- participante que detém prioridade;
+- instante de abertura;
+- deadline autoritativo.
+
+A abertura e o fechamento passam pelo mesmo `FOR UPDATE`/version CAS já usado pelo room. Cada request mantém receipt idempotente. A abertura incrementa a versão mesmo sem mutar `GameState`, porque muda a autoridade da sala. Enquanto `reaction_state` existe, o ator da ação-base não pode avançar turno, atacar ou enviar outra ação normal.
+
+A resposta pode ser uma magia da mão ou `reactionActivatedAbility`; ambas são revalidadas pelo contrato canônico de reação e resolvidas pela mesma pilha. O passe usa `resolve`. Se o responder desconectar, GET/polling detecta o deadline expirado e resolve o mesmo `resolve` sob row lock no servidor. Assim o cliente não é autoridade do relógio e uma desconexão não bloqueia a partida indefinidamente.
+
+O DTO público orienta `actor`, `responder` e `pendingAction.player` para o participante guest do mesmo modo que já orienta `GameState`, sem alterar IDs estáveis de carta/alvo. O transporte carrega `reactionState` também em respostas 409 para que conflito/reconnect se recupere imediatamente.
+
+Replay PvP reproduz a mesma máquina de estados: a ação-base pode abrir prioridade sem mutar o estado; o `react` ou `resolve` subsequente conclui a transição. Isso preserva a propriedade “mesmas ações + mesmo snapshot = mesmo estado final”.
+
+A UI reutiliza `ReactionStack`: o responder vê opções legais e pode reagir/passar; o ator vê um estado explícito de espera e suas ações normais ficam bloqueadas. Timeout PvP é apenas exibido no cliente — a resolução continua exclusivamente no servidor.
+
+#### Limite explícito do protocolo v1
+
+Este corte certifica **uma oportunidade de resposta por ação-base**. Uma resposta que, por sua vez, deveria abrir nova prioridade humana ainda é rejeitada fail-closed com erro explícito. Encadeamento arbitrário de counters/respostas humanas, múltiplos passes alternados e uma stack multiplayer geral exigem um protocolo v2 próprio antes de serem declarados suportados.
+
+Por esse motivo, `reaction` e `priority` permanecem `partial` na matriz global do Ability System 2.0 mesmo com Casual PvP funcional para o contrato v1. O sistema geral também permanece **PARTIAL**, não `FULL`.
 
 ### Próximos cortes
 
 1. Aura 2.0 com efeitos contínuos genéricos além de atributos permanentes;
-2. prioridade/reação persistida no Casual PvP com concorrência, timeout e reconexão;
+2. Priority Protocol v2 para cadeias arbitrárias de resposta/pass no PvP;
 3. próximos custos selecionáveis, como retorno de permanentes e recursos de futuras zonas, somente quando a respectiva zona/protocolo estiver certificado;
 4. expansão de timings/eventos reativos além das ações de carta atuais;
 5. certificação transversal e revisão final da matriz de suporte antes de promover qualquer família a `supported`/`FULL`.
