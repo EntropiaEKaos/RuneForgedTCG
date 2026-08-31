@@ -3,7 +3,7 @@
 import { F, Panel } from "./CardAuthoringFields";
 import { AbilityGrammarReadiness, StudioAbilityCostEditor, StudioEffectEditor } from "../AbilityComposerFields";
 import type { CardAuthoringModel } from "./CardAuthoringModel";
-import type { ActivatedAbility, ActivatedAbilityMode } from "@/game/activated-ability-types";
+import type { ActivatedAbility, ActivatedAbilityCost, ActivatedAbilityMode } from "@/game/activated-ability-types";
 
 const SUPPORTED_SOURCE_TYPES = new Set(["Unit", "Enchantment", "Artifact", "Sentinela"]);
 const DEFAULT_EFFECT = { kind: "draw" as const, amount: 1, target: "none" as const };
@@ -17,6 +17,14 @@ function nextModeId(modes: ActivatedAbilityMode[] | undefined): string {
   let index = 1;
   while (used.has(`mode-${index}`)) index += 1;
   return `mode-${index}`;
+}
+
+function patchCost(cost: ActivatedAbilityCost | undefined, patch: Partial<ActivatedAbilityCost>): ActivatedAbilityCost | undefined {
+  const next: ActivatedAbilityCost = { ...(cost ?? {}), ...patch };
+  for (const key of Object.keys(next) as (keyof ActivatedAbilityCost)[]) {
+    if (next[key] === undefined || next[key] === false || next[key] === 0) delete next[key];
+  }
+  return Object.keys(next).length ? next : undefined;
 }
 
 export default function ActivatedAbilityEditor({ model }: { model: CardAuthoringModel }) {
@@ -38,9 +46,10 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
         <p className="max-w-4xl text-xs leading-5 text-slate-400">
           Crie ações voluntárias para cartas que permanecem no campo. Habilidades podem ter um efeito direto ou
           oferecer uma escolha modal. Em habilidades modais, custo e limite de usos pertencem à habilidade-base e
-          são compartilhados por todas as opções. Cada opção recebe um ID estável para replay/PvP. Mana é regular;
-          pagar vida do Nexus nunca pode ser letal. Negar spell continua indisponível aqui até habilidades ativadas
-          participarem do protocolo autoritativo de reação.
+          são compartilhados por todas as opções. Cada opção recebe um ID estável para replay/PvP. Mana regular e
+          mana de feitiço são recursos separados; pagar vida do Nexus nunca pode ser letal. Units também podem
+          consumir a própria Barrier ativa como custo. Negar spell continua indisponível aqui até habilidades
+          ativadas participarem do protocolo autoritativo de reação.
         </p>
         <AbilityGrammarReadiness />
       </div>
@@ -106,6 +115,35 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
                   showLoyalty={card.type === "Sentinela"}
                   onChange={(cost) => update(index, { cost })}
                 />
+                <div data-expanded-activated-costs="true" className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <F l="Mana de feitiço">
+                    <input
+                      className="input"
+                      type="number"
+                      min={0}
+                      max={20}
+                      value={ability.cost?.spellMana ?? 0}
+                      onChange={(event) => update(index, {
+                        cost: patchCost(ability.cost, { spellMana: Math.max(0, Math.min(20, Number(event.target.value) || 0)) }),
+                      })}
+                    />
+                  </F>
+                  {card.type === "Unit" && (
+                    <label className="flex cursor-pointer items-center gap-2 self-end pb-3 text-xs text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(ability.cost?.consumeBarrier)}
+                        onChange={(event) => update(index, {
+                          cost: patchCost(ability.cost, { consumeBarrier: event.target.checked }),
+                        })}
+                      />
+                      Consumir Barrier ativa
+                    </label>
+                  )}
+                  <div className="self-end pb-3 text-[10px] leading-4 text-slate-500">
+                    Mana de feitiço não usa mana regular como fallback. Barrier só pode ser paga por uma Unit com proteção ativa.
+                  </div>
+                </div>
               </div>
 
               <div className="mt-3 grid max-w-xs gap-3">
