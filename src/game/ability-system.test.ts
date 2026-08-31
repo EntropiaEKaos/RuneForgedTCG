@@ -42,8 +42,8 @@ assert.equal(ABILITY_TIMING_SUPPORT.reaction, "supported");
 assert.equal(ABILITY_TIMING_SUPPORT.priority, "planned");
 assert.deepEqual(COMBAT_TRIGGER_EVENTS, ["onAttack", "onBlock", "onStrike", "onNexusStrike"]);
 for (const when of ABILITY_GRAMMAR_CATALOG.triggers) {
-  const expected = (COMBAT_TRIGGER_EVENTS as readonly string[]).includes(when) ? "combat" : "automatic";
-  assert.equal(triggerTiming(when), expected, `${when} uses the canonical semantic trigger timing`);
+  const expectedTiming: "automatic" | "combat" = (COMBAT_TRIGGER_EVENTS as readonly string[]).includes(when) ? "combat" : "automatic";
+  assert.equal(triggerTiming(when), expectedTiming, `${when} uses the canonical semantic trigger timing`);
 }
 
 const activated: ActivatedAbility = {
