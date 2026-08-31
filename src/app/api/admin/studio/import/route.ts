@@ -2,8 +2,8 @@ import { NextRequest } from "next/server";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
 import { tableFor, validateContent, validateContentReferences, type ContentResource } from "@/lib/content-pipeline";
 import { db } from "@/db";
-import { adminAuditLogs, customCards } from "@/db/schema";
-import { validateAuthorableCard as validateCard } from "@/game/card-authoring";
+import { adminAuditLogs } from "@/db/schema";
+import { validateAuthorableCardWithActivatedAbilities as validateCard } from "@/game/activated-ability-authoring";
 
 export const dynamic = "force-dynamic";
 
