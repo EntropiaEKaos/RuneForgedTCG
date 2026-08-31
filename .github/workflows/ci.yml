@@ -99,7 +99,9 @@ jobs:
       - name: Studio functional certification — persisted publish, catalog, deck and engine lifecycle
         env:
           NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
-        run: node --import tsx scripts/studio-functional-certification-2.97.6.ts
+        run: |
+          node --import tsx scripts/studio-functional-certification-2.97.6.ts
+          node --import tsx scripts/studio-modal-ability-functional-certification.ts
 
       - name: Studio version rollback certification — immutable history and coupled card metadata
         env:
