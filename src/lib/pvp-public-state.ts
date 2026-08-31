@@ -1,4 +1,32 @@
-import type { GameState } from "@/game/types";
+import type { GameState, PlayerId } from "@/game/types";
+import type { PvpReactionPriorityState } from "@/lib/pvp-reaction-priority";
+
+const orientPlayer = (player: PlayerId, viewerIsGuest: boolean): PlayerId =>
+  viewerIsGuest ? (player === "player" ? "ai" : "player") : player;
+
+/**
+ * The pending stack frame is already public once played. Re-orient only seat
+ * identifiers for the guest; stable instance/definition/target ids remain the
+ * same ids used by the participant GameState projection.
+ */
+export function toPvpParticipantReactionState(
+  reactionState: PvpReactionPriorityState | null | undefined,
+  viewerIsGuest: boolean,
+): PvpReactionPriorityState | null {
+  if (!reactionState) return null;
+  const source = structuredClone(reactionState);
+  return {
+    ...source,
+    actor: orientPlayer(source.actor, viewerIsGuest),
+    responder: orientPlayer(source.responder, viewerIsGuest),
+    pendingAction: {
+      ...source.pendingAction,
+      ...(source.pendingAction.player
+        ? { player: orientPlayer(source.pendingAction.player, viewerIsGuest) }
+        : {}),
+    },
+  };
+}
 
 /**
  * Project the authoritative server state into one participant's local view.
