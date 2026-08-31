@@ -3,7 +3,7 @@ import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllow
 import { tableFor, validateContent, validateContentReferences, type ContentResource } from "@/lib/content-pipeline";
 import { db } from "@/db";
 import { adminAuditLogs } from "@/db/schema";
-import { validateAuthorableCardWithActivatedAbilities as validateCard } from "@/game/activated-ability-authoring";
+import { validateAuthorableCardWithSemanticTypes as validateCard } from "@/game/semantic-card-type-authoring";
 
 export const dynamic = "force-dynamic";
 

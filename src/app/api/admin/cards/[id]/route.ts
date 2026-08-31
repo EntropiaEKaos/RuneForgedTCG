@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
 import { refreshCustomCardCache } from "@/game/catalog";
 import type { CardDef } from "@/game/types";
-import { validateAuthorableCardWithActivatedAbilities as validateCard } from "@/game/activated-ability-authoring";
+import { validateAuthorableCardWithSemanticTypes as validateCard } from "@/game/semantic-card-type-authoring";
 import { analyzeCardImpact } from "@/lib/card-impact";
 import { removeCardArtUsages } from "@/lib/card-art-integrity";
 
