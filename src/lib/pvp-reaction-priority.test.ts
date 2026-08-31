@@ -3,7 +3,12 @@ import type { ReactionActivatedAbility } from "@/game/activated-ability-types";
 import { getCard } from "@/game/cards";
 import { createCustomGame } from "@/game/engine";
 import type { GameAction } from "@/game/reducer";
+import { snapshotReplayBundle } from "@/game/replay-content-snapshot";
 import type { DeckInput } from "@/game/types";
+import {
+  applyAuthoritativePvpSnapshotAction,
+  expireAuthoritativePvpSnapshotReaction,
+} from "./pvp-authoritative-transition";
 import {
   openPvpReactionPriority,
   pvpReactionPriorityExpired,
@@ -147,7 +152,71 @@ try {
     assert.equal(timedOut.next.players.ai.hand.some((card) => card.instanceId === "pending-bolt"), false);
   }
 
-  console.log("PVP REACTION PRIORITY: PASS — immutable opening, responder authority, timeout, hand and battlefield responses certified");
+  {
+    sourceDef.reactionActivatedAbilities = [negateAbility];
+    const state = baseState();
+    const source = state.players.player.bench[0];
+    const action: GameAction = { ...pendingCast, target: source.instanceId };
+    const snapshot = snapshotReplayBundle(deck, deck);
+    const opened = applyAuthoritativePvpSnapshotAction({
+      state,
+      gameAction: action,
+      actor: "ai",
+      contentSnapshot: snapshot,
+      contentHash: snapshot.contentHash,
+      now: 7_000,
+    });
+    assert.equal(opened.ok, true, "snapshot-authoritative transition opens persistent priority");
+    assert.ok(opened.ok);
+    assert.equal(opened.stateChanged, false, "opening a network window does not resolve the pending action");
+    assert.equal(opened.next, state, "authoritative pre-action state identity is preserved while priority is open");
+    assert.ok(opened.reactionState);
+
+    const blocked = applyAuthoritativePvpSnapshotAction({
+      state,
+      gameAction: { type: "pass", player: "ai" },
+      actor: "ai",
+      reactionState: opened.reactionState,
+      contentSnapshot: snapshot,
+      contentHash: snapshot.contentHash,
+      now: 7_500,
+    });
+    assert.equal(blocked.ok, false, "action owner cannot act again while opponent owns priority");
+    if (!blocked.ok) assert.equal(blocked.code, "PVP_REACTION_PRIORITY_HELD_BY_OPPONENT");
+
+    const passed = applyAuthoritativePvpSnapshotAction({
+      state,
+      gameAction: { type: "resolve" },
+      actor: "player",
+      reactionState: opened.reactionState,
+      contentSnapshot: snapshot,
+      contentHash: snapshot.contentHash,
+      now: 8_000,
+    });
+    assert.equal(passed.ok, true, "historical resolve opcode closes persisted PvP priority");
+    assert.ok(passed.ok);
+    assert.equal(passed.reactionState, null);
+    assert.equal(passed.stateChanged, true);
+    assert.equal(passed.next.players.ai.hand.some((card) => card.instanceId === "pending-bolt"), false);
+
+    const timeoutState = baseState();
+    const timeoutSource = timeoutState.players.player.bench[0];
+    const timeoutOpened = openPvpReactionPriority(timeoutState, { ...pendingCast, target: timeoutSource.instanceId }, 9_000, 1_000);
+    assert.ok(timeoutOpened);
+    const expired = expireAuthoritativePvpSnapshotReaction({
+      state: timeoutState,
+      reactionState: timeoutOpened,
+      contentSnapshot: snapshot,
+      contentHash: snapshot.contentHash,
+      now: 10_000,
+    });
+    assert.equal(expired.ok, true, "snapshot-authoritative timeout resolves without responder connectivity");
+    assert.ok(expired.ok);
+    assert.deepEqual(expired.authorized, { type: "resolve" }, "timeout is replayed through the historical resolve opcode");
+    assert.equal(expired.next.players.ai.hand.some((card) => card.instanceId === "pending-bolt"), false);
+  }
+
+  console.log("PVP REACTION PRIORITY: PASS — immutable opening, responder authority, snapshot transition, timeout, hand and battlefield responses certified");
 } finally {
   sourceDef.reactionActivatedAbilities = originalAbilities;
 }
