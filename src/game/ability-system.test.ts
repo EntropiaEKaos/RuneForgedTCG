@@ -8,16 +8,23 @@ import {
   blueprintFromActivatedAbility,
   blueprintFromCostReduction,
   blueprintFromEquipment,
+  blueprintFromLegacyTrigger,
   blueprintFromMechanic,
   blueprintFromReactionSpell,
 } from "./ability-system";
 import { baseCardsOnly, getCard } from "./cards";
+import {
+  COMBAT_TRIGGER_EVENTS,
+  TRIGGER_TIMING_BY_EVENT,
+  triggerTiming,
+} from "./trigger-contract";
 import type { ActivatedAbility } from "./activated-ability-types";
 import type { CardMechanic } from "./types";
 
 assert.equal(ABILITY_GRAMMAR_VERSION, 2);
 assert.equal(ABILITY_GRAMMAR_CATALOG.version, 2);
 assert.deepEqual(ABILITY_GRAMMAR_CATALOG.rules, ["costReduction", "equipmentAttachment"]);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.triggerTiming, TRIGGER_TIMING_BY_EVENT);
 assert.equal(ABILITY_KIND_SUPPORT.keyword, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.triggered, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.activated, "supported");
@@ -30,8 +37,14 @@ assert.equal(ABILITY_KIND_SUPPORT.modal, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.replacement, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.delayed, "planned");
 assert.equal(ABILITY_TIMING_SUPPORT.static, "supported");
+assert.equal(ABILITY_TIMING_SUPPORT.combat, "partial", "generic combat timing remains partial beyond the supported trigger subset");
 assert.equal(ABILITY_TIMING_SUPPORT.reaction, "supported");
 assert.equal(ABILITY_TIMING_SUPPORT.priority, "planned");
+assert.deepEqual(COMBAT_TRIGGER_EVENTS, ["onAttack", "onBlock", "onStrike", "onNexusStrike"]);
+for (const when of ABILITY_GRAMMAR_CATALOG.triggers) {
+  const expectedTiming: "automatic" | "combat" = (COMBAT_TRIGGER_EVENTS as readonly string[]).includes(when) ? "combat" : "automatic";
+  assert.equal(triggerTiming(when), expectedTiming, `${when} uses the canonical semantic trigger timing`);
+}
 
 const activated: ActivatedAbility = {
   description: "Canalize o Nexus.",
@@ -78,6 +91,18 @@ assert.equal(mechanicBlueprint.kind, "triggered");
 assert.equal(mechanicBlueprint.timing, "automatic");
 assert.equal(mechanicBlueprint.trigger, "onSummon");
 assert.deepEqual(mechanicBlueprint.features, ["conditional"]);
+const combatMechanicBlueprint = blueprintFromMechanic({ ...mechanic, key: "ability_system_combat_probe", trigger: "onAttack" });
+assert.equal(combatMechanicBlueprint.timing, "combat", "Mechanics Studio combat triggers use the same timing contract as legacy triggers");
+
+const pyra = getCard("ember_champion_2");
+assert.ok(pyra.trigger, "canonical Pyra stage 2 must retain Nexus Strike");
+assert.equal(blueprintFromLegacyTrigger(pyra.trigger).timing, "combat", "Nexus Strike is projected inside combat timing");
+const magmaEgg = getCard("ember_lastbreath");
+assert.ok(magmaEgg.trigger, "canonical Magma Egg must retain Last Breath");
+assert.equal(blueprintFromLegacyTrigger(magmaEgg.trigger).timing, "automatic", "death triggers remain automatic because they can resolve outside combat");
+const soulbrand = getCard("ember_soulblade");
+assert.ok(soulbrand.trigger, "canonical Soulbrand must retain Kill trigger");
+assert.equal(blueprintFromLegacyTrigger(soulbrand.trigger).timing, "automatic", "kill triggers remain automatic because cleanup provenance is not combat-only");
 
 const swarmlord = getCard("ember_swarmlord");
 assert.ok(swarmlord.costReduction, "canonical Swarmlord must retain its Affinity cost reduction");
@@ -129,6 +154,7 @@ assert.equal(cards.length, 429, "Ability grammar certification covers the comple
 
 let blueprintCount = 0;
 let cardsWithGrammar = 0;
+let combatTimedTriggers = 0;
 const origins = new Set<string>();
 const ruleKinds = new Set<string>();
 for (const card of cards) {
@@ -155,6 +181,10 @@ for (const card of cards) {
     assert.ok(ABILITY_GRAMMAR_CATALOG.kinds.includes(blueprint.kind), `${card.defId} uses a canonical ability kind`);
     assert.ok(ABILITY_GRAMMAR_CATALOG.timings.includes(blueprint.timing), `${card.defId} uses a canonical timing`);
     if (blueprint.effect) assert.equal(blueprint.target, blueprint.effect.target, `${card.defId} keeps effect targeting authoritative`);
+    if (blueprint.trigger) {
+      assert.equal(blueprint.timing, triggerTiming(blueprint.trigger), `${card.defId} trigger timing matches the authoritative trigger timing contract`);
+      if (blueprint.timing === "combat") combatTimedTriggers += 1;
+    }
     if (blueprint.rule) {
       assert.ok(ABILITY_GRAMMAR_CATALOG.rules.includes(blueprint.rule.kind), `${card.defId} uses a canonical persistent rule kind`);
       ruleKinds.add(blueprint.rule.kind);
@@ -172,5 +202,6 @@ assert.deepEqual([...ruleKinds].sort(), ["costReduction", "equipmentAttachment"]
 assert.equal(origins.has("mechanic"), false, "base catalog truthfully records that mechanics are dynamic/published content today");
 assert.ok(blueprintCount > 0);
 assert.ok(cardsWithGrammar > 0);
+assert.ok(combatTimedTriggers > 0, "canonical catalog contains combat-timed trigger abilities");
 
-console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/429 cards without gameplay mutation`);
+console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/429 cards without gameplay mutation · ${combatTimedTriggers} combat-timed triggers`);
