@@ -112,6 +112,9 @@ export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDe
     const input = rawAbility as unknown as Record<string, unknown>;
     const description = typeof input.description === "string" ? input.description.trim().slice(0, 200) : "";
     if (!description) return { ok: false, error: `Activated ability ${index + 1} requires a description` };
+    if (input.modes !== undefined) {
+      return { ok: false, error: "Modal activated ability authoring is disabled until the Studio modal contract is certified" };
+    }
 
     const effectResult = sanitizeEffect(input.effect, base.card.region);
     if (!effectResult.ok) return { ok: false, error: `Activated ability ${index + 1}: ${effectResult.error}` };
