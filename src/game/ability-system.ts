@@ -4,6 +4,8 @@ import {
   CARD_KEYWORDS,
   CARD_TARGETS,
   CARD_TRIGGERS,
+  COST_REDUCTION_CONTRACTS,
+  COST_REDUCTION_KINDS,
   MECHANIC_CONDITION_KINDS,
 } from "./card-authoring";
 import { CONDITION_AUTHORING_CONTRACT, CONDITION_RUNTIME_SUPPORT } from "./condition-contract";
@@ -219,6 +221,8 @@ export const ABILITY_GRAMMAR_CATALOG = {
   conditions: MECHANIC_CONDITION_KINDS,
   conditionContracts: CONDITION_RUNTIME_SUPPORT,
   conditionAuthoring: CONDITION_AUTHORING_CONTRACT,
+  costReductionKinds: COST_REDUCTION_KINDS,
+  costReductionContracts: COST_REDUCTION_CONTRACTS,
   keywords: CARD_KEYWORDS,
   keywordContracts: KEYWORD_INFO,
 } as const;
