@@ -91,6 +91,7 @@ export const sourceContractTests = [
   "src/lib/production-certification-regression.test.ts",
   "src/lib/production-gate-regression.test.ts",
   "src/lib/pvp-engine-regression.test.ts",
+  "src/lib/reaction-activated-ui-regression.test.ts",
   "src/lib/release-certification-2.95.test.ts",
   "src/lib/release-hardening-2.94.test.ts",
   "src/lib/security-audit-2.10.test.ts",
