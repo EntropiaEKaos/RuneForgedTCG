@@ -4,6 +4,7 @@ import type {
   CardType,
   CardMechanic,
   MechanicCondition,
+  CostReduction,
   EffectKind,
   Keyword,
   LevelUpType,
@@ -100,6 +101,32 @@ export const CARD_DOCTRINES = [
   { id: "convergence_triad", name: "Memória do Abismo Vivo", region: "Tidecall", icon: "🌊🌿☠" },
 ] as const;
 
+/**
+ * Static cost-reduction rules consumed by effectiveCost(). `threshold` is only
+ * meaningful for the power-gated family; creatures intentionally omits it so
+ * Studio cannot persist a parameter the runtime would ignore.
+ */
+export const COST_REDUCTION_KINDS = ["creatures", "power"] as const satisfies readonly CostReduction["kind"][];
+export const COST_REDUCTION_CONTRACTS = {
+  creatures: {
+    label: "Criaturas aliadas",
+    fields: ["per", "max"] as const,
+    defaults: { per: 1 } as const,
+    description: "Reduz o custo para cada criatura aliada no bench.",
+  },
+  power: {
+    label: "Aliadas por poder",
+    fields: ["per", "threshold", "max"] as const,
+    defaults: { per: 1, threshold: 4 } as const,
+    description: "Reduz o custo para cada criatura aliada com poder igual ou maior que o limite.",
+  },
+} as const satisfies Record<CostReduction["kind"], {
+  label: string;
+  fields: readonly ("per" | "threshold" | "max")[];
+  defaults: Readonly<Partial<CostReduction>>;
+  description: string;
+}>;
+
 // Compile-time completeness gates: adding a new engine vocabulary value without
 // exposing it to the authoring system is a build error, not a latent Studio bug.
 type AssertNever<T extends never> = T;
@@ -112,6 +139,7 @@ type _MissingEffects = AssertNever<Exclude<EffectKind, (typeof CARD_EFFECT_KINDS
 type _MissingTargets = AssertNever<Exclude<TargetKind, (typeof CARD_TARGETS)[number]>>;
 type _MissingTriggers = AssertNever<Exclude<TriggerWhen, (typeof CARD_TRIGGERS)[number]>>;
 type _MissingLevelUps = AssertNever<Exclude<LevelUpType, (typeof CARD_LEVEL_UP_TYPES)[number]>>;
+type _MissingCostReductionKinds = AssertNever<Exclude<CostReduction["kind"], (typeof COST_REDUCTION_KINDS)[number]>>;
 
 const has = <T extends string>(values: readonly T[], value: unknown): value is T =>
   typeof value === "string" && (values as readonly string[]).includes(value);
@@ -128,6 +156,30 @@ const cleanId = (value: unknown): string | undefined => {
 };
 
 export type CardValidationResult = { ok: true; card: CardDef } | { ok: false; error: string };
+
+export function sanitizeCostReduction(raw: unknown): CostReduction | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  if (!has(COST_REDUCTION_KINDS, value.kind)) return null;
+  if (value.kind === "creatures" && value.threshold !== undefined) return null;
+
+  const optionalInteger = (input: unknown, minimum: number): number | undefined | null => {
+    if (input === undefined) return undefined;
+    const numeric = Number(input);
+    if (!Number.isInteger(numeric) || numeric < minimum) return null;
+    return numeric;
+  };
+  const per = optionalInteger(value.per, 1);
+  const threshold = optionalInteger(value.threshold, 0);
+  const max = optionalInteger(value.max, 0);
+  if (per === null || threshold === null || max === null) return null;
+
+  const result: CostReduction = { kind: value.kind };
+  if (per !== undefined) result.per = per;
+  if (value.kind === "power" && threshold !== undefined) result.threshold = threshold;
+  if (max !== undefined) result.max = max;
+  return result;
+}
 
 export const MECHANIC_CONDITION_KINDS = ["always","selfDamaged","allyRace","allyClass","nexusBelow","manaAtLeast","and","or","not"] as const;
 
@@ -363,13 +415,10 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
   if ((card.mechanics?.length || card.customKeywords?.length) && card.type !== "Unit") return { ok: false, error: "Mechanics Studio keywords currently execute on Unit cards only; use effect macros/triggers for other structural card types." };
   if (card.customKeywords?.some((key) => !card.mechanics?.some((m) => m.key === key))) return { ok: false, error: "Every custom keyword must embed its compiled mechanic contract." };
 
-  if (raw.costReduction && typeof raw.costReduction === "object") {
-    const cr = raw.costReduction;
-    if (cr.kind !== "creatures" && cr.kind !== "power") return { ok: false, error: "Invalid cost reduction kind" };
-    card.costReduction = { kind: cr.kind };
-    if (cr.per !== undefined) card.costReduction.per = Math.max(1, Math.trunc(finite(cr.per, 1)));
-    if (cr.threshold !== undefined) card.costReduction.threshold = Math.max(0, Math.trunc(finite(cr.threshold)));
-    if (cr.max !== undefined) card.costReduction.max = Math.max(0, Math.trunc(finite(cr.max)));
+  if (raw.costReduction !== undefined) {
+    const costReduction = sanitizeCostReduction(raw.costReduction);
+    if (!costReduction) return { ok: false, error: "Invalid cost reduction contract" };
+    card.costReduction = costReduction;
   }
 
   if (raw.spell !== undefined) {
