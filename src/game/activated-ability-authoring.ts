@@ -119,8 +119,8 @@ function sanitizeModes(
       return { ok: false, error: `Activated ability ${abilityIndex + 1} mode ${modeIndex + 1} must be an object` };
     }
     const input = rawMode as Record<string, unknown>;
-    if (input.cost !== undefined || input.maxUsesPerRound !== undefined) {
-      return { ok: false, error: "Modal choices cannot override cost or usage limits; those remain shared by the base activated ability" };
+    if (input.cost !== undefined || input.condition !== undefined || input.maxUsesPerRound !== undefined) {
+      return { ok: false, error: "Modal choices cannot override cost, condition or usage limits; those remain shared or uncertified at the base activated ability level" };
     }
     const id = typeof input.id === "string" ? input.id.trim() : "";
     if (!MODE_ID_PATTERN.test(id)) {
