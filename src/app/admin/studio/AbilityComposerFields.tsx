@@ -152,7 +152,7 @@ export function StudioConditionEditor({ value, onChange, depth = 0 }: { value: M
       {(value as Extract<MechanicCondition, { kind: "and" | "or" }>).children.map((child, index, children) => <div key={index} className="relative"><StudioConditionEditor value={child} depth={depth + 1} onChange={(nextChild) => onChange({ kind, children: children.map((candidate, childIndex) => childIndex === index ? nextChild : candidate) } as MechanicCondition)} />{children.length > 1 && <button type="button" className="btn-ghost absolute right-2 top-2 !px-2 !py-1 text-[10px] text-red-300" onClick={() => onChange({ kind, children: children.filter((_, childIndex) => childIndex !== index) } as MechanicCondition)}>Remove</button>}</div>)}
       {(value as Extract<MechanicCondition, { kind: "and" | "or" }>).children.length < 8 && <button type="button" className="btn-ghost text-xs" onClick={() => onChange({ kind, children: [...(value as Extract<MechanicCondition, { kind: "and" | "or" }>).children, { kind: "always" }] } as MechanicCondition)}>＋ Condition</button>}
     </div>}
-    {kind === "not" && <div className="mt-3"><StudioConditionEditor value={(value as Extract<MechanicCondition, { kind: "not" }>).child} depth={depth + 1} onChange={(child) => onChange({ kind: "not", child })} /></div>;
+    {kind === "not" && <div className="mt-3"><StudioConditionEditor value={(value as Extract<MechanicCondition, { kind: "not" }>).child} depth={depth + 1} onChange={(child) => onChange({ kind: "not", child })} /></div>}
   </div>;
 }
 
