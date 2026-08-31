@@ -67,7 +67,7 @@ function prepareAura2Input(raw: Partial<CardDef>): Aura2Prepared {
   const legacyAura: Record<string, unknown> = { ...aura };
   delete legacyAura.keywords;
   if (buffPower === 0 && buffHealth === 0) legacyAura.buffPower = 1;
-  input.aura = legacyAura;
+  (input as Record<string, unknown>).aura = legacyAura;
   return { ok: true, input, restore: { buffPower, buffHealth, keywords } };
 }
 
