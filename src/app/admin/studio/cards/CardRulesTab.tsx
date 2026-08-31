@@ -6,6 +6,8 @@ import ActivatedAbilityEditor from "./ActivatedAbilityEditor";
 import {
   CARD_KEYWORDS as KWS,
   CARD_LEVEL_UP_TYPES as LEVEL_UP_TYPES,
+  COST_REDUCTION_CONTRACTS,
+  COST_REDUCTION_KINDS,
 } from "@/game/card-authoring";
 import { keywordIsGrantable } from "@/game/keywords";
 import { isTriggerSupported, supportedTriggerEvents } from "@/game/trigger-contract";
@@ -38,6 +40,8 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
     set("customKeywords", customKeywords.filter((item) => !counterKeys.has(item as typeof COUNTER_RULES[number]["key"])));
   };
   const hasSpecificCounterFilter = COUNTER_RULES.some((rule) => customKeywords.includes(rule.key));
+  const costReductionKind = (card.costReduction?.kind || "creatures") as (typeof COST_REDUCTION_KINDS)[number];
+  const costReductionContract = COST_REDUCTION_CONTRACTS[costReductionKind];
 
   return (
     <div className="space-y-4">
@@ -141,6 +145,84 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
       )}
 
       <ActivatedAbilityEditor model={model} />
+
+      <Panel title="Redução de Custo" eyebrow="STATIC COST CONTRACT">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-black text-slate-200">Habilidade estática de Affinity</div>
+            <p className="mt-1 text-[11px] leading-5 text-slate-500">O custo efetivo é recalculado pelo motor autoritativo no momento de jogar a carta.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => set("costReduction", card.costReduction ? undefined : { kind: "creatures", per: 1 })}
+            className={`rounded-full border px-3 py-1.5 text-xs font-black ${card.costReduction ? "border-cyan-300/50 bg-cyan-300 text-slate-950" : "border-white/10 text-slate-400"}`}
+          >
+            {card.costReduction ? "✓ Ativa" : "+ Adicionar"}
+          </button>
+        </div>
+        {card.costReduction && (
+          <div className="mt-4 space-y-3 rounded-xl border border-cyan-400/15 bg-cyan-400/[.04] p-4">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+              <F l="Regra">
+                <select
+                  className="input"
+                  value={costReductionKind}
+                  onChange={(e) => {
+                    const kind = e.target.value as (typeof COST_REDUCTION_KINDS)[number];
+                    const current = card.costReduction || {};
+                    set("costReduction", kind === "power"
+                      ? { kind, per: current.per ?? 1, threshold: current.threshold ?? 4, ...(current.max !== undefined ? { max: current.max } : {}) }
+                      : { kind, per: current.per ?? 1, ...(current.max !== undefined ? { max: current.max } : {}) });
+                  }}
+                >
+                  {COST_REDUCTION_KINDS.map((kind) => <option key={kind} value={kind}>{COST_REDUCTION_CONTRACTS[kind].label}</option>)}
+                </select>
+              </F>
+              <F l="Redução por unidade válida">
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={card.costReduction.per ?? costReductionContract.defaults.per ?? 1}
+                  onChange={(e) => set("costReduction", { ...card.costReduction, per: Math.max(1, Math.trunc(Number(e.target.value) || 1)) })}
+                />
+              </F>
+              {costReductionKind === "power" && (
+                <F l="Poder mínimo">
+                  <input
+                    className="input"
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={card.costReduction.threshold ?? COST_REDUCTION_CONTRACTS.power.defaults.threshold}
+                    onChange={(e) => set("costReduction", { ...card.costReduction, threshold: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })}
+                  />
+                </F>
+              )}
+              <F l="Redução máxima">
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  step={1}
+                  placeholder="Sem limite"
+                  value={card.costReduction.max ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const next = { ...card.costReduction };
+                    if (raw === "") delete next.max;
+                    else next.max = Math.max(0, Math.trunc(Number(raw) || 0));
+                    set("costReduction", next);
+                  }}
+                />
+              </F>
+            </div>
+            <p className="text-[11px] leading-5 text-cyan-100/70">{costReductionContract.description} O desconto regional é aplicado separadamente pelo motor e o custo final nunca fica abaixo de 0.</p>
+            {costReductionKind === "creatures" && <p className="text-[10px] leading-4 text-emerald-300/70">`threshold` não faz parte deste contrato e não será publicado silenciosamente.</p>}
+          </div>
+        )}
+      </Panel>
 
       <Panel title="Proteção contra Anulação" eyebrow="STACK IMMUNITY">
         <button
@@ -292,6 +374,7 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
 
       {!!(mechanicsCatalog.effects || []).length && <Panel title="Effect Library" eyebrow="COMPOSITE MACROS"><p className="mb-3 text-xs text-slate-400">Macros são expandidas para CardEffect nativos antes de salvar; replay e engine não dependem do nome da macro.</p><div className="flex flex-wrap gap-2">{mechanicsCatalog.effects.map((x:any)=><div key={x.key} className="rounded-xl border border-white/10 bg-white/[.025] p-3"><div className="text-xs font-black">{x.name}</div><div className="mt-2 flex gap-2">{card.type==="Spell"&&<button className="btn-ghost text-[10px]" onClick={()=>set("spell",structuredClone(x.definition.effect))}>Use as Spell</button>}{triggerEvent&&<button className="btn-ghost text-[10px]" onClick={()=>set("trigger",{when:triggerEvent,effect:structuredClone(x.definition.effect)})}>Use as Trigger</button>}</div></div>)}</div></Panel>}
       <Panel title="Raw Contracts" eyebrow="EXPERT / ROUND-TRIP FALLBACK">
+        <Json title="Cost Reduction" value={card.costReduction} onChange={(v) => set("costReduction", v)} />
         <Json title="Spell" value={card.spell} onChange={(v) => set("spell", v)} />
         <Json title="Trigger" value={card.trigger} onChange={(v) => set("trigger", v)} />
         <Json title="Equipment" value={card.equipment} onChange={(v) => set("equipment", v)} />
