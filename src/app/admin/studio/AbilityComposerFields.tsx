@@ -10,9 +10,11 @@ import {
 import type { CardEffectContract } from "@/game/card-authoring";
 import { ABILITY_GRAMMAR_CATALOG } from "@/game/ability-system";
 import type { ActivatedAbilityCost } from "@/game/activated-ability-types";
+import { keywordIsGrantable } from "@/game/keywords";
 import type { CardEffect, EffectKind, MechanicCondition, TargetKind } from "@/game/types";
 
 const DEFAULT_EFFECT: CardEffect = { kind: "draw", amount: 1, target: "none" };
+const GRANTABLE_KEYWORDS = CARD_KEYWORDS.filter((keyword) => keywordIsGrantable(keyword));
 
 function Field({ label, children, className = "" }: { label: string; children: React.ReactNode; className?: string }) {
   return <label className={`block ${className}`}><span className="label">{label}</span>{children}</label>;
@@ -42,7 +44,9 @@ export function normalizeEffectKind(value: CardEffect | undefined, kind: EffectK
   const amount = contract.amount === "positive" ? Math.max(1, value?.amount ?? 1) : contract.amount === "nonNegative" ? Math.max(0, value?.amount ?? 0) : 0;
   const next: CardEffect = { kind, amount, target };
   const required = new Set(contract.requires ?? []);
-  if (required.has("keyword")) next.keyword = value?.keyword ?? CARD_KEYWORDS[0];
+  if (required.has("keyword")) {
+    next.keyword = value?.keyword && keywordIsGrantable(value.keyword) ? value.keyword : GRANTABLE_KEYWORDS[0];
+  }
   if (required.has("tokenDefId") && value?.tokenDefId) next.tokenDefId = value.tokenDefId;
   if (required.has("equipmentDefId") && value?.equipmentDefId) next.equipmentDefId = value.equipmentDefId;
   if (required.has("race")) {
@@ -83,6 +87,7 @@ export function StudioEffectEditor({
   const required = new Set(contract.requires ?? []);
   const set = (key: keyof CardEffect, nextValue: unknown) => onChange({ ...safeValue, [key]: nextValue });
   const amountMin = contract.amount === "positive" ? 1 : contract.amount === "nonNegative" ? 0 : undefined;
+  const safeKeyword = safeValue.keyword && keywordIsGrantable(safeValue.keyword) ? safeValue.keyword : GRANTABLE_KEYWORDS[0];
 
   return <div data-studio-effect-composer="semantic" className={`rounded-xl border ${depth ? "border-violet-400/20 bg-violet-400/[.03]" : "border-cyan-400/15 bg-cyan-400/[.03]"} p-4`}>
     <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
@@ -93,7 +98,7 @@ export function StudioEffectEditor({
         {targets.length === 1 ? <div className="input flex items-center text-slate-300">{targets[0]}</div> : <Select value={safeValue.target} options={targets} onChange={(target) => set("target", target as TargetKind)} />}
       </Field>
       {contract.amount !== "any" && <Field label="Amount"><input className="input" type="number" min={amountMin} value={safeValue.amount ?? amountMin ?? 0} onChange={(event) => set("amount", Number(event.target.value))} /></Field>}
-      {required.has("keyword") && <Field label="Keyword"><Select value={safeValue.keyword ?? CARD_KEYWORDS[0]} options={CARD_KEYWORDS} onChange={(keyword) => set("keyword", keyword)} /></Field>}
+      {required.has("keyword") && <Field label="Keyword"><Select value={safeKeyword} options={GRANTABLE_KEYWORDS} onChange={(keyword) => set("keyword", keyword)} /></Field>}
       {required.has("buff") && <>
         <Field label="Power buff"><input className="input" type="number" value={safeValue.buffPower ?? ""} onChange={(event) => set("buffPower", event.target.value === "" ? undefined : Number(event.target.value))} /></Field>
         <Field label="Health buff"><input className="input" type="number" value={safeValue.buffHealth ?? ""} onChange={(event) => set("buffHealth", event.target.value === "" ? undefined : Number(event.target.value))} /></Field>
@@ -147,7 +152,7 @@ export function StudioConditionEditor({ value, onChange, depth = 0 }: { value: M
       {(value as Extract<MechanicCondition, { kind: "and" | "or" }>).children.map((child, index, children) => <div key={index} className="relative"><StudioConditionEditor value={child} depth={depth + 1} onChange={(nextChild) => onChange({ kind, children: children.map((candidate, childIndex) => childIndex === index ? nextChild : candidate) } as MechanicCondition)} />{children.length > 1 && <button type="button" className="btn-ghost absolute right-2 top-2 !px-2 !py-1 text-[10px] text-red-300" onClick={() => onChange({ kind, children: children.filter((_, childIndex) => childIndex !== index) } as MechanicCondition)}>Remove</button>}</div>)}
       {(value as Extract<MechanicCondition, { kind: "and" | "or" }>).children.length < 8 && <button type="button" className="btn-ghost text-xs" onClick={() => onChange({ kind, children: [...(value as Extract<MechanicCondition, { kind: "and" | "or" }>).children, { kind: "always" }] } as MechanicCondition)}>＋ Condition</button>}
     </div>}
-    {kind === "not" && <div className="mt-3"><StudioConditionEditor value={(value as Extract<MechanicCondition, { kind: "not" }>).child} depth={depth + 1} onChange={(child) => onChange({ kind: "not", child })} /></div>}
+    {kind === "not" && <div className="mt-3"><StudioConditionEditor value={(value as Extract<MechanicCondition, { kind: "not" }>).child} depth={depth + 1} onChange={(child) => onChange({ kind: "not", child })} /></div>;
   </div>;
 }
 
