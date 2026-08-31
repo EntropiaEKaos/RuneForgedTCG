@@ -11,4 +11,5 @@ export * from "./engine/activated-actions";
 export * from "./reaction-contract";
 export * from "./trigger-contract";
 export * from "./equipment-link-contract";
+export * from "./permanent-aura-contract";
 export * from "./activated-ability-types";
