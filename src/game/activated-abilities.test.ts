@@ -149,6 +149,69 @@ const cards: CardDef[] = [
     ],
   },
   {
+    defId: "test_modal_prism",
+    name: "Modal Prism",
+    region: "Tidecall",
+    type: "Artifact",
+    cost: 2,
+    rarity: "Rare",
+    maxHealth: 4,
+    description: "Choose one mode when activated.",
+    emoji: "◇",
+    activatedAbilities: [
+      {
+        description: "Prismatic Command",
+        cost: { mana: 1 },
+        modes: [
+          { id: "spark", description: "Spark — deal 2 to the enemy Nexus.", effect: { kind: "damageNexus", amount: 2, target: "none" } },
+          { id: "renew", description: "Renew — heal your Nexus by 3.", effect: { kind: "healNexus", amount: 3, target: "none" } },
+        ],
+      },
+    ],
+  },
+  {
+    defId: "test_modal_toolbox",
+    name: "Modal Toolbox",
+    region: "Ironwood",
+    type: "Artifact",
+    cost: 2,
+    rarity: "Rare",
+    maxHealth: 4,
+    description: "One mode targets a permanent while the other draws.",
+    emoji: "🧰",
+    activatedAbilities: [
+      {
+        description: "Choose Utility",
+        cost: { mana: 1 },
+        modes: [
+          { id: "break", description: "Break an enemy permanent.", effect: { kind: "destroyPermanent", amount: 0, target: "enemyPermanent" } },
+          { id: "study", description: "Draw one card.", effect: { kind: "draw", amount: 1, target: "none" } },
+        ],
+      },
+    ],
+  },
+  {
+    defId: "test_modal_duplicate",
+    name: "Malformed Modal",
+    region: "Tidecall",
+    type: "Artifact",
+    cost: 1,
+    rarity: "Common",
+    maxHealth: 3,
+    description: "Duplicate ids must fail closed.",
+    emoji: "⚠",
+    activatedAbilities: [
+      {
+        description: "Broken Choice",
+        cost: { mana: 1 },
+        modes: [
+          { id: "same", description: "First.", effect: { kind: "draw", amount: 1, target: "none" } },
+          { id: "same", description: "Second.", effect: { kind: "damageNexus", amount: 1, target: "none" } },
+        ],
+      },
+    ],
+  },
+  {
     defId: "test_hybrid_sentinel",
     name: "Hybrid Sentinel",
     region: "Emberhold",
@@ -301,6 +364,87 @@ try {
     assert.equal(canBeginActivateAbility(state, "player", source.instanceId, 0), true, "permanent-targeted ability has a legal target");
     state = activateAbility(state, "player", source.instanceId, 0, enemyPermanent.instanceId);
     assert.equal(state.players.ai.permanents.some((perm) => perm.instanceId === enemyPermanent.instanceId), false, "enemy permanent target is destroyed");
+  }
+
+  {
+    let state = game();
+    const prism = makePermanent(state, "test_modal_prism", "player");
+    state.players.player.permanents.push(prism);
+    state.players.player.mana = 2;
+    state.players.player.nexusHealth = 10;
+    const before = structuredClone(state);
+
+    const missing = validateActivatedAbilityActivation(state, "player", prism.instanceId, 0);
+    assert.equal(missing.ok, false, "modal activation requires an explicit mode");
+    assert.match(missing.reason ?? "", /requires a mode/i);
+    assert.equal(validateActivatedAbilityActivation(state, "player", prism.instanceId, 0, undefined, "unknown").ok, false, "unknown mode ids fail closed");
+    assert.deepEqual(activateAbility(state, "player", prism.instanceId, 0), before, "missing mode cannot spend resources or mutate state");
+    assert.equal(canBeginActivateAbility(state, "player", prism.instanceId, 0), true, "ability overview is ready when at least one modal choice is legal");
+    assert.equal(canBeginActivateAbility(state, "player", prism.instanceId, 0, "spark"), true);
+
+    const enemyBefore = state.players.ai.nexusHealth;
+    state = activateAbility(state, "player", prism.instanceId, 0, undefined, "spark");
+    assert.equal(state.players.ai.nexusHealth, enemyBefore - 2, "selected mode owns the resolved effect");
+    assert.equal(state.players.player.mana, 1, "base ability cost is paid once after mode validation");
+    assert.equal(canBeginActivateAbility(state, "player", prism.instanceId, 0, "renew"), false, "all modes share the same once-per-round usage budget");
+  }
+
+  {
+    let state = game();
+    const prism = makePermanent(state, "test_modal_prism", "player");
+    state.players.player.permanents.push(prism);
+    state.players.player.mana = 2;
+    state.players.player.nexusHealth = 10;
+    const action = {
+      type: "sentinela" as const,
+      player: "player" as const,
+      sentinelaId: prism.instanceId,
+      abilityIndex: 0,
+      modeId: "renew",
+    };
+    assert.equal(validateGameActionSemantics(state, action, "player").ok, true, "PvP validator accepts a known modal mode id");
+    state = applyGameAction(state, action, false).next;
+    assert.equal(state.players.player.nexusHealth, 13, "reducer/replay transport preserves and resolves modeId");
+    assert.equal(state.players.player.mana, 1);
+  }
+
+  {
+    const state = game();
+    const toolbox = makePermanent(state, "test_modal_toolbox", "player");
+    state.players.player.permanents.push(toolbox);
+    state.players.player.mana = 2;
+    assert.equal(canBeginActivateAbility(state, "player", toolbox.instanceId, 0, "break"), false, "targeted mode is blocked when it has no legal target");
+    assert.equal(canBeginActivateAbility(state, "player", toolbox.instanceId, 0, "study"), true, "another mode on the same ability can remain legal without a target");
+    const target = makePermanent(state, "test_repeat_core", "ai");
+    state.players.ai.permanents.push(target);
+    assert.equal(canBeginActivateAbility(state, "player", toolbox.instanceId, 0, "break"), true, "targeted mode becomes legal when its own target contract is satisfiable");
+    assert.equal(validateActivatedAbilityActivation(state, "player", toolbox.instanceId, 0, target.instanceId, "break").ok, true);
+  }
+
+  {
+    const state = game();
+    const malformed = makePermanent(state, "test_modal_duplicate", "player");
+    state.players.player.permanents.push(malformed);
+    state.players.player.mana = 2;
+    const validation = validateActivatedAbilityActivation(state, "player", malformed.instanceId, 0, undefined, "same");
+    assert.equal(validation.ok, false, "duplicate mode ids invalidate the entire modal definition");
+    assert.match(validation.reason ?? "", /invalid activated ability definition/i);
+  }
+
+  {
+    const state = game();
+    const source = readyUnit(state, "test_arc_tender", "player");
+    state.players.player.mana = 10;
+    const target = readyUnit(state, "test_target_dummy", "ai");
+    const action = {
+      type: "sentinela" as const,
+      player: "player" as const,
+      sentinelaId: source.instanceId,
+      abilityIndex: 0,
+      target: target.instanceId,
+      modeId: "not-modal",
+    };
+    assert.equal(validateGameActionSemantics(state, action, "player").ok, false, "non-modal abilities reject injected mode ids");
   }
 
   {
