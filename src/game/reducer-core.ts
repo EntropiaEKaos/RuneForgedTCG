@@ -7,7 +7,7 @@ import {
   applyAiAction,
 } from "./ai";
 import {
-  activateSentinelaAbility,
+  activateAbility,
   applyStackedActionWithAi,
   canBlock,
   canCastReaction,
@@ -51,7 +51,7 @@ export type GameAction =
   | { type: "pass"; player: PlayerId }
   | { type: "react"; player: PlayerId; instanceId: string; target?: string }
   | { type: "resolve" } // resolve the open reaction window
-  | { type: "sentinela"; player: PlayerId; sentinelaId: string; abilityIndex: number; target?: string }
+  | { type: "sentinela"; player: PlayerId; sentinelaId: string; abilityIndex: number; target?: string; modeId?: string }
   | { type: "mulligan"; player: PlayerId; cardIds: string[] }
   | { type: "skipMulligan"; player: PlayerId }
   // ---- AI transitions which may embed a reaction window ----
@@ -253,7 +253,16 @@ export function applyGameAction(state: GameState, action: GameAction, opponentIs
     }
 
     case "sentinela": {
-      return { next: activateSentinelaAbility(state, action.player, action.sentinelaId, action.abilityIndex, action.target) };
+      return {
+        next: activateAbility(
+          state,
+          action.player,
+          action.sentinelaId,
+          action.abilityIndex,
+          action.target,
+          action.modeId,
+        ),
+      };
     }
 
     case "mulligan": {
