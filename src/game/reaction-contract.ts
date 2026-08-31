@@ -2,6 +2,12 @@ import { getCard } from "./cards";
 import { cannotBeCountered, counterActionKinds, type ReactionActionKind } from "./counter-rules";
 import type { BoardEntity, CardDef, CardInstance, GameState, PlayerId, TargetKind } from "./types";
 import { canCastReaction, isValidTarget } from "./engine/actions";
+import {
+  canReactWithActivatedAbilityAction,
+  reactionActivatedAbilityOptions,
+  type ReactionActivatedAbilityAction,
+  type ReactionActivatedAbilityOption,
+} from "./reaction-activated-abilities";
 
 export {
   COUNTER_ACTION_KINDS,
@@ -16,6 +22,19 @@ export interface ReactionActionContext {
   kind: ReactionActionKind;
   defId?: string;
   instanceId?: string;
+  player?: PlayerId;
+}
+
+export interface ReactionResponseAction {
+  kind: ReactionActionKind;
+  instanceId: string;
+  defId: string;
+  player?: PlayerId;
+  targetInstanceId?: string;
+  abilityIndex?: number;
+  modeId?: string;
+  costDiscardInstanceIds?: string[];
+  responseKind?: "activatedAbility";
 }
 
 function actionContext(action: ReactionActionKind | ReactionActionContext): ReactionActionContext {
@@ -33,11 +52,10 @@ export function canCounterPendingAction(counterCard: CardDef, action: ReactionAc
 /**
  * Ability System 2.0 reaction contract.
  *
- * `canCastReaction` remains the low-level speed/mana gate. This layer adds the
- * semantic target gate that decides whether a card represents a legal response
- * to the pending action at all. Stack opening and stack insertion both consume
- * this contract, so a reaction window cannot be opened by a card that would
- * immediately fail to resolve for lack of a legal target.
+ * `canCastReaction` remains the low-level card speed/mana gate. This layer adds
+ * semantic targeting and now also battlefield activated responses. Stack
+ * opening and stack insertion consume the same contract, so the UI cannot
+ * advertise a response that the authoritative resolver would reject.
  */
 export interface ReactionEligibility {
   allowed: boolean;
@@ -125,10 +143,44 @@ export function eligibleReactionCards(
   return state.players[playerId].hand.filter((card) => canReactWithCard(state, playerId, card.instanceId, action));
 }
 
+export function eligibleReactionActivatedAbilities(
+  state: GameState,
+  playerId: PlayerId,
+  action: ReactionActionKind | ReactionActionContext,
+): ReactionActivatedAbilityOption[] {
+  return reactionActivatedAbilityOptions(state, playerId, actionContext(action));
+}
+
+/** Validate an exact response payload before it is inserted into the stack. */
+export function canReactWithResponse(
+  state: GameState,
+  playerId: PlayerId,
+  response: ReactionResponseAction,
+  action: ReactionActionKind | ReactionActionContext,
+): boolean {
+  if (response.responseKind !== "activatedAbility") {
+    return canReactWithCard(state, playerId, response.instanceId, action);
+  }
+  if (response.kind !== "sentinela" || response.abilityIndex === undefined) return false;
+  const normalized: ReactionActivatedAbilityAction = {
+    kind: "sentinela",
+    responseKind: "activatedAbility",
+    player: playerId,
+    instanceId: response.instanceId,
+    defId: response.defId,
+    abilityIndex: response.abilityIndex,
+    ...(response.targetInstanceId ? { targetInstanceId: response.targetInstanceId } : {}),
+    ...(response.modeId ? { modeId: response.modeId } : {}),
+    ...(response.costDiscardInstanceIds ? { costDiscardInstanceIds: response.costDiscardInstanceIds } : {}),
+  };
+  return canReactWithActivatedAbilityAction(state, playerId, normalized, actionContext(action));
+}
+
 export function hasReactionOpportunity(
   state: GameState,
   playerId: PlayerId,
   action: ReactionActionKind | ReactionActionContext,
 ): boolean {
-  return eligibleReactionCards(state, playerId, action).length > 0;
+  return eligibleReactionCards(state, playerId, action).length > 0 ||
+    eligibleReactionActivatedAbilities(state, playerId, action).length > 0;
 }

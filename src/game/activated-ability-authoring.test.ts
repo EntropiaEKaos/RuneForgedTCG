@@ -137,7 +137,7 @@ expectRejected(artifact({
     cost: { mana: 1 },
     modes: [{ id: "counter", description: "Counter", effect: { kind: "negateSpell", amount: 0, target: "spellOnStack" } }],
   }],
-}), /spell stack|reaction protocol/i, "modal authoring cannot bypass the reaction/stack boundary");
+}), /spell stack|reaction (?:stack|protocol)/i, "modal authoring cannot bypass the reaction/stack boundary");
 
 expectRejected(artifact({
   type: "Unit",

@@ -1,5 +1,12 @@
 import { getCard } from "./cards";
-import { canBlock, isValidTarget, spellNeedsTarget, validateActivatedAbilityActivation } from "./engine";
+import {
+  canBlock,
+  isValidTarget,
+  reactionActivatedAbilitiesForInstance,
+  resolveActivatedAbilityChoice,
+  spellNeedsTarget,
+  validateActivatedAbilityActivation,
+} from "./engine";
 import type { GameAction } from "./reducer";
 import type { BoardEntity, GameState, PlayerId } from "./types";
 
@@ -38,11 +45,49 @@ function findBoardEntity(state: GameState, instanceId: string): BoardEntity | nu
 function validateCardTarget(state: GameState, actor: PlayerId, defId: string, target?: string): ActionValidationResult {
   const needed = spellNeedsTarget(defId);
   if (!needed) return target ? fail("card does not accept an explicit target") : ok();
-  if (needed === "spellOnStack") return ok(); // reaction stack target is represented by protocol state, not board id.
+  if (needed === "spellOnStack") return ok();
   if (!target) return fail(`card requires ${needed} target`);
   const entity = findBoardEntity(state, target);
   if (!entity) return fail("target instance does not exist");
   return isValidTarget(state, actor, needed, entity) ? ok() : fail(`invalid ${needed} target`);
+}
+
+function validateReactionAbilityAction(state: GameState, action: Extract<GameAction, { type: "react" }>, actor: PlayerId): ActionValidationResult {
+  if (action.responseKind !== "activatedAbility") return fail("reaction action is not a battlefield activation");
+  if (!Number.isInteger(action.abilityIndex) || (action.abilityIndex ?? -1) < 0) return fail("reaction ability requires a valid abilityIndex");
+  const abilities = reactionActivatedAbilitiesForInstance(state, actor, action.instanceId);
+  const ability = abilities[action.abilityIndex!];
+  if (!ability) return fail("reaction ability source/index does not exist for actor");
+
+  if (action.modeId !== undefined && (action.modeId.length === 0 || action.modeId.length > 64 || action.modeId.trim() !== action.modeId)) {
+    return fail("reaction ability modeId must be a non-empty string of at most 64 characters");
+  }
+  const resolved = resolveActivatedAbilityChoice(ability, action.modeId);
+  if (!resolved.ok) return fail(resolved.reason);
+
+  const discardIds = action.costDiscardInstanceIds;
+  if (discardIds !== undefined && (
+    discardIds.length > 10 ||
+    !unique(discardIds) ||
+    discardIds.some((id) => typeof id !== "string" || id.length === 0 || id.length > 128 || id.trim() !== id)
+  )) return fail("reaction ability discard ids must be unique non-empty instance ids");
+  const requiredDiscard = ability.cost?.discardFromHand ?? 0;
+  if ((discardIds?.length ?? 0) !== requiredDiscard) return fail("reaction ability discard selection count does not match cost");
+  const handIds = new Set(state.players[actor].hand.map((card) => card.instanceId));
+  if (discardIds?.some((id) => !handIds.has(id))) return fail("reaction ability discard selection references card outside actor hand");
+
+  const targetKind = resolved.choice.effect.target;
+  if (targetKind === "spellOnStack") {
+    if (!action.target) return fail("stack-targeted reaction ability requires pending action id");
+    return ok();
+  }
+  if (!["none", "self"].includes(targetKind)) {
+    if (!action.target) return fail("reaction ability requires an explicit target");
+    const entity = findBoardEntity(state, action.target);
+    if (!entity) return fail("reaction ability target does not exist");
+    return isValidTarget(state, actor, targetKind, entity) ? ok() : fail("invalid reaction ability target");
+  }
+  return action.target ? fail("reaction ability does not accept an explicit target") : ok();
 }
 
 /**
@@ -56,15 +101,16 @@ export function validateGameActionSemantics(state: GameState, action: GameAction
 
     if ("player" in action && action.player !== actor) return fail("action player does not match authenticated actor");
 
+    if (action.type === "react" && action.responseKind === "activatedAbility") {
+      return validateReactionAbilityAction(state, action, actor);
+    }
+
     if (action.type === "play" || action.type === "cast" || action.type === "react") {
       const inst = state.players[actor].hand.find((x) => x.instanceId === action.instanceId);
       if (!inst) return fail("card instance is not in actor hand");
       const def = getCard(inst.defId);
       if (action.type === "cast" || action.type === "react") {
         if (def.type !== "Spell") return fail(`${action.type} requires a Spell card`);
-      }
-      if (action.type === "play" && def.type === "Spell") {
-        // Existing clients may use play for spells; preserve compatibility while still validating targets.
       }
       if (def.type === "Equipment" && action.target) {
         const target = state.players[actor].bench.find((x) => x.instanceId === action.target);
@@ -121,9 +167,6 @@ export function validateGameActionSemantics(state: GameState, action: GameAction
     }
 
     if (action.type === "sentinela") {
-      // Backwards-compatible opcode: `sentinela` now means "activate a board
-      // ability". Legacy Sentinelas keep identical ids/indexes while Units,
-      // Artifacts and Enchantments can use the same authoritative transport.
       const rawModeId = (action as typeof action & { modeId?: unknown }).modeId;
       if (rawModeId !== undefined && (typeof rawModeId !== "string" || rawModeId.length === 0 || rawModeId.length > 64 || rawModeId.trim() !== rawModeId)) {
         return fail("activated ability modeId must be a non-empty string of at most 64 characters");
@@ -150,9 +193,6 @@ export function validateGameActionSemantics(state: GameState, action: GameAction
       if (!validation.ok) return fail(validation.reason ?? "activated ability cannot be used");
       const targetKind = validation.effect?.target;
       const requiresTarget = targetKind !== undefined && !["none", "self", "spellOnStack"].includes(targetKind);
-      // Engine/replay compatibility may auto-target a legacy Sentinela when a
-      // trusted internal caller omits the target. Client-supplied PvP actions
-      // never get that privilege: their board target must be explicit.
       if (requiresTarget && !action.target) return fail("activated ability requires an explicit client target");
       return ok();
     }

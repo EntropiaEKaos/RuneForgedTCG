@@ -1,6 +1,13 @@
 import { aiChooseReaction } from "./ai";
 import { applyGameAction, type GameAction } from "./reducer";
-import { applyStackedActionWithAi, createCustomGame, type CardAction, type CustomGameOptions } from "./engine";
+import {
+  applyStackedActionWithAi,
+  canReactWithResponse,
+  createCustomGame,
+  findActivatedAbilitySource,
+  type CardAction,
+  type CustomGameOptions,
+} from "./engine";
 import type { DeckInput, GameState } from "./types";
 import { assertGameStateInvariant } from "./invariants";
 import { deriveGameEvents, type GameEvent } from "./events";
@@ -24,11 +31,6 @@ export interface ReplayResult {
 }
 
 export function validateGameAction(state: GameState, action: GameAction, actor: "player" | "ai" = "player"): boolean {
-  // `resolve` is not a normal player action. It is only legal when the
-  // authoritative replay driver has an actual pending AI reaction window.
-  // Keeping it invalid here prevents a client from injecting arbitrary
-  // resolve steps into an action log and advancing the AI outside the
-  // server-derived reaction flow.
   if (action.type === "resolve") return false;
   const semantic = validateGameActionSemantics(state, action, actor);
   if (!semantic.ok) return false;
@@ -42,8 +44,32 @@ export function validateGameAction(state: GameState, action: GameAction, actor: 
   return false;
 }
 
+function reactionSourceDefId(action: Extract<GameAction, { type: "react" }>, state: GameState): string | null {
+  const source = findActivatedAbilitySource(state, "player", action.instanceId);
+  if (!source) return null;
+  if (source.kind === "unit") return source.unit.defId;
+  if (source.kind === "permanent") return source.perm.defId;
+  return source.sen.defId;
+}
+
 function asCardAction(action: GameAction, state: GameState): CardAction | null {
   if (action.type !== "play" && action.type !== "cast" && action.type !== "react") return null;
+  if (action.type === "react" && action.responseKind === "activatedAbility") {
+    if (action.abilityIndex === undefined) return null;
+    const defId = reactionSourceDefId(action, state);
+    if (!defId) return null;
+    return {
+      player: "player",
+      kind: "sentinela",
+      responseKind: "activatedAbility",
+      instanceId: action.instanceId,
+      defId,
+      abilityIndex: action.abilityIndex,
+      targetInstanceId: action.target,
+      ...(action.modeId ? { modeId: action.modeId } : {}),
+      ...(action.costDiscardInstanceIds ? { costDiscardInstanceIds: action.costDiscardInstanceIds } : {}),
+    };
+  }
   const card = state.players.player.hand.find((c) => c.instanceId === action.instanceId);
   if (!card) return null;
   return {
@@ -63,11 +89,6 @@ export function replayAuthoritativeMatch(input: AuthoritativeMatchInput): Replay
   const events: GameEvent[] = [];
 
   const driveDerivedAi = () => {
-    // AI decisions are derived by the server, never accepted from the client.
-    // This must run after every completed player-controlled transition,
-    // including resolving or countering a pending AI reaction window. The
-    // live match driver does the same; skipping it here makes replay phase
-    // ordering diverge from the game that originally produced the action log.
     for (let guard = 0; guard < 80 && !pendingAiAction && state.phase !== "gameover" && state.activePlayer === "ai"; guard++) {
       const aiResult = applyGameAction(state, { type: "aiStep" });
       if (aiResult.awaitingReaction) {
@@ -109,6 +130,9 @@ export function replayAuthoritativeMatch(input: AuthoritativeMatchInput): Replay
       if (!semanticReaction.ok) throw new Error(`Invalid reaction action at index ${applied}: ${semanticReaction.reason}`);
       const counter = asCardAction(action, state);
       if (counter) {
+        if (!canReactWithResponse(state, "player", counter, pendingAiAction)) {
+          throw new Error(`Illegal reaction response at index ${applied}`);
+        }
         const previous = state;
         state = applyStackedActionWithAi(state, pendingAiAction, "react", counter, aiChooseReaction).next;
         events.push(...deriveGameEvents(previous, state));
@@ -140,11 +164,6 @@ export function replayAuthoritativeMatch(input: AuthoritativeMatchInput): Replay
     driveDerivedAi();
   }
 
-  if (pendingAiAction) {
-    // An unfinished reaction means the submitted action log does not describe
-    // a complete game; never derive a result from an incomplete replay.
-    throw new Error("Replay ended with an unresolved reaction window");
-  }
-
+  if (pendingAiAction) throw new Error("Replay ended with an unresolved reaction window");
   return { state, applied, events };
 }

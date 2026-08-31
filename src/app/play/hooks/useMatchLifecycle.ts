@@ -4,12 +4,26 @@ import { useCallback, useEffect, useState, type Dispatch, type MutableRefObject,
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { getCard } from "@/game/cards";
 import { aiChooseAction, aiChooseReaction, aiDefend, applyAiAction, aiResolveTurnEnd, type AiAction } from "@/game/ai";
-import { applyStackedActionWithAi, canCastReaction, type CardAction } from "@/game/engine";
+import {
+  applyStackedActionWithAi,
+  canReactWithActivatedAbilityAction,
+  hasReactionOpportunity,
+  type CardAction,
+  type ReactionActivatedAbilityAction,
+} from "@/game/engine";
 import type { GameState } from "@/game/types";
 import type { GameAction } from "@/game/reducer";
 import type { PendingSpell, ReactionPending } from "@/game/client/match-model";
+import {
+  REACTION_ACTIVATED_SUBMIT_EVENT,
+  type ReactionActivatedSubmitDetail,
+} from "@/game/client/reaction-ui-contract";
 import type { MatchReward } from "@/components/game/MatchResult";
 import type { CombatPace } from "@/components/game/GameSettings";
+
+export type HumanReactionInput =
+  | { instanceId: string; targetId?: string }
+  | ReactionActivatedSubmitDetail;
 
 export function useMatchLifecycle({
   state, setState, reaction, setReaction, setPendingReaction, isPvp, combatPace, reactionMs,
@@ -51,9 +65,9 @@ export function useMatchLifecycle({
       const timer = window.setTimeout(() => {
         const action = aiChooseAction(state);
         if (!action) { setState(aiResolveTurnEnd(state)); return; }
-        const canReact = state.players.player.hand.some((card) => canCastReaction(state, "player", card.instanceId, action.kind));
-        if (canReact) {
-          setReaction({ action: { ...action, player: "ai" }, baseState: state, deadline: Date.now() + reactionMs, pendingHuman: null });
+        const pendingAction: CardAction = { ...action, player: "ai" };
+        if (hasReactionOpportunity(state, "player", pendingAction)) {
+          setReaction({ action: pendingAction, baseState: state, deadline: Date.now() + reactionMs, pendingHuman: null });
         } else {
           setState(applyAiAction(state, action));
         }
@@ -62,14 +76,26 @@ export function useMatchLifecycle({
     }
   }, [combatPace, isPvp, reaction, reactionMs, setReaction, setState, state]);
 
-  const finishReaction = useCallback((humanReact?: { instanceId: string; targetId?: string }) => {
+  const finishReaction = useCallback((humanReact?: HumanReactionInput) => {
     if (!reaction) return;
     const aiReact = (current: GameState, action: CardAction) => aiChooseReaction(current, action);
     if (humanReact) {
-      const card = reaction.baseState.players.player.hand.find((entry) => entry.instanceId === humanReact.instanceId);
-      if (!card) return;
-      recordAction({ type: "cast", player: "player", instanceId: humanReact.instanceId, target: humanReact.targetId });
-      const humanAction: CardAction = { player: "player", kind: "spell", instanceId: humanReact.instanceId, defId: card.defId, targetInstanceId: humanReact.targetId };
+      let humanAction: CardAction;
+      if ("action" in humanReact) {
+        humanAction = humanReact.action;
+        recordAction(humanReact.logAction);
+      } else {
+        const card = reaction.baseState.players.player.hand.find((entry) => entry.instanceId === humanReact.instanceId);
+        if (!card) return;
+        recordAction({ type: "react", player: "player", instanceId: humanReact.instanceId, target: humanReact.targetId });
+        humanAction = {
+          player: "player",
+          kind: "spell",
+          instanceId: humanReact.instanceId,
+          defId: card.defId,
+          targetInstanceId: humanReact.targetId,
+        };
+      }
       const result = applyStackedActionWithAi(reaction.baseState, reaction.action, "react", humanAction, aiReact);
       const aiCounter = aiChooseReaction(result.next, humanAction);
       if (aiCounter) {
@@ -89,6 +115,24 @@ export function useMatchLifecycle({
     setReaction(null);
     setPendingReaction(null);
   }, [reaction, reactionMs, recordAction, setPendingReaction, setReaction, setState, toastAI]);
+
+  useEffect(() => {
+    const onActivatedReaction = (event: Event) => {
+      if (!reaction || isPvp || reaction.pendingHuman) return;
+      const detail = (event as CustomEvent<ReactionActivatedSubmitDetail>).detail;
+      if (!detail?.action || detail.action.responseKind !== "activatedAbility") return;
+      const pending = reaction.action;
+      if (!canReactWithActivatedAbilityAction(
+        reaction.baseState,
+        "player",
+        detail.action as ReactionActivatedAbilityAction,
+        pending,
+      )) return;
+      finishReaction(detail);
+    };
+    window.addEventListener(REACTION_ACTIVATED_SUBMIT_EVENT, onActivatedReaction as EventListener);
+    return () => window.removeEventListener(REACTION_ACTIVATED_SUBMIT_EVENT, onActivatedReaction as EventListener);
+  }, [finishReaction, isPvp, reaction]);
 
   useDeferredEffect(() => {
     if (isPvp || !reaction) return;

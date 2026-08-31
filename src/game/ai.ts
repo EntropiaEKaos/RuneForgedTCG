@@ -1,7 +1,8 @@
 export * from "./ai-core";
 
-import type { AiAction } from "./ai-core";
-import { activateAbility, castSpell, playUnit } from "./engine";
+import { aiChooseReaction as aiChooseCardReaction, type AiAction } from "./ai-core";
+import { aiChooseReactionActivatedAbilityAction } from "./ai-reaction-activated-abilities";
+import { activateAbility, castSpell, playUnit, type CardAction } from "./engine";
 import type { GameState, PlayerId } from "./types";
 
 /**
@@ -30,4 +31,18 @@ export function applyAiAction(
     );
   }
   return castSpell(state, playerId, action.instanceId, action.targetInstanceId);
+}
+
+/**
+ * Prefer a legal battlefield reaction when one exists, then fall back to the
+ * historical hand-card reaction policy. Both candidates are revalidated by the
+ * authoritative stack contract before insertion.
+ */
+export function aiChooseReaction(
+  state: GameState,
+  action: CardAction,
+  playerId: PlayerId = "ai",
+): AiAction | null {
+  return aiChooseReactionActivatedAbilityAction(state, action, playerId) ??
+    aiChooseCardReaction(state, action, playerId);
 }

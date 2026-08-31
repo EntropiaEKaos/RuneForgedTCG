@@ -2,19 +2,20 @@
 
 ## Objetivo
 
-Ability System 2.0 cria uma linguagem única para habilidades sem substituir de uma vez os caminhos de execução já certificados. A primeira fase é uma camada de compatibilidade somente-leitura: cartas 2.97 continuam executando pelos contratos atuais, enquanto Studio, auditorias e próximas migrações passam a enxergar uma gramática canônica.
+Ability System 2.0 cria uma linguagem única para habilidades sem substituir de uma vez os caminhos de execução já certificados. A evolução permanece incremental: cartas 2.97 continuam válidas, enquanto runtime, Studio, auditorias e novas famílias passam a compartilhar uma gramática canônica.
 
-## Problema atual
+## Superfícies atuais
 
-A coleção canônica usa múltiplas superfícies que representam habilidades de formas diferentes:
+A coleção canônica ainda possui superfícies especializadas que representam habilidades de formas diferentes:
 
 1. `CardDef.trigger` — gatilho legado com um `CardEffect`.
 2. `CardDef.mechanics` — regras data-driven do Mechanics Studio, com gatilho + condição + efeito.
-3. `CardDef.activatedAbilities` — habilidades genéricas ativadas, com custo + efeito/modos + limite por rodada.
-4. `CardDef.sentinela.abilities` — contrato legado de lealdade das Sentinelas.
-5. `CardDef.levelUp` e keywords também representam comportamento de habilidade, mas com estruturas especializadas.
+3. `CardDef.activatedAbilities` — habilidades genéricas ativadas de `mainPhase`, com custo + efeito/modos + limite por rodada.
+4. `CardDef.reactionActivatedAbilities` — habilidades voluntárias de battlefield permitidas somente durante uma janela autoritativa de reação.
+5. `CardDef.sentinela.abilities` — contrato legado de lealdade das Sentinelas.
+6. `CardDef.levelUp` e keywords também representam comportamento de habilidade, mas com estruturas especializadas.
 
-Esses caminhos continuam válidos e autoritativos. O problema é de linguagem e authoring: timing, custo, condição, alvo e composição não são descritos por um vocabulário comum.
+Esses caminhos continuam válidos. O objetivo da gramática é tornar timing, custo, condição, alvo, escolha e composição explícitos e reutilizáveis.
 
 ## Gramática canônica
 
@@ -40,7 +41,7 @@ Campos ausentes são intencionais. Por exemplo, uma keyword não possui custo ne
 
 ### Features ortogonais
 
-`conditional` e `chained` não são tratados como kinds mutuamente exclusivos: uma habilidade pode ser simultaneamente disparada, condicional, encadeada e direcionada. A gramática registra essas propriedades como features:
+`conditional` e `chained` não são tratados como kinds mutuamente exclusivos. Uma habilidade pode ser simultaneamente disparada, condicional, encadeada e direcionada. A gramática registra essas propriedades como features:
 
 - `conditional`
 - `chained`
@@ -51,12 +52,14 @@ Campos ausentes são intencionais. Por exemplo, uma keyword não possui custo ne
 
 - `static` — continuamente aplicável enquanto a fonte/regra estiver válida.
 - `automatic` — resolução iniciada por gatilho/evento.
-- `mainPhase` — ativação pelo jogador na janela principal atualmente suportada.
+- `mainPhase` — ativação voluntária pelo jogador durante a fase principal.
 - `combat` — família parcialmente suportada pelos eventos de ataque/bloqueio; authoring genérico ainda não liberado.
-- `reaction` — protocolo já existe para reações de spells, porém habilidades genéricas de reação ainda não estão liberadas.
-- `priority` — reservado para uma futura janela geral de prioridade.
+- `reaction` — suportado para spells reativos e, neste corte, para `reactionActivatedAbilities` de battlefield contra ações pendentes.
+- `priority` — reservado para uma futura janela geral de prioridade, incluindo persistência multiplayer concorrente.
 
-### Custos atualmente executáveis
+`reaction` e `priority` não são sinônimos. O runtime PvE possui uma janela autoritativa de reação LIFO; o Casual PvP atual ainda não persiste uma janela de prioridade compartilhada no servidor e, portanto, reações humanas de qualquer origem permanecem fail-closed nesse modo até o corte multiplayer específico.
+
+## Custos atualmente executáveis
 
 - mana regular;
 - mana de feitiço dedicada;
@@ -67,27 +70,27 @@ Campos ausentes são intencionais. Por exemplo, uma keyword não possui custo ne
 - sacrificar a própria fonte;
 - alteração/pagamento de lealdade.
 
-Mana regular e mana de feitiço são recursos separados. Um custo `spellMana` usa somente o banco de `PlayerState.spellMana` e nunca converte nem usa mana regular como fallback. `consumeBarrier` é permitido somente para uma Unit controlada com `barrier === true`; o pagamento remove a Barrier antes de o efeito resolver, da mesma forma que o runtime já consome essa proteção ao bloquear dano.
+Mana regular e mana de feitiço são recursos separados. Um custo `spellMana` usa somente `PlayerState.spellMana` e nunca converte nem usa mana regular como fallback. `consumeBarrier` é permitido somente para uma Unit controlada com `barrier === true`; o pagamento remove a Barrier antes de o efeito resolver.
 
-`discardFromHand` é o primeiro custo que exige escolha explícita do jogador. A definição da habilidade armazena somente a quantidade; a ação 2.97 `sentinela` recebe de forma aditiva `costDiscardInstanceIds`, contendo exatamente os `instanceId` escolhidos. O servidor valida quantidade exata, unicidade e pertencimento à mão antes de qualquer mutação. A remoção ocorre no estado clonado antes do efeito, então draws e demais follow-ups observam deterministicamente o estado pós-pagamento.
+`discardFromHand` exige escolha explícita. A definição armazena a quantidade; o payload autoritativo transporta `costDiscardInstanceIds` com exatamente os `instanceId` escolhidos. O servidor valida quantidade, unicidade e pertencimento à mão antes de qualquer mutação. A remoção acontece antes do efeito, portanto draws e follow-ups observam deterministicamente o estado pós-pagamento.
 
-Outros custos que exigem escolha adicional — como retornar uma permanente escolhida, exilar/consumir recursos de cemitério ou selecionar marcadores — permanecem fora do catálogo authorable até possuírem payload determinístico, validação, execução autoritativa, IA, replay e browser certification próprios.
+Outros custos que exigem seleção adicional — como retornar uma permanente escolhida, exilar/consumir recursos de cemitério ou selecionar marcadores — permanecem fora do catálogo authorable até possuírem payload determinístico, validação, execução, IA, replay e browser certification próprios.
 
 ## Matriz de suporte
 
 O catálogo diferencia explicitamente:
 
 - `supported` — contrato genérico seguro já disponível;
-- `partial` — existe comportamento concreto na engine, mas não uma linguagem genérica completa para designers;
+- `partial` — existe comportamento concreto, mas ainda falta linguagem ou cobertura transversal completa;
 - `planned` — reservado na gramática; não deve aparecer como opção publicável no Studio.
 
 Isso impede o Studio de prometer uma habilidade que a engine ainda não consegue resolver de forma autoritativa.
 
 ## Compatibilidade
 
-`abilityBlueprintsForCard(card)` é uma projeção somente-leitura. Ela não altera `CardDef`, não muda replay, seed, regras, decks ou balanceamento.
+`abilityBlueprintsForCard(card)` continua sendo uma projeção somente-leitura. Ela não altera `CardDef`, seed, decks ou balanceamento.
 
-A certificação percorre as 429 cartas canônicas e garante que toda superfície de habilidade existente seja representada na projeção sem mutação.
+Novos campos de transporte são aditivos. Replays históricos sem `modeId`, `costDiscardInstanceIds` ou `responseKind` continuam válidos. A ação histórica `react` permanece o opcode do log de reação; respostas de battlefield acrescentam `responseKind: "activatedAbility"`, `abilityIndex`, `modeId`, target e seleção de descarte apenas quando necessários.
 
 ## Caminho de evolução
 
@@ -101,7 +104,7 @@ A certificação percorre as 429 cartas canônicas e garante que toda superfíci
 
 ### Fase 2 — Unified Ability Composer
 
-Card Creator e Mechanics Studio passam a usar os mesmos componentes/catálogos para timing, custo, condição, target, efeito e follow-up. O editor de habilidade ativada deixa de duplicar lógica.
+Card Creator e Mechanics Studio usam componentes/catálogos compartilhados para timing, custo, condição, target, efeito e follow-up. O editor de habilidade ativada não mantém uma gramática paralela.
 
 ### Fase 3 — Access Boundary
 
@@ -117,47 +120,68 @@ Adicionar uma família por vez, sempre nesta ordem:
 4. legality/targeting;
 5. AI;
 6. replay/snapshot;
-7. apresentação/tooltip;
+7. apresentação/tooltip/UI;
 8. browser certification;
 9. somente então disponibilizar ao Studio.
 
-As primeiras candidatas naturais são habilidades modais, custos alternativos adicionais e reações ativadas, porque aumentam decisões sem exigir centenas de novos efeitos primitivos.
-
 ### Fase 4.1 — Modal Activated Abilities
 
-Habilidades modais adicionam escolhas determinísticas às habilidades ativadas sem alterar o opcode histórico de replay/PvP. Uma habilidade modal possui uma lista ordenada de modos com `id` estável, descrição e `CardEffect`; a ativação autoritativa exige o `modeId` escolhido e rejeita de forma fail-closed ids ausentes, desconhecidos, duplicados ou definições ambíguas antes de pagar qualquer custo.
+Habilidades modais adicionam escolhas determinísticas às habilidades ativadas. Uma habilidade modal possui lista ordenada de modos com `id` estável, descrição e `CardEffect`; a ativação exige o `modeId` escolhido e rejeita ids ausentes, desconhecidos, duplicados ou definições ambíguas antes de pagar qualquer custo.
 
-O custo, a exaustão, o sacrifício, a lealdade e o `maxUsesPerRound` pertencem à habilidade-base e são compartilhados por todos os modos. Cada modo pode usar um efeito e um `target` diferentes porque o targeting é derivado do próprio `CardEffect`. O transporte continua usando a ação 2.97 `sentinela`, agora com `modeId` opcional para preservar replays históricos de habilidades não modais.
+Custo, exaustão, sacrifício, lealdade e `maxUsesPerRound` pertencem à habilidade-base e são compartilhados por todos os modos. Cada modo pode usar efeito e target diferentes. O Studio oferece **Escolha um (modal)**, IDs persistentes `mode-N` e até quatro escolhas por habilidade.
 
-O corte runtime cobre execução autoritativa, reducer/replay/PvP, seleção e encaminhamento de modo na UI de partida, apresentação/tooltip, projeção `AbilityBlueprint`, IA determinística e regressões. O corte de authoring adiciona ao Card Studio a opção **Escolha um (modal)**, IDs persistentes `mode-N`, até quatro escolhas por habilidade e o mesmo compositor semântico de `CardEffect` usado pelas demais superfícies. O sanitizer do servidor é a autoridade final: rejeita `effect + modes`, modos vazios, ids inválidos/duplicados, overrides de custo/limite por modo, stack targeting ainda não suportado e conflitos entre custos da habilidade-base e qualquer modo.
-
-A certificação do authoring deve provar sanitização, round-trip de persistência, publish/catalog/runtime e superfície do Studio. `modal` permanece `partial` mesmo depois desse authoring: custos e condições diferentes por modo, modos dependentes de prioridade/reação e outras formas modais fora de habilidades ativadas ainda não pertencem ao contrato certificado.
+`modal` permanece `partial`: custos/condições diferentes por modo e modalidades fora das habilidades ativadas continuam fora do contrato certificado.
 
 ### Fase 4.2 — Expanded Activated Ability Costs
 
-O primeiro corte de custos alternativos adiciona `spellMana` e `consumeBarrier` ao mesmo `ActivatedAbilityCost` usado por runtime, IA, projeção e Studio. Não existe um segundo formato de custo e o opcode histórico de replay/PvP não muda, porque nenhum dos dois pagamentos exige informação adicional na ação do jogador.
+`spellMana` e `consumeBarrier` pertencem ao mesmo `ActivatedAbilityCost`. O executor mantém pagamento atômico: modo, target, limites e recursos são validados no estado original antes do clone. Falta de recurso, alvo inválido, Hexproof ou qualquer outra falha preserva o estado integralmente.
 
-O executor mantém pagamento atômico: modo, target, limites de uso e todos os recursos são validados no estado original antes do clone. Somente uma ativação integralmente legal cria o próximo estado e debita custos. Portanto, falta de mana de feitiço, ausência de Barrier, alvo inválido, Hexproof ou qualquer outra falha preserva mana regular, mana de feitiço, Barrier, vida, lealdade, uso por rodada e o restante do estado sem rollback manual.
-
-`spellMana` é um recurso finito independente e também conta como custo consumidor para habilidades sem limite por rodada. `consumeBarrier` conta como custo consumidor, mas naturalmente bloqueia a próxima ativação da mesma fonte até que uma nova Barrier seja concedida. O Studio expõe mana de feitiço para fontes persistentes suportadas e o custo de Barrier apenas para Units; o sanitizer continua sendo a autoridade final e rejeita payloads que tentem usar Barrier em Artifact, Enchantment ou Sentinela.
-
-A IA não ignora os novos recursos: elegibilidade continua vindo do executor autoritativo e a função de score penaliza o gasto de mana de feitiço e o valor defensivo perdido ao consumir Barrier. Como esse corte não adiciona escolha de carta/recurso externo, replays históricos e ações 2.97 permanecem byte-shape compatíveis.
+A IA considera os novos recursos e o Studio só oferece Barrier a Units. Replays históricos permanecem compatíveis porque esses pagamentos não exigem novo dado selecionável além do próprio contrato de custo.
 
 ### Fase 4.3 — Selected Discard Activated Cost
 
-`discardFromHand` estende `ActivatedAbilityCost` sem criar um formato paralelo. A quantidade fica no blueprint da habilidade-base e, quando maior que zero, a ativação exige a seleção concreta em `costDiscardInstanceIds`. O campo é opcional e aditivo no opcode histórico `sentinela`, portanto replays anteriores continuam desserializando sem alteração.
+`discardFromHand` mantém a quantidade no blueprint da habilidade-base e exige a seleção concreta em `costDiscardInstanceIds`. Sem IDs explícitos a ativação falha; quantidade incorreta, duplicatas e cartas fora da mão também falham antes de mutação.
 
-O preflight de UI e IA pode considerar a habilidade pronta quando a mão possui cartas suficientes, mas o executor autoritativo nunca infere a escolha do jogador: sem IDs explícitos a ativação falha. A validação também rejeita quantidade incorreta, IDs duplicados e qualquer carta fora da mão do ator. Target, modo e todos os demais custos são validados no mesmo estado original antes do clone, preservando atomicidade total.
+No gameplay humano existe seletor dedicado. A IA escolhe deterministicamente cartas de menor valor/custo conforme a política certificada. O Studio publica somente a quantidade, porque a escolha pertence à ação em runtime.
 
-No gameplay humano, um seletor dedicado cobre a arena e permite escolher exatamente N cartas antes do envio da ação; ele não reutiliza targeting de board nem o fluxo normal de jogar cartas. A IA escolhe deterministicamente as cartas de menor custo, com desempate estável por `defId` e `instanceId`, e o score inclui o valor sacrificado da mão. Studio publica somente a quantidade, porque a seleção pertence à ação em runtime. A browser certification de Studio comprova save/reload desse custo compartilhado.
+### Fase 4.4 — Reaction Activated Abilities
 
-`AbilityBlueprint` projeta esse custo como `{ kind: "discardFromHand", amount, selection: "explicitInstanceIds" }`, deixando explícito para ferramentas que existe uma decisão concreta associada ao pagamento.
+`CardDef.reactionActivatedAbilities` é uma coleção de timing explícito para fontes persistentes (`Unit`, `Artifact`, `Enchantment` e `Sentinela`). Ela reutiliza `ActivatedAbilityCost`, modos, `maxUsesPerRound` e efeitos do sistema ativado, mas não é executável na main phase. Cada habilidade declara `respondsTo`, uma lista única contendo `unit`, `spell` e/ou `sentinela`, determinando quais famílias de ação adversária podem abrir a oportunidade.
 
-Esse corte ainda não torna o Ability System 2.0 inteiro `FULL`. Retorno de permanentes, cemitério/exílio, marcadores, custos condicionais por modo e habilidades ativadas de reação/evento continuam em cortes próprios; modalidades e Aura permanecem `partial` até suas expansões finais.
+A integração usa a **mesma pilha LIFO autoritativa** já existente para reações de carta. Não existe uma segunda stack nem um motor paralelo de prioridade. Frames de battlefield recebem `responseKind: "activatedAbility"`, eliminando a ambiguidade do opcode histórico `sentinela` sem quebrar ações antigas. `modeId`, target e `costDiscardInstanceIds` continuam aditivos e opcionais.
+
+O runtime valida antes de qualquer pagamento:
+
+- ação pendente realmente adversária;
+- `respondsTo` compatível;
+- fonte controlada e ainda existente;
+- modo válido;
+- mana, spell mana, vida, descarte, Barrier, exaustão, sacrifício e lealdade;
+- limite de uso por rodada;
+- target de board e Hexproof;
+- `spellOnStack` somente para `negateSpell` contra uma magia pendente;
+- `uncounterable` antes de permitir uma anulação.
+
+Uma resposta não-counter resolve seu efeito no topo da stack antes da ação-base. Uma resposta `negateSpell` legal marca a magia pendente como negada pela mesma resolução LIFO. Custos são reais e pagos antes do efeito; descarte e sacrifício alteram as zonas antes da resolução subsequente.
+
+A IA usa o mesmo contrato de elegibilidade e produz payload determinístico com source, `abilityIndex`, modo, target e cartas descartadas. Replay autoritativo mantém o opcode histórico `react` e diferencia battlefield por `responseKind`, portanto logs antigos continuam válidos.
+
+No PvE humano, `ReactionStack` oferece um picker de **Resposta do campo**. A UI lista somente opções iniciáveis segundo o engine, deriva alvos pelo validador autoritativo, exige exatamente o descarte configurado e envia um payload tipado. O lifecycle revalida esse payload antes de registrá-lo ou resolvê-lo; manipular o DOM não autoriza uma ativação ilegal.
+
+O Card Studio possui painel **Habilidades de reação** com `respondsTo`, efeitos clássicos/modais, custos e limites compartilhados. `spellOnStack` é authorable somente nesse timing. O sanitizer do servidor continua sendo a autoridade final e rejeita fontes não persistentes, timings vazios/duplicados, overrides por modo e combinações inválidas.
+
+#### Limite multiplayer explícito
+
+O servidor atual de Casual PvP não persiste uma janela de prioridade/reação compartilhada. `react`, `resolve` e qualquer transição que tente retornar `awaitingReaction` são rejeitados pelo boundary PvP. Por isso, este corte **não declara suporte de reaction activated abilities no Casual PvP**; a funcionalidade permanece fail-closed nesse modo em vez de simular prioridade apenas no cliente.
+
+O próximo corte multiplayer deverá modelar prioridade pendente no estado/snapshot do room, ownership da janela, CAS/versionamento concorrente, timeout, reconexão, replay e dois browsers antes de habilitar reações humanas PvP.
+
+`reaction` permanece `partial` no Ability System 2.0 mesmo após este corte: a família já é funcional e authorable em PvE/replay/IA, mas prioridade geral, reação multiplayer persistida e futuros eventos/timings reativos ainda não formam uma linguagem universal completa.
 
 ### Próximos cortes
 
-1. habilidades ativadas de reação/evento integradas ao protocolo autoritativo;
-2. Aura 2.0 com efeitos contínuos genéricos além de atributos permanentes;
+1. Aura 2.0 com efeitos contínuos genéricos além de atributos permanentes;
+2. prioridade/reação persistida no Casual PvP com concorrência, timeout e reconexão;
 3. próximos custos selecionáveis, como retorno de permanentes e recursos de futuras zonas, somente quando a respectiva zona/protocolo estiver certificado;
-4. certificação transversal e revisão final da matriz de suporte antes de promover qualquer família a `supported`/`FULL`.
+4. expansão de timings/eventos reativos além das ações de carta atuais;
+5. certificação transversal e revisão final da matriz de suporte antes de promover qualquer família a `supported`/`FULL`.
