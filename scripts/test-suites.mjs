@@ -39,6 +39,7 @@ export const behavioralTests = [
   "src/lib/content-studio-3-regression.test.ts",
   "src/lib/content-studio-4-regression.test.ts",
   "src/lib/content-studio-5-regression.test.ts",
+  "src/lib/content-validation-modal.test.ts",
   "src/lib/engineering-integrity-2.96.3.test.ts",
   "src/lib/mercado-pago-2.93.test.ts",
   "src/lib/operational-logger.test.ts",
