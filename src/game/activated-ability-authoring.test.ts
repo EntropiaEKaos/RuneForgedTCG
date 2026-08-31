@@ -113,7 +113,15 @@ expectRejected(artifact({
     cost: { mana: 1 },
     modes: [{ id: "one", description: "One", cost: { mana: 2 }, effect: { kind: "draw", amount: 1, target: "none" } }],
   }],
-}), /cannot override cost or usage limits/i, "modes cannot introduce per-mode costs before that runtime contract exists");
+}), /cannot override cost, condition or usage limits/i, "modes cannot introduce per-mode costs before that runtime contract exists");
+
+expectRejected(artifact({
+  activatedAbilities: [{
+    description: "Mode condition override",
+    cost: { mana: 1 },
+    modes: [{ id: "one", description: "One", condition: { kind: "always" }, effect: { kind: "draw", amount: 1, target: "none" } }],
+  }],
+}), /cannot override cost, condition or usage limits/i, "modes cannot silently accept uncertified per-mode conditions");
 
 expectRejected(artifact({
   activatedAbilities: [{
@@ -121,7 +129,7 @@ expectRejected(artifact({
     cost: { mana: 1 },
     modes: [{ id: "one", description: "One", maxUsesPerRound: 2, effect: { kind: "draw", amount: 1, target: "none" } }],
   }],
-}), /cannot override cost or usage limits/i, "modes cannot introduce per-mode usage budgets");
+}), /cannot override cost, condition or usage limits/i, "modes cannot introduce per-mode usage budgets");
 
 expectRejected(artifact({
   activatedAbilities: [{
