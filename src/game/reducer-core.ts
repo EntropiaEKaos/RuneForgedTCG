@@ -10,13 +10,13 @@ import {
   activateAbility,
   applyStackedActionWithAi,
   canBlock,
-  canCastReaction,
   canDeclareAttack,
   canPlayCard,
   castSpell,
   createGame,
   declareAttack,
   endTurn,
+  hasReactionOpportunity,
   playUnit,
   resolveCombat,
   mulligan,
@@ -49,7 +49,17 @@ export type GameAction =
   | { type: "attack"; player: PlayerId; attackerIds: string[]; challenges?: Record<string, string>; sentinelaTargets?: Record<string, string> }
   | { type: "block"; blocks: Record<string, string> }
   | { type: "pass"; player: PlayerId }
-  | { type: "react"; player: PlayerId; instanceId: string; target?: string }
+  | {
+      type: "react";
+      player: PlayerId;
+      instanceId: string;
+      target?: string;
+      /** Additive identity for a battlefield response; absent means hand spell. */
+      responseKind?: "activatedAbility";
+      abilityIndex?: number;
+      modeId?: string;
+      costDiscardInstanceIds?: string[];
+    }
   | { type: "resolve" } // resolve the open reaction window
   | { type: "sentinela"; player: PlayerId; sentinelaId: string; abilityIndex: number; target?: string; modeId?: string; costDiscardInstanceIds?: string[] }
   | { type: "mulligan"; player: PlayerId; cardIds: string[] }
@@ -93,9 +103,7 @@ function findPermanent(
 }
 
 function actionReactable(state: GameState, action: CardAction): boolean {
-  return state.players.player.hand.some((c) =>
-    canCastReaction(state, "player", c.instanceId, action.kind),
-  );
+  return hasReactionOpportunity(state, "player", action);
 }
 
 function runAiWithReaction(state: GameState, action: CardAction, maxSteps: number): GameState {
@@ -171,17 +179,13 @@ export function applyGameAction(state: GameState, action: GameAction, opponentIs
             defId: inst.defId,
             targetInstanceId: action.target,
           };
-          // IMPORTANT: resolve through the LIFO stack BEFORE the spell is
-          // applied to the board — this is what lets the AI's counterspell
-          // actually negate it, instead of "reacting" to something that
-          // already happened (the bug this fix addresses).
           return { next: applyStackedActionWithAi(state, cardAction, "skip", null, aiChooseReaction).next };
         }
         return { next: castSpell(state, action.player, action.instanceId, action.target) };
       }
 
       const cardAction: CardAction = {
-        kind: card.type === "Equipment" ? "unit" : "unit",
+        kind: "unit",
         instanceId: action.instanceId,
         defId: inst.defId,
         targetInstanceId: action.target,
@@ -193,16 +197,7 @@ export function applyGameAction(state: GameState, action: GameAction, opponentIs
     }
 
     case "cast": {
-      const inst = state.players[action.player].hand.find(
-        (c) => c.instanceId === action.instanceId,
-      );
-      // Unlike "play" (which already no-ops on a missing hand card), this
-      // branch used to fall back to a literal "unknown" defId and proceed
-      // anyway — getCard("unknown") then throws, uncaught, turning a bogus
-      // or stale instanceId (trivially reachable via PvP, since
-      // validateGameAction only checks turn/phase/ownership for "cast", not
-      // that the card is actually in hand) into a raw 500 instead of a
-      // clean rejection. Mirror "play"'s guard instead.
+      const inst = state.players[action.player].hand.find((c) => c.instanceId === action.instanceId);
       if (!inst) return { next: state };
       if (action.player === "player" && opponentIsBot) {
         const cardAction: CardAction = {
@@ -219,8 +214,6 @@ export function applyGameAction(state: GameState, action: GameAction, opponentIs
     case "attack": {
       const s = declareAttack(state, action.player, action.attackerIds, action.challenges, action.sentinelaTargets);
       if (opponentIsBot && s.phase === "blocking" && s.combat?.attackerId === "player") {
-        // Only PvE lets the server assign AI blockers. PvP must expose the
-        // blocking phase to the human defender and wait for an explicit block action.
         const blocked = aiDefend(s);
         return { next: blocked };
       }
@@ -237,10 +230,11 @@ export function applyGameAction(state: GameState, action: GameAction, opponentIs
     }
 
     case "react": {
-      // Applies the pending human reaction spell, then lets it resolve.
-      // The reaction window is cancelled by the client calling applying the
-      // human spell then the AI action. Simpler here: cast the spell now.
-      // (Implementation mirrors the single-step reaction applied by UI.)
+      // Battlefield responses only make sense while a pending stack action is
+      // available to the reaction protocol. The authoritative replay/client
+      // path resolves them through applyStackedActionWithAi, never as a naked
+      // reducer transition.
+      if (action.responseKind === "activatedAbility") return { next: state };
       const opened = state.players[action.player].hand.find((c) => c.instanceId === action.instanceId);
       if (!opened) return { next: state };
       const s = castSpell(state, action.player, action.instanceId, action.target);
@@ -248,7 +242,6 @@ export function applyGameAction(state: GameState, action: GameAction, opponentIs
     }
 
     case "resolve": {
-      // Let the current AI action resolve through the reaction window.
       return runAiWithReactionStartingFrom(state, action);
     }
 
@@ -299,10 +292,6 @@ export function simulateMatch(
   s = skipMulligan(s, "player");
   s = skipMulligan(s, "ai");
   let aiMoves = 0;
-  // Drive both parameterized AI sides. The previous implementation only ran
-  // runAiMain(), which intentionally accepts turns owned by "ai"; whenever
-  // priority passed to "player" it repeatedly called aiResolveTurnEnd for the
-  // wrong side and remained forever in round one.
   for (let i = 0; i < maxSteps; i++) {
     if (s.phase === "gameover") break;
     if (s.phase === "blocking") {
