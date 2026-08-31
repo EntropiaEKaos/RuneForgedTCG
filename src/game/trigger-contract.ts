@@ -32,6 +32,34 @@ export const TRIGGER_EVENTS_BY_CARD_TYPE = {
   Sentinela: [],
 } as const satisfies Record<CardType, readonly TriggerWhen[]>;
 
+/**
+ * Semantic timing is deliberately narrower than the full AbilityTiming model.
+ * These are automatic triggers; the distinction records whether the runtime
+ * dispatches them inside the authoritative combat sequence or outside it.
+ */
+export type TriggerSemanticTiming = "automatic" | "combat";
+
+export const COMBAT_TRIGGER_EVENTS = [
+  "onAttack",
+  "onBlock",
+  "onStrike",
+  "onNexusStrike",
+] as const satisfies readonly TriggerWhen[];
+
+export const TRIGGER_TIMING_BY_EVENT = {
+  onSummon: "automatic",
+  onStrike: "combat",
+  onNexusStrike: "combat",
+  onRoundStart: "automatic",
+  onLevelUp: "automatic",
+  onKill: "automatic",
+  onPermanentSummon: "automatic",
+  onAttack: "combat",
+  onBlock: "combat",
+  onAllyDeath: "automatic",
+  onDeath: "automatic",
+} as const satisfies Record<TriggerWhen, TriggerSemanticTiming>;
+
 export type TriggerSourceSupport = "supported" | "unsupported";
 
 export function supportedTriggerEvents(cardType: CardType): readonly TriggerWhen[] {
@@ -44,6 +72,10 @@ export function isTriggerSupported(cardType: CardType, when: TriggerWhen): boole
 
 export function triggerSourceSupport(cardType: CardType, when: TriggerWhen): TriggerSourceSupport {
   return isTriggerSupported(cardType, when) ? "supported" : "unsupported";
+}
+
+export function triggerTiming(when: TriggerWhen): TriggerSemanticTiming {
+  return TRIGGER_TIMING_BY_EVENT[when];
 }
 
 export function triggerContractError(cardType: CardType, when: TriggerWhen): string | null {
