@@ -6,6 +6,7 @@ import {
   CARD_TRIGGERS,
   MECHANIC_CONDITION_KINDS,
 } from "./card-authoring";
+import { CONDITION_AUTHORING_CONTRACT, CONDITION_RUNTIME_SUPPORT } from "./condition-contract";
 import { KEYWORD_INFO, type KeywordRuntimeDomain } from "./keywords";
 import { TRIGGER_TIMING_BY_EVENT, triggerTiming } from "./trigger-contract";
 import type {
@@ -185,6 +186,13 @@ export const ABILITY_KIND_SUPPORT = {
   linked: "partial",
 } as const satisfies Record<AbilityKind, AbilityRuntimeSupport>;
 
+export const ABILITY_FEATURE_SUPPORT = {
+  conditional: "supported",
+  chained: "supported",
+  repeatable: "supported",
+  targeted: "supported",
+} as const satisfies Record<AbilityFeature, AbilityRuntimeSupport>;
+
 export const ABILITY_TIMING_SUPPORT = {
   static: "supported",
   automatic: "supported",
@@ -202,12 +210,15 @@ export const ABILITY_GRAMMAR_CATALOG = {
   costs: ABILITY_COST_KINDS,
   rules: ABILITY_RULE_KINDS,
   kindSupport: ABILITY_KIND_SUPPORT,
+  featureSupport: ABILITY_FEATURE_SUPPORT,
   timingSupport: ABILITY_TIMING_SUPPORT,
   effects: CARD_EFFECT_KINDS,
   targets: CARD_TARGETS,
   triggers: CARD_TRIGGERS,
   triggerTiming: TRIGGER_TIMING_BY_EVENT,
   conditions: MECHANIC_CONDITION_KINDS,
+  conditionContracts: CONDITION_RUNTIME_SUPPORT,
+  conditionAuthoring: CONDITION_AUTHORING_CONTRACT,
   keywords: CARD_KEYWORDS,
   keywordContracts: KEYWORD_INFO,
 } as const;
