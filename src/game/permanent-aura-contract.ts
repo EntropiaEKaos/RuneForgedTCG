@@ -41,14 +41,29 @@ export interface PermanentAuraBonus {
   sources: number;
 }
 
-function inferredDurableKeywords(unit: UnitInstance): Keyword[] {
+/**
+ * Capture every known durable source before replacing the previous Aura layer.
+ * Printed and Equipment keywords are recovered from CardDefs, so an overlapping
+ * Aura can never hide their provenance. Existing durable entries carry one-shot
+ * grants that were explicitly recorded by grantDurableKeyword().
+ */
+function captureDurableKeywords(unit: UnitInstance): Keyword[] {
+  const result = new Set<Keyword>(unit.durableKeywords ?? []);
   const priorAura = new Set(unit.auraKeywords ?? []);
-  return unit.keywords.filter((keyword) => !priorAura.has(keyword));
+  for (const keyword of unit.keywords) {
+    if (!priorAura.has(keyword)) result.add(keyword);
+  }
+  for (const keyword of getCard(unit.defId).keywords ?? []) result.add(keyword);
+  for (const equipment of unit.equipment) {
+    const def = getCard(equipment.defId);
+    for (const keyword of def.equipment?.keywords ?? []) result.add(keyword);
+  }
+  return [...result];
 }
 
-/** Rebuild the effective keyword view from durable state plus current Aura contribution. */
+/** Rebuild the effective keyword view from explicit durable state plus current Aura contribution. */
 export function recomputeEffectiveKeywords(unit: UnitInstance): void {
-  const durable = [...new Set(unit.durableKeywords ?? inferredDurableKeywords(unit))];
+  const durable = [...new Set(unit.durableKeywords ?? [])];
   const aura = [...new Set(unit.auraKeywords ?? [])];
   unit.durableKeywords = durable;
   unit.auraKeywords = aura;
@@ -57,7 +72,7 @@ export function recomputeEffectiveKeywords(unit: UnitInstance): void {
 
 /** Record a persistent grant even when the same keyword is currently supplied by an Aura. */
 export function grantDurableKeyword(unit: UnitInstance, keyword: Keyword): void {
-  const durable = new Set(unit.durableKeywords ?? inferredDurableKeywords(unit));
+  const durable = new Set(captureDurableKeywords(unit));
   durable.add(keyword);
   unit.durableKeywords = [...durable];
   recomputeEffectiveKeywords(unit);
@@ -98,6 +113,7 @@ export function permanentAuraBonusForUnit(state: GameState, unit: UnitInstance):
     result.sources += 1;
   }
 
+  unit.durableKeywords = captureDurableKeywords(unit);
   unit.auraKeywords = permanentAuraKeywordsForUnit(state, unit);
   recomputeEffectiveKeywords(unit);
   return result;
