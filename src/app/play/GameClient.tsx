@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatchReward } from "@/components/game/MatchResult";
+import { ActivatedDiscardPicker, type PendingActivatedDiscard } from "@/components/game/ActivatedDiscardPicker";
 import { allCards, getCard } from "@/game/cards";
 import { registerCustomCards } from "@/game/custom-registry";
 import { DECKS, type DeckDef } from "@/game/decks";
@@ -58,6 +59,7 @@ export default function GameClient() {
   // Kept under the legacy name for replay/UI compatibility in 2.97; this now
   // represents targeting for any board entity's activated ability.
   const [pendingSentinelaAbility, setPendingSentinelaAbility] = useState<{ sentinelaId: string; abilityIndex: number; targetType: TargetKind; modeId?: string } | null>(null);
+  const [pendingActivatedDiscard, setPendingActivatedDiscard] = useState<PendingActivatedDiscard | null>(null);
   const [selectedAttackers, setSelectedAttackers] = useState<string[]>([]);
   const [challenges, setChallenges] = useState<Record<string, string>>({});
   const [sentinelaTargets, setSentinelaTargets] = useState<Record<string, string>>({});
@@ -86,6 +88,10 @@ export default function GameClient() {
       if (profile.player?.name) setPlayerName(String(profile.player.name));
     });
   }, []);
+
+  useEffect(() => {
+    if (screen === "select") setPendingActivatedDiscard(null);
+  }, [screen]);
 
   const savedRef = useRef(false);
   const recordAction = useCallback((action: GameAction) => {
@@ -169,15 +175,59 @@ export default function GameClient() {
     );
   }, [state, selectedAttackers]);
 
-  const commitActivatedAbility = useCallback((sourceInstanceId: string, abilityIndex: number, target?: string, modeId?: string) => {
+  const commitActivatedAbility = useCallback((
+    sourceInstanceId: string,
+    abilityIndex: number,
+    target?: string,
+    modeId?: string,
+    costDiscardInstanceIds?: string[],
+  ) => {
     if (!state) return;
     // Preserve the versioned 2.97 wire opcode. The server now interprets
-    // sentinelaId as a generic controlled board-source id.
-    const action: GameAction = { type: "sentinela", player: "player", sentinelaId: sourceInstanceId, abilityIndex, target, ...(modeId ? { modeId } : {}) };
+    // sentinelaId as a generic controlled board-source id. Selection-dependent
+    // cost ids are additive replay/PvP payload fields.
+    const action: GameAction = {
+      type: "sentinela",
+      player: "player",
+      sentinelaId: sourceInstanceId,
+      abilityIndex,
+      target,
+      ...(modeId ? { modeId } : {}),
+      ...(costDiscardInstanceIds?.length ? { costDiscardInstanceIds } : {}),
+    };
+    setPendingActivatedDiscard(null);
     if (isPvp) { void sendPvpAction(action); return; }
     recordAction(action);
-    setState(activateAbility(state, "player", sourceInstanceId, abilityIndex, target, modeId));
+    setState(activateAbility(state, "player", sourceInstanceId, abilityIndex, target, modeId, costDiscardInstanceIds));
   }, [state, recordAction, isPvp, sendPvpAction]);
+
+  const beginActivatedAbilityPayment = useCallback((
+    sourceInstanceId: string,
+    abilityIndex: number,
+    target?: string,
+    modeId?: string,
+  ) => {
+    if (!state) return;
+    const ability = activatedAbilitiesForInstance(state, "player", sourceInstanceId)[abilityIndex];
+    if (!ability) return;
+    const required = ability.cost?.discardFromHand ?? 0;
+    if (required > 0) {
+      if (state.players.player.hand.length < required) {
+        setFirstInfo("Cartas insuficientes na mão para pagar o custo de descarte.");
+        return;
+      }
+      setPendingActivatedDiscard({
+        sourceInstanceId,
+        abilityIndex,
+        required,
+        selectedIds: [],
+        ...(target ? { target } : {}),
+        ...(modeId ? { modeId } : {}),
+      });
+      return;
+    }
+    commitActivatedAbility(sourceInstanceId, abilityIndex, target, modeId);
+  }, [state, commitActivatedAbility]);
 
   const handleActivatedAbility = useCallback(
     (sourceInstanceId: string, abilityIndex: number, modeId?: string) => {
@@ -198,9 +248,9 @@ export default function GameClient() {
         setPendingSentinelaAbility({ sentinelaId: sourceInstanceId, abilityIndex, targetType: effect.target, ...(resolved.choice.modeId ? { modeId: resolved.choice.modeId } : {}) });
         return;
       }
-      commitActivatedAbility(sourceInstanceId, abilityIndex, undefined, resolved.choice.modeId);
+      beginActivatedAbilityPayment(sourceInstanceId, abilityIndex, undefined, resolved.choice.modeId);
     },
-    [state, commitActivatedAbility],
+    [state, beginActivatedAbilityPayment],
   );
 
   const activatedTargetOk = useCallback((entity: BoardEntity) => {
@@ -213,7 +263,7 @@ export default function GameClient() {
       if (!state) return;
       const sentinela = state.players[senOwner].sentinelas.find((candidate) => candidate.instanceId === senInstanceId);
       if (pendingSentinelaAbility && sentinela && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: senOwner })) {
-        commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, senInstanceId, pendingSentinelaAbility.modeId);
+        beginActivatedAbilityPayment(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, senInstanceId, pendingSentinelaAbility.modeId);
         setPendingSentinelaAbility(null);
         return;
       }
@@ -231,7 +281,7 @@ export default function GameClient() {
         });
       }
     },
-    [state, pendingSentinelaAbility, activatedTargetOk, commitActivatedAbility, isPlayerMain, canAttackNow, selectedAttackers],
+    [state, pendingSentinelaAbility, activatedTargetOk, beginActivatedAbilityPayment, isPlayerMain, canAttackNow, selectedAttackers],
   );
 
   const reactionTargetOk = useCallback(
@@ -381,7 +431,7 @@ export default function GameClient() {
       if (!state) return;
       if (pendingSentinelaAbility) {
         if (activatedTargetOk({ kind: "permanent", perm, owner: perm.owner })) {
-          commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, perm.instanceId, pendingSentinelaAbility.modeId);
+          beginActivatedAbilityPayment(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, perm.instanceId, pendingSentinelaAbility.modeId);
           setPendingSentinelaAbility(null);
         }
         return;
@@ -411,7 +461,7 @@ export default function GameClient() {
         return;
       }
     },
-    [state, pendingSentinelaAbility, activatedTargetOk, commitActivatedAbility, reaction, pendingReaction, reactionTargetOk, finishReaction, pendingSpell, applyWithAiReaction],
+    [state, pendingSentinelaAbility, activatedTargetOk, beginActivatedAbilityPayment, reaction, pendingReaction, reactionTargetOk, finishReaction, pendingSpell, applyWithAiReaction],
   );
 
   const handleUnitClick = useCallback(
@@ -420,7 +470,7 @@ export default function GameClient() {
 
       if (pendingSentinelaAbility) {
         if (activatedTargetOk({ kind: "unit", unit, owner: unit.owner })) {
-          commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, unit.instanceId, pendingSentinelaAbility.modeId);
+          beginActivatedAbilityPayment(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, unit.instanceId, pendingSentinelaAbility.modeId);
           setPendingSentinelaAbility(null);
         }
         return;
@@ -506,7 +556,7 @@ export default function GameClient() {
       state,
       pendingSentinelaAbility,
       activatedTargetOk,
-      commitActivatedAbility,
+      beginActivatedAbilityPayment,
       reaction,
       pendingReaction,
       reactionTargetOk,
@@ -522,6 +572,28 @@ export default function GameClient() {
       challenges,
     ],
   );
+
+  const toggleActivatedDiscard = useCallback((instanceId: string) => {
+    setPendingActivatedDiscard((current) => {
+      if (!current) return current;
+      if (current.selectedIds.includes(instanceId)) {
+        return { ...current, selectedIds: current.selectedIds.filter((id) => id !== instanceId) };
+      }
+      if (current.selectedIds.length >= current.required) return current;
+      return { ...current, selectedIds: [...current.selectedIds, instanceId] };
+    });
+  }, []);
+
+  const confirmActivatedDiscard = useCallback(() => {
+    if (!pendingActivatedDiscard || pendingActivatedDiscard.selectedIds.length !== pendingActivatedDiscard.required) return;
+    commitActivatedAbility(
+      pendingActivatedDiscard.sourceInstanceId,
+      pendingActivatedDiscard.abilityIndex,
+      pendingActivatedDiscard.target,
+      pendingActivatedDiscard.modeId,
+      pendingActivatedDiscard.selectedIds,
+    );
+  }, [pendingActivatedDiscard, commitActivatedAbility]);
 
   const confirmAttack = useCallback(() => {
     if (!state || selectedAttackers.length === 0) return;
@@ -551,6 +623,7 @@ export default function GameClient() {
     setChallenges({});
     setPendingSpell(null);
     setPendingSentinelaAbility(null);
+    setPendingActivatedDiscard(null);
     const action: GameAction = { type: "pass", player: "player" };
     if (isPvp) void sendPvpAction(action);
     else { recordAction(action); setState(endTurn(state, "player")); }
@@ -559,7 +632,7 @@ export default function GameClient() {
   useEffect(() => {
     const onBattleKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (target?.matches("input,textarea,select,[contenteditable='true']") || settingsOpen || guideOpen) return;
+      if (target?.matches("input,textarea,select,[contenteditable='true']") || settingsOpen || guideOpen || pendingActivatedDiscard) return;
       if (event.key === "Enter") {
         if (isPlayerBlocking) { event.preventDefault(); confirmBlocks(); }
         else if (selectedAttackers.length > 0 && canAttackNow) { event.preventDefault(); confirmAttack(); }
@@ -571,7 +644,7 @@ export default function GameClient() {
     };
     window.addEventListener("keydown", onBattleKey);
     return () => window.removeEventListener("keydown", onBattleKey);
-  }, [settingsOpen, guideOpen, isPlayerBlocking, confirmBlocks, selectedAttackers.length, canAttackNow, confirmAttack, reaction, finishReaction, isPlayerMain, pendingSpell, pendingSentinelaAbility, endMyTurn]);
+  }, [settingsOpen, guideOpen, pendingActivatedDiscard, isPlayerBlocking, confirmBlocks, selectedAttackers.length, canAttackNow, confirmAttack, reaction, finishReaction, isPlayerMain, pendingSpell, pendingSentinelaAbility, endMyTurn]);
 
   if (screen === "select" || !state) {
     return (
@@ -614,47 +687,58 @@ export default function GameClient() {
   }
 
   return (
-    <BattleView
-      state={state}
-      presetDecks={presetDecks}
-      activeEncounter={activeEncounter}
-      matchReward={matchReward}
-      reaction={reaction}
-      pendingSpell={pendingSpell}
-      pendingReaction={pendingReaction}
-      pendingSentinelaAbility={pendingSentinelaAbility}
-      selectedAttackers={selectedAttackers}
-      selectedChallengers={selectedChallengers}
-      selectedBlocker={selectedBlocker}
-      challenges={challenges}
-      blockAssignments={blockAssignments}
-      isPlayerMain={isPlayerMain}
-      isPlayerBlocking={isPlayerBlocking}
-      canAttackNow={canAttackNow}
-      timeLeft={timeLeft}
-      firstInfo={firstInfo}
-      presentation={presentation}
-      pvp={pvp}
-      isValidSpellTarget={isValidSpellTarget}
-      reactionTargetOk={reactionTargetOk}
-      activatedTargetOk={activatedTargetOk}
-      handlePermanentClick={handlePermanentClick}
-      handleSentinelaClick={handleSentinelaClick}
-      handleSentinelaActivate={handleActivatedAbility}
-      handleUnitClick={handleUnitClick}
-      handleHandClick={handleHandClick}
-      confirmAttack={confirmAttack}
-      confirmBlocks={confirmBlocks}
-      endMyTurn={endMyTurn}
-      finishReaction={finishReaction}
-      replay={startMatch}
-      changeDeck={() => setScreen("select")}
-      setPendingSpell={setPendingSpell}
-      setPendingReaction={setPendingReaction}
-      setPendingSentinelaAbility={setPendingSentinelaAbility}
-      setSelectedBlocker={setSelectedBlocker}
-      setChallenges={setChallenges}
-      setSentinelaTargets={setSentinelaTargets}
-    />
+    <>
+      <BattleView
+        state={state}
+        presetDecks={presetDecks}
+        activeEncounter={activeEncounter}
+        matchReward={matchReward}
+        reaction={reaction}
+        pendingSpell={pendingSpell}
+        pendingReaction={pendingReaction}
+        pendingSentinelaAbility={pendingSentinelaAbility}
+        selectedAttackers={selectedAttackers}
+        selectedChallengers={selectedChallengers}
+        selectedBlocker={selectedBlocker}
+        challenges={challenges}
+        blockAssignments={blockAssignments}
+        isPlayerMain={isPlayerMain}
+        isPlayerBlocking={isPlayerBlocking}
+        canAttackNow={canAttackNow}
+        timeLeft={timeLeft}
+        firstInfo={firstInfo}
+        presentation={presentation}
+        pvp={pvp}
+        isValidSpellTarget={isValidSpellTarget}
+        reactionTargetOk={reactionTargetOk}
+        activatedTargetOk={activatedTargetOk}
+        handlePermanentClick={handlePermanentClick}
+        handleSentinelaClick={handleSentinelaClick}
+        handleSentinelaActivate={handleActivatedAbility}
+        handleUnitClick={handleUnitClick}
+        handleHandClick={handleHandClick}
+        confirmAttack={confirmAttack}
+        confirmBlocks={confirmBlocks}
+        endMyTurn={endMyTurn}
+        finishReaction={finishReaction}
+        replay={startMatch}
+        changeDeck={() => { setPendingActivatedDiscard(null); setScreen("select"); }}
+        setPendingSpell={setPendingSpell}
+        setPendingReaction={setPendingReaction}
+        setPendingSentinelaAbility={setPendingSentinelaAbility}
+        setSelectedBlocker={setSelectedBlocker}
+        setChallenges={setChallenges}
+        setSentinelaTargets={setSentinelaTargets}
+      />
+      {pendingActivatedDiscard && (
+        <ActivatedDiscardPicker
+          state={state}
+          pending={pendingActivatedDiscard}
+          onToggle={toggleActivatedDiscard}
+          onConfirm={confirmActivatedDiscard}
+          onCancel={() => setPendingActivatedDiscard(null)}
+        />
+      )}
+    </>
   );
 }
