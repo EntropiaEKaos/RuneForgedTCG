@@ -104,7 +104,6 @@ function state(): GameState {
 try {
   // Authoring contracts are fail-closed and normalize the player-facing names.
   const structureAuth = validateAuthorableCardWithSemanticTypes(structure);
-  assert.equal(structureAuth.ok, true);
   if (!structureAuth.ok) throw new Error(structureAuth.error);
   assert.equal(structureAuth.card.type, "Artifact");
   assert.equal(structureAuth.card.archetypeName, "Estrutura");
