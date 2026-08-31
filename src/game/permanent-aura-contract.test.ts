@@ -115,9 +115,13 @@ withRegisteredCardSnapshot([auraCard({ buffPower: 1, buffHealth: 1, races: ["Bea
 
   const newUnit = makeUnit(state, "wood_cub", "player");
   newUnit.classes = ["guardian"];
+  state.players.player.bench.push(newUnit);
   recomputeContinuousAuras(state);
-  const baseline = makeUnit(createGame("Baseline", DECKS[2], DECKS[0], true, 640003), "wood_cub", "player");
-  assert.equal(newUnit.power, baseline.power + 1, "new units derive live Aura from an already-present source");
+  const baselineState = createGame("Baseline", DECKS[2], DECKS[0], true, 640003);
+  baselineState.players.player.permanents = [];
+  const baseline = makeUnit(baselineState, "wood_cub", "player");
+  assert.equal(newUnit.power, baseline.power + 1, "new units derive live Aura after their authored class identity is present on the battlefield");
+  assert.equal(newUnit.maxHealth, baseline.maxHealth + 1);
 });
 
 withRegisteredCardSnapshot([auraCard({ buffPower: 0, buffHealth: 3 })], () => {
