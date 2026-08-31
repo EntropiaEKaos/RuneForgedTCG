@@ -97,21 +97,27 @@ export function BattleView(props: BattleViewProps) {
     setMasterVolumeState, fxMode, setFxMode, uiScale, setUiScale, combatPace, setCombatPace,
     performanceTier,
   } = presentation;
-  const { isPvp, pvpConnection, pvpMessage, pvpVersion, pvpLatency } = pvp;
+  const { isPvp, pvpConnection, pvpMessage, pvpVersion, pvpLatency, pvpReaction } = pvp;
 
   const player = state.players.player;
   const ai = state.players.ai;
   const gameover = state.phase === "gameover";
+  const pvpPriorityOpen = isPvp && Boolean(pvpReaction);
+  const pvpWaitingForOpponent = pvpPriorityOpen && pvpReaction?.responder === "ai";
+  const pvpHoldingPriority = pvpPriorityOpen && pvpReaction?.responder === "player";
+  const normalActionsOpen = !pvpPriorityOpen;
   const lockedBlocks = state.combat?.blocks ?? {};
   const lockedAttackers = state.combat?.locked ?? [];
   const banner = gameover
     ? state.winner === "player" ? "🏆 Vitória! O Nexus inimigo caiu." : "💀 Derrota. Seu Nexus foi destruído."
-    : isPlayerBlocking ? "🛡️ Defina seus bloqueadores e confirme."
-      : isPlayerMain ? pendingSpell ? "🎯 Escolha um alvo para o feitiço."
-        : pendingSentinelaAbility ? "🎯 Escolha um alvo para a habilidade ativada."
-          : canAttackNow ? selectedChallengers.length > 0 ? "Selecione rivais para desafiá-los e então ataque." : "Seu turno — jogue cartas ou selecione atacantes."
-            : "Seu turno — jogue cartas (sem Token de Ataque)."
-        : "⏳ O adversário está planejando…";
+    : pvpWaitingForOpponent ? "⏳ Aguardando a resposta do adversário…"
+      : pvpHoldingPriority ? "⚡ Você tem prioridade — responda ou passe."
+        : isPlayerBlocking ? "🛡️ Defina seus bloqueadores e confirme."
+          : isPlayerMain ? pendingSpell ? "🎯 Escolha um alvo para o feitiço."
+            : pendingSentinelaAbility ? "🎯 Escolha um alvo para a habilidade ativada."
+              : canAttackNow ? selectedChallengers.length > 0 ? "Selecione rivais para desafiá-los e então ataque." : "Seu turno — jogue cartas ou selecione atacantes."
+                : "Seu turno — jogue cartas (sem Token de Ataque)."
+            : "⏳ O adversário está planejando…";
   const aiAttackers = ai.bench.filter((unit) => unit.isAttacking);
   const playerAttackers = player.bench.filter((unit) => unit.isAttacking);
   const levelFxBusy = new Set(fx.filter((event) => event.type === "levelup").map((event) => event.unitId));
@@ -124,7 +130,7 @@ export function BattleView(props: BattleViewProps) {
   const reactionTargetName = reaction && stackTop?.targetInstanceId
     ? (() => { const defId = boardEntityName(reaction.baseState, stackTop.targetInstanceId); return defId ? getCard(defId).name : null; })()
     : null;
-  const matchPhase: MatchPhase = gameover ? "gameover" : reaction ? "response" : isPlayerBlocking || selectedAttackers.length > 0 ? "combat" : isPlayerMain ? "main" : "opponent";
+  const matchPhase: MatchPhase = gameover ? "gameover" : reaction ? "response" : pvpWaitingForOpponent ? "opponent" : isPlayerBlocking || selectedAttackers.length > 0 ? "combat" : isPlayerMain ? "main" : "opponent";
   const guidance = matchGuidance(matchPhase, selectedAttackers.length, Boolean(pendingSpell || pendingSentinelaAbility || pendingReaction));
   const visualCardId = player.hand[0]?.defId ?? player.bench[0]?.defId ?? player.deck[0];
   const battlefieldRegions = player.deckRegions ?? presetDecks.find((deck) => deck.id === player.deckId)?.regions ?? (visualCardId ? [getCard(visualCardId).region] : []);
@@ -145,6 +151,7 @@ export function BattleView(props: BattleViewProps) {
       data-deck-identity={battlefieldRegions.join("-").toLowerCase()}
       data-match-phase={matchPhase}
       data-pvp-busy={isPvp && (pvpConnection === "sending" || pvpConnection === "retrying")}
+      data-pvp-reaction-priority={pvpPriorityOpen ? pvpReaction?.responder : "none"}
       data-fx={fxMode}
       data-ui-scale={uiScale}
       data-combat-pace={combatPace}
@@ -184,7 +191,7 @@ export function BattleView(props: BattleViewProps) {
           })}
           {ai.sentinelas.map((sentinela) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: "ai" });
-            const attackTarget = isPlayerMain && canAttackNow;
+            const attackTarget = normalActionsOpen && isPlayerMain && canAttackNow;
             return (
               <div key={sentinela.instanceId} className={abilityTarget ? "cursor-pointer rounded-xl ring-4 ring-yellow-300" : attackTarget ? "cursor-pointer hover:ring-2 hover:ring-red-400" : ""} onClick={(abilityTarget || attackTarget) ? () => handleSentinelaClick(sentinela.instanceId, "ai") : undefined} title={abilityTarget ? "Alvo válido para a habilidade" : attackTarget ? "Clique para atacar esta Sentinela" : ""}>
                 <SentinelaView instance={sentinela} state={state} size="sm" />
@@ -194,10 +201,10 @@ export function BattleView(props: BattleViewProps) {
           {ai.bench.map((unit) => {
             const challenged = Object.values(challenges).includes(unit.instanceId);
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "ai" });
-            const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || (reaction && !!pendingReaction && reactionTargetOk("ai")) || (isPlayerBlocking && unit.isAttacking) || (isPlayerMain && canAttackNow && selectedChallengers.length > 0);
+            const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || (reaction && !!pendingReaction && reactionTargetOk("ai")) || (isPlayerBlocking && unit.isAttacking) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0);
             return (
               <CardTip key={unit.instanceId} defId={unit.defId} unit={unit} state={state} size="sm" className={unitFxClass(unit)} attacking={unit.isAttacking}
-                targetable={abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || !!(reaction && pendingReaction && reactionTargetOk("ai")) || (isPlayerMain && canAttackNow && selectedChallengers.length > 0)}
+                targetable={abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || !!(reaction && pendingReaction && reactionTargetOk("ai")) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0)}
                 selected={challenged || (isPlayerBlocking && unit.isAttacking && !!blockAssignments[unit.instanceId])} onClick={clickable ? () => handleUnitClick(unit) : undefined} />
             );
           })}
@@ -213,6 +220,11 @@ export function BattleView(props: BattleViewProps) {
           <div className="match-last-action" aria-live="polite"><span>ÚLTIMA AÇÃO</span><p>{state.log.at(-1) ?? "A batalha está pronta."}</p></div>
           <TargetingHud mode={targetingMode} onCancel={cancelTargeting} />
           {reaction && <ReactionStack reaction={reaction} timeLeft={timeLeft} targetName={reactionTargetName} onResolve={() => finishReaction()} />}
+          {pvpWaitingForOpponent && pvpReaction && (
+            <div data-pvp-priority-waiting="true" className="mx-auto my-3 max-w-xl rounded-xl border border-cyan-300/20 bg-cyan-950/25 px-4 py-3 text-center text-xs text-cyan-100">
+              <b>Prioridade com o adversário.</b> Sua ação está comprometida, mas ainda não resolveu. O servidor liberará a partida após resposta, passe ou timeout.
+            </div>
+          )}
           {isPlayerBlocking && aiAttackers.length > 0 && (
             <div className="combat-lanes" data-combat-side="defense">
               {aiAttackers.map((attacker) => {
@@ -251,7 +263,7 @@ export function BattleView(props: BattleViewProps) {
           })}
           {player.bench.map((unit) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "player" });
-            const selectable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || (reaction && !!pendingReaction && reactionTargetOk("player")) || (isPlayerMain && canAttackNow) || isPlayerBlocking;
+            const selectable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || (reaction && !!pendingReaction && reactionTargetOk("player")) || (normalActionsOpen && isPlayerMain && canAttackNow) || isPlayerBlocking;
             return (
               <CardTip key={unit.instanceId} defId={unit.defId} unit={unit} state={state} size="sm" className={unitFxClass(unit)}
                 selected={selectedAttackers.includes(unit.instanceId) || selectedBlocker === unit.instanceId || Object.values(blockAssignments).includes(unit.instanceId) || Object.values(lockedBlocks).includes(unit.instanceId)}
@@ -264,17 +276,18 @@ export function BattleView(props: BattleViewProps) {
 
         <div className="tcg-divider" aria-hidden="true" />
         <PlayerBar player={player} active={state.activePlayer === "player"} hasToken={state.attackToken === "player"} flash={nexusFlash.player} />
-        <PlayerHand state={state} reaction={reaction} pendingSpell={pendingSpell} pendingReaction={pendingReaction} isPlayerMain={isPlayerMain} expanded={handExpanded} onToggle={() => setHandExpanded((value) => !value)} onCardClick={handleHandClick} />
+        <PlayerHand state={state} reaction={reaction} pendingSpell={pendingSpell} pendingReaction={pendingReaction} isPlayerMain={normalActionsOpen && isPlayerMain} expanded={handExpanded} onToggle={() => setHandExpanded((value) => !value)} onCardClick={handleHandClick} />
 
         <div className="tcg-actions flex flex-wrap items-center justify-center gap-3 border-t border-white/10 px-3 py-3">
           <AttackForecast state={state} selectedIds={selectedAttackers} />
           {isPlayerBlocking && <CombatOutcomePreview state={state} blocks={{ ...lockedBlocks, ...blockAssignments }} />}
           {gameover ? <span className="text-sm font-semibold text-amber-200">Partida concluída</span>
-            : pendingSpell ? <button onClick={() => setPendingSpell(null)} className="btn-ghost">✖ Cancelar feitiço</button>
-              : pendingSentinelaAbility ? <button onClick={() => setPendingSentinelaAbility(null)} className="btn-ghost">✖ Cancelar habilidade</button>
-                : isPlayerBlocking ? <button onClick={confirmBlocks} className="btn-primary">✅ Confirmar bloqueios</button>
-                  : isPlayerMain ? <>{canAttackNow && selectedAttackers.length > 0 && <button onClick={confirmAttack} className="btn-attack">⚔️ Atacar com {selectedAttackers.length}</button>}<button onClick={endMyTurn} className="btn-primary">⏭️ Encerrar turno</button></>
-                    : <span className="text-sm text-slate-400">Aguardando o adversário…</span>}
+            : pvpPriorityOpen ? <span className="text-sm font-semibold text-cyan-200">{pvpHoldingPriority ? "Responda na pilha ou passe prioridade." : "Aguardando a prioridade do adversário…"}</span>
+              : pendingSpell ? <button onClick={() => setPendingSpell(null)} className="btn-ghost">✖ Cancelar feitiço</button>
+                : pendingSentinelaAbility ? <button onClick={() => setPendingSentinelaAbility(null)} className="btn-ghost">✖ Cancelar habilidade</button>
+                  : isPlayerBlocking ? <button onClick={confirmBlocks} className="btn-primary">✅ Confirmar bloqueios</button>
+                    : isPlayerMain ? <>{canAttackNow && selectedAttackers.length > 0 && <button onClick={confirmAttack} className="btn-attack">⚔️ Atacar com {selectedAttackers.length}</button>}<button onClick={endMyTurn} className="btn-primary">⏭️ Encerrar turno</button></>
+                      : <span className="text-sm text-slate-400">Aguardando o adversário…</span>}
         </div>
 
         <details className="tcg-log bg-slate-950/80 px-4 py-2 text-xs text-slate-300">
