@@ -8,6 +8,7 @@ import type {
   EffectKind,
   Keyword,
   LevelUpType,
+  PermanentStatAura,
   Race,
   Rarity,
   Region,
@@ -180,6 +181,29 @@ export function sanitizeCostReduction(raw: unknown): CostReduction | null {
   if (value.kind === "power" && threshold !== undefined) result.threshold = threshold;
   if (max !== undefined) result.max = max;
   return result;
+}
+
+/** Fail-closed sanitizer for the supported stat-only Permanent Aura slice. */
+export function sanitizePermanentStatAura(raw: unknown): PermanentStatAura | null {
+  if (!raw || typeof raw !== "object") return null;
+  const value = raw as Record<string, unknown>;
+  const power = Number(value.buffPower ?? 0);
+  const health = Number(value.buffHealth ?? 0);
+  if (!Number.isInteger(power) || !Number.isInteger(health) || power < 0 || health < 0 || power > 20 || health > 20) return null;
+  if (power === 0 && health === 0) return null;
+
+  const aura: PermanentStatAura = { buffPower: power, buffHealth: health };
+  if (value.races !== undefined) {
+    if (!Array.isArray(value.races) || value.races.some((race) => !has(CARD_RACES, race))) return null;
+    const races = [...new Set(value.races as Race[])];
+    if (races.length) aura.races = races;
+  }
+  if (value.classes !== undefined) {
+    if (!Array.isArray(value.classes) || value.classes.some((classKey) => !cleanClass(classKey))) return null;
+    const classes = [...new Set(value.classes as string[])];
+    if (classes.length) aura.classes = classes;
+  }
+  return aura;
 }
 
 export const MECHANIC_CONDITION_KINDS = ["always","selfDamaged","allyRace","allyClass","nexusBelow","manaAtLeast","and","or","not"] as const;
@@ -420,6 +444,13 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
     const costReduction = sanitizeCostReduction(raw.costReduction);
     if (!costReduction) return { ok: false, error: "Invalid cost reduction contract" };
     card.costReduction = costReduction;
+  }
+
+  if (raw.aura !== undefined) {
+    if (card.type !== "Enchantment" && card.type !== "Artifact") return { ok: false, error: "Continuous stat Aura is supported only on Enchantment or Artifact cards" };
+    const aura = sanitizePermanentStatAura(raw.aura);
+    if (!aura) return { ok: false, error: "Invalid permanent stat Aura contract" };
+    card.aura = aura;
   }
 
   if (raw.spell !== undefined) {
