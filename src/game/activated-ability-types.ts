@@ -1,3 +1,4 @@
+import type { ReactionActionKind } from "./counter-rules";
 import type { CardEffect } from "./types";
 
 /**
@@ -54,6 +55,17 @@ export interface ActivatedAbility {
   maxUsesPerRound?: number | null;
 }
 
+/**
+ * Battlefield activation that is legal only as a response to an action already
+ * committed to the authoritative reaction stack. Keeping reaction abilities in
+ * a separate CardDef collection prevents timing data from leaking into the
+ * historical main-phase activated ability path.
+ */
+export interface ReactionActivatedAbility extends ActivatedAbility {
+  /** Action families that are allowed to open this reaction opportunity. */
+  respondsTo: ReactionActionKind[];
+}
+
 export interface ActivatedAbilityUsage {
   round: number;
   count: number;
@@ -66,6 +78,7 @@ export interface ActivatedAbilityUsage {
 declare module "./types" {
   interface CardDef {
     activatedAbilities?: ActivatedAbility[];
+    reactionActivatedAbilities?: ReactionActivatedAbility[];
   }
 
   interface UnitInstance {
@@ -85,14 +98,15 @@ declare module "./types" {
 }
 
 /**
- * CardAction remains the versioned 2.97 transport shape. `modeId` and
- * `costDiscardInstanceIds` are additive and optional, so historic actions
- * deserialize unchanged while newer activations can carry deterministic
- * modal and selected-cost choices.
+ * CardAction remains the versioned 2.97 transport shape. Modal ids, selected
+ * costs and reaction response identity are additive and optional, so historic
+ * actions deserialize unchanged.
  */
 declare module "./engine/reactions" {
   interface CardAction {
     modeId?: string;
     costDiscardInstanceIds?: string[];
+    /** Present only when a stack frame comes from a battlefield activation. */
+    responseKind?: "activatedAbility";
   }
 }
