@@ -7,6 +7,7 @@ import {
   CARD_KEYWORDS as KWS,
   CARD_LEVEL_UP_TYPES as LEVEL_UP_TYPES,
 } from "@/game/card-authoring";
+import { keywordIsGrantable } from "@/game/keywords";
 import { isTriggerSupported, supportedTriggerEvents } from "@/game/trigger-contract";
 
 import type { CardAuthoringModel } from "./CardAuthoringModel";
@@ -17,6 +18,7 @@ const COUNTER_RULES = [
   { kind: "sentinela", key: "counter_sentinela", label: "Sentinelas" },
 ] as const;
 const UNCOUNTERABLE_RULE = "uncounterable";
+const GRANTABLE_KWS = KWS.filter((keyword) => keywordIsGrantable(keyword));
 
 export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
   const { card, set, classes, mechanicsCatalog } = model;
@@ -242,7 +244,7 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
             <F l="Health bonus"><input className="input" type="number" value={card.equipment?.buffHealth ?? 0} onChange={(e) => set("equipment", { ...(card.equipment || {}), buffPower: card.equipment?.buffPower ?? 0, buffHealth: Number(e.target.value), keywords: card.equipment?.keywords || [] })} /></F>
           </div>
           <div className="mt-3 label">Granted keywords</div>
-          <div className="mt-2 flex flex-wrap gap-2">{KWS.map((x) => <button type="button" key={x} onClick={() => { const a=card.equipment?.keywords || []; set("equipment", { ...(card.equipment || { buffPower:0,buffHealth:0 }), keywords: a.includes(x) ? a.filter((k:string)=>k!==x) : [...a,x] }); }} className={`rounded-full border px-2 py-1 text-[10px] ${card.equipment?.keywords?.includes(x) ? "bg-cyan-400 text-slate-950" : "border-white/10"}`}>{x}</button>)}</div>
+          <div className="mt-2 flex flex-wrap gap-2">{GRANTABLE_KWS.map((x) => <button type="button" key={x} onClick={() => { const a=card.equipment?.keywords || []; set("equipment", { ...(card.equipment || { buffPower:0,buffHealth:0 }), keywords: a.includes(x) ? a.filter((k:string)=>k!==x) : [...a,x] }); }} className={`rounded-full border px-2 py-1 text-[10px] ${card.equipment?.keywords?.includes(x) ? "bg-cyan-400 text-slate-950" : "border-white/10"}`}>{x}</button>)}</div>
         </Panel>
       )}
       {card.isChampion && (
