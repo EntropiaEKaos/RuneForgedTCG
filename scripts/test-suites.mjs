@@ -102,6 +102,7 @@ export const sourceContractTests = [
   "src/lib/security-audit-2.16.test.ts",
   "src/lib/sentinela-convergence-2.96.test.ts",
   "src/lib/studio-ability-composer-regression.test.ts",
+  "src/lib/studio-reaction-activated-ability-regression.test.ts",
   "src/lib/studio-runtime-integration.test.ts",
   "src/lib/total-control-2.80.test.ts",
   "src/lib/vanilla-collection-2.92.test.ts"
