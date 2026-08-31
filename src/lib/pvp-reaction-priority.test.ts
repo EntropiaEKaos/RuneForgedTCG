@@ -25,6 +25,8 @@ const deck: DeckInput = {
 const sourceDef = getCard("wood_ent");
 const originalAbilities = sourceDef.reactionActivatedAbilities;
 
+type CastAction = Extract<GameAction, { type: "cast" }>;
+
 function baseState() {
   const state = createCustomGame("PvP reaction priority", deck, deck, {
     skipMulligan: true,
@@ -46,13 +48,13 @@ function baseState() {
   return state;
 }
 
-const pendingCast: GameAction = {
+const pendingCast: CastAction = {
   type: "cast",
   player: "ai",
   instanceId: "pending-bolt",
 };
 
-function targetedPendingCast(state: GameState): GameAction {
+function targetedPendingCast(state: GameState): CastAction {
   const target = state.players.player.bench[0]?.instanceId;
   assert.ok(target, "PvP priority fixture requires a legal Ember Bolt target");
   return { ...pendingCast, target };
