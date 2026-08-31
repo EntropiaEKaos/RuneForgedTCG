@@ -8,11 +8,13 @@ import {
   blueprintFromActivatedAbility,
   blueprintFromCostReduction,
   blueprintFromEquipment,
+  blueprintFromKeyword,
   blueprintFromLegacyTrigger,
   blueprintFromMechanic,
   blueprintFromReactionSpell,
 } from "./ability-system";
 import { baseCardsOnly, getCard } from "./cards";
+import { CANONICAL_KEYWORDS, KEYWORD_INFO } from "./keywords";
 import {
   COMBAT_TRIGGER_EVENTS,
   TRIGGER_TIMING_BY_EVENT,
@@ -25,6 +27,8 @@ assert.equal(ABILITY_GRAMMAR_VERSION, 2);
 assert.equal(ABILITY_GRAMMAR_CATALOG.version, 2);
 assert.deepEqual(ABILITY_GRAMMAR_CATALOG.rules, ["costReduction", "equipmentAttachment"]);
 assert.deepEqual(ABILITY_GRAMMAR_CATALOG.triggerTiming, TRIGGER_TIMING_BY_EVENT);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.keywords, CANONICAL_KEYWORDS);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.keywordContracts, KEYWORD_INFO);
 assert.equal(ABILITY_KIND_SUPPORT.keyword, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.triggered, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.activated, "supported");
@@ -45,6 +49,32 @@ for (const when of ABILITY_GRAMMAR_CATALOG.triggers) {
   const expectedTiming: "automatic" | "combat" = (COMBAT_TRIGGER_EVENTS as readonly string[]).includes(when) ? "combat" : "automatic";
   assert.equal(triggerTiming(when), expectedTiming, `${when} uses the canonical semantic trigger timing`);
 }
+
+for (const keyword of CANONICAL_KEYWORDS) {
+  const blueprint = blueprintFromKeyword(keyword);
+  const contract = KEYWORD_INFO[keyword];
+  assert.equal(blueprint.origin, "keyword");
+  assert.equal(blueprint.kind, "keyword");
+  assert.equal(blueprint.timing, "static");
+  assert.equal(blueprint.keyword, keyword);
+  assert.equal(blueprint.description, contract.desc);
+  assert.deepEqual(blueprint.keywordContract, {
+    support: "supported",
+    runtimeDomains: [...contract.runtimeDomains],
+    grantable: contract.grantable,
+    ...(contract.requiresTrigger ? { requiresTrigger: contract.requiresTrigger } : {}),
+  });
+}
+const lastBreathBlueprint = blueprintFromKeyword("LastBreath");
+assert.deepEqual(lastBreathBlueprint.keywordContract, {
+  support: "supported",
+  runtimeDomains: ["death"],
+  grantable: false,
+  requiresTrigger: "onDeath",
+});
+assert.deepEqual(blueprintFromKeyword("Hexproof").keywordContract?.runtimeDomains, ["targeting"]);
+assert.deepEqual(blueprintFromKeyword("Challenger").keywordContract?.runtimeDomains, ["attack", "blocking"]);
+assert.deepEqual(blueprintFromKeyword("Ephemeral").keywordContract?.runtimeDomains, ["strike", "round"]);
 
 const activated: ActivatedAbility = {
   description: "Canalize o Nexus.",
@@ -155,6 +185,7 @@ assert.equal(cards.length, 429, "Ability grammar certification covers the comple
 let blueprintCount = 0;
 let cardsWithGrammar = 0;
 let combatTimedTriggers = 0;
+let keywordBlueprints = 0;
 const origins = new Set<string>();
 const ruleKinds = new Set<string>();
 for (const card of cards) {
@@ -181,6 +212,15 @@ for (const card of cards) {
     assert.ok(ABILITY_GRAMMAR_CATALOG.kinds.includes(blueprint.kind), `${card.defId} uses a canonical ability kind`);
     assert.ok(ABILITY_GRAMMAR_CATALOG.timings.includes(blueprint.timing), `${card.defId} uses a canonical timing`);
     if (blueprint.effect) assert.equal(blueprint.target, blueprint.effect.target, `${card.defId} keeps effect targeting authoritative`);
+    if (blueprint.keyword) {
+      const contract = KEYWORD_INFO[blueprint.keyword];
+      assert.ok(blueprint.keywordContract, `${card.defId} keyword exposes its runtime contract`);
+      assert.equal(blueprint.keywordContract?.support, "supported");
+      assert.deepEqual(blueprint.keywordContract?.runtimeDomains, [...contract.runtimeDomains]);
+      assert.equal(blueprint.keywordContract?.grantable, contract.grantable);
+      assert.equal(blueprint.keywordContract?.requiresTrigger, contract.requiresTrigger);
+      keywordBlueprints += 1;
+    }
     if (blueprint.trigger) {
       assert.equal(blueprint.timing, triggerTiming(blueprint.trigger), `${card.defId} trigger timing matches the authoritative trigger timing contract`);
       if (blueprint.timing === "combat") combatTimedTriggers += 1;
@@ -202,6 +242,7 @@ assert.deepEqual([...ruleKinds].sort(), ["costReduction", "equipmentAttachment"]
 assert.equal(origins.has("mechanic"), false, "base catalog truthfully records that mechanics are dynamic/published content today");
 assert.ok(blueprintCount > 0);
 assert.ok(cardsWithGrammar > 0);
+assert.ok(keywordBlueprints > 0, "canonical catalog exercises keyword runtime contracts");
 assert.ok(combatTimedTriggers > 0, "canonical catalog contains combat-timed trigger abilities");
 
-console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/429 cards without gameplay mutation · ${combatTimedTriggers} combat-timed triggers`);
+console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/429 cards without gameplay mutation · ${keywordBlueprints} keyword contracts · ${combatTimedTriggers} combat-timed triggers`);

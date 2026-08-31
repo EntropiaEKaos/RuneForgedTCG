@@ -16,6 +16,7 @@ import type {
   RegionalPerk,
 } from "./types";
 import type { ActivatedAbility, ActivatedAbilityCost } from "./activated-ability-types";
+import { CANONICAL_KEYWORDS, keywordCardContractError, keywordIsGrantable } from "./keywords";
 import { isTriggerSupported, triggerContractError } from "./trigger-contract";
 
 /**
@@ -27,11 +28,7 @@ export const CARD_REGIONS = ["Emberhold", "Tidecall", "Ironwood", "Voidborn", "F
 export const CARD_TYPES = ["Unit", "Spell", "Enchantment", "Artifact", "Equipment", "Sentinela"] as const satisfies readonly CardType[];
 export const CARD_RARITIES = ["Common", "Rare", "Epic", "Legend"] as const satisfies readonly Rarity[];
 export const CARD_RACES = ["Dragon", "Sprite", "Beast", "Voidling", "Warrior", "Elemental", "Spirit", "Besta", "Tempesteiro", "Anjo"] as const satisfies readonly Race[];
-export const CARD_KEYWORDS = [
-  "Overwhelm", "QuickAttack", "DoubleStrike", "Elusive", "Lifesteal", "Barrier",
-  "Fearsome", "Tough", "Regeneration", "Challenger", "Unblockable", "Ephemeral",
-  "LastBreath", "Deathtouch", "Poisonous", "Haste", "Wither", "Hexproof", "Reach", "Flying",
-] as const satisfies readonly Keyword[];
+export const CARD_KEYWORDS = CANONICAL_KEYWORDS;
 export const CARD_EFFECT_KINDS = [
   "damageUnit", "damageNexus", "healUnit", "healNexus", "buffUnit", "buffSelf",
   "buffAllies", "buffRace", "buffClass", "aoeEnemy", "draw", "grantBarrier", "grantKeyword",
@@ -205,6 +202,7 @@ export function sanitizeCardEffect(raw: unknown, depth = 0): CardEffect | null {
   if (Array.isArray(e.races)) effect.races = [...new Set(e.races.filter((r): r is Race => has(CARD_RACES, r)))];
   if (cleanClass(e.classKey)) effect.classKey = e.classKey;
   if (Array.isArray(e.classKeys)) effect.classKeys = [...new Set(e.classKeys.filter(cleanClass))];
+  if (effect.kind === "grantKeyword" && effect.keyword && !keywordIsGrantable(effect.keyword)) return null;
   if (!effectContractSatisfied(effect)) return null;
   if (e.also !== undefined && e.also !== null) {
     const also = sanitizeCardEffect(e.also, depth + 1);
@@ -404,12 +402,15 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
 
   if (raw.equipment !== undefined) {
     if (!raw.equipment || typeof raw.equipment !== "object") return { ok: false, error: "Invalid equipment" };
+    const equipmentKeywords = Array.isArray(raw.equipment.keywords)
+      ? [...new Set(raw.equipment.keywords.filter((k): k is Keyword => has(CARD_KEYWORDS, k)))]
+      : [];
+    const nonGrantableKeyword = equipmentKeywords.find((keyword) => !keywordIsGrantable(keyword));
+    if (nonGrantableKeyword) return { ok: false, error: `${nonGrantableKeyword} cannot be granted by Equipment.` };
     card.equipment = {
       buffPower: finite(raw.equipment.buffPower),
       buffHealth: finite(raw.equipment.buffHealth),
-      keywords: Array.isArray(raw.equipment.keywords)
-        ? [...new Set(raw.equipment.keywords.filter((k): k is Keyword => has(CARD_KEYWORDS, k)))]
-        : [],
+      keywords: equipmentKeywords,
     };
   }
 
@@ -454,6 +455,9 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
       abilities,
     };
   }
+
+  const keywordError = keywordCardContractError(card);
+  if (keywordError) return { ok: false, error: keywordError };
 
   const stack: unknown[] = [card];
   while (stack.length) {

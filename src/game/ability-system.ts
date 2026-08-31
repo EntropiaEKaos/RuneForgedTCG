@@ -6,6 +6,7 @@ import {
   CARD_TRIGGERS,
   MECHANIC_CONDITION_KINDS,
 } from "./card-authoring";
+import { KEYWORD_INFO, type KeywordRuntimeDomain } from "./keywords";
 import { TRIGGER_TIMING_BY_EVENT, triggerTiming } from "./trigger-contract";
 import type {
   CardDef,
@@ -93,6 +94,14 @@ export type AbilityRule =
   | { kind: "costReduction"; costReduction: CostReduction }
   | { kind: "equipmentAttachment"; equipment: EquipmentEffect };
 
+/** Read-only semantic mirror of the authoritative keyword runtime contract. */
+export interface KeywordAbilityContract {
+  support: "supported";
+  runtimeDomains: KeywordRuntimeDomain[];
+  grantable: boolean;
+  requiresTrigger?: TriggerWhen;
+}
+
 export interface AbilityBlueprint {
   version: typeof ABILITY_GRAMMAR_VERSION;
   origin: AbilityOrigin;
@@ -101,6 +110,7 @@ export interface AbilityBlueprint {
   timing: AbilityTiming;
   description?: string;
   keyword?: Keyword;
+  keywordContract?: KeywordAbilityContract;
   trigger?: TriggerWhen;
   condition: MechanicCondition;
   costs: AbilityCostNode[];
@@ -199,6 +209,7 @@ export const ABILITY_GRAMMAR_CATALOG = {
   triggerTiming: TRIGGER_TIMING_BY_EVENT,
   conditions: MECHANIC_CONDITION_KINDS,
   keywords: CARD_KEYWORDS,
+  keywordContracts: KEYWORD_INFO,
 } as const;
 
 function effectFeatures(effect: CardEffect | undefined): AbilityFeature[] {
@@ -373,13 +384,21 @@ export function blueprintFromLevelUp(levelUp: LevelUpDef): AbilityBlueprint {
 }
 
 export function blueprintFromKeyword(keyword: Keyword): AbilityBlueprint {
+  const contract = KEYWORD_INFO[keyword];
   return {
     version: ABILITY_GRAMMAR_VERSION,
     origin: "keyword",
     kind: "keyword",
     features: [],
     timing: "static",
+    description: contract.desc,
     keyword,
+    keywordContract: {
+      support: contract.support,
+      runtimeDomains: [...contract.runtimeDomains],
+      grantable: contract.grantable,
+      ...(contract.requiresTrigger ? { requiresTrigger: contract.requiresTrigger } : {}),
+    },
     condition: ALWAYS,
     costs: [],
   };
