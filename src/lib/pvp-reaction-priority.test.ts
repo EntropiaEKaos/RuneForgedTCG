@@ -4,7 +4,7 @@ import { getCard } from "@/game/cards";
 import { createCustomGame } from "@/game/engine";
 import type { GameAction } from "@/game/reducer";
 import { snapshotReplayBundle } from "@/game/replay-content-snapshot";
-import type { DeckInput } from "@/game/types";
+import type { DeckInput, GameState } from "@/game/types";
 import {
   applyAuthoritativePvpSnapshotAction,
   expireAuthoritativePvpSnapshotReaction,
@@ -52,6 +52,12 @@ const pendingCast: GameAction = {
   instanceId: "pending-bolt",
 };
 
+function targetedPendingCast(state: GameState): GameAction {
+  const target = state.players.player.bench[0]?.instanceId;
+  assert.ok(target, "PvP priority fixture requires a legal Ember Bolt target");
+  return { ...pendingCast, target };
+}
+
 try {
   const negateAbility: ReactionActivatedAbility = {
     description: "Ward the PvP stack",
@@ -64,8 +70,9 @@ try {
 
   {
     const state = baseState();
+    const action = targetedPendingCast(state);
     const before = JSON.stringify(state);
-    const opened = openPvpReactionPriority(state, pendingCast, 1_000, 10_000);
+    const opened = openPvpReactionPriority(state, action, 1_000, 10_000);
     assert.ok(opened, "a legal opposing battlefield response opens persisted PvP priority");
     assert.equal(JSON.stringify(state), before, "opening priority never mutates the pre-action GameState");
     assert.equal(opened.actor, "ai");
@@ -88,7 +95,7 @@ try {
     const state = baseState();
     const source = state.players.player.bench[0];
     const initialHealth = source.health;
-    const opened = openPvpReactionPriority(state, { ...pendingCast, target: source.instanceId }, 2_000, 10_000);
+    const opened = openPvpReactionPriority(state, targetedPendingCast(state), 2_000, 10_000);
     assert.ok(opened, "targeted spell opens priority for the reaction ability");
 
     const wrongActor = resolvePvpReactionResponse(state, opened, "ai", {
@@ -120,7 +127,7 @@ try {
     sourceDef.reactionActivatedAbilities = [];
     const state = baseState();
     state.players.player.hand = [{ instanceId: "deny-response", defId: "tide_deny" }];
-    const opened = openPvpReactionPriority(state, pendingCast, 3_000, 10_000);
+    const opened = openPvpReactionPriority(state, targetedPendingCast(state), 3_000, 10_000);
     assert.ok(opened, "historical hand counter also opens the same persisted PvP priority contract");
     const reacted = resolvePvpReactionResponse(state, opened, "player", {
       type: "react",
@@ -138,13 +145,13 @@ try {
     sourceDef.reactionActivatedAbilities = [];
     const state = baseState();
     state.players.player.hand = [];
-    assert.equal(openPvpReactionPriority(state, pendingCast, 4_000), null, "no response means no persisted window and normal PvP can resolve immediately");
+    assert.equal(openPvpReactionPriority(state, targetedPendingCast(state), 4_000), null, "no response means no persisted window and normal PvP can resolve immediately");
   }
 
   {
     sourceDef.reactionActivatedAbilities = [negateAbility];
     const state = baseState();
-    const opened = openPvpReactionPriority(state, pendingCast, 5_000, 1_000);
+    const opened = openPvpReactionPriority(state, targetedPendingCast(state), 5_000, 1_000);
     assert.ok(opened);
     const timedOut = resolvePvpReactionPass(state, opened, "ai", { timeout: true, now: 6_000 });
     assert.equal(timedOut.ok, true, "expired priority resolves authoritatively even if the responder disconnected");
@@ -155,8 +162,7 @@ try {
   {
     sourceDef.reactionActivatedAbilities = [negateAbility];
     const state = baseState();
-    const source = state.players.player.bench[0];
-    const action: GameAction = { ...pendingCast, target: source.instanceId };
+    const action = targetedPendingCast(state);
     const snapshot = snapshotReplayBundle(deck, deck);
     const opened = applyAuthoritativePvpSnapshotAction({
       state,
@@ -200,8 +206,7 @@ try {
     assert.equal(passed.next.players.ai.hand.some((card) => card.instanceId === "pending-bolt"), false);
 
     const timeoutState = baseState();
-    const timeoutSource = timeoutState.players.player.bench[0];
-    const timeoutOpened = openPvpReactionPriority(timeoutState, { ...pendingCast, target: timeoutSource.instanceId }, 9_000, 1_000);
+    const timeoutOpened = openPvpReactionPriority(timeoutState, targetedPendingCast(timeoutState), 9_000, 1_000);
     assert.ok(timeoutOpened);
     const expired = expireAuthoritativePvpSnapshotReaction({
       state: timeoutState,
