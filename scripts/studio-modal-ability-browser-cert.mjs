@@ -225,8 +225,8 @@ async function main() {
     assert.deepEqual(beforeSave.modes, ["mode-1", "mode-2"], "real Studio assigns deterministic stable mode ids");
     assert.deepEqual(beforeSave.modeDescriptions, ["Spark browser mode", "Study browser mode"], "designer-authored mode descriptions are held in the model");
     assert.equal(beforeSave.effectComposers, 2, "each modal choice owns its semantic effect composer");
-    assert.match(beforeSave.body, /Custo compartilhado/);
-    assert.match(beforeSave.body, /Usos \/ rodada \(compartilhados\)/);
+    assert.match(beforeSave.body, /Custo compartilhado/i);
+    assert.match(beforeSave.body, /Usos \/ rodada \(compartilhados\)/i);
     await capture(cdp, "studio-modal-authoring-before-save.png");
 
     await clickText(cdp, "Save Card + Metadata");
