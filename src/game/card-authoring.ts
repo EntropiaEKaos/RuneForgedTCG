@@ -19,6 +19,7 @@ import type {
 import type { ActivatedAbility, ActivatedAbilityCost } from "./activated-ability-types";
 import { CANONICAL_KEYWORDS, keywordCardContractError, keywordIsGrantable } from "./keywords";
 import { isTriggerSupported, triggerContractError } from "./trigger-contract";
+import { EFFECT_CHAIN_MAX_SUPPORTED_DEPTH } from "./effect-chain-contract";
 
 /**
  * Canonical authoring catalog. Keep every closed engine vocabulary here so UI,
@@ -233,7 +234,7 @@ function effectContractSatisfied(effect: CardEffect): boolean {
 }
 
 export function sanitizeCardEffect(raw: unknown, depth = 0): CardEffect | null {
-  if (!raw || typeof raw !== "object" || depth > 12) return null;
+  if (!raw || typeof raw !== "object" || depth > EFFECT_CHAIN_MAX_SUPPORTED_DEPTH) return null;
   const e = raw as Record<string, unknown>;
   if (!has(CARD_EFFECT_KINDS, e.kind)) return null;
   if (!has(CARD_TARGETS, e.target)) return null;
