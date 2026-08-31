@@ -15,7 +15,7 @@ export const EQUIPMENT_LINK_CONTRACT = {
   rule: "equipmentAttachment",
   target: "allyUnit",
   maxPerUnit: MAX_EQUIPMENT_PER_UNIT,
-  lifecycle: "destroyedWithHost",
+  lifecycle: "leavesWithHost",
   support: "supported",
 } as const;
 
