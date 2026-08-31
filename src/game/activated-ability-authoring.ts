@@ -29,6 +29,11 @@ function sanitizeCost(raw: unknown, sourceType: CardDef["type"]): { ok: true; co
     if (value === null) return { ok: false, error: "Activated ability mana cost must be an integer from 0 to 20" };
     if (value > 0) cost.mana = value;
   }
+  if (input.spellMana !== undefined) {
+    const value = finiteInteger(input.spellMana, 0, 20);
+    if (value === null) return { ok: false, error: "Activated ability spell mana cost must be an integer from 0 to 20" };
+    if (value > 0) cost.spellMana = value;
+  }
   if (input.nexusHealth !== undefined) {
     const value = finiteInteger(input.nexusHealth, 0, 20);
     if (value === null) return { ok: false, error: "Activated ability Nexus health cost must be an integer from 0 to 20" };
@@ -38,6 +43,13 @@ function sanitizeCost(raw: unknown, sourceType: CardDef["type"]): { ok: true; co
     return { ok: false, error: "Activated ability exhaustSelf cost must be boolean" };
   }
   if (input.exhaustSelf === true) cost.exhaustSelf = true;
+  if (input.consumeBarrier !== undefined && typeof input.consumeBarrier !== "boolean") {
+    return { ok: false, error: "Activated ability consumeBarrier cost must be boolean" };
+  }
+  if (input.consumeBarrier === true) {
+    if (sourceType !== "Unit") return { ok: false, error: "Only Unit sources may consume Barrier as an activated ability cost" };
+    cost.consumeBarrier = true;
+  }
   if (input.sacrificeSelf !== undefined && typeof input.sacrificeSelf !== "boolean") {
     return { ok: false, error: "Activated ability sacrificeSelf cost must be boolean" };
   }
@@ -56,8 +68,10 @@ function sanitizeCost(raw: unknown, sourceType: CardDef["type"]): { ok: true; co
 function hasConsumingCost(cost: ActivatedAbilityCost | undefined): boolean {
   return Boolean(
     (cost?.mana ?? 0) > 0 ||
+    (cost?.spellMana ?? 0) > 0 ||
     (cost?.nexusHealth ?? 0) > 0 ||
     cost?.exhaustSelf ||
+    cost?.consumeBarrier ||
     cost?.sacrificeSelf ||
     (cost?.loyaltyDelta ?? 0) < 0
   );
@@ -214,7 +228,7 @@ export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDe
     }
 
     if (maxUsesPerRound === null && !hasConsumingCost(costResult.cost)) {
-      return { ok: false, error: "Unlimited activated abilities require a consuming cost (mana, Nexus health, exhaust, sacrifice or negative loyalty)" };
+      return { ok: false, error: "Unlimited activated abilities require a consuming cost (regular mana, spell mana, Nexus health, exhaust, Barrier, sacrifice or negative loyalty)" };
     }
     if (base.card.type === "Sentinela" && maxUsesPerRound !== undefined && maxUsesPerRound !== 1) {
       return { ok: false, error: "Sentinelas share one activation per round across all legacy and generic abilities" };

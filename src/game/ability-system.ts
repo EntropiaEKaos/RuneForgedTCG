@@ -77,15 +77,19 @@ export type AbilityOrigin =
 
 export type AbilityCostKind =
   | "mana"
+  | "spellMana"
   | "nexusHealth"
   | "exhaustSelf"
+  | "consumeBarrier"
   | "sacrificeSelf"
   | "loyalty";
 
 export type AbilityCostNode =
   | { kind: "mana"; amount: number }
+  | { kind: "spellMana"; amount: number }
   | { kind: "nexusHealth"; amount: number }
   | { kind: "exhaustSelf" }
+  | { kind: "consumeBarrier" }
   | { kind: "sacrificeSelf" }
   | { kind: "loyalty"; delta: number };
 
@@ -170,8 +174,10 @@ export const ABILITY_TIMINGS = [
 
 export const ABILITY_COST_KINDS = [
   "mana",
+  "spellMana",
   "nexusHealth",
   "exhaustSelf",
+  "consumeBarrier",
   "sacrificeSelf",
   "loyalty",
 ] as const satisfies readonly AbilityCostKind[];
@@ -261,8 +267,10 @@ export function abilityCostsFromActivatedCost(cost: ActivatedAbilityCost | undef
   if (!cost) return [];
   const nodes: AbilityCostNode[] = [];
   if ((cost.mana ?? 0) > 0) nodes.push({ kind: "mana", amount: cost.mana! });
+  if ((cost.spellMana ?? 0) > 0) nodes.push({ kind: "spellMana", amount: cost.spellMana! });
   if ((cost.nexusHealth ?? 0) > 0) nodes.push({ kind: "nexusHealth", amount: cost.nexusHealth! });
   if (cost.exhaustSelf) nodes.push({ kind: "exhaustSelf" });
+  if (cost.consumeBarrier) nodes.push({ kind: "consumeBarrier" });
   if (cost.sacrificeSelf) nodes.push({ kind: "sacrificeSelf" });
   if (cost.loyaltyDelta !== undefined) nodes.push({ kind: "loyalty", delta: cost.loyaltyDelta });
   return nodes;

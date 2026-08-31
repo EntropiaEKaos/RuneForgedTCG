@@ -3,18 +3,23 @@ import type { CardEffect } from "./types";
 /**
  * Costs that are paid when an activated ability resolves.
  *
- * `mana` always uses regular mana (never spell mana).
+ * `mana` always uses regular mana.
+ * `spellMana` spends only banked spell mana and never falls back to regular mana.
  * `nexusHealth` cannot be paid if it would reduce the Nexus to zero.
  * `exhaustSelf` consumes a unit's attack readiness for the current round;
  * permanents/Sentinelas remember the exhausted round explicitly.
+ * `consumeBarrier` requires an active Barrier on a Unit source and consumes that
+ * protection before the effect resolves.
  * `sacrificeSelf` removes the source as a cost before the effect resolves.
  * `loyaltyDelta` is reserved for Sentinelas and preserves the existing
  * Planeswalker-style convention: positive values gain loyalty, negatives pay it.
  */
 export interface ActivatedAbilityCost {
   mana?: number;
+  spellMana?: number;
   nexusHealth?: number;
   exhaustSelf?: boolean;
+  consumeBarrier?: boolean;
   sacrificeSelf?: boolean;
   loyaltyDelta?: number;
 }

@@ -137,6 +137,17 @@ async function setLabeledValue(cdp, label, value) {
   assert.equal(result, true, `Could not set ${label}`);
 }
 
+async function setCheckboxByText(cdp, text, checked) {
+  const result = await evaluate(cdp, `(() => {
+    const label = [...document.querySelectorAll('label')].find((node) => (node.textContent || '').includes(${JSON.stringify(text)}));
+    const checkbox = label?.querySelector('input[type="checkbox"]');
+    if (!checkbox) return false;
+    if (checkbox.checked !== ${checked ? "true" : "false"}) checkbox.click();
+    return checkbox.checked === ${checked ? "true" : "false"};
+  })()`);
+  assert.equal(result, true, `Could not set checkbox ${text}`);
+}
+
 async function login(cdp) {
   const password = process.env.ADMIN_PASSWORD?.trim();
   assert.ok(password, "ADMIN_PASSWORD is required");
@@ -150,15 +161,23 @@ async function login(cdp) {
 }
 
 async function modalEvidence(cdp) {
-  return evaluate(cdp, `(() => ({
-    modalSections:[...document.querySelectorAll('[data-studio-ability-composer="activated"][data-activated-modal="true"]')].length,
-    modes:[...document.querySelectorAll('[data-studio-modal-mode]')].map((node) => node.getAttribute('data-studio-modal-mode')),
-    modeDescriptions:[...document.querySelectorAll('[data-studio-modal-mode]')].map((node) => node.querySelector('input')?.value || ''),
-    effectComposers:[...document.querySelectorAll('[data-studio-modal-choices="true"] [data-studio-effect-composer="semantic"]')].length,
-    body:(document.body?.innerText || '').replace(/\\s+/g, ' ').trim(),
-    scrollWidth:document.documentElement.scrollWidth,
-    innerWidth:window.innerWidth,
-  }))()`);
+  return evaluate(cdp, `(() => {
+    const labels = [...document.querySelectorAll('label')];
+    const spellManaHost = labels.find((node) => (node.querySelector('.label')?.textContent || '').trim() === 'Mana de feitiço');
+    const barrierLabel = labels.find((node) => (node.textContent || '').includes('Consumir Barrier ativa'));
+    return {
+      modalSections:[...document.querySelectorAll('[data-studio-ability-composer="activated"][data-activated-modal="true"]')].length,
+      modes:[...document.querySelectorAll('[data-studio-modal-mode]')].map((node) => node.getAttribute('data-studio-modal-mode')),
+      modeDescriptions:[...document.querySelectorAll('[data-studio-modal-mode]')].map((node) => node.querySelector('input')?.value || ''),
+      effectComposers:[...document.querySelectorAll('[data-studio-modal-choices="true"] [data-studio-effect-composer="semantic"]')].length,
+      expandedCostSections:[...document.querySelectorAll('[data-expanded-activated-costs="true"]')].length,
+      spellMana:spellManaHost?.querySelector('input')?.value ?? null,
+      consumeBarrier:barrierLabel?.querySelector('input[type="checkbox"]')?.checked ?? null,
+      body:(document.body?.innerText || '').replace(/\\s+/g, ' ').trim(),
+      scrollWidth:document.documentElement.scrollWidth,
+      innerWidth:window.innerWidth,
+    };
+  })()`);
 }
 
 async function capture(cdp, filename) {
@@ -207,6 +226,9 @@ async function main() {
     await clickText(cdp, "+ Adicionar habilidade ativada");
     await waitUntil(() => evaluate(cdp, `document.querySelectorAll('[data-studio-ability-composer="activated"]').length === 1`), "new activated ability composer");
 
+    await setLabeledValue(cdp, "Mana de feitiço", "2");
+    await setCheckboxByText(cdp, "Consumir Barrier ativa", true);
+
     const toggled = await evaluate(cdp, `(() => {
       const label = [...document.querySelectorAll('label')].find((node) => (node.textContent || '').includes('Escolha um (modal)'));
       const checkbox = label?.querySelector('input[type="checkbox"]');
@@ -225,6 +247,9 @@ async function main() {
     assert.deepEqual(beforeSave.modes, ["mode-1", "mode-2"], "real Studio assigns deterministic stable mode ids");
     assert.deepEqual(beforeSave.modeDescriptions, ["Spark browser mode", "Study browser mode"], "designer-authored mode descriptions are held in the model");
     assert.equal(beforeSave.effectComposers, 2, "each modal choice owns its semantic effect composer");
+    assert.equal(beforeSave.expandedCostSections, 1, "expanded activated-cost controls render once for the base ability");
+    assert.equal(beforeSave.spellMana, "2", "real Studio model stores dedicated spell mana before save");
+    assert.equal(beforeSave.consumeBarrier, true, "real Studio model stores Unit Barrier consumption before save");
     assert.match(beforeSave.body, /Custo compartilhado/i);
     assert.match(beforeSave.body, /Usos \/ rodada \(compartilhados\)/i);
     await capture(cdp, "studio-modal-authoring-before-save.png");
@@ -243,9 +268,12 @@ async function main() {
     assert.deepEqual(afterReload.modes, ["mode-1", "mode-2"], "stable mode ids survive save + full page reload");
     assert.deepEqual(afterReload.modeDescriptions, ["Spark browser mode", "Study browser mode"], "mode descriptions survive save + full page reload");
     assert.equal(afterReload.effectComposers, 2, "semantic mode effect editors survive reload");
+    assert.equal(afterReload.expandedCostSections, 1, "expanded activated costs remain a base-ability contract after reload");
+    assert.equal(afterReload.spellMana, "2", "dedicated spell mana survives save + full page reload");
+    assert.equal(afterReload.consumeBarrier, true, "Unit Barrier cost survives save + full page reload");
     await capture(cdp, "studio-modal-authoring-after-reload.png");
 
-    console.log("STUDIO MODAL ABILITY BROWSER CERT: PASS — create → modal compose → save → reload with stable mode ids");
+    console.log("STUDIO MODAL ABILITY BROWSER CERT: PASS — modal choices + expanded base costs create → save → reload with stable ids/resources");
   } finally {
     cdp?.close();
     await shutdown(chrome, profileDir);
