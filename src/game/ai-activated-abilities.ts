@@ -220,7 +220,7 @@ function sourceSacrificeValue(source: AiAbilitySource): number {
 function costPenalty(state: GameState, playerId: PlayerId, source: AiAbilitySource, ability: ActivatedAbility): number {
   const cost = ability.cost;
   if (!cost) return 0;
-  let penalty = (cost.mana ?? 0) * 4;
+  let penalty = (cost.mana ?? 0) * 4 + (cost.spellMana ?? 0) * 3;
 
   if (cost.nexusHealth) {
     const after = state.players[playerId].nexusHealth - cost.nexusHealth;
@@ -229,6 +229,9 @@ function costPenalty(state: GameState, playerId: PlayerId, source: AiAbilitySour
   }
   if (cost.exhaustSelf) {
     penalty += source.kind === "unit" ? 8 + source.instance.power * 3 : 6;
+  }
+  if (cost.consumeBarrier && source.kind === "unit") {
+    penalty += 16 + source.instance.power * 2 + source.instance.health;
   }
   if (cost.sacrificeSelf) penalty += sourceSacrificeValue(source);
   if ((cost.loyaltyDelta ?? 0) < 0) penalty += Math.abs(cost.loyaltyDelta ?? 0) * 6;
