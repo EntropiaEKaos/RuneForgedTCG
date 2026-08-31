@@ -128,7 +128,16 @@ export function validateGameActionSemantics(state: GameState, action: GameAction
       if (rawModeId !== undefined && (typeof rawModeId !== "string" || rawModeId.length === 0 || rawModeId.length > 64 || rawModeId.trim() !== rawModeId)) {
         return fail("activated ability modeId must be a non-empty string of at most 64 characters");
       }
+      const rawDiscardIds = (action as typeof action & { costDiscardInstanceIds?: unknown }).costDiscardInstanceIds;
+      if (rawDiscardIds !== undefined && (
+        !Array.isArray(rawDiscardIds) ||
+        rawDiscardIds.length > 10 ||
+        rawDiscardIds.some((id) => typeof id !== "string" || id.length === 0 || id.length > 128 || id.trim() !== id)
+      )) {
+        return fail("activated ability costDiscardInstanceIds must be an array of at most 10 non-empty instance ids");
+      }
       const modeId = typeof rawModeId === "string" ? rawModeId : undefined;
+      const costDiscardInstanceIds = Array.isArray(rawDiscardIds) ? rawDiscardIds as string[] : undefined;
       const validation = validateActivatedAbilityActivation(
         state,
         actor,
@@ -136,6 +145,7 @@ export function validateGameActionSemantics(state: GameState, action: GameAction
         action.abilityIndex,
         action.target,
         modeId,
+        costDiscardInstanceIds,
       );
       if (!validation.ok) return fail(validation.reason ?? "activated ability cannot be used");
       const targetKind = validation.effect?.target;
