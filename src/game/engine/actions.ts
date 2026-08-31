@@ -205,8 +205,10 @@ export function playUnit(
     let target: UnitInstance | undefined;
     if (targetInstanceId) {
       target = allies.find((u) => u.instanceId === targetInstanceId);
+      if (!target) return state;
+    } else {
+      target = [...allies].sort((a, b) => b.power - a.power)[0];
     }
-    if (!target) target = [...allies].sort((a, b) => b.power - a.power)[0];
     if (!target) return state;
 
     payCost(p, cost, true);
