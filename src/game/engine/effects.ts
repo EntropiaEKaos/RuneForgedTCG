@@ -2,7 +2,7 @@ import { getCard } from "../cards";
 import { canAttachEquipment, unitsWithEquipmentCapacity } from "../equipment-link-contract";
 import type { CardEffect, GameState, PermanentInstance, PlayerId, Race, SentinelaInstance, TriggerWhen, UnitInstance } from "../types";
 import { engineRulesFor } from "../match-rules";
-import { applyDamageToPermanent, applyDamageToSentinela, applyDamageToUnit, autoTarget, checkWin, clone, damageNexus, drawCards, findAnyBoardEntity, findPermanent, findSentinela, findUnit, hasClass, hasKw, hasRace, healNexus, makeUnit, other, poisonPlayer, recomputeHealth, recomputeStats, uid, unitRaces } from "./state";
+import { applyDamageToPermanent, applyDamageToSentinela, applyDamageToUnit, autoTarget, checkWin, clone, damageNexus, drawCards, findAnyBoardEntity, findPermanent, findSentinela, findUnit, hasClass, hasKw, hasRace, healNexus, makeUnit, other, poisonPlayer, recomputeContinuousAuras, recomputeHealth, recomputeStats, uid, unitClasses, unitRaces } from "./state";
 import { cleanupSentinelas } from "./sentinela-state";
 
 export function cleanupDeadUnit(state: GameState, pid: PlayerId, unit: UnitInstance): boolean {
@@ -38,19 +38,31 @@ export function cleanupDeadUnit(state: GameState, pid: PlayerId, unit: UnitInsta
 }
 
 export function cleanupDead(state: GameState): void {
-  for (const pid of ["player", "ai"] as PlayerId[]) {
-    const p = state.players[pid];
-    const dead = p.bench.filter((u) => u.health <= 0);
-    for (const d of dead) {
-      cleanupDeadUnit(state, pid, d);
-      state.log.push(`${getCard(d.defId).name} is destroyed.`);
+  // A source-bound +Health Aura can make another unit die exactly when the
+  // source leaves. Iterate cleanup + Aura derivation until the board is stable.
+  for (let pass = 0; pass < 16; pass += 1) {
+    for (const pid of ["player", "ai"] as PlayerId[]) {
+      const p = state.players[pid];
+      const dead = p.bench.filter((u) => u.health <= 0);
+      for (const d of dead) {
+        cleanupDeadUnit(state, pid, d);
+        state.log.push(`${getCard(d.defId).name} is destroyed.`);
+      }
+      const permDead = p.permanents.filter((perm) => perm.health <= 0);
+      for (const d of permDead) {
+        state.log.push(`${getCard(d.defId).name} is destroyed.`);
+      }
+      p.permanents = p.permanents.filter((perm) => perm.health > 0);
     }
-    const permDead = p.permanents.filter((p) => p.health <= 0);
-    for (const d of permDead) {
-      state.log.push(`${getCard(d.defId).name} is destroyed.`);
-    }
-    p.permanents = p.permanents.filter((p) => p.health > 0);
+
+    recomputeContinuousAuras(state);
+    const unstable = (["player", "ai"] as PlayerId[]).some((pid) =>
+      state.players[pid].bench.some((unit) => unit.health <= 0) ||
+      state.players[pid].permanents.some((perm) => perm.health <= 0),
+    );
+    if (!unstable) return;
   }
+  state.log.push("Continuous-effect cleanup reached its safety boundary.");
 }
 
 export function applyCardEffectForSandbox(
@@ -489,6 +501,7 @@ export function tryLevelUnit(state: GameState, unit: UnitInstance): void {
   unit.defId = next.defId;
   unit.race = next.race ?? unit.race;
   unit.races = unitRaces(next.defId);
+  unit.classes = unitClasses(next.defId);
   unit.keywords = [...(next.keywords ?? [])];
   // Re-merge keywords from equipment and recompute from the new defId.
   for (const eq of unit.equipment) {
@@ -499,8 +512,8 @@ export function tryLevelUnit(state: GameState, unit: UnitInstance): void {
     }
   }
   if (unit.keywords.includes("Barrier")) unit.barrier = true;
-  // Keep the same temporary buff deltas, but recompute effective power/health
-  // based on the new base definition + equipment + buffs.
+  // Keep the same durable buff deltas, but recompute effective power/health
+  // based on the new base definition + equipment + currently cached Aura.
   unit.powerBuffs = preservedPowerBuffs;
   unit.healthBuffs = preservedHealthBuffs;
   recomputeStats(unit);
@@ -517,6 +530,11 @@ export function tryLevelUnit(state: GameState, unit: UnitInstance): void {
 export function checkLevelUps(state: GameState): void {
   for (const pid of ["player", "ai"] as PlayerId[]) {
     for (const u of state.players[pid].bench) tryLevelUnit(state, u);
+  }
+  // Transformation can change race/class eligibility for a continuous Aura.
+  recomputeContinuousAuras(state);
+  if ((["player", "ai"] as PlayerId[]).some((pid) => state.players[pid].bench.some((unit) => unit.health <= 0))) {
+    cleanupDead(state);
   }
 }
 
