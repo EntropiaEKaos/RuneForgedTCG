@@ -4,16 +4,26 @@ import { useCallback, useEffect, useState, type Dispatch, type MutableRefObject,
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { getCard } from "@/game/cards";
 import { aiChooseAction, aiChooseReaction, aiDefend, applyAiAction, aiResolveTurnEnd, type AiAction } from "@/game/ai";
-import { applyStackedActionWithAi, hasReactionOpportunity, type CardAction } from "@/game/engine";
+import {
+  applyStackedActionWithAi,
+  canReactWithActivatedAbilityAction,
+  hasReactionOpportunity,
+  type CardAction,
+  type ReactionActivatedAbilityAction,
+} from "@/game/engine";
 import type { GameState } from "@/game/types";
 import type { GameAction } from "@/game/reducer";
 import type { PendingSpell, ReactionPending } from "@/game/client/match-model";
+import {
+  REACTION_ACTIVATED_SUBMIT_EVENT,
+  type ReactionActivatedSubmitDetail,
+} from "@/game/client/reaction-ui-contract";
 import type { MatchReward } from "@/components/game/MatchResult";
 import type { CombatPace } from "@/components/game/GameSettings";
 
 export type HumanReactionInput =
   | { instanceId: string; targetId?: string }
-  | { action: CardAction; logAction: Extract<GameAction, { type: "react" }> };
+  | ReactionActivatedSubmitDetail;
 
 export function useMatchLifecycle({
   state, setState, reaction, setReaction, setPendingReaction, isPvp, combatPace, reactionMs,
@@ -105,6 +115,24 @@ export function useMatchLifecycle({
     setReaction(null);
     setPendingReaction(null);
   }, [reaction, reactionMs, recordAction, setPendingReaction, setReaction, setState, toastAI]);
+
+  useEffect(() => {
+    const onActivatedReaction = (event: Event) => {
+      if (!reaction || isPvp || reaction.pendingHuman) return;
+      const detail = (event as CustomEvent<ReactionActivatedSubmitDetail>).detail;
+      if (!detail?.action || detail.action.responseKind !== "activatedAbility") return;
+      const pending = reaction.action;
+      if (!canReactWithActivatedAbilityAction(
+        reaction.baseState,
+        "player",
+        detail.action as ReactionActivatedAbilityAction,
+        pending,
+      )) return;
+      finishReaction(detail);
+    };
+    window.addEventListener(REACTION_ACTIVATED_SUBMIT_EVENT, onActivatedReaction as EventListener);
+    return () => window.removeEventListener(REACTION_ACTIVATED_SUBMIT_EVENT, onActivatedReaction as EventListener);
+  }, [finishReaction, isPvp, reaction]);
 
   useDeferredEffect(() => {
     if (isPvp || !reaction) return;
