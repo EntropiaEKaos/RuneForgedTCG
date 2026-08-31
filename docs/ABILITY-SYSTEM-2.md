@@ -59,12 +59,16 @@ Campos ausentes são intencionais. Por exemplo, uma keyword não possui custo ne
 ### Custos atualmente executáveis
 
 - mana regular;
+- mana de feitiço dedicada;
 - vida do Nexus;
 - exaurir a própria fonte;
+- consumir a Barrier ativa da própria Unit;
 - sacrificar a própria fonte;
 - alteração/pagamento de lealdade.
 
-Custos novos como descarte, retorno à mão, cemitério, consumo de Barrier e marcadores só devem entrar no catálogo authorable depois de terem validação, execução autoritativa, IA, replay e testes.
+Mana regular e mana de feitiço são recursos separados. Um custo `spellMana` usa somente o banco de `PlayerState.spellMana` e nunca converte nem usa mana regular como fallback. `consumeBarrier` é permitido somente para uma Unit controlada com `barrier === true`; o pagamento remove a Barrier antes de o efeito resolver, da mesma forma que o runtime já consome essa proteção ao bloquear dano.
+
+Custos que exigem escolha adicional — como descartar uma carta específica da mão, retornar uma permanente escolhida, exilar/consumir recursos de cemitério ou selecionar marcadores — permanecem fora do catálogo authorable até possuírem payload determinístico, validação, execução autoritativa, IA, replay e browser certification próprios.
 
 ## Matriz de suporte
 
@@ -126,9 +130,21 @@ O corte runtime cobre execução autoritativa, reducer/replay/PvP, seleção e e
 
 A certificação do authoring deve provar sanitização, round-trip de persistência, publish/catalog/runtime e superfície do Studio. `modal` permanece `partial` mesmo depois desse authoring: custos e condições diferentes por modo, modos dependentes de prioridade/reação e outras formas modais fora de habilidades ativadas ainda não pertencem ao contrato certificado.
 
+### Fase 4.2 — Expanded Activated Ability Costs
+
+O primeiro corte de custos alternativos adiciona `spellMana` e `consumeBarrier` ao mesmo `ActivatedAbilityCost` usado por runtime, IA, projeção e Studio. Não existe um segundo formato de custo e o opcode histórico de replay/PvP não muda, porque nenhum dos dois pagamentos exige informação adicional na ação do jogador.
+
+O executor mantém pagamento atômico: modo, target, limites de uso e todos os recursos são validados no estado original antes do clone. Somente uma ativação integralmente legal cria o próximo estado e debita custos. Portanto, falta de mana de feitiço, ausência de Barrier, alvo inválido, Hexproof ou qualquer outra falha preserva mana regular, mana de feitiço, Barrier, vida, lealdade, uso por rodada e o restante do estado sem rollback manual.
+
+`spellMana` é um recurso finito independente e também conta como custo consumidor para habilidades sem limite por rodada. `consumeBarrier` conta como custo consumidor, mas naturalmente bloqueia a próxima ativação da mesma fonte até que uma nova Barrier seja concedida. O Studio expõe mana de feitiço para fontes persistentes suportadas e o custo de Barrier apenas para Units; o sanitizer continua sendo a autoridade final e rejeita payloads que tentem usar Barrier em Artifact, Enchantment ou Sentinela.
+
+A IA não ignora os novos recursos: elegibilidade continua vindo do executor autoritativo e a função de score penaliza o gasto de mana de feitiço e o valor defensivo perdido ao consumir Barrier. Como esse corte não adiciona escolha de carta/recurso externo, replays históricos e ações 2.97 permanecem byte-shape compatíveis.
+
+Esse corte não torna o Ability System 2.0 inteiro `FULL`. Descarte escolhido, custos de retorno, cemitério/exílio, marcadores e custos dependentes de seleção permanecem para evoluções próprias; modalidades ainda são `partial`, e Aura continua `partial` até Aura 2.0.
+
 ### Próximos cortes
 
-1. custos ativados alternativos adicionais, com pagamento atômico e IA;
-2. habilidades ativadas de reação/evento integradas ao protocolo autoritativo;
-3. Aura 2.0 com efeitos contínuos genéricos além de atributos permanentes;
+1. habilidades ativadas de reação/evento integradas ao protocolo autoritativo;
+2. Aura 2.0 com efeitos contínuos genéricos além de atributos permanentes;
+3. custos que exigem seleção/payload adicional, em cortes próprios e replay-safe;
 4. certificação transversal e revisão final da matriz de suporte antes de promover qualquer família a `supported`/`FULL`.
