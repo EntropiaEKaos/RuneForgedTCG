@@ -109,6 +109,13 @@ export interface KeywordAbilityContract {
   requiresTrigger?: TriggerWhen;
 }
 
+export interface AbilityModeBlueprint {
+  id: string;
+  description: string;
+  target: TargetKind;
+  effect: CardEffect;
+}
+
 export interface AbilityBlueprint {
   version: typeof ABILITY_GRAMMAR_VERSION;
   origin: AbilityOrigin;
@@ -123,6 +130,7 @@ export interface AbilityBlueprint {
   costs: AbilityCostNode[];
   target?: TargetKind;
   effect?: CardEffect;
+  modes?: AbilityModeBlueprint[];
   rule?: AbilityRule;
   maxUsesPerRound?: number | null;
   progression?: LevelUpDef;
@@ -187,7 +195,7 @@ export const ABILITY_KIND_SUPPORT = {
   reaction: "supported",
   replacement: "planned",
   delayed: "planned",
-  modal: "planned",
+  modal: "partial",
   transformation: "supported",
   aura: "partial",
   linked: "partial",
@@ -262,18 +270,39 @@ export function abilityCostsFromActivatedCost(cost: ActivatedAbilityCost | undef
 
 export function blueprintFromActivatedAbility(ability: ActivatedAbility): AbilityBlueprint {
   const repeatable = ability.maxUsesPerRound === null || (ability.maxUsesPerRound ?? 1) > 1;
-  return {
+  const common = {
     version: ABILITY_GRAMMAR_VERSION,
-    origin: "activated",
-    kind: "activated",
-    features: uniqueFeatures(effectFeatures(ability.effect), repeatable ? ["repeatable"] : []),
-    timing: "mainPhase",
+    origin: "activated" as const,
+    timing: "mainPhase" as const,
     description: ability.description,
     condition: ALWAYS,
     costs: abilityCostsFromActivatedCost(ability.cost),
-    target: ability.effect.target,
-    effect: ability.effect,
     ...(ability.maxUsesPerRound !== undefined ? { maxUsesPerRound: ability.maxUsesPerRound } : {}),
+  };
+
+  if (ability.modes !== undefined) {
+    const modes = ability.modes.map((mode) => ({
+      id: mode.id,
+      description: mode.description,
+      target: mode.effect.target,
+      effect: mode.effect,
+    }));
+    return {
+      ...common,
+      kind: "modal",
+      features: uniqueFeatures(
+        ...modes.map((mode) => effectFeatures(mode.effect)),
+        repeatable ? ["repeatable"] : [],
+      ),
+      modes,
+    };
+  }
+
+  return {
+    ...common,
+    kind: "activated",
+    features: uniqueFeatures(effectFeatures(ability.effect), repeatable ? ["repeatable"] : []),
+    ...(ability.effect ? { target: ability.effect.target, effect: ability.effect } : {}),
   };
 }
 
