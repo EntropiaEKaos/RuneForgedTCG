@@ -50,7 +50,7 @@ export const CANONICAL_KEYWORDS = [
   "Flying",
 ] as const satisfies readonly Keyword[];
 
-export const KEYWORD_INFO = {
+export const KEYWORD_INFO: Record<Keyword, KeywordContract> = {
   Overwhelm: {
     name: "Overwhelm",
     desc: "Excess damage to a blocker spills onto the enemy Nexus.",
@@ -212,7 +212,7 @@ export const KEYWORD_INFO = {
     runtimeDomains: ["blocking"],
     grantable: true,
   },
-} as const satisfies Record<Keyword, KeywordContract>;
+};
 
 export function keywordIsGrantable(keyword: Keyword): boolean {
   return KEYWORD_INFO[keyword].grantable;
