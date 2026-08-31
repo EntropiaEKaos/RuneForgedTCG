@@ -12,9 +12,9 @@ export type SemanticAuthoringResult =
 
 /** Canonical publish/import/sandbox validator for cards plus certified semantic gameplay types. */
 export function validateAuthorableCardWithSemanticTypes(
-  raw: Partial<CardDef> & Record<string, unknown>,
+  raw: Partial<CardDef>,
 ): SemanticAuthoringResult {
-  const base = validateAuthorableCardWithActivatedAbilities(raw);
+  const base = validateAuthorableCardWithActivatedAbilities(raw as Partial<CardDef> & Record<string, unknown>);
   if (!base.ok) return base;
   return validateCertifiedSemanticCardType(base.card);
 }
