@@ -151,14 +151,18 @@ export type ActivatedAuthoringResult =
 
 /**
  * Canonical Card Creator validation plus the generic activated-ability
- * extension. Existing card sanitization stays untouched; this layer only adds
- * a bounded, data-driven contract that the authoritative engine understands.
+ * extension. `validateAuthorableCard` still owns the base CardDef grammar, but
+ * this layer is the sole authority for `activatedAbilities`: the extension is
+ * removed before base validation so the legacy single-effect sanitizer cannot
+ * reject or silently rewrite the certified modal shape.
  */
 export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDef> & Record<string, unknown>): ActivatedAuthoringResult {
-  const base = validateAuthorableCard(raw);
+  const supplied = raw.activatedAbilities;
+  const baseInput = { ...raw } as Partial<CardDef> & Record<string, unknown>;
+  delete baseInput.activatedAbilities;
+  const base = validateAuthorableCard(baseInput);
   if (!base.ok) return base;
 
-  const supplied = raw.activatedAbilities;
   if (supplied === undefined) return base;
   if (!Array.isArray(supplied)) return { ok: false, error: "activatedAbilities must be an array" };
   if (supplied.length === 0) return base;
