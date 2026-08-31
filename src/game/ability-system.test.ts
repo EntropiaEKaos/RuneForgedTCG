@@ -12,6 +12,7 @@ import {
   blueprintFromKeyword,
   blueprintFromLegacyTrigger,
   blueprintFromMechanic,
+  blueprintFromPermanentStatAura,
   blueprintFromReactionSpell,
 } from "./ability-system";
 import { baseCardsOnly, getCard } from "./cards";
@@ -20,17 +21,19 @@ import {
   CONDITION_RUNTIME_SUPPORT,
 } from "./condition-contract";
 import { CANONICAL_KEYWORDS, KEYWORD_INFO } from "./keywords";
+import { PERMANENT_STAT_AURA_CONTRACT } from "./permanent-aura-contract";
 import {
   COMBAT_TRIGGER_EVENTS,
   TRIGGER_TIMING_BY_EVENT,
   triggerTiming,
 } from "./trigger-contract";
 import type { ActivatedAbility } from "./activated-ability-types";
-import type { CardMechanic } from "./types";
+import type { CardDef, CardMechanic } from "./types";
 
 assert.equal(ABILITY_GRAMMAR_VERSION, 2);
 assert.equal(ABILITY_GRAMMAR_CATALOG.version, 2);
-assert.deepEqual(ABILITY_GRAMMAR_CATALOG.rules, ["costReduction", "equipmentAttachment"]);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.rules, ["costReduction", "equipmentAttachment", "permanentStatAura"]);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.permanentStatAuraContract, PERMANENT_STAT_AURA_CONTRACT);
 assert.deepEqual(ABILITY_GRAMMAR_CATALOG.triggerTiming, TRIGGER_TIMING_BY_EVENT);
 assert.deepEqual(ABILITY_GRAMMAR_CATALOG.keywords, CANONICAL_KEYWORDS);
 assert.deepEqual(ABILITY_GRAMMAR_CATALOG.keywordContracts, KEYWORD_INFO);
@@ -42,7 +45,7 @@ assert.equal(ABILITY_KIND_SUPPORT.activated, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.reaction, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.transformation, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.static, "partial");
-assert.equal(ABILITY_KIND_SUPPORT.aura, "partial");
+assert.equal(ABILITY_KIND_SUPPORT.aura, "partial", "stat Aura is a supported slice; generic continuous Aura layering remains partial");
 assert.equal(ABILITY_KIND_SUPPORT.linked, "partial");
 assert.equal(ABILITY_KIND_SUPPORT.modal, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.replacement, "planned");
@@ -183,6 +186,32 @@ assert.equal(
   "equipment projection fails closed when the structural card type is not Equipment",
 );
 
+const authoredAura: CardDef = {
+  defId: "ability_aura_probe",
+  name: "Aura Probe",
+  region: "Ironwood",
+  type: "Enchantment",
+  cost: 3,
+  maxHealth: 3,
+  aura: { buffPower: 1, buffHealth: 2, races: ["Beast", "Spirit"], classes: ["guardian"] },
+  description: "Allied guardian Beasts and Spirits get +1/+2 while this remains in play.",
+  rarity: "Rare",
+  emoji: "◉",
+};
+const auraBlueprint = blueprintFromPermanentStatAura(authoredAura);
+assert.ok(auraBlueprint, "authorable permanent stat Aura projects into Ability Grammar 2.0");
+assert.equal(auraBlueprint.origin, "aura");
+assert.equal(auraBlueprint.kind, "aura");
+assert.equal(auraBlueprint.timing, "static");
+assert.equal(auraBlueprint.target, "allyUnit");
+assert.deepEqual(auraBlueprint.features, ["conditional"]);
+assert.deepEqual(auraBlueprint.rule, {
+  kind: "permanentStatAura",
+  aura: { buffPower: 1, buffHealth: 2, races: ["Beast", "Spirit"], classes: ["guardian"] },
+});
+assert.equal(blueprintFromPermanentStatAura({ ...authoredAura, type: "Unit" }), null, "Aura projection fails closed on unsupported source types");
+assert.equal(blueprintFromPermanentStatAura({ ...authoredAura, aura: undefined }), null, "Aura projection requires an explicit Aura contract");
+
 const denyBlueprint = blueprintFromReactionSpell(getCard("tide_deny"));
 assert.ok(denyBlueprint, "canonical Tide Deny is projected as a reaction ability");
 assert.equal(denyBlueprint.origin, "spell");
@@ -195,6 +224,7 @@ assert.equal(blueprintFromReactionSpell(getCard("tide_draw")), null, "ordinary m
 
 const cards = baseCardsOnly();
 assert.equal(cards.length, 429, "Ability grammar certification covers the complete canonical 429-card catalog");
+assert.equal(cards.filter((card) => card.aura).length, 0, "existing Round Start buffs remain triggers instead of being silently reinterpreted as continuous Auras");
 
 let blueprintCount = 0;
 let cardsWithGrammar = 0;
@@ -209,6 +239,7 @@ for (const card of cards) {
     (card.keywords?.length ?? 0) +
     (card.costReduction ? 1 : 0) +
     (card.type === "Equipment" && card.equipment ? 1 : 0) +
+    ((card.type === "Enchantment" || card.type === "Artifact") && card.aura ? 1 : 0) +
     (card.trigger ? 1 : 0) +
     (card.mechanics?.length ?? 0) +
     (card.type === "Spell" && card.speed && card.spell ? 1 : 0) +
@@ -251,15 +282,16 @@ for (const card of cards) {
 }
 
 // These origins are genuinely present in the static catalog today. Dynamic
-// Mechanics Studio compatibility is proven by the dedicated adapter probe above.
+// Mechanics Studio and Aura compatibility are proven by dedicated probes above.
 for (const origin of ["keyword", "costReduction", "equipment", "legacyTrigger", "spell", "activated", "sentinela", "levelUp"]) {
   assert.ok(origins.has(origin), `canonical catalog exercises ${origin} compatibility`);
 }
 assert.deepEqual([...ruleKinds].sort(), ["costReduction", "equipmentAttachment"]);
 assert.equal(origins.has("mechanic"), false, "base catalog truthfully records that mechanics are dynamic/published content today");
+assert.equal(origins.has("aura"), false, "base catalog truthfully records that continuous Aura is authored/published content today");
 assert.ok(blueprintCount > 0);
 assert.ok(cardsWithGrammar > 0);
 assert.ok(keywordBlueprints > 0, "canonical catalog exercises keyword runtime contracts");
 assert.ok(combatTimedTriggers > 0, "canonical catalog contains combat-timed trigger abilities");
 
-console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/429 cards without gameplay mutation · ${keywordBlueprints} keyword contracts · ${combatTimedTriggers} combat-timed triggers`);
+console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/429 cards without gameplay mutation · ${keywordBlueprints} keyword contracts · ${combatTimedTriggers} combat-timed triggers · permanent stat Aura contract certified`);
