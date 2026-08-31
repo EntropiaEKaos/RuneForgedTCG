@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { ABILITY_FEATURE_SUPPORT } from "./ability-system";
 import { sanitizeCardEffect, validateAuthorableCard } from "./card-authoring";
 import {
   EFFECT_CHAIN_AUTHORING_CONTRACT,
@@ -10,7 +11,8 @@ import {
 import { applyCardEffectForSandbox, createCustomGame } from "./engine";
 import type { CardDef, CardEffect, DeckInput } from "./types";
 
-assert.equal(EFFECT_CHAIN_AUTHORING_CONTRACT.support, "supported");
+assert.equal(ABILITY_FEATURE_SUPPORT.chained, "supported");
+assert.equal(EFFECT_CHAIN_AUTHORING_CONTRACT.support, ABILITY_FEATURE_SUPPORT.chained);
 assert.equal(EFFECT_CHAIN_AUTHORING_CONTRACT.execution, "sequential");
 assert.equal(EFFECT_CHAIN_MAX_SUPPORTED_DEPTH, 12);
 assert.equal(EFFECT_CHAIN_MAX_EFFECTS, 13);
