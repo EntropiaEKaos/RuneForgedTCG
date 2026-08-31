@@ -12,6 +12,7 @@ const presentation = readFileSync("src/game/activated-ability-presentation.ts", 
 const grammar = readFileSync("src/game/ability-system.ts", "utf8");
 const studio = readFileSync("src/app/admin/studio/cards/ActivatedAbilityEditor.tsx", "utf8");
 const gameClient = readFileSync("src/app/play/GameClient.tsx", "utf8");
+const paymentHook = readFileSync("src/app/play/hooks/useActivatedAbilityPayment.ts", "utf8");
 const picker = readFileSync("src/components/game/ActivatedDiscardPicker.tsx", "utf8");
 const browserCert = readFileSync("scripts/studio-modal-ability-browser-cert.mjs", "utf8");
 
@@ -34,9 +35,11 @@ assert.match(grammar, /\| "discardFromHand"/);
 assert.match(grammar, /selection: "explicitInstanceIds"/);
 assert.match(studio, /data-selected-discard-cost="true"/);
 assert.match(studio, /Descartar da mão/);
-assert.match(gameClient, /PendingActivatedDiscard/);
+assert.match(gameClient, /useActivatedAbilityPayment/);
 assert.match(gameClient, /beginActivatedAbilityPayment/);
-assert.match(gameClient, /costDiscardInstanceIds/);
+assert.match(paymentHook, /PendingActivatedDiscard/);
+assert.match(paymentHook, /costDiscardInstanceIds/);
+assert.match(paymentHook, /activateAbility\(state/);
 assert.match(picker, /data-activated-discard-picker="true"/);
 assert.match(picker, /data-confirm-activated-discard="true"/);
 assert.match(browserCert, /Descartar da mão/);
