@@ -15,12 +15,14 @@ export interface CardRuntimeInspection {
   currentPower: number;
   powerDelta: number;
   equipmentPower: number;
+  auraPower: number;
   otherPowerModifier: number;
   printedHealth: number;
   currentHealth: number;
   currentMaxHealth: number;
   maxHealthDelta: number;
   equipmentHealth: number;
+  auraHealth: number;
   otherHealthModifier: number;
   permanentHealthModifier: number;
   damageTaken: number;
@@ -45,6 +47,8 @@ export function inspectRuntimeCard(def: CardDef, unit?: UnitInstance): CardRunti
     equipmentPower += Number(equipmentDef.equipment?.buffPower ?? 0);
     equipmentHealth += Number(equipmentDef.equipment?.buffHealth ?? 0);
   }
+  const auraPower = Number(unit.auraPowerBonus ?? 0);
+  const auraHealth = Number(unit.auraHealthBonus ?? 0);
 
   const printedKeywords = new Set(def.keywords ?? []);
   const runtimeKeywords = new Set(unit.keywords);
@@ -55,6 +59,7 @@ export function inspectRuntimeCard(def: CardDef, unit?: UnitInstance): CardRunti
 
   if (unit.powerBuffs !== 0) add("power-modifier", unit.powerBuffs > 0 ? "buff" : "debuff", `Poder ${signed(unit.powerBuffs)}`, "Modificador de poder aplicado ao estado atual da unidade.");
   if (unit.healthBuffs !== 0) add("health-modifier", unit.healthBuffs > 0 ? "buff" : "debuff", `Vida máxima ${signed(unit.healthBuffs)}`, "Modificador de vida aplicado ao estado atual da unidade.");
+  if (auraPower !== 0 || auraHealth !== 0) add("continuous-aura", "buff", `Aura contínua ${signed(auraPower)}/${signed(auraHealth)}`, "Bônus derivado de Encantamentos ou Artefatos aliados enquanto as fontes permanecem em campo.");
   if (unit.permanentHealthModifier !== 0) add("permanent-health", unit.permanentHealthModifier > 0 ? "buff" : "debuff", `Vida permanente ${signed(unit.permanentHealthModifier)}`, "Alteração permanente da vida máxima desta instância.");
   if (equipmentPower !== 0 || equipmentHealth !== 0) add("equipment", equipmentPower >= 0 && equipmentHealth >= 0 ? "buff" : "state", `Equipamentos ${signed(equipmentPower)}/${signed(equipmentHealth)}`, `${unit.equipment.length} equipamento(s) contribuindo para os atributos atuais.`);
   if (unit.frostbitten) add("frostbitten", "debuff", "❄ Congelado", "O poder atual está reduzido a 0 enquanto o efeito de congelamento estiver ativo.");
@@ -74,12 +79,14 @@ export function inspectRuntimeCard(def: CardDef, unit?: UnitInstance): CardRunti
     currentPower: unit.power,
     powerDelta: unit.power - printedPower,
     equipmentPower,
+    auraPower,
     otherPowerModifier: unit.powerBuffs,
     printedHealth,
     currentHealth: unit.health,
     currentMaxHealth: unit.maxHealth,
     maxHealthDelta: unit.maxHealth - printedHealth,
     equipmentHealth,
+    auraHealth,
     otherHealthModifier: unit.healthBuffs,
     permanentHealthModifier: unit.permanentHealthModifier,
     damageTaken: Math.max(0, unit.maxHealth - unit.health),

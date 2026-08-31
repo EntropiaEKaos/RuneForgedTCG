@@ -10,6 +10,7 @@ import {
 } from "./card-authoring";
 import { CONDITION_AUTHORING_CONTRACT, CONDITION_RUNTIME_SUPPORT } from "./condition-contract";
 import { KEYWORD_INFO, type KeywordRuntimeDomain } from "./keywords";
+import { PERMANENT_STAT_AURA_CONTRACT } from "./permanent-aura-contract";
 import { TRIGGER_TIMING_BY_EVENT, triggerTiming } from "./trigger-contract";
 import type {
   CardDef,
@@ -20,6 +21,7 @@ import type {
   Keyword,
   LevelUpDef,
   MechanicCondition,
+  PermanentStatAura,
   SentinelaAbility,
   TargetKind,
   TriggerWhen,
@@ -65,6 +67,7 @@ export type AbilityOrigin =
   | "keyword"
   | "costReduction"
   | "equipment"
+  | "aura"
   | "legacyTrigger"
   | "mechanic"
   | "spell"
@@ -88,14 +91,15 @@ export type AbilityCostNode =
 
 /**
  * Persistent/static rules are not CardEffects: they are continuously consumed
- * by authoritative engine paths such as effectiveCost() and equipment stat
- * recomputation. Keep them structurally distinct instead of inventing effects.
+ * by authoritative engine paths such as effectiveCost(), Equipment stat
+ * recomputation and source-bound Aura derivation.
  */
-export type AbilityRuleKind = "costReduction" | "equipmentAttachment";
+export type AbilityRuleKind = "costReduction" | "equipmentAttachment" | "permanentStatAura";
 
 export type AbilityRule =
   | { kind: "costReduction"; costReduction: CostReduction }
-  | { kind: "equipmentAttachment"; equipment: EquipmentEffect };
+  | { kind: "equipmentAttachment"; equipment: EquipmentEffect }
+  | { kind: "permanentStatAura"; aura: PermanentStatAura };
 
 /** Read-only semantic mirror of the authoritative keyword runtime contract. */
 export interface KeywordAbilityContract {
@@ -167,6 +171,7 @@ export const ABILITY_COST_KINDS = [
 export const ABILITY_RULE_KINDS = [
   "costReduction",
   "equipmentAttachment",
+  "permanentStatAura",
 ] as const satisfies readonly AbilityRuleKind[];
 
 /**
@@ -223,6 +228,7 @@ export const ABILITY_GRAMMAR_CATALOG = {
   conditionAuthoring: CONDITION_AUTHORING_CONTRACT,
   costReductionKinds: COST_REDUCTION_KINDS,
   costReductionContracts: COST_REDUCTION_CONTRACTS,
+  permanentStatAuraContract: PERMANENT_STAT_AURA_CONTRACT,
   keywords: CARD_KEYWORDS,
   keywordContracts: KEYWORD_INFO,
 } as const;
@@ -332,6 +338,32 @@ export function blueprintFromEquipment(card: CardDef): AbilityBlueprint | null {
   };
 }
 
+/** Project the supported stat-only slice of source-bound Permanent Auras. */
+export function blueprintFromPermanentStatAura(card: CardDef): AbilityBlueprint | null {
+  if ((card.type !== "Enchantment" && card.type !== "Artifact") || !card.aura) return null;
+  const filtered = Boolean(card.aura.races?.length || card.aura.classes?.length);
+  return {
+    version: ABILITY_GRAMMAR_VERSION,
+    origin: "aura",
+    kind: "aura",
+    features: filtered ? ["conditional"] : [],
+    timing: "static",
+    description: card.description,
+    condition: ALWAYS,
+    costs: [],
+    target: "allyUnit",
+    rule: {
+      kind: "permanentStatAura",
+      aura: {
+        buffPower: card.aura.buffPower,
+        buffHealth: card.aura.buffHealth,
+        ...(card.aura.races?.length ? { races: [...card.aura.races] } : {}),
+        ...(card.aura.classes?.length ? { classes: [...card.aura.classes] } : {}),
+      },
+    },
+  };
+}
+
 export function blueprintFromLegacyTrigger(trigger: NonNullable<CardDef["trigger"]>): AbilityBlueprint {
   return {
     version: ABILITY_GRAMMAR_VERSION,
@@ -430,6 +462,8 @@ export function abilityBlueprintsForCard(card: CardDef): AbilityBlueprint[] {
   if (card.costReduction) blueprints.push(blueprintFromCostReduction(card.costReduction));
   const equipment = blueprintFromEquipment(card);
   if (equipment) blueprints.push(equipment);
+  const aura = blueprintFromPermanentStatAura(card);
+  if (aura) blueprints.push(aura);
   if (card.trigger) blueprints.push(blueprintFromLegacyTrigger(card.trigger));
   for (const mechanic of card.mechanics ?? []) blueprints.push(blueprintFromMechanic(mechanic));
   const reaction = blueprintFromReactionSpell(card);

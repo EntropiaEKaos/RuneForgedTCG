@@ -54,15 +54,15 @@ export type StrategicRole = "finisher" | "removal" | "defense" | "tempo" | "engi
  * | Valor     | PT           | Cor principal        | Sinergia                        |
  * |-----------|--------------|----------------------|---------------------------------|
  * | Dragon    | Dragão       | Chama                | Rally buffs Dragões             |
- * | Sprite    | Sprite       | Maré                 | Rally buffs Sprites             |
- * | Beast     | Fera         | Floresta             | Pack alpha, crescimento         |
- * | Voidling  | Voidling     | Vazio                | Medo, veneno, vampírico         |
- * | Warrior   | Guerreiro    | Chama/Floresta       | Bonus de poder                  |
- * | Elemental | Elemental    | Chama/Tempestade     | Frostbite, dano em área         |
- * | Spirit    | Espírito     | Maré/Floresta        | Hexproof, sobrevivência         |
- * | Besta     | Besta        | Florestia            | Crescimento mútuo, Alcance      |
- * | Tempesteiro| Tempesteiro | Tempestade           | Ímpeto, AtaqueDuplo             |
- * | Anjo      | Anjo         | Tempestade           | Vampírico, Voo                  |
+ * | Sprite    | Sprite       | Maré                  | Rally buffs Sprites             |
+ * | Beast     | Fera         | Floresta              | Pack alpha, crescimento         |
+ * | Voidling  | Voidling     | Vazio                 | Medo, veneno, vampírico         |
+ * | Warrior   | Guerreiro    | Chama/Floresta        | Bonus de poder                  |
+ * | Elemental | Elemental    | Chama/Tempestade      | Frostbite, dano em área         |
+ * | Spirit    | Espírito     | Maré/Floresta         | Hexproof, sobrevivência         |
+ * | Besta     | Besta        | Florestia             | Crescimento mútuo, Alcance      |
+ * | Tempesteiro| Tempesteiro | Tempestade            | Ímpeto, AtaqueDuplo             |
+ * | Anjo      | Anjo         | Tempestade            | Vampírico, Voo                  |
  */
 export type Race =
   | "Dragon"
@@ -189,7 +189,7 @@ export type TriggerWhen =
  *
  * Uma habilidade tem custo de lealdade:
  *   - cost > 0 : ganha lealdade ao ativar
- *   - cost < 0 : gasta lealdade ao ativar
+ *   - cost < 0 : gasta lealdade
  *   - cost = 0 : não altera lealdade
  *
  * Só pode ser ativada se a sentinela tiver lealdade suficiente
@@ -238,6 +238,18 @@ export interface EquipmentEffect {
   buffPower: number;
   buffHealth: number;
   keywords?: Keyword[];
+}
+
+/**
+ * Concrete continuous Aura sub-contract for battlefield Permanents.
+ * Filters are optional. Within each list matching is OR; when both race and
+ * class filters are present the unit must satisfy both groups.
+ */
+export interface PermanentStatAura {
+  buffPower: number;
+  buffHealth: number;
+  races?: Race[];
+  classes?: string[];
 }
 
 export interface CostReduction {
@@ -295,6 +307,8 @@ export interface CardDef {
   trigger?: { when: TriggerWhen; effect: CardEffect };
   levelUp?: LevelUpDef;
   equipment?: EquipmentEffect;
+  /** Continuous allied-unit stat modifier while this Enchantment/Artifact remains in play. */
+  aura?: PermanentStatAura;
   maxHealth?: number;
   costReduction?: CostReduction;
   /** Sentinela (planeswalker) definition. Presente quando type === "Sentinela". */
@@ -352,6 +366,9 @@ export interface UnitInstance {
   powerBuffs: number;
   healthBuffs: number;
   permanentHealthModifier: number;
+  /** Derived continuous modifiers; optional for backwards-compatible replays. */
+  auraPowerBonus?: number;
+  auraHealthBonus?: number;
   poisonCounters: number;
   hasAttackedThisTurn: boolean;
 }

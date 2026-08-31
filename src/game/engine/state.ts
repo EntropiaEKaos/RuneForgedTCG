@@ -1,6 +1,7 @@
 import { getCard } from "../cards";
 import { nextRng, normalizeSeed, seededShuffle } from "../rng";
 import { deckRegions, getDeck } from "../decks";
+import { permanentAuraBonusForUnit } from "../permanent-aura-contract";
 import { regionalUnitBonus } from "../region-identity";
 import type { BoardEntity, CardInstance, DeckInput, EngineRulesSnapshot, GameState, Keyword, PermanentInstance, PlayerId, PlayerState, Race, SentinelaInstance, TargetKind, UnitInstance } from "../types";
 import { getRuntimeAiRules, getRuntimeEngineRules } from "../runtime-config";
@@ -62,7 +63,7 @@ export function makeUnit(state: GameState, defId: string, owner: PlayerId): Unit
   const bonus = regionalUnitBonus(state.players[owner], def);
   const p = (def.power ?? 0) + bonus.power;
   const health = (def.health ?? 1) + bonus.health;
-  return {
+  const unit: UnitInstance = {
     instanceId: uid(state, "u"),
     defId,
     race: def.race ?? races[0],
@@ -90,12 +91,21 @@ export function makeUnit(state: GameState, defId: string, owner: PlayerId): Unit
     powerBuffs: bonus.power,
     healthBuffs: bonus.health,
     permanentHealthModifier: 0,
+    auraPowerBonus: 0,
+    auraHealthBonus: 0,
     poisonCounters: 0,
     hasAttackedThisTurn: false,
   };
+  const aura = permanentAuraBonusForUnit(state, unit);
+  unit.auraPowerBonus = aura.power;
+  unit.auraHealthBonus = aura.health;
+  unit.power += aura.power;
+  unit.maxHealth += aura.health;
+  unit.health += aura.health;
+  return unit;
 }
 
-/** Recompute effective power/health from base + buffs. Call after any stat change. */
+/** Recompute effective power/health from base + durable + continuous buffs. */
 export function recomputeStats(unit: UnitInstance): void {
   const baseFromDef = getCard(unit.defId).power ?? 0;
   let equipmentBonus = 0;
@@ -105,7 +115,7 @@ export function recomputeStats(unit: UnitInstance): void {
   }
   unit.basePower = baseFromDef + equipmentBonus;
   if (!unit.frostbitten) {
-    unit.power = unit.basePower + unit.powerBuffs;
+    unit.power = unit.basePower + unit.powerBuffs + (unit.auraPowerBonus ?? 0);
   } else {
     unit.power = 0;
   }
@@ -118,8 +128,29 @@ export function recomputeHealth(unit: UnitInstance): void {
     const eqDef = getCard(eq.defId);
     if (eqDef.equipment) equipmentBonus += eqDef.equipment.buffHealth;
   }
-  unit.maxHealth = Math.max(0, baseFromDef + equipmentBonus + unit.permanentHealthModifier + unit.healthBuffs);
+  unit.maxHealth = Math.max(0, baseFromDef + equipmentBonus + unit.permanentHealthModifier + unit.healthBuffs + (unit.auraHealthBonus ?? 0));
   if (unit.health > unit.maxHealth) unit.health = unit.maxHealth;
+}
+
+/**
+ * Re-derive source-bound Aura modifiers from the battlefield.
+ * Damage already marked on a living unit is preserved across max-health
+ * changes; dead units never resurrect because an Aura entered play.
+ */
+export function recomputeContinuousAuras(state: GameState): void {
+  for (const pid of ["player", "ai"] as PlayerId[]) {
+    for (const unit of state.players[pid].bench) {
+      const wasAlive = unit.health > 0;
+      const damageTaken = wasAlive ? Math.max(0, unit.maxHealth - unit.health) : 0;
+      const aura = permanentAuraBonusForUnit(state, unit);
+      unit.auraPowerBonus = aura.power;
+      unit.auraHealthBonus = aura.health;
+      recomputeStats(unit);
+      recomputeHealth(unit);
+      if (wasAlive) unit.health = Math.max(0, unit.maxHealth - damageTaken);
+      else unit.health = Math.min(0, unit.health);
+    }
+  }
 }
 
 export function makePermanent(state: GameState, defId: string, owner: PlayerId): PermanentInstance {
