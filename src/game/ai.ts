@@ -7,7 +7,8 @@ import type { GameState, PlayerId } from "./types";
 /**
  * Public AI execution facade. Activated battlefield actions use the same
  * generic executor as the browser, reducer, replay and PvP paths, preserving
- * the versioned `sentinela` action kind while carrying optional modal modeId.
+ * the versioned `sentinela` action kind while carrying additive modal and
+ * selected-cost payload fields.
  */
 export function applyAiAction(
   state: GameState,
@@ -25,6 +26,7 @@ export function applyAiAction(
       action.abilityIndex ?? 0,
       action.targetInstanceId,
       action.modeId,
+      action.costDiscardInstanceIds,
     );
   }
   return castSpell(state, playerId, action.instanceId, action.targetInstanceId);

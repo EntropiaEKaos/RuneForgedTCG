@@ -20,6 +20,7 @@ export function activatedAbilityCostLabel(ability: ActivatedAbility): string {
   if (cost?.mana) parts.push(`💧${cost.mana}`);
   if (cost?.spellMana) parts.push(`✦${cost.spellMana}`);
   if (cost?.nexusHealth) parts.push(`♥${cost.nexusHealth}`);
+  if (cost?.discardFromHand) parts.push(`🎴${cost.discardFromHand}`);
   if (cost?.exhaustSelf) parts.push("↷");
   if (cost?.consumeBarrier) parts.push("◈");
   if (cost?.sacrificeSelf) parts.push("✕");
@@ -33,6 +34,7 @@ export function activatedAbilityCostDescription(ability: ActivatedAbility): stri
   if (cost?.mana) parts.push(`${cost.mana} de mana regular`);
   if (cost?.spellMana) parts.push(`${cost.spellMana} de mana de feitiço`);
   if (cost?.nexusHealth) parts.push(`${cost.nexusHealth} de vida do Nexus`);
+  if (cost?.discardFromHand) parts.push(`descartar ${cost.discardFromHand} carta${cost.discardFromHand === 1 ? "" : "s"} escolhida${cost.discardFromHand === 1 ? "" : "s"} da mão`);
   if (cost?.exhaustSelf) parts.push("exaurir esta carta");
   if (cost?.consumeBarrier) parts.push("consumir a Barrier ativa desta unidade");
   if (cost?.sacrificeSelf) parts.push("sacrificar esta carta");
@@ -56,6 +58,15 @@ export function activatedAbilityUnavailableLabel(reason?: string | null): string
       return "Mana de feitiço insuficiente.";
     case "Nexus health cost cannot be paid lethally":
       return "Vida do Nexus insuficiente para pagar sem ser letal.";
+    case "not enough cards in hand for activated ability discard cost":
+      return "Cartas insuficientes na mão para pagar o descarte.";
+    case "activated ability discard cost requires explicit hand selection":
+      return "Escolha as cartas da mão que serão descartadas como custo.";
+    case "activated ability discard cost requires exactly the configured number of cards":
+    case "activated ability discard cost selection contains duplicate cards":
+    case "activated ability discard cost selection references a card outside actor hand":
+    case "activated ability does not accept a discard cost selection":
+      return "Seleção de descarte inválida.";
     case "Sentinela already activated this round":
     case "activated ability reached its per-round use limit":
       return "Já usada nesta rodada.";

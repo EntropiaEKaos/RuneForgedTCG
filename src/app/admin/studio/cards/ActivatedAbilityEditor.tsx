@@ -47,7 +47,8 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
           Crie ações voluntárias para cartas que permanecem no campo. Habilidades podem ter um efeito direto ou
           oferecer uma escolha modal. Em habilidades modais, custo e limite de usos pertencem à habilidade-base e
           são compartilhados por todas as opções. Cada opção recebe um ID estável para replay/PvP. Mana regular e
-          mana de feitiço são recursos separados; pagar vida do Nexus nunca pode ser letal. Units também podem
+          mana de feitiço são recursos separados; pagar vida do Nexus nunca pode ser letal. Custos de descarte
+          exigem que o jogador escolha exatamente as cartas da própria mão que serão pagas. Units também podem
           consumir a própria Barrier ativa como custo. Negar spell continua indisponível aqui até habilidades
           ativadas participarem do protocolo autoritativo de reação.
         </p>
@@ -115,7 +116,7 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
                   showLoyalty={card.type === "Sentinela"}
                   onChange={(cost) => update(index, { cost })}
                 />
-                <div data-expanded-activated-costs="true" className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div data-expanded-activated-costs="true" className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <F l="Mana de feitiço">
                     <input
                       className="input"
@@ -125,6 +126,19 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
                       value={ability.cost?.spellMana ?? 0}
                       onChange={(event) => update(index, {
                         cost: patchCost(ability.cost, { spellMana: Math.max(0, Math.min(20, Number(event.target.value) || 0)) }),
+                      })}
+                    />
+                  </F>
+                  <F l="Descartar da mão">
+                    <input
+                      data-selected-discard-cost="true"
+                      className="input"
+                      type="number"
+                      min={0}
+                      max={10}
+                      value={ability.cost?.discardFromHand ?? 0}
+                      onChange={(event) => update(index, {
+                        cost: patchCost(ability.cost, { discardFromHand: Math.max(0, Math.min(10, Number(event.target.value) || 0)) }),
                       })}
                     />
                   </F>
@@ -141,7 +155,7 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
                     </label>
                   )}
                   <div className="self-end pb-3 text-[10px] leading-4 text-slate-500">
-                    Mana de feitiço não usa mana regular como fallback. Barrier só pode ser paga por uma Unit com proteção ativa.
+                    Mana de feitiço não usa mana regular como fallback. O descarte exige escolha explícita na mão e viaja no replay/PvP por instanceId. Barrier só pode ser paga por uma Unit com proteção ativa.
                   </div>
                 </div>
               </div>

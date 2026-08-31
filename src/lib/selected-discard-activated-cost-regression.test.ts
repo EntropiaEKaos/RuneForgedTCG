@@ -1,0 +1,48 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const types = readFileSync("src/game/activated-ability-types.ts", "utf8");
+const engine = readFileSync("src/game/engine/activated-actions.ts", "utf8");
+const reducer = readFileSync("src/game/reducer-core.ts", "utf8");
+const validator = readFileSync("src/game/action-validator.ts", "utf8");
+const ai = readFileSync("src/game/ai-activated-abilities.ts", "utf8");
+const aiFacade = readFileSync("src/game/ai.ts", "utf8");
+const authoring = readFileSync("src/game/activated-ability-authoring.ts", "utf8");
+const presentation = readFileSync("src/game/activated-ability-presentation.ts", "utf8");
+const grammar = readFileSync("src/game/ability-system.ts", "utf8");
+const studio = readFileSync("src/app/admin/studio/cards/ActivatedAbilityEditor.tsx", "utf8");
+const gameClient = readFileSync("src/app/play/GameClient.tsx", "utf8");
+const paymentHook = readFileSync("src/app/play/hooks/useActivatedAbilityPayment.ts", "utf8");
+const picker = readFileSync("src/components/game/ActivatedDiscardPicker.tsx", "utf8");
+const browserCert = readFileSync("scripts/studio-modal-ability-browser-cert.mjs", "utf8");
+
+assert.match(types, /discardFromHand\?: number/);
+assert.match(types, /costDiscardInstanceIds\?: string\[\]/);
+assert.match(engine, /requires explicit hand selection/);
+assert.match(engine, /selection contains duplicate cards/);
+assert.match(engine, /selection references a card outside actor hand/);
+assert.match(engine, /player\.hand = player\.hand\.filter/);
+assert.match(engine, /allowMissingCostSelection/);
+assert.match(reducer, /costDiscardInstanceIds\?: string\[\]/);
+assert.match(reducer, /action\.costDiscardInstanceIds/);
+assert.match(validator, /costDiscardInstanceIds must be an array of at most 10/);
+assert.match(ai, /chooseDiscardCostIds/);
+assert.match(ai, /costDiscardInstanceIds/);
+assert.match(aiFacade, /action\.costDiscardInstanceIds/);
+assert.match(authoring, /discardFromHand cost must be an integer from 0 to/);
+assert.match(presentation, /descartar .* carta/);
+assert.match(grammar, /\| "discardFromHand"/);
+assert.match(grammar, /selection: "explicitInstanceIds"/);
+assert.match(studio, /data-selected-discard-cost="true"/);
+assert.match(studio, /Descartar da mão/);
+assert.match(gameClient, /useActivatedAbilityPayment/);
+assert.match(gameClient, /beginActivatedAbilityPayment/);
+assert.match(paymentHook, /PendingActivatedDiscard/);
+assert.match(paymentHook, /costDiscardInstanceIds/);
+assert.match(paymentHook, /activateAbility\(state/);
+assert.match(picker, /data-activated-discard-picker="true"/);
+assert.match(picker, /data-confirm-activated-discard="true"/);
+assert.match(browserCert, /Descartar da mão/);
+assert.match(browserCert, /discardFromHand/);
+
+console.log("SELECTED DISCARD ACTIVATED COST SOURCE CONTRACT: PASS");

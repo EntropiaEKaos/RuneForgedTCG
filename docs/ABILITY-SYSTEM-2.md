@@ -61,6 +61,7 @@ Campos ausentes são intencionais. Por exemplo, uma keyword não possui custo ne
 - mana regular;
 - mana de feitiço dedicada;
 - vida do Nexus;
+- descarte escolhido explicitamente da própria mão;
 - exaurir a própria fonte;
 - consumir a Barrier ativa da própria Unit;
 - sacrificar a própria fonte;
@@ -68,7 +69,9 @@ Campos ausentes são intencionais. Por exemplo, uma keyword não possui custo ne
 
 Mana regular e mana de feitiço são recursos separados. Um custo `spellMana` usa somente o banco de `PlayerState.spellMana` e nunca converte nem usa mana regular como fallback. `consumeBarrier` é permitido somente para uma Unit controlada com `barrier === true`; o pagamento remove a Barrier antes de o efeito resolver, da mesma forma que o runtime já consome essa proteção ao bloquear dano.
 
-Custos que exigem escolha adicional — como descartar uma carta específica da mão, retornar uma permanente escolhida, exilar/consumir recursos de cemitério ou selecionar marcadores — permanecem fora do catálogo authorable até possuírem payload determinístico, validação, execução autoritativa, IA, replay e browser certification próprios.
+`discardFromHand` é o primeiro custo que exige escolha explícita do jogador. A definição da habilidade armazena somente a quantidade; a ação 2.97 `sentinela` recebe de forma aditiva `costDiscardInstanceIds`, contendo exatamente os `instanceId` escolhidos. O servidor valida quantidade exata, unicidade e pertencimento à mão antes de qualquer mutação. A remoção ocorre no estado clonado antes do efeito, então draws e demais follow-ups observam deterministicamente o estado pós-pagamento.
+
+Outros custos que exigem escolha adicional — como retornar uma permanente escolhida, exilar/consumir recursos de cemitério ou selecionar marcadores — permanecem fora do catálogo authorable até possuírem payload determinístico, validação, execução autoritativa, IA, replay e browser certification próprios.
 
 ## Matriz de suporte
 
@@ -140,11 +143,21 @@ O executor mantém pagamento atômico: modo, target, limites de uso e todos os r
 
 A IA não ignora os novos recursos: elegibilidade continua vindo do executor autoritativo e a função de score penaliza o gasto de mana de feitiço e o valor defensivo perdido ao consumir Barrier. Como esse corte não adiciona escolha de carta/recurso externo, replays históricos e ações 2.97 permanecem byte-shape compatíveis.
 
-Esse corte não torna o Ability System 2.0 inteiro `FULL`. Descarte escolhido, custos de retorno, cemitério/exílio, marcadores e custos dependentes de seleção permanecem para evoluções próprias; modalidades ainda são `partial`, e Aura continua `partial` até Aura 2.0.
+### Fase 4.3 — Selected Discard Activated Cost
+
+`discardFromHand` estende `ActivatedAbilityCost` sem criar um formato paralelo. A quantidade fica no blueprint da habilidade-base e, quando maior que zero, a ativação exige a seleção concreta em `costDiscardInstanceIds`. O campo é opcional e aditivo no opcode histórico `sentinela`, portanto replays anteriores continuam desserializando sem alteração.
+
+O preflight de UI e IA pode considerar a habilidade pronta quando a mão possui cartas suficientes, mas o executor autoritativo nunca infere a escolha do jogador: sem IDs explícitos a ativação falha. A validação também rejeita quantidade incorreta, IDs duplicados e qualquer carta fora da mão do ator. Target, modo e todos os demais custos são validados no mesmo estado original antes do clone, preservando atomicidade total.
+
+No gameplay humano, um seletor dedicado cobre a arena e permite escolher exatamente N cartas antes do envio da ação; ele não reutiliza targeting de board nem o fluxo normal de jogar cartas. A IA escolhe deterministicamente as cartas de menor custo, com desempate estável por `defId` e `instanceId`, e o score inclui o valor sacrificado da mão. Studio publica somente a quantidade, porque a seleção pertence à ação em runtime. A browser certification de Studio comprova save/reload desse custo compartilhado.
+
+`AbilityBlueprint` projeta esse custo como `{ kind: "discardFromHand", amount, selection: "explicitInstanceIds" }`, deixando explícito para ferramentas que existe uma decisão concreta associada ao pagamento.
+
+Esse corte ainda não torna o Ability System 2.0 inteiro `FULL`. Retorno de permanentes, cemitério/exílio, marcadores, custos condicionais por modo e habilidades ativadas de reação/evento continuam em cortes próprios; modalidades e Aura permanecem `partial` até suas expansões finais.
 
 ### Próximos cortes
 
 1. habilidades ativadas de reação/evento integradas ao protocolo autoritativo;
 2. Aura 2.0 com efeitos contínuos genéricos além de atributos permanentes;
-3. custos que exigem seleção/payload adicional, em cortes próprios e replay-safe;
+3. próximos custos selecionáveis, como retorno de permanentes e recursos de futuras zonas, somente quando a respectiva zona/protocolo estiver certificado;
 4. certificação transversal e revisão final da matriz de suporte antes de promover qualquer família a `supported`/`FULL`.

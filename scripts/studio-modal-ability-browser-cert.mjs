@@ -164,6 +164,7 @@ async function modalEvidence(cdp) {
   return evaluate(cdp, `(() => {
     const labels = [...document.querySelectorAll('label')];
     const spellManaHost = labels.find((node) => (node.querySelector('.label')?.textContent || '').trim() === 'Mana de feitiço');
+    const discardHost = labels.find((node) => (node.querySelector('.label')?.textContent || '').trim() === 'Descartar da mão');
     const barrierLabel = labels.find((node) => (node.textContent || '').includes('Consumir Barrier ativa'));
     return {
       modalSections:[...document.querySelectorAll('[data-studio-ability-composer="activated"][data-activated-modal="true"]')].length,
@@ -172,6 +173,7 @@ async function modalEvidence(cdp) {
       effectComposers:[...document.querySelectorAll('[data-studio-modal-choices="true"] [data-studio-effect-composer="semantic"]')].length,
       expandedCostSections:[...document.querySelectorAll('[data-expanded-activated-costs="true"]')].length,
       spellMana:spellManaHost?.querySelector('input')?.value ?? null,
+      discardFromHand:discardHost?.querySelector('input')?.value ?? null,
       consumeBarrier:barrierLabel?.querySelector('input[type="checkbox"]')?.checked ?? null,
       body:(document.body?.innerText || '').replace(/\\s+/g, ' ').trim(),
       scrollWidth:document.documentElement.scrollWidth,
@@ -227,6 +229,7 @@ async function main() {
     await waitUntil(() => evaluate(cdp, `document.querySelectorAll('[data-studio-ability-composer="activated"]').length === 1`), "new activated ability composer");
 
     await setLabeledValue(cdp, "Mana de feitiço", "2");
+    await setLabeledValue(cdp, "Descartar da mão", "2");
     await setCheckboxByText(cdp, "Consumir Barrier ativa", true);
 
     const toggled = await evaluate(cdp, `(() => {
@@ -249,6 +252,7 @@ async function main() {
     assert.equal(beforeSave.effectComposers, 2, "each modal choice owns its semantic effect composer");
     assert.equal(beforeSave.expandedCostSections, 1, "expanded activated-cost controls render once for the base ability");
     assert.equal(beforeSave.spellMana, "2", "real Studio model stores dedicated spell mana before save");
+    assert.equal(beforeSave.discardFromHand, "2", "real Studio model stores selected hand discard count before save");
     assert.equal(beforeSave.consumeBarrier, true, "real Studio model stores Unit Barrier consumption before save");
     assert.match(beforeSave.body, /Custo compartilhado/i);
     assert.match(beforeSave.body, /Usos \/ rodada \(compartilhados\)/i);
@@ -270,10 +274,11 @@ async function main() {
     assert.equal(afterReload.effectComposers, 2, "semantic mode effect editors survive reload");
     assert.equal(afterReload.expandedCostSections, 1, "expanded activated costs remain a base-ability contract after reload");
     assert.equal(afterReload.spellMana, "2", "dedicated spell mana survives save + full page reload");
+    assert.equal(afterReload.discardFromHand, "2", "selected hand discard count survives save + full page reload");
     assert.equal(afterReload.consumeBarrier, true, "Unit Barrier cost survives save + full page reload");
     await capture(cdp, "studio-modal-authoring-after-reload.png");
 
-    console.log("STUDIO MODAL ABILITY BROWSER CERT: PASS — modal choices + expanded base costs create → save → reload with stable ids/resources");
+    console.log("STUDIO MODAL ABILITY BROWSER CERT: PASS — modal choices + expanded/selected base costs create → save → reload with stable ids/resources");
   } finally {
     cdp?.close();
     await shutdown(chrome, profileDir);
