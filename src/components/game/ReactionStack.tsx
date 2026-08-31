@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { getCard } from "@/game/cards";
 import {
   reactionActivatedAbilityOptions,
@@ -74,11 +74,6 @@ function ReactionActivatedPicker({ reaction }: { reaction: ReactionPending }) {
   const ability = selected ? getCard(selected.defId).reactionActivatedAbilities?.[selected.abilityIndex] : undefined;
   const discardCount = ability?.cost?.discardFromHand ?? 0;
 
-  useEffect(() => {
-    setTargetId("");
-    setDiscardIds([]);
-  }, [selectedKey]);
-
   if (options.length === 0) return null;
 
   const requiredTarget = selected && !["none", "self", "spellOnStack"].includes(selected.targetKind);
@@ -127,7 +122,11 @@ function ReactionActivatedPicker({ reaction }: { reaction: ReactionPending }) {
           className="input text-xs"
           aria-label="Escolher habilidade ativada de reação"
           value={selectedKey}
-          onChange={(event) => setSelectedKey(event.target.value)}
+          onChange={(event) => {
+            setSelectedKey(event.target.value);
+            setTargetId("");
+            setDiscardIds([]);
+          }}
         >
           <option value="">Escolha uma habilidade…</option>
           {options.map((option) => {
