@@ -4,6 +4,7 @@ import { StudioEffectEditor } from "../AbilityComposerFields";
 import { F, Json, Panel } from "./CardAuthoringFields";
 import ActivatedAbilityEditor from "./ActivatedAbilityEditor";
 import CostReductionEditor from "./CostReductionEditor";
+import PermanentAuraEditor from "./PermanentAuraEditor";
 import {
   CARD_KEYWORDS as KWS,
   CARD_LEVEL_UP_TYPES as LEVEL_UP_TYPES,
@@ -144,6 +145,7 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
 
       <ActivatedAbilityEditor model={model} />
       <CostReductionEditor model={model} />
+      <PermanentAuraEditor model={model} />
 
       <Panel title="Proteção contra Anulação" eyebrow="STACK IMMUNITY">
         <button
@@ -299,6 +301,7 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
       {!!(mechanicsCatalog.effects || []).length && <Panel title="Effect Library" eyebrow="COMPOSITE MACROS"><p className="mb-3 text-xs text-slate-400">Macros são expandidas para CardEffect nativos antes de salvar; replay e engine não dependem do nome da macro.</p><div className="flex flex-wrap gap-2">{mechanicsCatalog.effects.map((x:any)=><div key={x.key} className="rounded-xl border border-white/10 bg-white/[.025] p-3"><div className="text-xs font-black">{x.name}</div><div className="mt-2 flex gap-2">{card.type==="Spell"&&<button className="btn-ghost text-[10px]" onClick={()=>set("spell",structuredClone(x.definition.effect))}>Use as Spell</button>}{triggerEvent&&<button className="btn-ghost text-[10px]" onClick={()=>set("trigger",{when:triggerEvent,effect:structuredClone(x.definition.effect)})}>Use as Trigger</button>}</div></div>)}</div></Panel>}
       <Panel title="Raw Contracts" eyebrow="EXPERT / ROUND-TRIP FALLBACK">
         <Json title="Cost Reduction" value={card.costReduction} onChange={(v) => set("costReduction", v)} />
+        <Json title="Aura" value={card.aura} onChange={(v) => set("aura", v)} />
         <Json title="Spell" value={card.spell} onChange={(v) => set("spell", v)} />
         <Json title="Trigger" value={card.trigger} onChange={(v) => set("trigger", v)} />
         <Json title="Equipment" value={card.equipment} onChange={(v) => set("equipment", v)} />
