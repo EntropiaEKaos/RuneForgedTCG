@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import "./aura-2-types";
 import { normalizeCardForRoundTrip, sanitizePermanentStatAura, validateAuthorableCard } from "./card-authoring";
+import { applyCertifiedSemanticCardType, validateAuthorableCardWithSemanticTypes } from "./semantic-card-type-authoring";
 import type { CardDef, CardType } from "./types";
 
 const canonicalAura = { buffPower: 2, buffHealth: 3, races: ["Beast", "Spirit"] as const, classes: ["guardian", "mage"] };
@@ -14,7 +16,7 @@ assert.deepEqual(sanitized, {
   buffHealth: 3,
   races: ["Beast", "Spirit"],
   classes: ["guardian", "mage"],
-}, "Aura sanitizer preserves canonical stats and deduplicates filters");
+}, "legacy stat-Aura sanitizer preserves canonical stats and deduplicates filters");
 
 for (const invalid of [
   null,
@@ -29,7 +31,7 @@ for (const invalid of [
   { buffPower: 1, buffHealth: 1, races: ["NotARegionRace"] },
   { buffPower: 1, buffHealth: 1, classes: ["Invalid Class Name"] },
 ]) {
-  assert.equal(sanitizePermanentStatAura(invalid), null, `invalid Aura must fail closed: ${JSON.stringify(invalid)}`);
+  assert.equal(sanitizePermanentStatAura(invalid), null, `invalid legacy stat Aura must fail closed: ${JSON.stringify(invalid)}`);
 }
 
 const makeSource = (type: CardType): CardDef => ({
@@ -57,11 +59,11 @@ const makeSource = (type: CardType): CardDef => ({
 for (const type of ["Enchantment", "Artifact"] as CardType[]) {
   const source = makeSource(type);
   const result = validateAuthorableCard(source);
-  assert.equal(result.ok, true, `${type} must author the supported continuous Aura slice`);
+  assert.equal(result.ok, true, `${type} must author the supported continuous stat-Aura slice`);
   assert.ok(result.ok);
-  assert.deepEqual(result.card.aura, source.aura, `${type} Aura survives server-side validation`);
+  assert.deepEqual(result.card.aura, source.aura, `${type} stat Aura survives server-side validation`);
   const roundTrip = normalizeCardForRoundTrip(source);
-  assert.deepEqual(roundTrip.aura, source.aura, `${type} Aura survives semantic round-trip`);
+  assert.deepEqual(roundTrip.aura, source.aura, `${type} stat Aura survives legacy semantic round-trip`);
 }
 
 for (const type of ["Unit", "Spell", "Equipment", "Sentinela"] as CardType[]) {
@@ -81,4 +83,75 @@ assert.ok(hybridResult.ok);
 assert.deepEqual(hybridResult.card.aura, hybrid.aura);
 assert.deepEqual(hybridResult.card.trigger, hybrid.trigger);
 
-console.log("PERMANENT AURA AUTHORING: PASS — Studio/server validation, source restrictions, filters and round-trip certified");
+const keywordOnly: CardDef = {
+  ...makeSource("Enchantment"),
+  defId: "rt_keyword_aura",
+  aura: { buffPower: 0, buffHealth: 0, keywords: ["Flying", "Hexproof", "Flying"] },
+};
+const keywordOnlyResult = validateAuthorableCardWithSemanticTypes(keywordOnly);
+assert.equal(keywordOnlyResult.ok, true, "keyword-only Aura is accepted at the canonical Studio/API validator");
+assert.ok(keywordOnlyResult.ok);
+assert.deepEqual(keywordOnlyResult.card.aura, {
+  buffPower: 0,
+  buffHealth: 0,
+  keywords: ["Flying", "Hexproof"],
+});
+const keywordRoundTrip = validateAuthorableCardWithSemanticTypes(keywordOnlyResult.card);
+assert.equal(keywordRoundTrip.ok, true, "Aura 2.0 survives its canonical semantic round-trip");
+assert.ok(keywordRoundTrip.ok);
+assert.deepEqual(keywordRoundTrip.card.aura, keywordOnlyResult.card.aura);
+
+const mixedKeywordAura: CardDef = {
+  ...makeSource("Artifact"),
+  defId: "rt_mixed_keyword_aura",
+  aura: { buffPower: 2, buffHealth: 1, keywords: ["Tough", "Reach"], races: ["Beast"], classes: ["guardian"] },
+};
+const mixedResult = validateAuthorableCardWithSemanticTypes(mixedKeywordAura);
+assert.equal(mixedResult.ok, true, "stat + keyword Aura with filters is authorable");
+assert.ok(mixedResult.ok);
+assert.deepEqual(mixedResult.card.aura, mixedKeywordAura.aura);
+
+for (const unsafe of ["Barrier", "LastBreath"] as const) {
+  const result = validateAuthorableCardWithSemanticTypes({
+    ...keywordOnly,
+    defId: `rt_unsafe_aura_${unsafe.toLowerCase()}`,
+    aura: { buffPower: 0, buffHealth: 0, keywords: [unsafe] },
+  });
+  assert.equal(result.ok, false, `${unsafe} must fail closed as a continuous Aura grant`);
+  if (!result.ok) assert.match(result.error, /cannot be granted|Aura/i);
+}
+
+const unknownKeyword = validateAuthorableCardWithSemanticTypes({
+  ...keywordOnly,
+  defId: "rt_unknown_keyword_aura",
+  aura: { buffPower: 0, buffHealth: 0, keywords: ["NotAKeyword" as never] },
+});
+assert.equal(unknownKeyword.ok, false, "unknown Aura keyword fails closed");
+
+for (const type of ["Unit", "Spell", "Equipment", "Sentinela"] as CardType[]) {
+  const source = {
+    ...makeSource(type),
+    defId: `rt_keyword_source_${type.toLowerCase()}`,
+    aura: { buffPower: 0, buffHealth: 0, keywords: ["Flying" as const] },
+  };
+  const result = validateAuthorableCardWithSemanticTypes(source);
+  assert.equal(result.ok, false, `${type} must reject Aura 2.0 just like the legacy stat contract`);
+}
+
+const structureDraft = applyCertifiedSemanticCardType({
+  defId: "rt_structure_keyword_aura",
+  name: "Structure Aura",
+  region: "Ironwood",
+  type: "Artifact",
+  cost: 4,
+  description: "Structure Aura 2.0 probe.",
+  rarity: "Epic",
+  emoji: "🏰",
+}, "structure");
+const structureResult = validateAuthorableCardWithSemanticTypes({
+  ...structureDraft,
+  aura: { buffPower: 0, buffHealth: 0, keywords: ["Tough"] },
+});
+assert.equal(structureResult.ok, true, "certified Structure inherits the Artifact Aura 2.0 contract without a second runtime path");
+
+console.log("PERMANENT AURA 2.0 AUTHORING: PASS — legacy stats, continuous keywords, source restrictions, filters, semantic types and round-trip certified");
