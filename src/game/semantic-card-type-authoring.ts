@@ -35,7 +35,7 @@ function prepareAura2Input(raw: Partial<CardDef>): Aura2Prepared {
   const auraRaw = (raw as Partial<CardDef> & Record<string, unknown>).aura;
   if (!auraRaw || typeof auraRaw !== "object" || Array.isArray(auraRaw)) return { ok: true, input };
 
-  const aura = auraRaw as Record<string, unknown>;
+  const aura = auraRaw as unknown as Record<string, unknown>;
   if (!("keywords" in aura)) return { ok: true, input };
   if (!Array.isArray(aura.keywords)) return { ok: false, error: "Aura keywords must be an array" };
   if (aura.keywords.some((keyword) => !canonicalKeyword(keyword))) {
