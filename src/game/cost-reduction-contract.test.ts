@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { ABILITY_GRAMMAR_CATALOG, ABILITY_KIND_SUPPORT } from "./ability-system";
 import {
   COST_REDUCTION_CONTRACTS,
   COST_REDUCTION_KINDS,
@@ -14,6 +15,9 @@ assert.deepEqual(COST_REDUCTION_CONTRACTS.power.fields, ["per", "threshold", "ma
 assert.equal(COST_REDUCTION_CONTRACTS.creatures.defaults.per, 1);
 assert.equal(COST_REDUCTION_CONTRACTS.power.defaults.per, 1);
 assert.equal(COST_REDUCTION_CONTRACTS.power.defaults.threshold, 4);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.costReductionKinds, COST_REDUCTION_KINDS);
+assert.deepEqual(ABILITY_GRAMMAR_CATALOG.costReductionContracts, COST_REDUCTION_CONTRACTS);
+assert.equal(ABILITY_KIND_SUPPORT.static, "partial", "cost reduction is certified without falsely claiming every static family is generic");
 
 assert.deepEqual(
   sanitizeCostReduction({ kind: "creatures", per: 2, max: 5 }),
@@ -95,4 +99,4 @@ const floorCard: CardDef = {
 };
 assert.equal(effectiveCost(state, "player", floorCard), 0, "effective cost never becomes negative");
 
-console.log("STATIC COST REDUCTION CONTRACT: PASS — creatures/power authoring, dead-field rejection, per/threshold/max and runtime effectiveCost certified");
+console.log("STATIC COST REDUCTION CONTRACT: PASS — creatures/power authoring, dead-field rejection, grammar catalog, per/threshold/max and runtime effectiveCost certified");
