@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import type { PendingActivatedDiscard } from "@/components/game/ActivatedDiscardPicker";
 import { activateAbility, activatedAbilitiesForInstance } from "@/game/engine";
 import type { GameState } from "@/game/types";
@@ -27,10 +27,6 @@ export function useActivatedAbilityPayment({
   const [pendingActivatedDiscard, setPendingActivatedDiscard] = useState<PendingActivatedDiscard | null>(null);
 
   const cancelActivatedDiscard = useCallback(() => setPendingActivatedDiscard(null), []);
-
-  useEffect(() => {
-    if (screen === "select") cancelActivatedDiscard();
-  }, [screen, cancelActivatedDiscard]);
 
   const commitActivatedAbility = useCallback((
     sourceInstanceId: string,
@@ -109,7 +105,7 @@ export function useActivatedAbilityPayment({
   }, [pendingActivatedDiscard, commitActivatedAbility]);
 
   return {
-    pendingActivatedDiscard,
+    pendingActivatedDiscard: screen === "select" ? null : pendingActivatedDiscard,
     beginActivatedAbilityPayment,
     toggleActivatedDiscard,
     confirmActivatedDiscard,
