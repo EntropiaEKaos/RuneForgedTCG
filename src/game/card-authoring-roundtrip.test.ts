@@ -1,8 +1,14 @@
-import { baseCardsOnly } from "./cards";
+import { baseCardsOnly, getCard } from "./cards";
 import {
   CARD_EFFECT_KINDS, CARD_KEYWORDS, CARD_RACES, CARD_REGIONS, CARD_TRIGGERS,
   normalizeCardForRoundTrip, sanitizeCardEffect, sanitizeCardMechanic, validateAuthorableCard,
 } from "./card-authoring";
+import {
+  CANONICAL_KEYWORDS,
+  KEYWORD_INFO,
+  keywordCardContractError,
+  keywordIsGrantable,
+} from "./keywords";
 import {
   cardTriggerIsExecutable,
   isTriggerSupported,
@@ -29,7 +35,16 @@ check(CARD_RACES.includes("Besta"), "Besta missing from canonical authoring cata
 check(CARD_RACES.includes("Tempesteiro"), "Tempesteiro missing from canonical authoring catalog");
 check(CARD_RACES.includes("Anjo"), "Anjo missing from canonical authoring catalog");
 check(CARD_KEYWORDS.includes("Flying"), "Flying missing from canonical authoring catalog");
+check(same(CARD_KEYWORDS, CANONICAL_KEYWORDS), "Card Studio keyword vocabulary drifted from canonical Keyword Contract");
 check(CARD_EFFECT_KINDS.includes("mill"), "mill missing from canonical authoring catalog");
+for (const keyword of CANONICAL_KEYWORDS) {
+  const contract = KEYWORD_INFO[keyword];
+  check(contract.support === "supported", `${keyword} is not certified as runtime-supported`);
+  check(contract.runtimeDomains.length > 0, `${keyword} has no authoritative runtime domain`);
+}
+check(!keywordIsGrantable("LastBreath"), "LastBreath must not be generically grantable without a death ability contract");
+check(keywordIsGrantable("Barrier"), "ordinary runtime keyword Barrier should remain grantable");
+check(keywordIsGrantable("Haste"), "ordinary runtime keyword Haste should remain grantable");
 
 const composite: CardEffect = {
   kind: "damageUnit", amount: 2, target: "enemyUnit", race: "Anjo", races: ["Besta", "Tempesteiro"],
@@ -37,6 +52,14 @@ const composite: CardEffect = {
   also: { kind: "mill", amount: 3, target: "none", also: { kind: "draw", amount: 1, target: "none" } },
 };
 check(same(sanitizeCardEffect(composite), composite), "recursive CardEffect round-trip lost fields");
+check(
+  sanitizeCardEffect({ kind:"grantKeyword", amount:0, target:"allyUnit", keyword:"LastBreath" }) === null,
+  "grantKeyword must reject LastBreath because the granted marker has no portable death effect",
+);
+check(
+  !!sanitizeCardEffect({ kind:"grantKeyword", amount:0, target:"allyUnit", keyword:"Haste" }),
+  "grantKeyword must continue accepting ordinary grantable runtime keywords",
+);
 
 const typeSamples: CardDef[] = [
   { defId:"rt_unit", name:"Unit", region:"Florestia", type:"Unit", cost:1, power:1, health:1, race:"Besta", keywords:["Reach"], description:"x", rarity:"Common", emoji:"U" },
@@ -47,6 +70,43 @@ const typeSamples: CardDef[] = [
   { defId:"rt_sentinel", name:"Sent", region:"Tempestade", type:"Sentinela", cost:5, sentinela:{startingLoyalty:4,abilities:[{cost:-1,description:"x",effect:{kind:"grantKeyword",amount:0,target:"allyUnit",keyword:"Flying",also:{kind:"buffUnit",amount:0,target:"allyUnit",buffPower:1,buffHealth:1}}}]}, description:"x", rarity:"Legend", emoji:"P" },
 ];
 for (const sample of typeSamples) { const r = normalizeCardForRoundTrip(sample); check(r.type === sample.type, `type sample failed: ${sample.type}`); }
+
+const inertLastBreath: CardDef = {
+  defId:"rt_inert_last_breath", name:"Inert Last Breath", region:"Emberhold", type:"Unit", cost:1,
+  power:1, health:1, keywords:["LastBreath"], description:"x", rarity:"Common", emoji:"D",
+};
+const inertLastBreathResult = validateAuthorableCard(inertLastBreath);
+check(!inertLastBreathResult.ok, "printed LastBreath without onDeath must fail closed instead of publishing inert content");
+check(
+  keywordCardContractError(inertLastBreath)?.includes("onDeath") === true,
+  "LastBreath contract error must explain its required onDeath trigger",
+);
+const executableLastBreath: CardDef = {
+  ...inertLastBreath,
+  defId:"rt_executable_last_breath",
+  trigger:{ when:"onDeath", effect:{kind:"draw",amount:1,target:"none"} },
+};
+check(validateAuthorableCard(executableLastBreath).ok, "printed LastBreath with executable onDeath must remain authorable");
+check(keywordCardContractError(executableLastBreath) === null, "executable LastBreath should satisfy Keyword Contract");
+const mechanicLastBreath: CardDef = {
+  ...inertLastBreath,
+  defId:"rt_mechanic_last_breath",
+  mechanics:[{ key:"last_breath_probe", trigger:"onDeath", condition:{kind:"always"}, effect:{kind:"draw",amount:1,target:"none"} }],
+};
+check(validateAuthorableCard(mechanicLastBreath).ok, "LastBreath may be backed by an embedded executable onDeath mechanic");
+const invalidLastBreathEquipment: CardDef = {
+  defId:"rt_last_breath_equipment", name:"Invalid Equipment", region:"Emberhold", type:"Equipment", cost:1,
+  equipment:{buffPower:1,buffHealth:0,keywords:["LastBreath"]}, description:"x", rarity:"Common", emoji:"Q",
+};
+check(!validateAuthorableCard(invalidLastBreathEquipment).ok, "Equipment must reject non-grantable LastBreath");
+const validFlyingEquipment: CardDef = {
+  ...invalidLastBreathEquipment,
+  defId:"rt_flying_equipment",
+  equipment:{buffPower:1,buffHealth:0,keywords:["Flying"]},
+};
+check(validateAuthorableCard(validFlyingEquipment).ok, "Equipment must continue accepting ordinary grantable keywords");
+const canonicalMagmaEgg = getCard("ember_lastbreath");
+check(keywordCardContractError(canonicalMagmaEgg) === null, "canonical Magma Egg must satisfy LastBreath/onDeath contract");
 
 const triggerEffect: CardEffect = { kind: "draw", amount: 1, target: "none" };
 const expectedTriggerEvents: Record<CardType, readonly TriggerWhen[]> = {
@@ -86,6 +146,14 @@ for (const kind of CARD_EFFECT_KINDS) {
 }
 for (const original of baseCardsOnly()) {
   try {
+    check(keywordCardContractError(original) === null, `${original.defId} violates canonical Keyword Contract`);
+    for (const keyword of original.keywords ?? []) {
+      check(KEYWORD_INFO[keyword].support === "supported", `${original.defId}.${keyword} lacks runtime keyword support`);
+      check(KEYWORD_INFO[keyword].runtimeDomains.length > 0, `${original.defId}.${keyword} has no runtime domain`);
+    }
+    for (const keyword of original.equipment?.keywords ?? []) {
+      check(keywordIsGrantable(keyword), `${original.defId} Equipment grants non-grantable keyword ${keyword}`);
+    }
     if (original.trigger) {
       check(cardTriggerIsExecutable(original), `${original.defId} contains a trigger the runtime source contract cannot execute`);
     }
@@ -109,4 +177,4 @@ if (failures.length) {
   for (const f of failures.slice(0, 100)) console.error(" -", f);
   process.exit(1);
 }
-console.log(`CARD AUTHORING ROUND-TRIP PASS: ${passed} checks across ${baseCardsOnly().length} cards · Trigger Source Contract certified`);
+console.log(`CARD AUTHORING ROUND-TRIP PASS: ${passed} checks across ${baseCardsOnly().length} cards · Trigger Source + Keyword Contracts certified`);
