@@ -1,5 +1,11 @@
 import type { ActivatedAbility } from "./activated-ability-types";
-import { activatedAbilitiesForInstance, canBeginActivateAbility, validateActivatedAbilityActivation } from "./engine";
+import {
+  activatedAbilitiesForInstance,
+  activatedAbilityChoices,
+  canBeginActivateAbility,
+  resolveActivatedAbilityChoice,
+  validateActivatedAbilityActivation,
+} from "./engine";
 import type { GameState, PlayerId, TargetKind } from "./types";
 
 export interface ActivatedAbilityUiState {
@@ -63,6 +69,12 @@ export function activatedAbilityUnavailableLabel(reason?: string | null): string
       return "Só pode ser usada em uma janela de resposta.";
     case "activated ability source is not controlled by actor":
       return "Apenas o controlador pode ativar esta habilidade.";
+    case "modal activated ability requires a mode":
+      return "Escolha um modo para ativar.";
+    case "unknown activated ability mode":
+    case "non-modal activated ability does not accept a mode":
+    case "invalid activated ability definition":
+      return "Configuração de habilidade inválida.";
     case "activated ability index does not exist":
     case "invalid activated ability index":
       return "Habilidade indisponível.";
@@ -76,19 +88,38 @@ export function activatedAbilityUiState(
   playerId: PlayerId,
   instanceId: string,
   abilityIndex: number,
+  modeId?: string,
 ): ActivatedAbilityUiState {
   const ability = activatedAbilitiesForInstance(state, playerId, instanceId)[abilityIndex];
   if (!ability) {
     return { canUse: false, status: "blocked", reason: "Habilidade indisponível." };
   }
 
-  if (canBeginActivateAbility(state, playerId, instanceId, abilityIndex)) {
+  if (canBeginActivateAbility(state, playerId, instanceId, abilityIndex, modeId)) {
     return { canUse: true, status: "ready", reason: null };
   }
 
-  const validation = validateActivatedAbilityActivation(state, playerId, instanceId, abilityIndex);
+  // Overview state for a modal ability: no mode is selected yet, so aggregate
+  // individual choices without pretending an authoritative activation exists.
+  if (ability.modes !== undefined && modeId === undefined) {
+    const choices = activatedAbilityChoices(ability);
+    if (choices.length === 0) {
+      return { canUse: false, status: "blocked", reason: "Configuração de habilidade inválida." };
+    }
+    const firstReason = choices
+      .map((choice) => activatedAbilityUiState(state, playerId, instanceId, abilityIndex, choice.modeId).reason)
+      .find(Boolean);
+    return {
+      canUse: false,
+      status: "blocked",
+      reason: firstReason ?? "Nenhum modo pode ser usado agora.",
+    };
+  }
+
+  const validation = validateActivatedAbilityActivation(state, playerId, instanceId, abilityIndex, undefined, modeId);
   let reason = validation.reason ?? null;
-  if (validation.ok && requiresBoardTarget(ability.effect.target)) {
+  const resolved = resolveActivatedAbilityChoice(ability, modeId);
+  if (resolved.ok && validation.ok && requiresBoardTarget(resolved.choice.effect.target)) {
     reason = "activated ability requires a target";
   }
 
