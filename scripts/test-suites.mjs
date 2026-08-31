@@ -8,6 +8,7 @@ export const behavioralTests = [
   "src/game/authoritative.test.ts",
   "src/game/card-authoring-roundtrip.test.ts",
   "src/game/cost-reduction-contract.test.ts",
+  "src/game/effect-chain-contract.test.ts",
   "src/game/card-inspection.test.ts",
   "src/game/card-laboratory.test.ts",
   "src/game/ci.test.ts",
