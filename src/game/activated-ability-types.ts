@@ -6,6 +6,8 @@ import type { CardEffect } from "./types";
  * `mana` always uses regular mana.
  * `spellMana` spends only banked spell mana and never falls back to regular mana.
  * `nexusHealth` cannot be paid if it would reduce the Nexus to zero.
+ * `discardFromHand` requires the activating player to explicitly select exactly
+ * that many controlled hand-card instance ids in the action payload.
  * `exhaustSelf` consumes a unit's attack readiness for the current round;
  * permanents/Sentinelas remember the exhausted round explicitly.
  * `consumeBarrier` requires an active Barrier on a Unit source and consumes that
@@ -18,6 +20,7 @@ export interface ActivatedAbilityCost {
   mana?: number;
   spellMana?: number;
   nexusHealth?: number;
+  discardFromHand?: number;
   exhaustSelf?: boolean;
   consumeBarrier?: boolean;
   sacrificeSelf?: boolean;
@@ -82,12 +85,14 @@ declare module "./types" {
 }
 
 /**
- * CardAction remains the versioned 2.97 transport shape. `modeId` is additive
- * and optional, so historic actions deserialize unchanged while modal
- * activations can carry a stable deterministic choice.
+ * CardAction remains the versioned 2.97 transport shape. `modeId` and
+ * `costDiscardInstanceIds` are additive and optional, so historic actions
+ * deserialize unchanged while newer activations can carry deterministic
+ * modal and selected-cost choices.
  */
 declare module "./engine/reactions" {
   interface CardAction {
     modeId?: string;
+    costDiscardInstanceIds?: string[];
   }
 }
