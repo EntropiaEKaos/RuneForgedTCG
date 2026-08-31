@@ -7,8 +7,12 @@ import { requireStablePlayerIdentity } from "@/lib/player-session";
 import { resolveDeck, snapshotDeck } from "@/game/deck-service";
 import { snapshotReplayBundle, type ReplayDeckSnapshot } from "@/game/replay-content-snapshot";
 import { withRegisteredCardSnapshot } from "@/game/custom-registry";
-import { applyAuthoritativePvpSnapshotAction } from "@/lib/pvp-authoritative-transition";
-import { toPvpParticipantGameState } from "@/lib/pvp-public-state";
+import {
+  applyAuthoritativePvpSnapshotAction,
+  expireAuthoritativePvpSnapshotReaction,
+} from "@/lib/pvp-authoritative-transition";
+import { toPvpParticipantGameState, toPvpParticipantReactionState } from "@/lib/pvp-public-state";
+import { pvpReactionPriorityExpired, type PvpReactionPriorityState } from "@/lib/pvp-reaction-priority";
 import { deriveGameEvents } from "@/game/events";
 import { actionLogHash, replayIntegrity } from "@/lib/match-integrity";
 import { createGame } from "@/game/engine";
@@ -47,12 +51,56 @@ function publicRoom(room: typeof pvpRooms.$inferSelect, viewerId: number) {
     version: room.version,
     viewerSide: viewerIsGuest ? "guest" as const : "host" as const,
     gameState: publicState,
+    reactionState: toPvpParticipantReactionState(room.reactionState as PvpReactionPriorityState | null, viewerIsGuest),
     contentHash: room.contentHash,
     rankedSeasonId: room.rankedSeasonId,
     createdAt: room.createdAt,
     updatedAt: room.updatedAt,
     expiresAt: room.expiresAt,
   };
+}
+
+async function resolveExpiredReactionRoom(roomId: number) {
+  return db.transaction(async (tx) => {
+    const [locked] = await tx.select().from(pvpRooms).where(eq(pvpRooms.id, roomId)).limit(1).for("update");
+    if (!locked || locked.state !== "playing" || !locked.gameState || !locked.reactionState) return locked;
+    const reactionState = locked.reactionState as PvpReactionPriorityState;
+    if (!pvpReactionPriorityExpired(reactionState)) return locked;
+
+    const state = locked.gameState as GameState;
+    const transition = expireAuthoritativePvpSnapshotReaction({
+      state,
+      reactionState,
+      contentSnapshot: locked.contentSnapshot as ReplayDeckSnapshot | null,
+      contentHash: locked.contentHash,
+    });
+    if (!transition.ok) throw new Error(transition.error);
+
+    const next = transition.next;
+    const actionLog = [...(Array.isArray(locked.actionLog) ? locked.actionLog as GameAction[] : []), transition.authorized];
+    const eventLog = [...(Array.isArray(locked.eventLog) ? locked.eventLog : []), ...deriveGameEvents(state, next)];
+    const winnerPlayerId = next.winner ? (next.winner === "player" ? locked.hostPlayerId : locked.guestPlayerId) : null;
+    const winner = next.winner ? (next.winner === "player" ? locked.hostName : locked.guestName) : null;
+    const [updated] = await tx.update(pvpRooms).set({
+      gameState: next,
+      reactionState: null,
+      winner,
+      state: winner ? "finished" : "playing",
+      version: locked.version + 1,
+      actionLog,
+      eventLog,
+      actionHash: actionLogHash(actionLog),
+      integrityHash: replayIntegrity(actionLog, next),
+      expiresAt: new Date(Date.now() + (winner ? PVP_FINISHED_TTL_MS : PVP_PLAYING_TTL_MS)),
+      updatedAt: new Date(),
+    }).where(and(eq(pvpRooms.id, locked.id), eq(pvpRooms.version, locked.version))).returning();
+    if (!updated) throw new Error("Room changed during reaction timeout");
+    await tx.insert(pvpSpectatorSnapshots).values({ roomId: updated.id, roomVersion: updated.version, gameState: next }).onConflictDoNothing();
+    if (winnerPlayerId != null) {
+      await settlePvpRoom({ tx, roomId: locked.id, finalState: next, actionLog, winnerPlayerId, winnerName: winner! });
+    }
+    return updated;
+  });
 }
 
 async function settleForfeit(room: typeof pvpRooms.$inferSelect, actor: PlayerId) {
@@ -64,7 +112,7 @@ async function settleForfeit(room: typeof pvpRooms.$inferSelect, actor: PlayerId
     if (!locked) throw new Error("Room not found");
     if (locked.state !== "playing") return { alreadyFinished: true, matchIds: [] as number[] };
     const forfeitedState = locked.gameState ? { ...(locked.gameState as GameState), phase: "gameover" as const, winner: actor === "player" ? "ai" as const : "player" as const } : null;
-    const [updated] = await tx.update(pvpRooms).set({ state: "finished", winner: winnerName, gameState: forfeitedState, version: locked.version + 1, expiresAt: new Date(Date.now() + PVP_FINISHED_TTL_MS), updatedAt: new Date() }).where(and(eq(pvpRooms.id, locked.id), eq(pvpRooms.version, locked.version))).returning();
+    const [updated] = await tx.update(pvpRooms).set({ state: "finished", winner: winnerName, gameState: forfeitedState, reactionState: null, version: locked.version + 1, expiresAt: new Date(Date.now() + PVP_FINISHED_TTL_MS), updatedAt: new Date() }).where(and(eq(pvpRooms.id, locked.id), eq(pvpRooms.version, locked.version))).returning();
     if (!updated) throw new Error("Room changed during forfeit");
     if (forfeitedState) await tx.insert(pvpSpectatorSnapshots).values({ roomId: updated.id, roomVersion: updated.version, gameState: forfeitedState }).onConflictDoNothing();
     const settlement = await settlePvpRoom({ tx, roomId: locked.id, finalState: forfeitedState, actionLog: Array.isArray(locked.actionLog) ? locked.actionLog as GameAction[] : [], winnerPlayerId, winnerName, isForfeit: true });
@@ -78,9 +126,12 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ code: strin
     const { code } = await ctx.params;
     const roomCode = code.toUpperCase();
     const identity = await requireStablePlayerIdentity(req);
-    const [room] = await db.select().from(pvpRooms).where(eq(pvpRooms.code, roomCode)).limit(1);
+    let [room] = await db.select().from(pvpRooms).where(eq(pvpRooms.code, roomCode)).limit(1);
     if (!room) return Response.json({ ok: false, error: "Room not found" }, { status: 404 });
     if (!identity || identity.playerId == null || (room.hostPlayerId !== identity.playerId && room.guestPlayerId !== identity.playerId)) return Response.json({ ok: false, error: "Forbidden" }, { status: 403 });
+    if (room.reactionState && pvpReactionPriorityExpired(room.reactionState as PvpReactionPriorityState)) {
+      room = await resolveExpiredReactionRoom(room.id) ?? room;
+    }
     const chat = await db.select().from(chatMessages).where(eq(chatMessages.roomCode, roomCode)).orderBy(desc(chatMessages.createdAt)).limit(30);
     return Response.json({ ok: true, room: publicRoom(room, identity.playerId), chat: chat.reverse() });
   } catch (error) {
@@ -126,9 +177,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
           if (!guestPlayer) return [];
           const [locked] = await tx.select().from(pvpRooms).where(eq(pvpRooms.id, room.id)).limit(1).for("update");
           if (!locked || locked.version !== room.version || locked.guestPlayerId != null || locked.state !== "waiting") return [];
-          // The player row lock above serializes join/create for this identity.
-          // A player must explicitly cancel an existing waiting lobby before
-          // joining another room, and can never join while already playing.
           const [activeElsewhere] = await tx.select({ id: pvpRooms.id }).from(pvpRooms).where(and(
             or(eq(pvpRooms.hostPlayerId, identity.playerId!), eq(pvpRooms.guestPlayerId, identity.playerId!)),
             or(eq(pvpRooms.state, "waiting"), eq(pvpRooms.state, "playing")),
@@ -141,14 +189,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
           const initialGameState = withRegisteredCardSnapshot(contentSnapshot.cardDefs, () =>
             createGame(locked.hostName, host, guestSnapshot, Boolean(locked.playerFirst), locked.seed ?? undefined),
           );
-          // createGame() defaults the internal "ai" seat to mulligan-complete for PvE.
-          // In Casual PvP that seat is occupied by the second human, so both human
-          // participants must start with their mulligan pending.
           const gameState: GameState = {
             ...initialGameState,
             mulliganDone: { player: false, ai: false },
           };
-          const rows = await tx.update(pvpRooms).set({ guestName, guestPlayerId: identity.playerId, guestDeck: guestDeckId, guestDeckSnapshot: guestSnapshot, contentSnapshot, contentHash: contentSnapshot.contentHash, state: "playing", settledAt: null, gameState, version: locked.version + 1, actionLog: [], eventLog: [], winner: null, expiresAt: new Date(Date.now() + PVP_PLAYING_TTL_MS), updatedAt: new Date() }).where(eq(pvpRooms.id, locked.id)).returning();
+          const rows = await tx.update(pvpRooms).set({ guestName, guestPlayerId: identity.playerId, guestDeck: guestDeckId, guestDeckSnapshot: guestSnapshot, contentSnapshot, contentHash: contentSnapshot.contentHash, state: "playing", settledAt: null, gameState, reactionState: null, version: locked.version + 1, actionLog: [], eventLog: [], winner: null, expiresAt: new Date(Date.now() + PVP_PLAYING_TTL_MS), updatedAt: new Date() }).where(eq(pvpRooms.id, locked.id)).returning();
           if (rows[0]) await tx.insert(pvpSpectatorSnapshots).values({ roomId: rows[0].id, roomVersion: rows[0].version, gameState }).onConflictDoNothing();
           return rows;
         });
@@ -175,8 +220,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
     }
 
     if (action === "updateState" || action === "gameAction") {
-      // Authoritative actions acquire a DB transaction + row lock. Limit abusive
-      // retry/invalid-action floods without constraining normal interactive play.
       const actionRate = await consumeRateLimit(`pvp-action:${identity.playerId}`, 240, 60_000);
       if (!actionRate.allowed) {
         return Response.json(
@@ -191,6 +234,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
         return Response.json({ ok: false, error: "A valid actionId is required" }, { status: 400 });
       }
       const gameAction = body.gameAction as GameAction;
+
+      if (room.reactionState && pvpReactionPriorityExpired(room.reactionState as PvpReactionPriorityState)) {
+        await resolveExpiredReactionRoom(room.id);
+      }
+
       const result = await db.transaction(async (tx) => {
         const [locked] = await tx.select().from(pvpRooms).where(eq(pvpRooms.id, room.id)).limit(1).for("update");
         if (!locked || locked.state !== "playing" || !locked.gameState) return { error: "Match is not active", status: 409 as const };
@@ -202,6 +250,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
           state,
           gameAction,
           actor,
+          reactionState: locked.reactionState as PvpReactionPriorityState | null,
           contentSnapshot: locked.contentSnapshot as ReplayDeckSnapshot | null,
           contentHash: locked.contentHash,
         });
@@ -211,7 +260,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
         const eventLog = [...(Array.isArray(locked.eventLog) ? locked.eventLog : []), ...deriveGameEvents(state, next)];
         const winnerPlayerId = next.winner ? (next.winner === "player" ? locked.hostPlayerId : locked.guestPlayerId) : null;
         const winner = next.winner ? (next.winner === "player" ? locked.hostName : locked.guestName) : null;
-        const [updated] = await tx.update(pvpRooms).set({ gameState: next, winner, state: winner ? "finished" : "playing", version: locked.version + 1, actionLog, eventLog, actionHash: actionLogHash(actionLog), integrityHash: replayIntegrity(actionLog, next), expiresAt: new Date(Date.now() + (winner ? PVP_FINISHED_TTL_MS : PVP_PLAYING_TTL_MS)), updatedAt: new Date() }).where(and(eq(pvpRooms.id, locked.id), eq(pvpRooms.version, locked.version))).returning();
+        const [updated] = await tx.update(pvpRooms).set({ gameState: next, reactionState: transition.reactionState, winner, state: winner ? "finished" : "playing", version: locked.version + 1, actionLog, eventLog, actionHash: actionLogHash(actionLog), integrityHash: replayIntegrity(actionLog, next), expiresAt: new Date(Date.now() + (winner ? PVP_FINISHED_TTL_MS : PVP_PLAYING_TTL_MS)), updatedAt: new Date() }).where(and(eq(pvpRooms.id, locked.id), eq(pvpRooms.version, locked.version))).returning();
         if (!updated) return { conflict: true, status: 409 as const };
         await tx.insert(pvpSpectatorSnapshots).values({ roomId: updated.id, roomVersion: updated.version, gameState: next }).onConflictDoNothing();
         await tx.insert(pvpActionReceipts).values({ roomId: locked.id, playerId: identity.playerId!, actionId, resultingVersion: updated.version });
@@ -221,7 +270,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
         }
         return { updated: updated!, settlement, duplicate: false as const, status: 200 as const };
       });
-      if ("error" in result) return Response.json({ ok: false, error: result.error }, { status: result.status });
+      if ("error" in result) return Response.json({ ok: false, error: result.error, ...(result.code ? { code: result.code } : {}) }, { status: result.status });
       if ("conflict" in result && result.conflict) return Response.json({ ok: false, conflict: true, ...(result.room ? { room: result.room } : {}) }, { status: 409 });
       const roomResult = publicRoom(result.updated as NonNullable<typeof result.updated>, identity.playerId);
       return Response.json({ ok: true, authoritative: true, duplicate: result.duplicate, room: roomResult, gameState: roomResult.gameState, settlement: "settlement" in result ? result.settlement : null });
@@ -249,8 +298,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ code: stri
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ code: string }> }) {
   const runtimeBlocked = await runtimeGate("general");
   if (runtimeBlocked) return runtimeBlocked;
-  // DELETE used to erase live rooms. Preserve the endpoint for older clients,
-  // but route it through the same safe cancellation/forfeit semantics as leave.
   try {
     const { code } = await ctx.params;
     const roomCode = code.toUpperCase();

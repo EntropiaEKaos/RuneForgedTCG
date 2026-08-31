@@ -259,7 +259,7 @@ export default function ActivatedAbilityEditor({ model }: { model: CardAuthoring
       <Panel title="Habilidades de reação" eyebrow="ABILITY SYSTEM 2.0 · AUTHORITATIVE REACTION STACK">
         <div data-studio-reaction-activated-authoring="true" className="mb-4 rounded-xl border border-violet-300/15 bg-violet-300/[.035] p-4 text-xs leading-5 text-slate-300">
           Estas habilidades só podem ser usadas quando existe uma ação adversária pendente na pilha autoritativa. Defina explicitamente a quais famílias elas respondem. Aqui, e somente aqui, <b>spellOnStack</b> é um alvo válido. Custos, descarte selecionado, modos e limite por rodada usam o mesmo contrato das habilidades de main phase.
-          <div className="mt-2 text-[10px] text-amber-200/80">Casual PvP ainda não persiste janelas de prioridade no servidor; este timing fica fail-closed em PvP até o corte específico de prioridade multiplayer.</div>
+          <div className="mt-2 text-[10px] text-cyan-200/80">Casual PvP usa prioridade persistida no servidor: a ação-base fica pré-resolução até resposta, passe ou timeout autoritativo, com reconexão, CAS de versão e replay determinístico. Encadeamento arbitrário de múltiplas respostas PvP ainda permanece fora do protocolo v1.</div>
         </div>
         <AbilityEditorBody model={model} abilities={reactions} reaction={true} replace={replaceReactions} />
       </Panel>

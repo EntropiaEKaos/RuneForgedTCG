@@ -22,6 +22,7 @@ const files = [
   "drizzle/0038_engineering_integrity_2_96_2.sql",
   "drizzle/0039_ranked_certification_2_97.sql",
   "drizzle/0040_pvp_content_snapshot_2_97.sql",
+  "drizzle/0041_pvp_reaction_priority.sql",
 ];
 
 const tables = new Map();

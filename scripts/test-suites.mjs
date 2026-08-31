@@ -53,6 +53,7 @@ export const behavioralTests = [
   "src/lib/pvp-content-snapshot-2.97.test.ts",
   "src/lib/pvp-public-state-2.97.test.ts",
   "src/lib/pvp-ranked-certification.test.ts",
+  "src/lib/pvp-reaction-priority.test.ts",
   "src/lib/request-security.test.ts",
   "src/lib/ranked-launch-2.97.test.ts",
   "src/lib/security.test.ts",

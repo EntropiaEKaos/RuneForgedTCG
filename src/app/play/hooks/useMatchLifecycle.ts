@@ -15,6 +15,11 @@ import type { GameState } from "@/game/types";
 import type { GameAction } from "@/game/reducer";
 import type { PendingSpell, ReactionPending } from "@/game/client/match-model";
 import {
+  PVP_REACTION_STATE_EVENT,
+  requestPvpReactionAction,
+  type PvpReactionStateDetail,
+} from "@/game/client/pvp-reaction-events";
+import {
   REACTION_ACTIVATED_SUBMIT_EVENT,
   type ReactionActivatedSubmitDetail,
 } from "@/game/client/reaction-ui-contract";
@@ -56,6 +61,28 @@ export function useMatchLifecycle({
   }, [setAiToast]);
 
   useEffect(() => {
+    if (!isPvp) return;
+    const onPvpReactionState = (event: Event) => {
+      const detail = (event as CustomEvent<PvpReactionStateDetail>).detail;
+      if (!detail?.gameState) return;
+      if (!detail.reactionState || detail.reactionState.responder !== "player") {
+        setReaction(null);
+        setPendingReaction(null);
+        return;
+      }
+      setReaction({
+        action: detail.reactionState.pendingAction,
+        baseState: detail.gameState,
+        deadline: detail.reactionState.deadlineAt,
+        pendingHuman: null,
+      });
+      setPendingReaction(null);
+    };
+    window.addEventListener(PVP_REACTION_STATE_EVENT, onPvpReactionState as EventListener);
+    return () => window.removeEventListener(PVP_REACTION_STATE_EVENT, onPvpReactionState as EventListener);
+  }, [isPvp, setPendingReaction, setReaction]);
+
+  useEffect(() => {
     if (isPvp || !state || reaction || state.phase === "gameover") return;
     if (state.phase === "blocking" && state.combat?.attackerId === "player") {
       const timer = window.setTimeout(() => setState((current) => current ? aiDefend(current) : current), combatPace === "quick" ? 360 : 900);
@@ -78,6 +105,20 @@ export function useMatchLifecycle({
 
   const finishReaction = useCallback((humanReact?: HumanReactionInput) => {
     if (!reaction) return;
+
+    if (isPvp) {
+      if (humanReact) {
+        const gameAction: GameAction = "action" in humanReact
+          ? humanReact.logAction
+          : { type: "react", player: "player", instanceId: humanReact.instanceId, target: humanReact.targetId };
+        requestPvpReactionAction(gameAction);
+      } else {
+        requestPvpReactionAction({ type: "resolve" });
+      }
+      setPendingReaction(null);
+      return;
+    }
+
     const aiReact = (current: GameState, action: CardAction) => aiChooseReaction(current, action);
     if (humanReact) {
       let humanAction: CardAction;
@@ -114,11 +155,11 @@ export function useMatchLifecycle({
     setState(result.next);
     setReaction(null);
     setPendingReaction(null);
-  }, [reaction, reactionMs, recordAction, setPendingReaction, setReaction, setState, toastAI]);
+  }, [isPvp, reaction, reactionMs, recordAction, setPendingReaction, setReaction, setState, toastAI]);
 
   useEffect(() => {
     const onActivatedReaction = (event: Event) => {
-      if (!reaction || isPvp || reaction.pendingHuman) return;
+      if (!reaction || reaction.pendingHuman) return;
       const detail = (event as CustomEvent<ReactionActivatedSubmitDetail>).detail;
       if (!detail?.action || detail.action.responseKind !== "activatedAbility") return;
       const pending = reaction.action;
@@ -132,15 +173,15 @@ export function useMatchLifecycle({
     };
     window.addEventListener(REACTION_ACTIVATED_SUBMIT_EVENT, onActivatedReaction as EventListener);
     return () => window.removeEventListener(REACTION_ACTIVATED_SUBMIT_EVENT, onActivatedReaction as EventListener);
-  }, [finishReaction, isPvp, reaction]);
+  }, [finishReaction, reaction]);
 
   useDeferredEffect(() => {
-    if (isPvp || !reaction) return;
+    if (!reaction) return;
     setTimeLeft(Math.max(0, reaction.deadline - Date.now()));
     const interval = window.setInterval(() => {
       const left = reaction.deadline - Date.now();
       setTimeLeft(Math.max(0, left));
-      if (left <= 0) finishReaction();
+      if (left <= 0 && !isPvp) finishReaction();
     }, 100);
     return () => window.clearInterval(interval);
   }, [finishReaction, isPvp, reaction]);

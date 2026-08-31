@@ -9,7 +9,7 @@ async function run() {
     calls += 1;
     bodies.push(JSON.parse(String(init?.body)) as { actionId: string });
     if (calls === 1) return new Response(JSON.stringify({ error: "temporary" }), { status: 503 });
-    return new Response(JSON.stringify({ ok: true, room: { version: 8 }, duplicate: false }), { status: 200 });
+    return new Response(JSON.stringify({ ok: true, room: { version: 8, reactionState: null }, duplicate: false }), { status: 200 });
   }) as typeof fetch;
   let retries = 0;
   const result = await deliverPvpAction({ code: "ABC123", playerName: "P", version: 7, actionId: "stable-action", gameAction: { type: "pass", player: "player" }, onRetry: () => { retries += 1; } });
@@ -17,12 +17,26 @@ async function run() {
   assert.equal(retries, 1);
   assert.equal(calls, 2);
   assert.deepEqual(bodies.map((body) => body.actionId), ["stable-action", "stable-action"]);
+  assert.equal(result.reactionState, null, "successful delivery carries explicit cleared priority state");
 
   calls = 0;
-  globalThis.fetch = (async () => { calls += 1; return new Response(JSON.stringify({ error: "stale" }), { status: 409 }); }) as typeof fetch;
+  const conflictReaction = {
+    protocolVersion: 1 as const,
+    pendingAction: { kind: "spell" as const, player: "ai" as const, instanceId: "pending", defId: "ember_bolt" },
+    actor: "ai" as const,
+    responder: "player" as const,
+    openedAt: 100,
+    deadlineAt: 10_100,
+  };
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ error: "stale", room: { version: 9, reactionState: conflictReaction } }), { status: 409 });
+  }) as typeof fetch;
   const conflict = await deliverPvpAction({ code: "ABC123", playerName: "P", version: 7, actionId: "conflict-action", gameAction: { type: "pass", player: "player" } });
   assert.equal(conflict.status, 409);
   assert.equal(calls, 1);
+  assert.equal(conflict.version, 9, "409 responses preserve authoritative room version for immediate resync");
+  assert.deepEqual(conflict.reactionState, conflictReaction, "409 responses preserve persisted reaction priority for reconnect/conflict recovery");
 
   const expiredSession = classifyPvpPollFailure(401, "Player session required");
   assert.equal(expiredSession.terminal, true);
@@ -44,7 +58,7 @@ async function run() {
   assert.equal(transientFallback.terminal, false);
   assert.match(transientFallback.message, /tentando novamente/i);
 
-  console.log("PVP CLIENT 2.40: PASS");
+  console.log("PVP CLIENT 2.40: PASS — retries + persistent reaction conflict resync certified");
 }
 
 run().catch((error) => { console.error(error); process.exitCode = 1; });

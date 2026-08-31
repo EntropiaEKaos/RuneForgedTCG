@@ -43,6 +43,8 @@ export const pvpRooms = pgTable("pvp_rooms", {
   mode: text("mode").notNull().default("casual"),
   settledAt: timestamp("settled_at"),
   gameState: jsonb("game_state"),
+  /** Persisted network priority window. GameState stays pre-action until this resolves. */
+  reactionState: jsonb("reaction_state"),
   winner: text("winner"),
   /**
    * Lock otimista (compare-and-set): cada atualização de gameState deve
