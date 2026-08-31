@@ -258,6 +258,7 @@ export function applyEffect(
             for (const k of eqDef.equipment.keywords ?? []) {
               if (!targetUnit.keywords.includes(k)) targetUnit.keywords.push(k);
             }
+            if (targetUnit.keywords.includes("Barrier")) targetUnit.barrier = true;
             // Recompute base from definition + equipment, then keep current buffs.
             recomputeStats(targetUnit);
             recomputeHealth(targetUnit);
