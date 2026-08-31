@@ -5,11 +5,15 @@ import {
   CARD_EFFECT_KINDS,
   CARD_KEYWORDS,
   CARD_RACES,
-  MECHANIC_CONDITION_KINDS,
 } from "@/game/card-authoring";
 import type { CardEffectContract } from "@/game/card-authoring";
 import { ABILITY_GRAMMAR_CATALOG } from "@/game/ability-system";
 import type { ActivatedAbilityCost } from "@/game/activated-ability-types";
+import {
+  CONDITION_MAX_SUPPORTED_DEPTH,
+  conditionCanAddChild,
+  conditionKindsAtDepth,
+} from "@/game/condition-contract";
 import { keywordIsGrantable } from "@/game/keywords";
 import type { CardEffect, EffectKind, MechanicCondition, TargetKind } from "@/game/types";
 
@@ -135,11 +139,18 @@ export function defaultMechanicCondition(kind: string): MechanicCondition {
 }
 
 export function StudioConditionEditor({ value, onChange, depth = 0 }: { value: MechanicCondition; onChange: (value: MechanicCondition) => void; depth?: number }) {
-  const kind = value?.kind ?? "always";
+  const requestedKind = value?.kind ?? "always";
+  const availableKinds = conditionKindsAtDepth(depth);
+  const kind = (availableKinds as readonly string[]).includes(requestedKind) ? requestedKind : "always";
+  const depthLimited = depth >= CONDITION_MAX_SUPPORTED_DEPTH;
   const setKind = (nextKind: string) => onChange(defaultMechanicCondition(nextKind));
-  return <div data-studio-condition-composer="semantic" className={`rounded-xl border ${depth ? "border-violet-400/20 bg-violet-400/[.03]" : "border-white/10 bg-black/10"} p-3`}>
+  const groupChildren = kind === "and" || kind === "or"
+    ? (value as Extract<MechanicCondition, { kind: "and" | "or" }>).children
+    : [];
+  const canAddGroupChild = (kind === "and" || kind === "or") && conditionCanAddChild({ kind, children: groupChildren } as Extract<MechanicCondition, { kind: "and" | "or" }>, depth);
+  return <div data-studio-condition-composer="semantic" data-condition-depth={depth} className={`rounded-xl border ${depth ? "border-violet-400/20 bg-violet-400/[.03]" : "border-white/10 bg-black/10"} p-3`}>
     <div className="grid gap-3 md:grid-cols-2">
-      <Field label={depth ? `Condition #${depth + 1}` : "Condition"}><Select value={kind} options={MECHANIC_CONDITION_KINDS} onChange={setKind} /></Field>
+      <Field label={depth ? `Condition #${depth + 1}` : "Condition"}><Select value={kind} options={availableKinds} onChange={setKind} /></Field>
       {kind === "allyRace" && <Field label="Race"><Select value={(value as Extract<MechanicCondition, { kind: "allyRace" }>).race} options={CARD_RACES} onChange={(race) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyRace" }>), race: race as typeof CARD_RACES[number] })} /></Field>}
       {kind === "allyRace" && <Field label="Minimum"><input className="input" type="number" min={1} max={6} value={(value as Extract<MechanicCondition, { kind: "allyRace" }>).min ?? 1} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyRace" }>), min: Number(event.target.value) })} /></Field>}
       {kind === "allyClass" && <>
@@ -148,9 +159,10 @@ export function StudioConditionEditor({ value, onChange, depth = 0 }: { value: M
       </>}
       {(kind === "nexusBelow" || kind === "manaAtLeast") && <Field label="Amount"><input className="input" type="number" min={0} max={20} value={(value as Extract<MechanicCondition, { kind: "nexusBelow" | "manaAtLeast" }>).amount} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "nexusBelow" | "manaAtLeast" }>), amount: Number(event.target.value) })} /></Field>}
     </div>
+    {depthLimited && <div data-condition-depth-limit="reached" className="mt-3 rounded-lg border border-amber-300/15 bg-amber-300/[.05] px-3 py-2 text-[10px] leading-4 text-amber-100/80">Profundidade máxima do contrato atingida. Neste nível o Studio oferece apenas condições-folha executáveis.</div>}
     {(kind === "and" || kind === "or") && <div className="mt-3 space-y-2">
-      {(value as Extract<MechanicCondition, { kind: "and" | "or" }>).children.map((child, index, children) => <div key={index} className="relative"><StudioConditionEditor value={child} depth={depth + 1} onChange={(nextChild) => onChange({ kind, children: children.map((candidate, childIndex) => childIndex === index ? nextChild : candidate) } as MechanicCondition)} />{children.length > 1 && <button type="button" className="btn-ghost absolute right-2 top-2 !px-2 !py-1 text-[10px] text-red-300" onClick={() => onChange({ kind, children: children.filter((_, childIndex) => childIndex !== index) } as MechanicCondition)}>Remove</button>}</div>)}
-      {(value as Extract<MechanicCondition, { kind: "and" | "or" }>).children.length < 8 && <button type="button" className="btn-ghost text-xs" onClick={() => onChange({ kind, children: [...(value as Extract<MechanicCondition, { kind: "and" | "or" }>).children, { kind: "always" }] } as MechanicCondition)}>＋ Condition</button>}
+      {groupChildren.map((child, index, children) => <div key={index} className="relative"><StudioConditionEditor value={child} depth={depth + 1} onChange={(nextChild) => onChange({ kind, children: children.map((candidate, childIndex) => childIndex === index ? nextChild : candidate) } as MechanicCondition)} />{children.length > 1 && <button type="button" className="btn-ghost absolute right-2 top-2 !px-2 !py-1 text-[10px] text-red-300" onClick={() => onChange({ kind, children: children.filter((_, childIndex) => childIndex !== index) } as MechanicCondition)}>Remove</button>}</div>)}
+      {canAddGroupChild ? <button type="button" className="btn-ghost text-xs" onClick={() => onChange({ kind, children: [...groupChildren, { kind: "always" }] } as MechanicCondition)}>＋ Condition</button> : <span className="text-[10px] text-slate-500">Limite estrutural do grupo atingido.</span>}
     </div>}
     {kind === "not" && <div className="mt-3"><StudioConditionEditor value={(value as Extract<MechanicCondition, { kind: "not" }>).child} depth={depth + 1} onChange={(child) => onChange({ kind: "not", child })} /></div>}
   </div>;
