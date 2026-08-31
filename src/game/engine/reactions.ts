@@ -1,8 +1,9 @@
 import { getCard } from "../cards";
 import { canCounterPendingAction, canReactWithResponse, hasReactionOpportunity } from "../reaction-contract";
 import { resolveReactionActivatedAbility, type ReactionActivatedAbilityAction } from "../reaction-activated-abilities";
+import { isStructureCard } from "../semantic-card-types";
 import type { GameState, PlayerId } from "../types";
-import { castSpell, effectiveCost, playUnit } from "./actions";
+import { castSpell, effectiveCost, playUnit } from "./semantic-actions";
 
 /**
  * Result of a stack resolution. If awaitingReaction is set, the human must
@@ -21,6 +22,9 @@ export interface CardAction {
   targetInstanceId?: string;
   playedInstanceId?: string;
   abilityIndex?: number;
+  modeId?: string;
+  costDiscardInstanceIds?: string[];
+  responseKind?: "activatedAbility";
 }
 
 interface StackFrame extends CardAction {
@@ -51,7 +55,7 @@ function consumeNegatedCard(state: GameState, item: StackFrame): void {
 
   const def = getCard(instance.defId);
   const cost = effectiveCost(state, item.player, def);
-  const usesSpellMana = def.type !== "Unit" && def.type !== "Sentinela";
+  const usesSpellMana = def.type !== "Unit" && def.type !== "Sentinela" && !isStructureCard(def);
 
   if (usesSpellMana) {
     const regularMana = Math.min(player.mana, cost);
@@ -140,9 +144,7 @@ function resolveStack(state: GameState, stack: StackFrame[]): StackResolution {
 
     if (negated.has(item.instanceId)) {
       consumeNegatedCard(s, item);
-      const name = item.responseKind === "activatedAbility"
-        ? getCard(item.defId).name
-        : getCard(item.defId).name;
+      const name = getCard(item.defId).name;
       s.log.push(`✨ ${name} was negated and did not resolve.`);
       continue;
     }
