@@ -243,7 +243,8 @@ export function applyEffect(
           const eqDef = getCard(eff.equipmentDefId);
           if (!eqDef.equipment) break;
           let targetUnit: UnitInstance | undefined;
-          if (ent && ent.kind === "unit" && ent.owner === playerId && canAttachEquipment(ent.unit)) {
+          if (ent) {
+            if (ent.kind !== "unit" || ent.owner !== playerId || !canAttachEquipment(ent.unit)) break;
             targetUnit = ent.unit;
           } else {
             const races = eff.races ?? (eff.race ? [eff.race] : undefined);
