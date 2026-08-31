@@ -87,7 +87,7 @@ const charm: CardDef = {
   ...aegis,
   defId: "equipment_link_charm",
   name: "Equipment Link Charm",
-  equipment: { buffPower: 0, buffHealth: 1, keywords: [] },
+  equipment: { buffPower: 0, buffHealth: 1, keywords: ["Barrier"] },
 };
 
 const deck: DeckInput = {
@@ -176,6 +176,8 @@ withRegisteredCardSnapshot([strongHost, weakHost, aegis, blade, charm], () => {
   assert.equal(autoWeak.equipment[0]?.defId, charm.defId);
   assert.equal(autoWeak.maxHealth, 4);
   assert.equal(autoWeak.health, 4);
+  assert.ok(autoWeak.keywords.includes("Barrier"));
+  assert.equal(autoWeak.barrier, true, "effect-based attachment must activate granted Barrier like direct Equipment play");
 
   // The same effect with an explicit full host fails closed instead of retargeting.
   const explicitEffectRejected = applyCardEffectForSandbox(state, "player", {
