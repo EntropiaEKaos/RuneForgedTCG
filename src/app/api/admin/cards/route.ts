@@ -10,11 +10,12 @@ import {
   CARD_REGIONS, CARD_TYPES, CARD_RARITIES, CARD_RACES, CARD_KEYWORDS,
   CARD_EFFECT_KINDS, CARD_TARGETS, CARD_TRIGGERS,
 } from "@/game/card-authoring";
-import { validateAuthorableCardWithActivatedAbilities } from "@/game/activated-ability-authoring";
+import { validateAuthorableCardWithSemanticTypes } from "@/game/semantic-card-type-authoring";
+import { CERTIFIED_SEMANTIC_CARD_TYPES } from "@/game/semantic-card-types";
 
 export const dynamic = "force-dynamic";
 
-export const validateCard = validateAuthorableCardWithActivatedAbilities;
+export const validateCard = validateAuthorableCardWithSemanticTypes;
 
 export async function GET(req: NextRequest) {
   if (!(await isAdminAuthorized(req))) return unauthorized();
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
       meta: {
         regions: CARD_REGIONS,
         types: CARD_TYPES,
+        semanticTypes: CERTIFIED_SEMANTIC_CARD_TYPES,
         rarities: CARD_RARITIES,
         races: CARD_RACES,
         keywords: CARD_KEYWORDS,
