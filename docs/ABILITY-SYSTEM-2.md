@@ -10,7 +10,7 @@ A coleção canônica usa múltiplas superfícies que representam habilidades de
 
 1. `CardDef.trigger` — gatilho legado com um `CardEffect`.
 2. `CardDef.mechanics` — regras data-driven do Mechanics Studio, com gatilho + condição + efeito.
-3. `CardDef.activatedAbilities` — habilidades genéricas ativadas, com custo + efeito + limite por rodada.
+3. `CardDef.activatedAbilities` — habilidades genéricas ativadas, com custo + efeito/modos + limite por rodada.
 4. `CardDef.sentinela.abilities` — contrato legado de lealdade das Sentinelas.
 5. `CardDef.levelUp` e keywords também representam comportamento de habilidade, mas com estruturas especializadas.
 
@@ -118,8 +118,17 @@ As primeiras candidatas naturais são habilidades modais, custos alternativos ad
 
 ### Fase 4.1 — Modal Activated Abilities
 
-O primeiro corte modal adiciona escolhas determinísticas às habilidades ativadas sem alterar o opcode histórico de replay/PvP. Uma habilidade modal possui uma lista ordenada de modos com `id` estável, descrição e `CardEffect`; a ativação autoritativa exige o `modeId` escolhido e rejeita de forma fail-closed ids ausentes, desconhecidos, duplicados ou definições ambíguas antes de pagar qualquer custo.
+Habilidades modais adicionam escolhas determinísticas às habilidades ativadas sem alterar o opcode histórico de replay/PvP. Uma habilidade modal possui uma lista ordenada de modos com `id` estável, descrição e `CardEffect`; a ativação autoritativa exige o `modeId` escolhido e rejeita de forma fail-closed ids ausentes, desconhecidos, duplicados ou definições ambíguas antes de pagar qualquer custo.
 
 O custo, a exaustão, o sacrifício, a lealdade e o `maxUsesPerRound` pertencem à habilidade-base e são compartilhados por todos os modos. Cada modo pode usar um efeito e um `target` diferentes porque o targeting é derivado do próprio `CardEffect`. O transporte continua usando a ação 2.97 `sentinela`, agora com `modeId` opcional para preservar replays históricos de habilidades não modais.
 
-Este corte cobre runtime autoritativo, reducer/replay/PvP, seleção e encaminhamento de modo na UI, apresentação/tooltip, projeção `AbilityBlueprint`, IA determinística e testes de regressão. `modal` permanece `partial`: o Studio ainda não publica habilidades modais genéricas e custos/condições diferentes por modo continuam deliberadamente fora deste contrato.
+O corte runtime cobre execução autoritativa, reducer/replay/PvP, seleção e encaminhamento de modo na UI de partida, apresentação/tooltip, projeção `AbilityBlueprint`, IA determinística e regressões. O corte de authoring adiciona ao Card Studio a opção **Escolha um (modal)**, IDs persistentes `mode-N`, até quatro escolhas por habilidade e o mesmo compositor semântico de `CardEffect` usado pelas demais superfícies. O sanitizer do servidor é a autoridade final: rejeita `effect + modes`, modos vazios, ids inválidos/duplicados, overrides de custo/limite por modo, stack targeting ainda não suportado e conflitos entre custos da habilidade-base e qualquer modo.
+
+A certificação do authoring deve provar sanitização, round-trip de persistência, publish/catalog/runtime e superfície do Studio. `modal` permanece `partial` mesmo depois desse authoring: custos e condições diferentes por modo, modos dependentes de prioridade/reação e outras formas modais fora de habilidades ativadas ainda não pertencem ao contrato certificado.
+
+### Próximos cortes
+
+1. custos ativados alternativos adicionais, com pagamento atômico e IA;
+2. habilidades ativadas de reação/evento integradas ao protocolo autoritativo;
+3. Aura 2.0 com efeitos contínuos genéricos além de atributos permanentes;
+4. certificação transversal e revisão final da matriz de suporte antes de promover qualquer família a `supported`/`FULL`.
