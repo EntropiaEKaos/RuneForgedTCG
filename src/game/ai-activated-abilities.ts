@@ -136,6 +136,21 @@ function targetValue(effect: CardEffect, entity: BoardEntity, playerId: PlayerId
   return score + Math.max(0, 8 - entity.sen.loyalty) * 2;
 }
 
+function chooseDiscardCostIds(state: GameState, playerId: PlayerId, ability: ActivatedAbility): string[] | null {
+  const count = ability.cost?.discardFromHand ?? 0;
+  if (count <= 0) return [];
+  const hand = state.players[playerId].hand;
+  if (hand.length < count) return null;
+  return [...hand]
+    .sort((a, b) => {
+      const aDef = getCard(a.defId);
+      const bDef = getCard(b.defId);
+      return aDef.cost - bDef.cost || a.defId.localeCompare(b.defId) || a.instanceId.localeCompare(b.instanceId);
+    })
+    .slice(0, count)
+    .map((card) => card.instanceId);
+}
+
 function chooseTarget(
   state: GameState,
   playerId: PlayerId,
@@ -143,10 +158,19 @@ function chooseTarget(
   abilityIndex: number,
   effect: CardEffect,
   modeId?: string,
+  costDiscardInstanceIds?: readonly string[],
 ): string | undefined | null {
   const targetKind = effect.target;
   if (targetKind === "none" || targetKind === "self") {
-    return validateActivatedAbilityActivation(state, playerId, sourceIdValue, abilityIndex, undefined, modeId).ok
+    return validateActivatedAbilityActivation(
+      state,
+      playerId,
+      sourceIdValue,
+      abilityIndex,
+      undefined,
+      modeId,
+      costDiscardInstanceIds,
+    ).ok
       ? undefined
       : null;
   }
@@ -167,6 +191,7 @@ function chooseTarget(
       abilityIndex,
       candidate.id,
       modeId,
+      costDiscardInstanceIds,
     ).ok)
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 
@@ -217,7 +242,21 @@ function sourceSacrificeValue(source: AiAbilitySource): number {
   return 14 + source.def.cost * 4 + source.instance.health * 2;
 }
 
-function costPenalty(state: GameState, playerId: PlayerId, source: AiAbilitySource, ability: ActivatedAbility): number {
+function discardSelectionValue(state: GameState, playerId: PlayerId, selectedIds: readonly string[]): number {
+  if (!selectedIds.length) return 0;
+  const selected = new Set(selectedIds);
+  return state.players[playerId].hand
+    .filter((card) => selected.has(card.instanceId))
+    .reduce((sum, card) => sum + 6 + getCard(card.defId).cost * 4, 0);
+}
+
+function costPenalty(
+  state: GameState,
+  playerId: PlayerId,
+  source: AiAbilitySource,
+  ability: ActivatedAbility,
+  costDiscardInstanceIds: readonly string[] = [],
+): number {
   const cost = ability.cost;
   if (!cost) return 0;
   let penalty = (cost.mana ?? 0) * 4 + (cost.spellMana ?? 0) * 3;
@@ -227,6 +266,7 @@ function costPenalty(state: GameState, playerId: PlayerId, source: AiAbilitySour
     penalty += cost.nexusHealth * 7;
     if (after <= 6) penalty += 90;
   }
+  penalty += discardSelectionValue(state, playerId, costDiscardInstanceIds);
   if (cost.exhaustSelf) {
     penalty += source.kind === "unit" ? 8 + source.instance.power * 3 : 6;
   }
@@ -251,12 +291,22 @@ function scoreActivation(
   const instanceId = sourceId(source);
   if (!canBeginActivateAbility(state, playerId, instanceId, abilityIndex, choice.modeId)) return null;
 
-  const target = chooseTarget(state, playerId, instanceId, abilityIndex, choice.effect, choice.modeId);
+  const costDiscardInstanceIds = chooseDiscardCostIds(state, playerId, ability);
+  if (costDiscardInstanceIds === null) return null;
+  const target = chooseTarget(
+    state,
+    playerId,
+    instanceId,
+    abilityIndex,
+    choice.effect,
+    choice.modeId,
+    costDiscardInstanceIds,
+  );
   if (target === null) return null;
   const base = effectScore(state, playerId, choice.effect, target);
   if (base <= -1000) return null;
 
-  const score = base - costPenalty(state, playerId, source, ability);
+  const score = base - costPenalty(state, playerId, source, ability, costDiscardInstanceIds);
   if (score <= 0) return null;
   return {
     action: {
@@ -267,6 +317,7 @@ function scoreActivation(
       abilityIndex,
       ...(choice.modeId ? { modeId: choice.modeId } : {}),
       ...(target ? { targetInstanceId: target } : {}),
+      ...(costDiscardInstanceIds.length ? { costDiscardInstanceIds } : {}),
     },
     score,
     modeOrder,
@@ -276,9 +327,9 @@ function scoreActivation(
 /**
  * Chooses one legal, useful activated ability across Units, Artifacts,
  * Enchantments and Sentinelas. Modal abilities are expanded into stable
- * ability/mode/target candidates, while every rule (phase, costs, Hexproof,
- * shared Sentinela budget, per-round use, sacrifice and exhaustion) remains
- * authoritative in the generic engine.
+ * ability/mode/target candidates. Selection-dependent discard costs choose the
+ * lowest-cost hand cards deterministically, while authoritative validation
+ * still owns exact ownership/count legality.
  */
 export function aiChooseActivatedAbilityAction(
   state: GameState,
