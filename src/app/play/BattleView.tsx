@@ -33,7 +33,7 @@ import type { GamePresentationState } from "./hooks/useGamePresentation";
 import type { PvpTransportState } from "./hooks/usePvpTransport";
 
 type TargetEntity = { kind: "unit" } | { kind: "permanent" };
-type PendingSentinelaAbility = { sentinelaId: string; abilityIndex: number; targetType: import("@/game/types").TargetKind };
+type PendingSentinelaAbility = { sentinelaId: string; abilityIndex: number; targetType: import("@/game/types").TargetKind; modeId?: string };
 
 export interface BattleViewProps {
   state: GameState;
@@ -62,7 +62,7 @@ export interface BattleViewProps {
   handlePermanentClick: (permanent: PermanentInstance) => void;
   handleSentinelaClick: (sentinelaId: string, owner: PlayerId) => void;
   /** Legacy prop name retained; now activates abilities on any controlled board entity. */
-  handleSentinelaActivate: (sourceInstanceId: string, abilityIndex: number) => void;
+  handleSentinelaActivate: (sourceInstanceId: string, abilityIndex: number, modeId?: string) => void;
   handleUnitClick: (unit: UnitInstance) => void;
   handleHandClick: (instanceId: string, defId: string) => void;
   confirmAttack: () => void;
@@ -239,13 +239,13 @@ export function BattleView(props: BattleViewProps) {
           {player.permanents.map((permanent) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "permanent", perm: permanent, owner: "player" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("player", { kind: "permanent" }));
-            return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} onActivateAbility={(index) => handleSentinelaActivate(permanent.instanceId, index)} />;
+            return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} onActivateAbility={(index, modeId) => handleSentinelaActivate(permanent.instanceId, index, modeId)} />;
           })}
           {player.sentinelas.map((sentinela) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: "player" });
             return (
               <div key={sentinela.instanceId} className={abilityTarget ? "cursor-pointer rounded-xl ring-4 ring-yellow-300" : ""} onClick={abilityTarget ? () => handleSentinelaClick(sentinela.instanceId, "player") : undefined}>
-                <SentinelaView instance={sentinela} state={state} size="md" onActivate={(index) => handleSentinelaActivate(sentinela.instanceId, index)} />
+                <SentinelaView instance={sentinela} state={state} size="md" onActivate={(index, modeId) => handleSentinelaActivate(sentinela.instanceId, index, modeId)} />
               </div>
             );
           })}
@@ -257,7 +257,7 @@ export function BattleView(props: BattleViewProps) {
                 selected={selectedAttackers.includes(unit.instanceId) || selectedBlocker === unit.instanceId || Object.values(blockAssignments).includes(unit.instanceId) || Object.values(lockedBlocks).includes(unit.instanceId)}
                 targetable={abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || !!(reaction && pendingReaction && reactionTargetOk("player"))}
                 onClick={selectable ? () => handleUnitClick(unit) : undefined}
-                onActivateAbility={(index) => handleSentinelaActivate(unit.instanceId, index)} />
+                onActivateAbility={(index, modeId) => handleSentinelaActivate(unit.instanceId, index, modeId)} />
             );
           })}
         </Row>

@@ -3,7 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const reducer = fs.readFileSync(path.join(root, "src/game/reducer.ts"), "utf8");
+const reducer = [
+  fs.readFileSync(path.join(root, "src/game/reducer.ts"), "utf8"),
+  fs.readFileSync(path.join(root, "src/game/reducer-core.ts"), "utf8"),
+].join("\n");
 const pvpRoute = fs.readFileSync(path.join(root, "src/app/api/pvp/[code]/route.ts"), "utf8");
 const settlement = fs.readFileSync(path.join(root, "src/lib/pvp-settlement.ts"), "utf8");
 const transition = fs.readFileSync(path.join(root, "src/lib/pvp-authoritative-transition.ts"), "utf8");

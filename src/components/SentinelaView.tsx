@@ -1,7 +1,7 @@
 "use client";
 
 import { getCard } from "@/game/cards";
-import { activatedAbilitiesForInstance } from "@/game/engine";
+import { activatedAbilitiesForInstance, activatedAbilityChoices } from "@/game/engine";
 import {
   activatedAbilityCostDescription,
   activatedAbilityCostLabel,
@@ -18,8 +18,8 @@ interface SentinelaViewProps {
   instance: SentinelaInstance;
   state: GameState;
   size?: "sm" | "md";
-  /** Chamado com o índice unificado da habilidade quando o jogador ativa. */
-  onActivate?: (abilityIndex: number) => void;
+  /** Chamado com o índice unificado e, quando aplicável, o modo escolhido. */
+  onActivate?: (abilityIndex: number, modeId?: string) => void;
 }
 
 /** Renderiza uma Sentinela em jogo: lealdade, habilidades e inspeção completa. */
@@ -69,38 +69,54 @@ export default function SentinelaView({ instance, state, size = "md", onActivate
 
           <div className="mt-2 flex flex-col gap-1">
             {abilities.map((ability, index) => {
-              const availability = activatedAbilityUiState(state, instance.owner, instance.instanceId, index);
-              const canUse = Boolean(onActivate) && availability.canUse;
-              const reason = !onActivate
-                ? "Apenas o controlador pode ativar esta habilidade."
-                : availability.reason;
-              const statusText = canUse ? "Pronta para ativar." : reason ?? "Indisponível agora.";
+              const choices = activatedAbilityChoices(ability);
+              const modal = ability.modes !== undefined;
               return (
-                <button
-                  key={index}
-                  type="button"
-                  disabled={!canUse}
-                  data-activated-ability-index={index}
-                  data-activated-ability-state={canUse ? "ready" : "blocked"}
-                  data-activated-ability-reason={canUse ? undefined : reason ?? undefined}
-                  aria-label={`${ability.description}. ${activatedAbilityCostDescription(ability)} ${statusText}`}
-                  title={`${activatedAbilityCostDescription(ability)} ${statusText}`}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    if (canUse) onActivate?.(index);
-                  }}
-                  className={`tcg-sentinel-ability rounded px-1.5 py-1 text-left text-[9px] leading-tight transition ${canUse ? "bg-white/20 text-white hover:bg-white/30" : "bg-black/35 text-white/55"}`}
-                >
-                  <span className="flex items-center justify-between gap-1">
-                    <span className="font-black text-amber-200">{activatedAbilityCostLabel(ability)}</span>
-                    <span className={`text-[7px] font-black uppercase tracking-wider ${canUse ? "text-emerald-300" : "text-rose-300"}`}>
-                      {canUse ? "PRONTA" : "BLOQUEADA"}
-                    </span>
-                  </span>
-                  <span className="mt-0.5 block">{ability.description}</span>
-                  {!canUse && <span className="mt-0.5 block text-[7px] font-semibold leading-tight text-rose-200/80">{reason}</span>}
-                </button>
+                <div key={index} className="flex flex-col gap-1">
+                  {modal && (
+                    <div className="rounded bg-violet-950/55 px-1.5 py-1 text-[8px] leading-tight text-violet-100">
+                      <span className="font-black uppercase tracking-wider text-violet-300">Escolha um modo</span>
+                      <span className="mt-0.5 block">{ability.description}</span>
+                    </div>
+                  )}
+                  {choices.map((choice) => {
+                    const availability = activatedAbilityUiState(state, instance.owner, instance.instanceId, index, choice.modeId);
+                    const canUse = Boolean(onActivate) && availability.canUse;
+                    const reason = !onActivate
+                      ? "Apenas o controlador pode ativar esta habilidade."
+                      : availability.reason;
+                    const statusText = canUse ? "Pronta para ativar." : reason ?? "Indisponível agora.";
+                    const label = modal ? choice.description : ability.description;
+                    return (
+                      <button
+                        key={`${index}-${choice.modeId ?? "direct"}`}
+                        type="button"
+                        disabled={!canUse}
+                        data-activated-ability-index={index}
+                        data-activated-ability-mode-id={choice.modeId}
+                        data-activated-ability-state={canUse ? "ready" : "blocked"}
+                        data-activated-ability-reason={canUse ? undefined : reason ?? undefined}
+                        aria-label={`${label}. ${activatedAbilityCostDescription(ability)} ${statusText}`}
+                        title={`${activatedAbilityCostDescription(ability)} ${statusText}`}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          if (canUse) onActivate?.(index, choice.modeId);
+                        }}
+                        className={`tcg-sentinel-ability rounded px-1.5 py-1 text-left text-[9px] leading-tight transition ${canUse ? "bg-white/20 text-white hover:bg-white/30" : "bg-black/35 text-white/55"}`}
+                      >
+                        <span className="flex items-center justify-between gap-1">
+                          <span className="font-black text-amber-200">{activatedAbilityCostLabel(ability)}</span>
+                          <span className={`text-[7px] font-black uppercase tracking-wider ${canUse ? "text-emerald-300" : "text-rose-300"}`}>
+                            {canUse ? "PRONTA" : "BLOQUEADA"}
+                          </span>
+                        </span>
+                        <span className="mt-0.5 block">{label}</span>
+                        {!canUse && <span className="mt-0.5 block text-[7px] font-semibold leading-tight text-rose-200/80">{reason}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
           </div>

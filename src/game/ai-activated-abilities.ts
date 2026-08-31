@@ -1,6 +1,7 @@
 import { getCard } from "./cards";
 import {
   activatedAbilitiesForInstance,
+  activatedAbilityChoices,
   canBeginActivateAbility,
   isValidTarget,
   other,
@@ -27,6 +28,7 @@ type AiAbilitySource =
 interface ScoredActivation {
   action: CardAction;
   score: number;
+  modeOrder: number;
 }
 
 const HOSTILE_EFFECTS = new Set<CardEffect["kind"]>([
@@ -128,7 +130,7 @@ function targetValue(effect: CardEffect, entity: BoardEntity, playerId: PlayerId
   }
 
   if (effect.kind === "damageUnit" || effect.kind === "killUnit") {
-    const lethal = effect.amount >= entity.sen.loyalty || effect.kind === "killUnit" ? 35 : 0;
+    const lethal = effect.kind === "killUnit" || effect.amount >= entity.sen.loyalty ? 35 : 0;
     return score + lethal + Math.max(0, 8 - entity.sen.loyalty) * 4;
   }
   return score + Math.max(0, 8 - entity.sen.loyalty) * 2;
@@ -139,11 +141,14 @@ function chooseTarget(
   playerId: PlayerId,
   sourceIdValue: string,
   abilityIndex: number,
-  ability: ActivatedAbility,
+  effect: CardEffect,
+  modeId?: string,
 ): string | undefined | null {
-  const targetKind = ability.effect.target;
+  const targetKind = effect.target;
   if (targetKind === "none" || targetKind === "self") {
-    return validateActivatedAbilityActivation(state, playerId, sourceIdValue, abilityIndex).ok ? undefined : null;
+    return validateActivatedAbilityActivation(state, playerId, sourceIdValue, abilityIndex, undefined, modeId).ok
+      ? undefined
+      : null;
   }
   if (targetKind === "spellOnStack") return null;
 
@@ -152,7 +157,7 @@ function chooseTarget(
     .map((entity) => ({
       entity,
       id: boardEntityId(entity),
-      score: targetValue(ability.effect, entity, playerId),
+      score: targetValue(effect, entity, playerId),
     }))
     .filter((candidate) => candidate.score > -1000)
     .filter((candidate) => validateActivatedAbilityActivation(
@@ -161,16 +166,16 @@ function chooseTarget(
       sourceIdValue,
       abilityIndex,
       candidate.id,
+      modeId,
     ).ok)
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 
   return candidates[0]?.id ?? null;
 }
 
-function effectScore(state: GameState, playerId: PlayerId, ability: ActivatedAbility, targetId?: string): number {
+function effectScore(state: GameState, playerId: PlayerId, effect: CardEffect, targetId?: string): number {
   const me = state.players[playerId];
   const enemy = state.players[other(playerId)];
-  const effect = ability.effect;
 
   if (effect.kind === "damageNexus") {
     if (effect.amount >= enemy.nexusHealth) return 1000 + effect.amount;
@@ -237,13 +242,15 @@ function scoreActivation(
   source: AiAbilitySource,
   abilityIndex: number,
   ability: ActivatedAbility,
+  choice: ReturnType<typeof activatedAbilityChoices>[number],
+  modeOrder: number,
 ): ScoredActivation | null {
   const instanceId = sourceId(source);
-  if (!canBeginActivateAbility(state, playerId, instanceId, abilityIndex)) return null;
+  if (!canBeginActivateAbility(state, playerId, instanceId, abilityIndex, choice.modeId)) return null;
 
-  const target = chooseTarget(state, playerId, instanceId, abilityIndex, ability);
+  const target = chooseTarget(state, playerId, instanceId, abilityIndex, choice.effect, choice.modeId);
   if (target === null) return null;
-  const base = effectScore(state, playerId, ability, target);
+  const base = effectScore(state, playerId, choice.effect, target);
   if (base <= -1000) return null;
 
   const score = base - costPenalty(state, playerId, source, ability);
@@ -255,17 +262,20 @@ function scoreActivation(
       instanceId,
       defId: source.def.defId,
       abilityIndex,
+      ...(choice.modeId ? { modeId: choice.modeId } : {}),
       ...(target ? { targetInstanceId: target } : {}),
     },
     score,
+    modeOrder,
   };
 }
 
 /**
  * Chooses one legal, useful activated ability across Units, Artifacts,
- * Enchantments and Sentinelas. The AI only chooses source/index/target here;
- * every rule (phase, costs, Hexproof, shared Sentinela budget, per-round use,
- * sacrifice and exhaustion) remains authoritative in the generic engine.
+ * Enchantments and Sentinelas. Modal abilities are expanded into stable
+ * ability/mode/target candidates, while every rule (phase, costs, Hexproof,
+ * shared Sentinela budget, per-round use, sacrifice and exhaustion) remains
+ * authoritative in the generic engine.
  */
 export function aiChooseActivatedAbilityAction(
   state: GameState,
@@ -277,15 +287,21 @@ export function aiChooseActivatedAbilityAction(
   for (const source of controlledSources(state, playerId)) {
     const abilities = activatedAbilitiesForInstance(state, playerId, sourceId(source));
     for (let abilityIndex = 0; abilityIndex < abilities.length; abilityIndex++) {
-      const candidate = scoreActivation(state, playerId, source, abilityIndex, abilities[abilityIndex]);
-      if (candidate) scored.push(candidate);
+      const ability = abilities[abilityIndex];
+      const choices = activatedAbilityChoices(ability);
+      for (let modeOrder = 0; modeOrder < choices.length; modeOrder++) {
+        const candidate = scoreActivation(state, playerId, source, abilityIndex, ability, choices[modeOrder], modeOrder);
+        if (candidate) scored.push(candidate);
+      }
     }
   }
 
   scored.sort((a, b) =>
     b.score - a.score ||
     a.action.instanceId.localeCompare(b.action.instanceId) ||
-    (a.action.abilityIndex ?? 0) - (b.action.abilityIndex ?? 0),
+    (a.action.abilityIndex ?? 0) - (b.action.abilityIndex ?? 0) ||
+    a.modeOrder - b.modeOrder ||
+    (a.action.targetInstanceId ?? "").localeCompare(b.action.targetInstanceId ?? ""),
   );
   return scored[0]?.action ?? null;
 }

@@ -47,7 +47,7 @@ assert.equal(ABILITY_KIND_SUPPORT.transformation, "supported");
 assert.equal(ABILITY_KIND_SUPPORT.static, "partial");
 assert.equal(ABILITY_KIND_SUPPORT.aura, "partial", "stat Aura is a supported slice; generic continuous Aura layering remains partial");
 assert.equal(ABILITY_KIND_SUPPORT.linked, "partial");
-assert.equal(ABILITY_KIND_SUPPORT.modal, "planned");
+assert.equal(ABILITY_KIND_SUPPORT.modal, "partial", "modal activated runtime/UI/AI is certified while generic Studio publication remains deferred");
 assert.equal(ABILITY_KIND_SUPPORT.replacement, "planned");
 assert.equal(ABILITY_KIND_SUPPORT.delayed, "planned");
 assert.equal(ABILITY_FEATURE_SUPPORT.conditional, "supported");
@@ -121,6 +121,46 @@ assert.deepEqual(activatedBlueprint.costs, [
 ]);
 assert.deepEqual(activatedBlueprint.features.sort(), ["chained", "repeatable", "targeted"]);
 assert.equal(activatedBlueprint.target, "enemyUnit");
+
+const modalActivated: ActivatedAbility = {
+  description: "Escolha uma manifestação.",
+  cost: { mana: 1 },
+  maxUsesPerRound: 2,
+  modes: [
+    {
+      id: "scorch",
+      description: "Cause 2 de dano a uma unidade inimiga.",
+      effect: { kind: "damageUnit", amount: 2, target: "enemyUnit" },
+    },
+    {
+      id: "insight",
+      description: "Compre uma carta.",
+      effect: { kind: "draw", amount: 1, target: "none" },
+    },
+  ],
+};
+const modalBlueprint = blueprintFromActivatedAbility(modalActivated);
+assert.equal(modalBlueprint.origin, "activated");
+assert.equal(modalBlueprint.kind, "modal");
+assert.equal(modalBlueprint.timing, "mainPhase");
+assert.deepEqual(modalBlueprint.costs, [{ kind: "mana", amount: 1 }]);
+assert.deepEqual(modalBlueprint.features.sort(), ["repeatable", "targeted"]);
+assert.deepEqual(modalBlueprint.modes, [
+  {
+    id: "scorch",
+    description: "Cause 2 de dano a uma unidade inimiga.",
+    target: "enemyUnit",
+    effect: { kind: "damageUnit", amount: 2, target: "enemyUnit" },
+  },
+  {
+    id: "insight",
+    description: "Compre uma carta.",
+    target: "none",
+    effect: { kind: "draw", amount: 1, target: "none" },
+  },
+]);
+assert.equal(modalBlueprint.effect, undefined, "modal blueprint keeps per-mode effects authoritative instead of inventing a base effect");
+assert.equal(modalBlueprint.target, undefined, "modal blueprint keeps per-mode targets authoritative instead of inventing a base target");
 
 // Mechanics Studio content is persisted/published dynamically rather than
 // embedded in today's 429 base CardDefs, so certify its adapter independently
@@ -294,4 +334,4 @@ assert.ok(cardsWithGrammar > 0);
 assert.ok(keywordBlueprints > 0, "canonical catalog exercises keyword runtime contracts");
 assert.ok(combatTimedTriggers > 0, "canonical catalog contains combat-timed trigger abilities");
 
-console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/429 cards without gameplay mutation · ${keywordBlueprints} keyword contracts · ${combatTimedTriggers} combat-timed triggers · permanent stat Aura contract certified`);
+console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/429 cards without gameplay mutation · ${keywordBlueprints} keyword contracts · ${combatTimedTriggers} combat-timed triggers · permanent stat Aura contract certified · modal activated runtime slice certified`);

@@ -19,15 +19,29 @@ export interface ActivatedAbilityCost {
   loyaltyDelta?: number;
 }
 
+/** One deterministic choice inside a modal activated ability. */
+export interface ActivatedAbilityMode {
+  /** Stable replay/wire identifier. Runtime never derives this from display text. */
+  id: string;
+  description: string;
+  effect: CardEffect;
+}
+
 /**
  * Generic player-activated ability for battlefield entities.
  *
+ * A classic ability owns one `effect`. A modal ability owns one or more
+ * `modes` instead; runtime validation rejects ambiguous/malformed definitions
+ * and requires an explicit mode id before any cost can be paid.
+ *
  * By default an ability may be used once per round. Set maxUsesPerRound to
  * `null` for an unlimited ability. A positive integer allows that many uses.
+ * Modal choices share the same cost and per-round usage budget.
  */
 export interface ActivatedAbility {
   description: string;
-  effect: CardEffect;
+  effect?: CardEffect;
+  modes?: ActivatedAbilityMode[];
   cost?: ActivatedAbilityCost;
   maxUsesPerRound?: number | null;
 }
@@ -59,5 +73,16 @@ declare module "./types" {
   interface SentinelaInstance {
     activatedAbilityUses?: Record<string, ActivatedAbilityUsage>;
     exhaustedRound?: number;
+  }
+}
+
+/**
+ * CardAction remains the versioned 2.97 transport shape. `modeId` is additive
+ * and optional, so historic actions deserialize unchanged while modal
+ * activations can carry a stable deterministic choice.
+ */
+declare module "./engine/reactions" {
+  interface CardAction {
+    modeId?: string;
   }
 }

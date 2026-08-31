@@ -124,15 +124,21 @@ export function validateGameActionSemantics(state: GameState, action: GameAction
       // Backwards-compatible opcode: `sentinela` now means "activate a board
       // ability". Legacy Sentinelas keep identical ids/indexes while Units,
       // Artifacts and Enchantments can use the same authoritative transport.
+      const rawModeId = (action as typeof action & { modeId?: unknown }).modeId;
+      if (rawModeId !== undefined && (typeof rawModeId !== "string" || rawModeId.length === 0 || rawModeId.length > 64 || rawModeId.trim() !== rawModeId)) {
+        return fail("activated ability modeId must be a non-empty string of at most 64 characters");
+      }
+      const modeId = typeof rawModeId === "string" ? rawModeId : undefined;
       const validation = validateActivatedAbilityActivation(
         state,
         actor,
         action.sentinelaId,
         action.abilityIndex,
         action.target,
+        modeId,
       );
       if (!validation.ok) return fail(validation.reason ?? "activated ability cannot be used");
-      const targetKind = validation.ability?.effect.target;
+      const targetKind = validation.effect?.target;
       const requiresTarget = targetKind !== undefined && !["none", "self", "spellOnStack"].includes(targetKind);
       // Engine/replay compatibility may auto-target a legacy Sentinela when a
       // trusted internal caller omits the target. Client-supplied PvP actions

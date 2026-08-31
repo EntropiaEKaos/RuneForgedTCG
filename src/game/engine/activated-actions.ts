@@ -1,8 +1,13 @@
 import { getCard } from "../cards";
-import type { ActivatedAbility, ActivatedAbilityUsage } from "../activated-ability-types";
+import type {
+  ActivatedAbility,
+  ActivatedAbilityMode,
+  ActivatedAbilityUsage,
+} from "../activated-ability-types";
 import type {
   BoardEntity,
   CardDef,
+  CardEffect,
   GameState,
   PermanentInstance,
   PlayerId,
@@ -20,12 +25,21 @@ export type ActivatedAbilitySource =
   | { kind: "permanent"; perm: PermanentInstance; owner: PlayerId }
   | { kind: "sentinela"; sen: SentinelaInstance; owner: PlayerId };
 
+export interface ActivatedAbilityChoice {
+  modeId?: string;
+  description: string;
+  effect: CardEffect;
+}
+
 export interface ActivatedAbilityValidation {
   ok: boolean;
   reason?: string;
   ability?: ActivatedAbility;
   source?: ActivatedAbilitySource;
   legacySentinela?: boolean;
+  effect?: CardEffect;
+  mode?: ActivatedAbilityMode;
+  modeId?: string;
 }
 
 function fail(reason: string): ActivatedAbilityValidation {
@@ -78,6 +92,51 @@ export function activatedAbilitiesForInstance(
   const source = findActivatedAbilitySource(state, playerId, instanceId);
   if (!source) return [];
   return activatedAbilitiesForDef(getCard(sourceInstance(source).defId));
+}
+
+function validModeId(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 64 && value.trim() === value;
+}
+
+/**
+ * Returns the executable choices for a well-formed activated ability.
+ * Malformed/ambiguous data produces an empty list so every caller fails closed.
+ */
+export function activatedAbilityChoices(ability: ActivatedAbility): ActivatedAbilityChoice[] {
+  if (ability.modes !== undefined) {
+    if (ability.effect !== undefined || !Array.isArray(ability.modes) || ability.modes.length === 0) return [];
+    const seen = new Set<string>();
+    const choices: ActivatedAbilityChoice[] = [];
+    for (const mode of ability.modes) {
+      if (!mode || !validModeId(mode.id) || seen.has(mode.id)) return [];
+      if (typeof mode.description !== "string" || mode.description.trim().length === 0 || !mode.effect) return [];
+      seen.add(mode.id);
+      choices.push({ modeId: mode.id, description: mode.description, effect: mode.effect });
+    }
+    return choices;
+  }
+
+  if (!ability.effect) return [];
+  return [{ description: ability.description, effect: ability.effect }];
+}
+
+export function resolveActivatedAbilityChoice(
+  ability: ActivatedAbility,
+  modeId?: string,
+): { ok: true; choice: ActivatedAbilityChoice; mode?: ActivatedAbilityMode } | { ok: false; reason: string } {
+  const choices = activatedAbilityChoices(ability);
+  if (choices.length === 0) return { ok: false, reason: "invalid activated ability definition" };
+
+  if (ability.modes !== undefined) {
+    if (!modeId) return { ok: false, reason: "modal activated ability requires a mode" };
+    const choice = choices.find((candidate) => candidate.modeId === modeId);
+    const mode = ability.modes.find((candidate) => candidate.id === modeId);
+    if (!choice || !mode) return { ok: false, reason: "unknown activated ability mode" };
+    return { ok: true, choice, mode };
+  }
+
+  if (modeId !== undefined) return { ok: false, reason: "non-modal activated ability does not accept a mode" };
+  return { ok: true, choice: choices[0] };
 }
 
 function isLegacySentinelaAbility(def: CardDef, abilityIndex: number): boolean {
@@ -151,6 +210,7 @@ export function validateActivatedAbilityActivation(
   instanceId: string,
   abilityIndex: number,
   targetInstanceId?: string,
+  modeId?: string,
 ): ActivatedAbilityValidation {
   if (state.phase !== "main" || state.activePlayer !== playerId) {
     return fail("activated abilities require the owner's main phase");
@@ -163,6 +223,9 @@ export function validateActivatedAbilityActivation(
   const abilities = activatedAbilitiesForDef(def);
   const ability = abilities[abilityIndex];
   if (!ability) return fail("activated ability index does not exist");
+  const resolved = resolveActivatedAbilityChoice(ability, modeId);
+  if (!resolved.ok) return fail(resolved.reason);
+  const effect = resolved.choice.effect;
   const legacySentinela = source.kind === "sentinela" && isLegacySentinelaAbility(def, abilityIndex);
 
   const manaError = validateNonNegativeInteger(ability.cost?.mana, "mana cost");
@@ -188,8 +251,8 @@ export function validateActivatedAbilityActivation(
 
   const limit = ability.maxUsesPerRound === undefined ? 1 : ability.maxUsesPerRound;
   // Every Sentinela — legacy or generic — shares the Planeswalker-style
-  // one-activation-per-round budget. This prevents a card with both contracts
-  // from activating once through each list in the same round.
+  // one-activation-per-round budget. Modal choices are still one base ability
+  // and therefore share this exact same budget.
   if (source.kind === "sentinela" && source.sen.activatedThisTurn) {
     return fail("Sentinela already activated this round");
   }
@@ -217,11 +280,11 @@ export function validateActivatedAbilityActivation(
     }
   }
 
-  if (ability.cost?.sacrificeSelf && ability.effect.target === "self") {
+  if (ability.cost?.sacrificeSelf && effect.target === "self") {
     return fail("a sacrificed source cannot also be the effect's self target");
   }
 
-  const targetKind = ability.effect.target;
+  const targetKind = effect.target;
   if (targetKind === "spellOnStack") {
     return fail("stack-targeted activated abilities require a reaction-context action");
   }
@@ -241,35 +304,56 @@ export function validateActivatedAbilityActivation(
     return fail("activated ability does not accept an explicit target");
   }
 
-  return { ok: true, ability, source, legacySentinela };
+  return {
+    ok: true,
+    ability,
+    source,
+    legacySentinela,
+    effect,
+    mode: resolved.mode,
+    modeId: resolved.choice.modeId,
+  };
 }
 
 /**
  * UI/preflight availability check. Targeted abilities are considered usable if
  * at least one legal board target exists; the actual target is still validated
- * authoritatively when the action is submitted.
+ * authoritatively when the action is submitted. For a modal ability, omitting
+ * modeId means "is at least one mode usable?" — authoritative activation still
+ * requires the selected mode id.
  */
 export function canBeginActivateAbility(
   state: GameState,
   playerId: PlayerId,
   instanceId: string,
   abilityIndex: number,
+  modeId?: string,
 ): boolean {
   const source = findActivatedAbilitySource(state, playerId, instanceId);
   if (!source) return false;
   const ability = activatedAbilitiesForDef(getCard(sourceInstance(source).defId))[abilityIndex];
-  if (!ability || ability.effect.target === "spellOnStack") return false;
-  if (!requiresBoardTarget(ability.effect.target)) {
-    return validateActivatedAbilityActivation(state, playerId, instanceId, abilityIndex).ok;
+  if (!ability) return false;
+
+  if (ability.modes !== undefined && modeId === undefined) {
+    return activatedAbilityChoices(ability).some((choice) =>
+      canBeginActivateAbility(state, playerId, instanceId, abilityIndex, choice.modeId),
+    );
+  }
+
+  const resolved = resolveActivatedAbilityChoice(ability, modeId);
+  if (!resolved.ok || resolved.choice.effect.target === "spellOnStack") return false;
+  if (!requiresBoardTarget(resolved.choice.effect.target)) {
+    return validateActivatedAbilityActivation(state, playerId, instanceId, abilityIndex, undefined, modeId).ok;
   }
   return boardEntities(state).some((entity) =>
-    isValidTarget(state, playerId, ability.effect.target, entity) &&
+    isValidTarget(state, playerId, resolved.choice.effect.target, entity) &&
     validateActivatedAbilityActivation(
       state,
       playerId,
       instanceId,
       abilityIndex,
       boardEntityId(entity),
+      modeId,
     ).ok,
   );
 }
@@ -280,6 +364,7 @@ export function canActivateAbility(
   instanceId: string,
   abilityIndex: number,
   targetInstanceId?: string,
+  modeId?: string,
 ): boolean {
   return validateActivatedAbilityActivation(
     state,
@@ -287,6 +372,7 @@ export function canActivateAbility(
     instanceId,
     abilityIndex,
     targetInstanceId,
+    modeId,
   ).ok;
 }
 
@@ -325,6 +411,7 @@ export function activateAbility(
   instanceId: string,
   abilityIndex: number,
   targetInstanceId?: string,
+  modeId?: string,
 ): GameState {
   const validation = validateActivatedAbilityActivation(
     state,
@@ -332,8 +419,9 @@ export function activateAbility(
     instanceId,
     abilityIndex,
     targetInstanceId,
+    modeId,
   );
-  if (!validation.ok || !validation.ability || !validation.source) return state;
+  if (!validation.ok || !validation.ability || !validation.source || !validation.effect) return state;
 
   const next = clone(state);
   const source = findActivatedAbilitySource(next, playerId, instanceId);
@@ -341,13 +429,17 @@ export function activateAbility(
   const def = getCard(sourceInstance(source).defId);
   const ability = activatedAbilitiesForDef(def)[abilityIndex];
   if (!ability) return state;
+  const resolved = resolveActivatedAbilityChoice(ability, modeId);
+  if (!resolved.ok) return state;
+  const effect = resolved.choice.effect;
   const legacySentinela = source.kind === "sentinela" && isLegacySentinelaAbility(def, abilityIndex);
 
   if (source.kind === "sentinela") source.sen.activatedThisTurn = true;
   if (!legacySentinela) recordAbilityUsage(source, abilityIndex, next.round);
 
   paySourceCosts(next, source, ability);
-  next.log.push(`${def.name} ativa "${ability.description}".`);
+  const modalSuffix = resolved.choice.modeId ? ` — ${resolved.choice.description}` : "";
+  next.log.push(`${def.name} ativa "${ability.description}${modalSuffix}".`);
 
   // Sacrifice is a real cost: the source leaves play before its effect resolves.
   if (ability.cost?.sacrificeSelf) {
@@ -356,8 +448,8 @@ export function activateAbility(
   }
 
   const self = source.kind === "unit" ? source.unit : undefined;
-  const explicitTarget = requiresBoardTarget(ability.effect.target) ? targetInstanceId : undefined;
-  applyEffect(next, playerId, ability.effect, explicitTarget, self);
+  const explicitTarget = requiresBoardTarget(effect.target) ? targetInstanceId : undefined;
+  applyEffect(next, playerId, effect, explicitTarget, self);
 
   cleanupDead(next);
   cleanupSentinelas(next);

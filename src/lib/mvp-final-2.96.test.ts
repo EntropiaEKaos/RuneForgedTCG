@@ -50,7 +50,7 @@ ok(
 );
 const actions = read("src/game/engine/actions.ts");
 ok(actions.includes('def.type !== "Unit" && def.type !== "Sentinela"') && actions.includes("payCost(p, cost, false)"), "Sentinelas consume regular mana and never Spell Mana");
-const ai = read("src/game/ai.ts");
+const ai = [read("src/game/ai.ts"), read("src/game/ai-core.ts")].join("\n");
 ok(ai.includes("aiChooseSentinelaAction") && ai.includes("Spend loyalty on the strongest useful minus ability"), "AI actively evaluates Sentinela minus abilities and ultimates");
 
 ok(/sourceContractTests[\s\S]*sentinela-convergence-2\.96\.test\.ts/.test(suites) && /sourceContractTests[\s\S]*mvp-final-2\.96\.test\.ts/.test(suites), "2.96 source contracts remain classified as static audits");

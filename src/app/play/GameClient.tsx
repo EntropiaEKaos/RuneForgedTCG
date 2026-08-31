@@ -17,6 +17,7 @@ import {
   endTurn,
   isValidTarget,
   mulligan,
+  resolveActivatedAbilityChoice,
   skipMulligan,
   resolveCombat,
   spellNeedsTarget,
@@ -56,7 +57,7 @@ export default function GameClient() {
   const [pendingSpell, setPendingSpell] = useState<PendingSpell | null>(null);
   // Kept under the legacy name for replay/UI compatibility in 2.97; this now
   // represents targeting for any board entity's activated ability.
-  const [pendingSentinelaAbility, setPendingSentinelaAbility] = useState<{ sentinelaId: string; abilityIndex: number; targetType: TargetKind } | null>(null);
+  const [pendingSentinelaAbility, setPendingSentinelaAbility] = useState<{ sentinelaId: string; abilityIndex: number; targetType: TargetKind; modeId?: string } | null>(null);
   const [selectedAttackers, setSelectedAttackers] = useState<string[]>([]);
   const [challenges, setChallenges] = useState<Record<string, string>>({});
   const [sentinelaTargets, setSentinelaTargets] = useState<Record<string, string>>({});
@@ -168,30 +169,36 @@ export default function GameClient() {
     );
   }, [state, selectedAttackers]);
 
-  const commitActivatedAbility = useCallback((sourceInstanceId: string, abilityIndex: number, target?: string) => {
+  const commitActivatedAbility = useCallback((sourceInstanceId: string, abilityIndex: number, target?: string, modeId?: string) => {
     if (!state) return;
     // Preserve the versioned 2.97 wire opcode. The server now interprets
     // sentinelaId as a generic controlled board-source id.
-    const action: GameAction = { type: "sentinela", player: "player", sentinelaId: sourceInstanceId, abilityIndex, target };
+    const action: GameAction = { type: "sentinela", player: "player", sentinelaId: sourceInstanceId, abilityIndex, target, ...(modeId ? { modeId } : {}) };
     if (isPvp) { void sendPvpAction(action); return; }
     recordAction(action);
-    setState(activateAbility(state, "player", sourceInstanceId, abilityIndex, target));
+    setState(activateAbility(state, "player", sourceInstanceId, abilityIndex, target, modeId));
   }, [state, recordAction, isPvp, sendPvpAction]);
 
   const handleActivatedAbility = useCallback(
-    (sourceInstanceId: string, abilityIndex: number) => {
+    (sourceInstanceId: string, abilityIndex: number, modeId?: string) => {
       if (!state) return;
       const ability = activatedAbilitiesForInstance(state, "player", sourceInstanceId)[abilityIndex];
       if (!ability) return;
-      if (ability.effect.target === "spellOnStack") {
+      const resolved = resolveActivatedAbilityChoice(ability, modeId);
+      if (!resolved.ok) {
+        setFirstInfo(ability.modes !== undefined ? "Escolha um modo válido para esta habilidade." : "Esta habilidade está com uma configuração inválida.");
+        return;
+      }
+      const effect = resolved.choice.effect;
+      if (effect.target === "spellOnStack") {
         setFirstInfo("Esta habilidade exige uma janela de reação e ficará indisponível até a integração com a pilha autoritativa.");
         return;
       }
-      if (!["none", "self"].includes(ability.effect.target)) {
-        setPendingSentinelaAbility({ sentinelaId: sourceInstanceId, abilityIndex, targetType: ability.effect.target });
+      if (!["none", "self"].includes(effect.target)) {
+        setPendingSentinelaAbility({ sentinelaId: sourceInstanceId, abilityIndex, targetType: effect.target, ...(resolved.choice.modeId ? { modeId: resolved.choice.modeId } : {}) });
         return;
       }
-      commitActivatedAbility(sourceInstanceId, abilityIndex);
+      commitActivatedAbility(sourceInstanceId, abilityIndex, undefined, resolved.choice.modeId);
     },
     [state, commitActivatedAbility],
   );
@@ -206,7 +213,7 @@ export default function GameClient() {
       if (!state) return;
       const sentinela = state.players[senOwner].sentinelas.find((candidate) => candidate.instanceId === senInstanceId);
       if (pendingSentinelaAbility && sentinela && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: senOwner })) {
-        commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, senInstanceId);
+        commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, senInstanceId, pendingSentinelaAbility.modeId);
         setPendingSentinelaAbility(null);
         return;
       }
@@ -374,7 +381,7 @@ export default function GameClient() {
       if (!state) return;
       if (pendingSentinelaAbility) {
         if (activatedTargetOk({ kind: "permanent", perm, owner: perm.owner })) {
-          commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, perm.instanceId);
+          commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, perm.instanceId, pendingSentinelaAbility.modeId);
           setPendingSentinelaAbility(null);
         }
         return;
@@ -413,7 +420,7 @@ export default function GameClient() {
 
       if (pendingSentinelaAbility) {
         if (activatedTargetOk({ kind: "unit", unit, owner: unit.owner })) {
-          commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, unit.instanceId);
+          commitActivatedAbility(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, unit.instanceId, pendingSentinelaAbility.modeId);
           setPendingSentinelaAbility(null);
         }
         return;
