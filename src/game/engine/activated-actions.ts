@@ -181,8 +181,10 @@ export function hasConsumingActivatedAbilityCost(ability: ActivatedAbility): boo
   const cost = ability.cost;
   return Boolean(
     (cost?.mana ?? 0) > 0 ||
+    (cost?.spellMana ?? 0) > 0 ||
     (cost?.nexusHealth ?? 0) > 0 ||
     cost?.exhaustSelf ||
+    cost?.consumeBarrier ||
     cost?.sacrificeSelf ||
     (cost?.loyaltyDelta ?? 0) < 0
   );
@@ -230,8 +232,13 @@ export function validateActivatedAbilityActivation(
 
   const manaError = validateNonNegativeInteger(ability.cost?.mana, "mana cost");
   if (manaError) return fail(manaError);
+  const spellManaError = validateNonNegativeInteger(ability.cost?.spellMana, "spell mana cost");
+  if (spellManaError) return fail(spellManaError);
   const healthError = validateNonNegativeInteger(ability.cost?.nexusHealth, "Nexus health cost");
   if (healthError) return fail(healthError);
+  if (ability.cost?.consumeBarrier !== undefined && typeof ability.cost.consumeBarrier !== "boolean") {
+    return fail("consumeBarrier cost must be boolean");
+  }
   if (ability.maxUsesPerRound !== undefined && ability.maxUsesPerRound !== null) {
     if (!Number.isInteger(ability.maxUsesPerRound) || ability.maxUsesPerRound <= 0) {
       return fail("maxUsesPerRound must be a positive integer or null");
@@ -244,6 +251,8 @@ export function validateActivatedAbilityActivation(
   const player = state.players[playerId];
   const manaCost = ability.cost?.mana ?? 0;
   if (player.mana < manaCost) return fail("not enough regular mana for activated ability");
+  const spellManaCost = ability.cost?.spellMana ?? 0;
+  if (player.spellMana < spellManaCost) return fail("not enough spell mana for activated ability");
   const healthCost = ability.cost?.nexusHealth ?? 0;
   if (healthCost > 0 && player.nexusHealth <= healthCost) {
     return fail("Nexus health cost cannot be paid lethally");
@@ -278,6 +287,11 @@ export function validateActivatedAbilityActivation(
     } else if (sourceInstance(source).exhaustedRound === state.round) {
       return fail("source is already exhausted this round");
     }
+  }
+
+  if (ability.cost?.consumeBarrier) {
+    if (source.kind !== "unit") return fail("Barrier cost requires a Unit source");
+    if (!source.unit.barrier) return fail("source has no active Barrier to consume");
   }
 
   if (ability.cost?.sacrificeSelf && effect.target === "self") {
@@ -383,6 +397,7 @@ function paySourceCosts(
 ): void {
   const player = state.players[source.owner];
   player.mana -= ability.cost?.mana ?? 0;
+  player.spellMana -= ability.cost?.spellMana ?? 0;
   player.nexusHealth -= ability.cost?.nexusHealth ?? 0;
 
   if (ability.cost?.loyaltyDelta !== undefined && source.kind === "sentinela") {
@@ -392,6 +407,10 @@ function paySourceCosts(
   if (ability.cost?.exhaustSelf) {
     if (source.kind === "unit") source.unit.hasAttackedThisTurn = true;
     else sourceInstance(source).exhaustedRound = state.round;
+  }
+
+  if (ability.cost?.consumeBarrier && source.kind === "unit") {
+    source.unit.barrier = false;
   }
 
   if (ability.cost?.sacrificeSelf) {
