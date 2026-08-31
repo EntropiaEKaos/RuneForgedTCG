@@ -43,6 +43,8 @@ assert.equal(report.printedHealth, printedHealth);
 assert.equal(report.currentMaxHealth, printedHealth + 2);
 assert.equal(report.maxHealthDelta, 2);
 assert.equal(report.damageTaken, 2);
+assert.equal(report.auraPower, 0);
+assert.equal(report.auraHealth, 0);
 assert.equal(report.otherPowerModifier, 2);
 assert.equal(report.otherHealthModifier, 3);
 assert.equal(report.permanentHealthModifier, -1);
@@ -63,11 +65,27 @@ if (equipmentDef?.equipment) {
   assert.equal(getCard(equipmentDef.defId).name, equipmentDef.name);
 }
 
+unit.auraPowerBonus = 1;
+unit.auraHealthBonus = 2;
+unit.power += 1;
+unit.maxHealth += 2;
+unit.health += 2;
+const auraReport = inspectRuntimeCard(unitDef, unit);
+assert.ok(auraReport);
+assert.equal(auraReport.auraPower, 1);
+assert.equal(auraReport.auraHealth, 2);
+assert.equal(auraReport.otherPowerModifier, 2, "Aura contribution remains separate from ordinary power modifiers");
+assert.equal(auraReport.otherHealthModifier, 3, "Aura contribution remains separate from ordinary health modifiers");
+assert.equal(auraReport.damageTaken, 2, "tooltip preserves marked damage while reporting Aura max-health contribution");
+assert.ok(auraReport.statuses.some((status) => status.id === "continuous-aura" && status.tone === "buff"));
+
 unit.frostbitten = true;
 unit.power = 0;
 const frozen = inspectRuntimeCard(unitDef, unit);
 assert.ok(frozen);
 assert.equal(frozen.currentPower, 0);
+assert.equal(frozen.auraPower, 1, "Frostbite hides effective power without losing Aura source intelligence");
 assert.ok(frozen.statuses.some((status) => status.id === "frostbitten" && status.tone === "debuff"));
+assert.ok(frozen.statuses.some((status) => status.id === "continuous-aura"));
 
-console.log("CARD INSPECTION: PASS — printed/current stats, modifiers, damage, gained abilities and runtime buffs/debuffs");
+console.log("CARD INSPECTION: PASS — printed/current stats, Equipment, continuous Aura, modifiers, damage and runtime buffs/debuffs");
