@@ -79,6 +79,7 @@ export type AbilityCostKind =
   | "mana"
   | "spellMana"
   | "nexusHealth"
+  | "discardFromHand"
   | "exhaustSelf"
   | "consumeBarrier"
   | "sacrificeSelf"
@@ -88,6 +89,7 @@ export type AbilityCostNode =
   | { kind: "mana"; amount: number }
   | { kind: "spellMana"; amount: number }
   | { kind: "nexusHealth"; amount: number }
+  | { kind: "discardFromHand"; amount: number; selection: "explicitInstanceIds" }
   | { kind: "exhaustSelf" }
   | { kind: "consumeBarrier" }
   | { kind: "sacrificeSelf" }
@@ -176,6 +178,7 @@ export const ABILITY_COST_KINDS = [
   "mana",
   "spellMana",
   "nexusHealth",
+  "discardFromHand",
   "exhaustSelf",
   "consumeBarrier",
   "sacrificeSelf",
@@ -269,6 +272,7 @@ export function abilityCostsFromActivatedCost(cost: ActivatedAbilityCost | undef
   if ((cost.mana ?? 0) > 0) nodes.push({ kind: "mana", amount: cost.mana! });
   if ((cost.spellMana ?? 0) > 0) nodes.push({ kind: "spellMana", amount: cost.spellMana! });
   if ((cost.nexusHealth ?? 0) > 0) nodes.push({ kind: "nexusHealth", amount: cost.nexusHealth! });
+  if ((cost.discardFromHand ?? 0) > 0) nodes.push({ kind: "discardFromHand", amount: cost.discardFromHand!, selection: "explicitInstanceIds" });
   if (cost.exhaustSelf) nodes.push({ kind: "exhaustSelf" });
   if (cost.consumeBarrier) nodes.push({ kind: "consumeBarrier" });
   if (cost.sacrificeSelf) nodes.push({ kind: "sacrificeSelf" });
