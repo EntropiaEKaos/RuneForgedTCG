@@ -76,7 +76,7 @@ function addReadyUnit(state: GameState, defId: string, owner: PlayerId = "player
   const asterion = addReadyUnit(state, "van_ember_u18");
   const ui = activatedAbilityUiState(state, "player", asterion.instanceId, 0);
   assert.equal(ui.canUse, false);
-  assert.equal(ui.reason, "Mana insuficiente.");
+  assert.equal(ui.reason, "Mana regular insuficiente.");
 }
 
 {
