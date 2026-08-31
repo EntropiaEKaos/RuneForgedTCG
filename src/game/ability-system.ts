@@ -6,6 +6,7 @@ import {
   CARD_TRIGGERS,
   MECHANIC_CONDITION_KINDS,
 } from "./card-authoring";
+import { TRIGGER_TIMING_BY_EVENT, triggerTiming } from "./trigger-contract";
 import type {
   CardDef,
   CardEffect,
@@ -195,6 +196,7 @@ export const ABILITY_GRAMMAR_CATALOG = {
   effects: CARD_EFFECT_KINDS,
   targets: CARD_TARGETS,
   triggers: CARD_TRIGGERS,
+  triggerTiming: TRIGGER_TIMING_BY_EVENT,
   conditions: MECHANIC_CONDITION_KINDS,
   keywords: CARD_KEYWORDS,
 } as const;
@@ -250,7 +252,7 @@ export function blueprintFromMechanic(mechanic: CardMechanic): AbilityBlueprint 
     origin: "mechanic",
     kind: "triggered",
     features: uniqueFeatures(conditionFeatures(condition), effectFeatures(mechanic.effect)),
-    timing: "automatic",
+    timing: triggerTiming(mechanic.trigger),
     description: mechanic.name,
     trigger: mechanic.trigger,
     condition,
@@ -310,7 +312,7 @@ export function blueprintFromLegacyTrigger(trigger: NonNullable<CardDef["trigger
     origin: "legacyTrigger",
     kind: "triggered",
     features: effectFeatures(trigger.effect),
-    timing: "automatic",
+    timing: triggerTiming(trigger.when),
     trigger: trigger.when,
     condition: ALWAYS,
     costs: [],
