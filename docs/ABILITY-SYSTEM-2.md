@@ -115,3 +115,11 @@ Adicionar uma família por vez, sempre nesta ordem:
 9. somente então disponibilizar ao Studio.
 
 As primeiras candidatas naturais são habilidades modais, custos alternativos adicionais e reações ativadas, porque aumentam decisões sem exigir centenas de novos efeitos primitivos.
+
+### Fase 4.1 — Modal Activated Abilities
+
+O primeiro corte modal adiciona escolhas determinísticas às habilidades ativadas sem alterar o opcode histórico de replay/PvP. Uma habilidade modal possui uma lista ordenada de modos com `id` estável, descrição e `CardEffect`; a ativação autoritativa exige o `modeId` escolhido e rejeita de forma fail-closed ids ausentes, desconhecidos, duplicados ou definições ambíguas antes de pagar qualquer custo.
+
+O custo, a exaustão, o sacrifício, a lealdade e o `maxUsesPerRound` pertencem à habilidade-base e são compartilhados por todos os modos. Cada modo pode usar um efeito e um `target` diferentes porque o targeting é derivado do próprio `CardEffect`. O transporte continua usando a ação 2.97 `sentinela`, agora com `modeId` opcional para preservar replays históricos de habilidades não modais.
+
+Este corte cobre runtime autoritativo, reducer/replay/PvP, seleção e encaminhamento de modo na UI, apresentação/tooltip, projeção `AbilityBlueprint`, IA determinística e testes de regressão. `modal` permanece `partial`: o Studio ainda não publica habilidades modais genéricas e custos/condições diferentes por modo continuam deliberadamente fora deste contrato.
