@@ -10,6 +10,7 @@ const ACTIVATED_SOURCE_TYPES = new Set<CardDef["type"]>([
 ]);
 const MAX_ACTIVATED_ABILITIES = 4;
 const MAX_ACTIVATED_MODES = 4;
+const MAX_DISCARD_FROM_HAND_COST = 10;
 const MODE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
 
 function finiteInteger(value: unknown, min: number, max: number): number | null {
@@ -38,6 +39,11 @@ function sanitizeCost(raw: unknown, sourceType: CardDef["type"]): { ok: true; co
     const value = finiteInteger(input.nexusHealth, 0, 20);
     if (value === null) return { ok: false, error: "Activated ability Nexus health cost must be an integer from 0 to 20" };
     if (value > 0) cost.nexusHealth = value;
+  }
+  if (input.discardFromHand !== undefined) {
+    const value = finiteInteger(input.discardFromHand, 0, MAX_DISCARD_FROM_HAND_COST);
+    if (value === null) return { ok: false, error: `Activated ability discardFromHand cost must be an integer from 0 to ${MAX_DISCARD_FROM_HAND_COST}` };
+    if (value > 0) cost.discardFromHand = value;
   }
   if (input.exhaustSelf !== undefined && typeof input.exhaustSelf !== "boolean") {
     return { ok: false, error: "Activated ability exhaustSelf cost must be boolean" };
@@ -70,6 +76,7 @@ function hasConsumingCost(cost: ActivatedAbilityCost | undefined): boolean {
     (cost?.mana ?? 0) > 0 ||
     (cost?.spellMana ?? 0) > 0 ||
     (cost?.nexusHealth ?? 0) > 0 ||
+    (cost?.discardFromHand ?? 0) > 0 ||
     cost?.exhaustSelf ||
     cost?.consumeBarrier ||
     cost?.sacrificeSelf ||
@@ -228,7 +235,7 @@ export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDe
     }
 
     if (maxUsesPerRound === null && !hasConsumingCost(costResult.cost)) {
-      return { ok: false, error: "Unlimited activated abilities require a consuming cost (regular mana, spell mana, Nexus health, exhaust, Barrier, sacrifice or negative loyalty)" };
+      return { ok: false, error: "Unlimited activated abilities require a consuming cost (regular mana, spell mana, Nexus health, selected hand discard, exhaust, Barrier, sacrifice or negative loyalty)" };
     }
     if (base.card.type === "Sentinela" && maxUsesPerRound !== undefined && maxUsesPerRound !== 1) {
       return { ok: false, error: "Sentinelas share one activation per round across all legacy and generic abilities" };
