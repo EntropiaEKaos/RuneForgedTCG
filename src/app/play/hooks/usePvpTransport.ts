@@ -4,6 +4,12 @@ import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRe
 import type { GameState } from "@/game/types";
 import type { GameAction } from "@/game/reducer";
 import { canonicalizeGuestAction, type PvpConnectionState } from "@/game/client/match-model";
+import {
+  PVP_REACTION_ACTION_EVENT,
+  publishPvpReactionState,
+  type PvpReactionActionDetail,
+} from "@/game/client/pvp-reaction-events";
+import type { PvpReactionPriorityState } from "@/lib/pvp-reaction-priority";
 import { classifyPvpPollFailure, deliverPvpAction } from "@/lib/pvp-client";
 
 function requestedPvpRoomCode(): string | null {
@@ -26,6 +32,7 @@ export function usePvpTransport({
   const [pvpRoomCode, setPvpRoomCode] = useState<string | null>(null);
   const [pvpVersion, setPvpVersion] = useState<number | null>(null);
   const [pvpGuest, setPvpGuest] = useState(false);
+  const [pvpReaction, setPvpReaction] = useState<PvpReactionPriorityState | null>(null);
   const [pvpConnection, setPvpConnection] = useState<PvpConnectionState>("offline");
   const [pvpMessage, setPvpMessage] = useState("");
   const [pvpLatency, setPvpLatency] = useState<number | null>(null);
@@ -35,6 +42,24 @@ export function usePvpTransport({
   // the room/version state. Never let that brief transport gap fall through to
   // local engine authority.
   const isPvp = pvpRoomCode !== null || requestedRoomCode !== null;
+
+  const applyProjection = useCallback((projection: {
+    code?: string;
+    version?: number;
+    viewerSide?: "host" | "guest";
+    gameState?: GameState | null;
+    reactionState?: PvpReactionPriorityState | null;
+  }, fallbackRoomCode?: string) => {
+    if (projection.code || fallbackRoomCode) setPvpRoomCode(projection.code || fallbackRoomCode || null);
+    if (Number.isInteger(projection.version)) setPvpVersion(projection.version!);
+    if (projection.viewerSide) setPvpGuest(projection.viewerSide === "guest");
+    if (projection.gameState) setState(projection.gameState);
+    if ("reactionState" in projection) {
+      const nextReaction = projection.reactionState ?? null;
+      setPvpReaction(nextReaction);
+      if (projection.gameState) publishPvpReactionState({ gameState: projection.gameState, reactionState: nextReaction });
+    }
+  }, [setState]);
 
   const sendPvpAction = useCallback(async (action: GameAction) => {
     const effectiveRoomCode = pvpRoomCode ?? requestedPvpRoomCode();
@@ -66,10 +91,13 @@ export function usePvpTransport({
         }
         effectiveVersion = data.room.version;
         effectiveGuest = data.room.viewerSide === "guest";
-        setPvpRoomCode(data.room.code || effectiveRoomCode);
-        setPvpVersion(effectiveVersion);
-        setPvpGuest(effectiveGuest);
-        setState(data.room.gameState);
+        applyProjection({
+          code: data.room.code || effectiveRoomCode,
+          version: data.room.version,
+          viewerSide: data.room.viewerSide,
+          gameState: data.room.gameState,
+          reactionState: data.room.reactionState ?? null,
+        }, effectiveRoomCode);
       } catch (error) {
         setPvpConnection("offline");
         setPvpMessage(error instanceof Error ? error.message : "Não foi possível sincronizar a sala PvP.");
@@ -101,18 +129,36 @@ export function usePvpTransport({
     });
     pvpSendingRef.current = false;
     setPvpLatency(Math.round(performance.now() - requestStarted));
+
+    if (result.version != null || result.gameState || result.reactionState !== undefined) {
+      applyProjection({
+        version: result.version,
+        gameState: result.gameState,
+        reactionState: result.reactionState,
+      }, effectiveRoomCode);
+    }
+
     if (!result.ok) {
       setPvpConnection(result.status === 409 ? "conflict" : "offline");
       setPvpMessage(result.error || "Ação não confirmada.");
       return false;
     }
-    if (result.version != null) setPvpVersion(result.version);
-    if (result.gameState) setState(result.gameState);
     actionLogRef.current.push(canonical);
     setPvpConnection("synced");
     setPvpMessage(result.duplicate ? "Ação já confirmada; estado sincronizado." : "Ação confirmada.");
     return true;
-  }, [actionLogRef, playerName, pvpGuest, pvpRoomCode, pvpVersion, setState]);
+  }, [actionLogRef, applyProjection, playerName, pvpGuest, pvpRoomCode, pvpVersion]);
+
+  useEffect(() => {
+    const onReactionAction = (event: Event) => {
+      if (!isPvp) return;
+      const detail = (event as CustomEvent<PvpReactionActionDetail>).detail;
+      if (!detail?.action) return;
+      void sendPvpAction(detail.action);
+    };
+    window.addEventListener(PVP_REACTION_ACTION_EVENT, onReactionAction as EventListener);
+    return () => window.removeEventListener(PVP_REACTION_ACTION_EVENT, onReactionAction as EventListener);
+  }, [isPvp, sendPvpAction]);
 
   useEffect(() => {
     const effectiveRoomCode = pvpRoomCode ?? requestedPvpRoomCode();
@@ -139,14 +185,17 @@ export function usePvpTransport({
           throw new Error(failure.message);
         }
         if (data.room?.gameState) {
-          setPvpRoomCode(data.room.code || effectiveRoomCode);
-          setPvpVersion(data.room.version);
-          setPvpGuest(data.room.viewerSide === "guest");
+          applyProjection({
+            code: data.room.code || effectiveRoomCode,
+            version: data.room.version,
+            viewerSide: data.room.viewerSide,
+            gameState: data.room.gameState,
+            reactionState: data.room.reactionState ?? null,
+          }, effectiveRoomCode);
           setPvpLatency(Math.round(performance.now() - pollStarted));
-          setState((current) => data.room.gameState ?? current);
           if (!pvpSendingRef.current) {
             setPvpConnection("synced");
-            setPvpMessage("Estado sincronizado.");
+            setPvpMessage(data.room.reactionState ? "Prioridade de reação sincronizada." : "Estado sincronizado.");
           }
         }
       } catch (error) {
@@ -172,19 +221,21 @@ export function usePvpTransport({
       window.removeEventListener("online", online);
       window.removeEventListener("offline", offline);
     };
-  }, [pvpRoomCode, screen, setState]);
+  }, [applyProjection, pvpRoomCode, screen]);
 
   return {
     isPvp,
     pvpRoomCode,
     pvpVersion,
     pvpGuest,
+    pvpReaction,
     pvpConnection,
     pvpMessage,
     pvpLatency,
     setPvpRoomCode,
     setPvpVersion,
     setPvpGuest,
+    setPvpReaction,
     setPvpConnection,
     setPvpMessage,
     sendPvpAction,
