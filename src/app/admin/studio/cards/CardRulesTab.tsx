@@ -8,6 +8,7 @@ import {
   CARD_KEYWORDS as KWS,
   CARD_LEVEL_UP_TYPES as LEVEL_UP_TYPES,
 } from "@/game/card-authoring";
+import { MAX_EQUIPMENT_PER_UNIT } from "@/game/equipment-link-contract";
 import { keywordIsGrantable } from "@/game/keywords";
 import { isTriggerSupported, supportedTriggerEvents } from "@/game/trigger-contract";
 
@@ -241,6 +242,9 @@ export default function CardRulesTab({ model }: { model: CardAuthoringModel }) {
 
       {card.type === "Equipment" && (
         <Panel title="Equipment Contract" eyebrow="VISUAL EQUIPMENT AUTHORING">
+          <p className="mb-4 text-xs leading-5 text-slate-400">
+            Equipment é vinculado a uma unidade aliada. Cada unidade pode sustentar no máximo {MAX_EQUIPMENT_PER_UNIT} Equipments; ao deixar o campo, os Equipments vinculados deixam o campo junto com ela.
+          </p>
           <div className="grid gap-3 md:grid-cols-2">
             <F l="Power bonus"><input className="input" type="number" value={card.equipment?.buffPower ?? 0} onChange={(e) => set("equipment", { ...(card.equipment || {}), buffPower: Number(e.target.value), buffHealth: card.equipment?.buffHealth ?? 0, keywords: card.equipment?.keywords || [] })} /></F>
             <F l="Health bonus"><input className="input" type="number" value={card.equipment?.buffHealth ?? 0} onChange={(e) => set("equipment", { ...(card.equipment || {}), buffPower: card.equipment?.buffPower ?? 0, buffHealth: Number(e.target.value), keywords: card.equipment?.keywords || [] })} /></F>

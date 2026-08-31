@@ -1,4 +1,5 @@
 import { getCard } from "../cards";
+import { unitsWithEquipmentCapacity } from "../equipment-link-contract";
 import { nextRng } from "../rng";
 import { regionalCostDiscount } from "../region-identity";
 import type { BoardEntity, CardDef, GameState, PermanentInstance, PlayerId, PlayerState, TargetKind, UnitInstance } from "../types";
@@ -60,10 +61,8 @@ export function canPlayCard(state: GameState, playerId: PlayerId, instanceId: st
   if (def.type === "Enchantment" || def.type === "Artifact") return p.permanents.length < engineRulesFor(state).permanentsCap;
   if (def.type === "Sentinela") return true;
   if (def.type === "Equipment") {
-    // Must have a legal attach target.
-    const allies = p.bench.filter((u) => u.equipment.length < 2);
-    if (allies.length === 0) return false;
-    return true;
+    // Must have a legal attach target with capacity under the canonical link contract.
+    return unitsWithEquipmentCapacity(p.bench).length > 0;
   }
   // Spell
   return true;
@@ -201,13 +200,15 @@ export function playUnit(
   }
 
   if (def.type === "Equipment") {
-    const allies = p.bench.filter((u) => u.equipment.length < 2);
+    const allies = unitsWithEquipmentCapacity(p.bench);
     if (allies.length === 0) return state;
     let target: UnitInstance | undefined;
     if (targetInstanceId) {
       target = allies.find((u) => u.instanceId === targetInstanceId);
+      if (!target) return state;
+    } else {
+      target = [...allies].sort((a, b) => b.power - a.power)[0];
     }
-    if (!target) target = [...allies].sort((a, b) => b.power - a.power)[0];
     if (!target) return state;
 
     payCost(p, cost, true);
