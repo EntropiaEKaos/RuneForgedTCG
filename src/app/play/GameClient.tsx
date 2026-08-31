@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatchReward } from "@/components/game/MatchResult";
-import { ActivatedDiscardPicker, type PendingActivatedDiscard } from "@/components/game/ActivatedDiscardPicker";
+import { ActivatedDiscardPicker } from "@/components/game/ActivatedDiscardPicker";
 import { allCards, getCard } from "@/game/cards";
 import { registerCustomCards } from "@/game/custom-registry";
 import { DECKS, type DeckDef } from "@/game/decks";
 import { aiChooseReaction } from "@/game/ai";
 import {
-  activateAbility,
   activatedAbilitiesForInstance,
   applyStackedActionWithAi,
   canCastReaction,
@@ -35,6 +34,7 @@ import { useGamePresentation } from "./hooks/useGamePresentation";
 import { usePvpTransport } from "./hooks/usePvpTransport";
 import { useMatchLauncher, type MatchScreen } from "./hooks/useMatchLauncher";
 import { useMatchLifecycle } from "./hooks/useMatchLifecycle";
+import { useActivatedAbilityPayment } from "./hooks/useActivatedAbilityPayment";
 import { MulliganView } from "./MulliganView";
 import { BattleView } from "./BattleView";
 import { ensurePlayerSession } from "@/lib/client-player-session";
@@ -59,7 +59,6 @@ export default function GameClient() {
   // Kept under the legacy name for replay/UI compatibility in 2.97; this now
   // represents targeting for any board entity's activated ability.
   const [pendingSentinelaAbility, setPendingSentinelaAbility] = useState<{ sentinelaId: string; abilityIndex: number; targetType: TargetKind; modeId?: string } | null>(null);
-  const [pendingActivatedDiscard, setPendingActivatedDiscard] = useState<PendingActivatedDiscard | null>(null);
   const [selectedAttackers, setSelectedAttackers] = useState<string[]>([]);
   const [challenges, setChallenges] = useState<Record<string, string>>({});
   const [sentinelaTargets, setSentinelaTargets] = useState<Record<string, string>>({});
@@ -89,10 +88,6 @@ export default function GameClient() {
     });
   }, []);
 
-  useEffect(() => {
-    if (screen === "select") setPendingActivatedDiscard(null);
-  }, [screen]);
-
   const savedRef = useRef(false);
   const recordAction = useCallback((action: GameAction) => {
     if (actionLogRef.current.length >= 2000) return;
@@ -103,6 +98,15 @@ export default function GameClient() {
     isPvp, pvpRoomCode, pvpVersion,
     setPvpRoomCode, setPvpVersion, setPvpGuest, setPvpConnection, setPvpMessage, sendPvpAction,
   } = pvp;
+  const {
+    pendingActivatedDiscard,
+    beginActivatedAbilityPayment,
+    toggleActivatedDiscard,
+    confirmActivatedDiscard,
+    cancelActivatedDiscard,
+  } = useActivatedAbilityPayment({
+    state, screen, isPvp, setState, setFirstInfo, recordAction, sendPvpAction,
+  });
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("sandbox");
@@ -175,60 +179,6 @@ export default function GameClient() {
     );
   }, [state, selectedAttackers]);
 
-  const commitActivatedAbility = useCallback((
-    sourceInstanceId: string,
-    abilityIndex: number,
-    target?: string,
-    modeId?: string,
-    costDiscardInstanceIds?: string[],
-  ) => {
-    if (!state) return;
-    // Preserve the versioned 2.97 wire opcode. The server now interprets
-    // sentinelaId as a generic controlled board-source id. Selection-dependent
-    // cost ids are additive replay/PvP payload fields.
-    const action: GameAction = {
-      type: "sentinela",
-      player: "player",
-      sentinelaId: sourceInstanceId,
-      abilityIndex,
-      target,
-      ...(modeId ? { modeId } : {}),
-      ...(costDiscardInstanceIds?.length ? { costDiscardInstanceIds } : {}),
-    };
-    setPendingActivatedDiscard(null);
-    if (isPvp) { void sendPvpAction(action); return; }
-    recordAction(action);
-    setState(activateAbility(state, "player", sourceInstanceId, abilityIndex, target, modeId, costDiscardInstanceIds));
-  }, [state, recordAction, isPvp, sendPvpAction]);
-
-  const beginActivatedAbilityPayment = useCallback((
-    sourceInstanceId: string,
-    abilityIndex: number,
-    target?: string,
-    modeId?: string,
-  ) => {
-    if (!state) return;
-    const ability = activatedAbilitiesForInstance(state, "player", sourceInstanceId)[abilityIndex];
-    if (!ability) return;
-    const required = ability.cost?.discardFromHand ?? 0;
-    if (required > 0) {
-      if (state.players.player.hand.length < required) {
-        setFirstInfo("Cartas insuficientes na mão para pagar o custo de descarte.");
-        return;
-      }
-      setPendingActivatedDiscard({
-        sourceInstanceId,
-        abilityIndex,
-        required,
-        selectedIds: [],
-        ...(target ? { target } : {}),
-        ...(modeId ? { modeId } : {}),
-      });
-      return;
-    }
-    commitActivatedAbility(sourceInstanceId, abilityIndex, target, modeId);
-  }, [state, commitActivatedAbility]);
-
   const handleActivatedAbility = useCallback(
     (sourceInstanceId: string, abilityIndex: number, modeId?: string) => {
       if (!state) return;
@@ -268,13 +218,10 @@ export default function GameClient() {
         return;
       }
       if (!isPlayerMain || !canAttackNow) return;
-      // Selecionar sentinela inimiga como alvo de ataque.
       if (senOwner === "ai") {
         setSentinelaTargets((prev) => {
           const next = { ...prev };
-          for (const k of Object.keys(next)) {
-            if (next[k] === senInstanceId) delete next[k];
-          }
+          for (const k of Object.keys(next)) if (next[k] === senInstanceId) delete next[k];
           const freeAttacker = selectedAttackers.find((a) => !next[a]);
           if (freeAttacker) next[freeAttacker] = senInstanceId;
           return next;
@@ -318,34 +265,15 @@ export default function GameClient() {
         void sendPvpAction({ type: action.kind === "spell" ? "cast" : "play", player: "player", instanceId: action.instanceId, target: action.targetInstanceId });
         return state;
       }
-      recordAction({
-        type: action.kind === "spell" ? "cast" : "play",
-        player: "player",
-        instanceId: action.instanceId,
-        target: action.targetInstanceId,
-      });
-      // IMPORTANT: this must run BEFORE the action is resolved against the
-      // board — `state` here is the pre-resolution state. If the AI wants to
-      // react, we hand `state` (not an already-resolved copy) to `finishReaction`,
-      // which drives the real resolution through applyStackedActionWithAi's
-      // LIFO stack. Resolving the action here first (as this used to do) meant
-      // the AI's "reaction" always arrived too late to matter — the unit was
-      // already dead / the spell had already fired — so counterspells and
-      // saves never actually worked. See engine.ts's applyStackedAction docs.
+      recordAction({ type: action.kind === "spell" ? "cast" : "play", player: "player", instanceId: action.instanceId, target: action.targetInstanceId });
       const aiReact = (st: GameState, act: CardAction) => aiChooseReaction(st, act);
       const reactionItem = aiChooseReaction(state, action);
       if (reactionItem) {
         toastAI(reactionItem);
-        setReaction({
-          action,
-          baseState: state,
-          deadline: Date.now() + reactionMs,
-          pendingHuman: { ...reactionItem, player: "ai" },
-        });
+        setReaction({ action, baseState: state, deadline: Date.now() + reactionMs, pendingHuman: { ...reactionItem, player: "ai" } });
         return state;
       }
-      const res = applyStackedActionWithAi(state, action, "skip", null, aiReact);
-      return res.next;
+      return applyStackedActionWithAi(state, action, "skip", null, aiReact).next;
     },
     [state, toastAI, recordAction, isPvp, sendPvpAction, reactionMs],
   );
@@ -354,47 +282,29 @@ export default function GameClient() {
     (instanceId: string, defId: string) => {
       if (!state) return;
       import("@/lib/sounds").then(({ sfx }) => sfx.click()).catch(() => {});
-
-      // Reaction window: only reaction spells are playable.
       if (reaction) {
         const top = topOfReactionStack(reaction);
-        if (!top) return;
-        if (reaction.pendingHuman) return;
+        if (!top || reaction.pendingHuman) return;
         if (!canCastReaction(reaction.baseState, "player", instanceId, top.kind)) return;
         const tt = spellNeedsTarget(defId);
         if (!tt) finishReaction({ instanceId });
         else setPendingReaction({ instanceId, defId, targetType: tt });
         return;
       }
-
       if (!isPlayerMain) return;
       const def = getCard(defId);
       if (!canPlayCard(state, "player", instanceId)) return;
-
-      if (def.type === "Unit" || def.type === "Enchantment" || def.type === "Artifact" || def.type === "Equipment" || def.type === "Sentinela") {
+      if (["Unit", "Enchantment", "Artifact", "Equipment", "Sentinela"].includes(def.type)) {
         if (def.type === "Equipment") {
           const tt = spellNeedsTarget(defId);
-          if (tt) {
-            setPendingSpell({ instanceId, defId, targetType: tt });
-            return;
-          }
+          if (tt) { setPendingSpell({ instanceId, defId, targetType: tt }); return; }
         }
-        setState(
-          applyWithAiReaction({
-            kind: "unit",
-            instanceId,
-            defId,
-          }),
-        );
+        setState(applyWithAiReaction({ kind: "unit", instanceId, defId }));
         return;
       }
-
       const tt = spellNeedsTarget(defId);
-      if (!tt) {
-        setState(applyWithAiReaction({ kind: "spell", instanceId, defId }));
-      } else {
-        setPendingSpell({ instanceId, defId, targetType: tt });
-      }
+      if (!tt) setState(applyWithAiReaction({ kind: "spell", instanceId, defId }));
+      else setPendingSpell({ instanceId, defId, targetType: tt });
     },
     [state, isPlayerMain, reaction, finishReaction, applyWithAiReaction],
   );
@@ -405,19 +315,17 @@ export default function GameClient() {
       const t = pendingSpell.targetType;
       const isEnemy = owner === "ai";
       const isAlly = owner === "player";
-      if (ent) {
-        if (ent.kind === "unit") {
-          if (t === "enemyUnit" && isEnemy) return true;
-          if (t === "allyUnit" && isAlly) return true;
-          if (t === "anyUnit") return true;
-          return false;
-        }
-        if (ent.kind === "permanent") {
-          if (t === "enemyPermanent" && isEnemy) return true;
-          if (t === "allyPermanent" && isAlly) return true;
-          if (t === "anyPermanent") return true;
-          return false;
-        }
+      if (ent?.kind === "unit") {
+        if (t === "enemyUnit" && isEnemy) return true;
+        if (t === "allyUnit" && isAlly) return true;
+        if (t === "anyUnit") return true;
+        return false;
+      }
+      if (ent?.kind === "permanent") {
+        if (t === "enemyPermanent" && isEnemy) return true;
+        if (t === "allyPermanent" && isAlly) return true;
+        if (t === "anyPermanent") return true;
+        return false;
       }
       if (t === "enemyUnit" || t === "anyUnit") return isEnemy;
       if (t === "allyUnit") return isAlly;
@@ -437,28 +345,15 @@ export default function GameClient() {
         return;
       }
       if (reaction) {
-        if (pendingReaction && reactionTargetOk(perm.owner, { kind: "permanent" })) {
-          finishReaction({ instanceId: pendingReaction.instanceId, targetId: perm.instanceId });
-        }
+        if (pendingReaction && reactionTargetOk(perm.owner, { kind: "permanent" })) finishReaction({ instanceId: pendingReaction.instanceId, targetId: perm.instanceId });
         return;
       }
       if (pendingSpell) {
-        const ok =
-          (pendingSpell.targetType === "enemyPermanent" && perm.owner === "ai") ||
-          (pendingSpell.targetType === "allyPermanent" && perm.owner === "player") ||
-          pendingSpell.targetType === "anyPermanent";
+        const ok = (pendingSpell.targetType === "enemyPermanent" && perm.owner === "ai") || (pendingSpell.targetType === "allyPermanent" && perm.owner === "player") || pendingSpell.targetType === "anyPermanent";
         if (ok) {
-          setState(
-            applyWithAiReaction({
-              kind: "spell",
-              instanceId: pendingSpell.instanceId,
-              defId: pendingSpell.defId,
-              targetInstanceId: perm.instanceId,
-            }),
-          );
+          setState(applyWithAiReaction({ kind: "spell", instanceId: pendingSpell.instanceId, defId: pendingSpell.defId, targetInstanceId: perm.instanceId }));
           setPendingSpell(null);
         }
-        return;
       }
     },
     [state, pendingSentinelaAbility, activatedTargetOk, beginActivatedAbilityPayment, reaction, pendingReaction, reactionTargetOk, finishReaction, pendingSpell, applyWithAiReaction],
@@ -467,7 +362,6 @@ export default function GameClient() {
   const handleUnitClick = useCallback(
     (unit: UnitInstance) => {
       if (!state) return;
-
       if (pendingSentinelaAbility) {
         if (activatedTargetOk({ kind: "unit", unit, owner: unit.owner })) {
           beginActivatedAbilityPayment(pendingSentinelaAbility.sentinelaId, pendingSentinelaAbility.abilityIndex, unit.instanceId, pendingSentinelaAbility.modeId);
@@ -475,75 +369,44 @@ export default function GameClient() {
         }
         return;
       }
-
       if (reaction) {
-        if (pendingReaction && reactionTargetOk(unit.owner)) {
-          finishReaction({ instanceId: pendingReaction.instanceId, targetId: unit.instanceId });
-        }
+        if (pendingReaction && reactionTargetOk(unit.owner)) finishReaction({ instanceId: pendingReaction.instanceId, targetId: unit.instanceId });
         return;
       }
-
       if (pendingSpell) {
         if (isValidSpellTarget(unit.owner, { kind: "unit" })) {
           const pendingDef = getCard(pendingSpell.defId);
-          setState(
-            applyWithAiReaction({
-              kind: pendingDef.type === "Equipment" ? "unit" : "spell",
-              instanceId: pendingSpell.instanceId,
-              defId: pendingSpell.defId,
-              targetInstanceId: unit.instanceId,
-            }),
-          );
+          setState(applyWithAiReaction({ kind: pendingDef.type === "Equipment" ? "unit" : "spell", instanceId: pendingSpell.instanceId, defId: pendingSpell.defId, targetInstanceId: unit.instanceId }));
           setPendingSpell(null);
         }
         return;
       }
-
       if (isPlayerMain && canAttackNow && unit.owner === "ai" && selectedChallengers.length > 0) {
-        const free = selectedChallengers.find((c) => !challenges[c.instanceId]);
-        const champ = free ?? selectedChallengers[0];
+        const champ = selectedChallengers.find((c) => !challenges[c.instanceId]) ?? selectedChallengers[0];
         setChallenges((prev) => {
           const next = { ...prev };
-          for (const k of Object.keys(next)) {
-            if (next[k] === unit.instanceId) delete next[k];
-          }
+          for (const k of Object.keys(next)) if (next[k] === unit.instanceId) delete next[k];
           next[champ.instanceId] = unit.instanceId;
           return next;
         });
         return;
       }
-
       if (isPlayerMain && canAttackNow && unit.owner === "player") {
         setSelectedAttackers((prev) => {
-          const next = prev.includes(unit.instanceId)
-            ? prev.filter((id) => id !== unit.instanceId)
-            : [...prev, unit.instanceId];
-          setChallenges((ch) => {
-            const kept: Record<string, string> = {};
-            for (const [k, v] of Object.entries(ch)) if (next.includes(k)) kept[k] = v;
-            return kept;
-          });
+          const next = prev.includes(unit.instanceId) ? prev.filter((id) => id !== unit.instanceId) : [...prev, unit.instanceId];
+          setChallenges((ch) => Object.fromEntries(Object.entries(ch).filter(([k]) => next.includes(k))));
           return next;
         });
         return;
       }
-
       if (isPlayerBlocking) {
         const locked = state.combat?.locked ?? [];
         if (unit.owner === "player") {
-          const alreadyLocked = Object.entries(state.combat?.blocks ?? {}).some(
-            ([atk, blk]) => blk === unit.instanceId && locked.includes(atk),
-          );
-          if (alreadyLocked) return;
-          setSelectedBlocker((prev) => (prev === unit.instanceId ? null : unit.instanceId));
-        } else if (unit.isAttacking) {
-          if (locked.includes(unit.instanceId)) return;
-          if (!selectedBlocker) return;
+          const alreadyLocked = Object.entries(state.combat?.blocks ?? {}).some(([atk, blk]) => blk === unit.instanceId && locked.includes(atk));
+          if (!alreadyLocked) setSelectedBlocker((prev) => prev === unit.instanceId ? null : unit.instanceId);
+        } else if (unit.isAttacking && !locked.includes(unit.instanceId) && selectedBlocker) {
           setBlockAssignments((prev) => {
-            const next = { ...prev };
-            for (const k of Object.keys(next)) {
-              if (next[k] === selectedBlocker) delete next[k];
-            }
+            const next = Object.fromEntries(Object.entries(prev).filter(([, value]) => value !== selectedBlocker));
             if (next[unit.instanceId] === selectedBlocker) delete next[unit.instanceId];
             else next[unit.instanceId] = selectedBlocker;
             return next;
@@ -552,48 +415,8 @@ export default function GameClient() {
         }
       }
     },
-    [
-      state,
-      pendingSentinelaAbility,
-      activatedTargetOk,
-      beginActivatedAbilityPayment,
-      reaction,
-      pendingReaction,
-      reactionTargetOk,
-      finishReaction,
-      pendingSpell,
-      isValidSpellTarget,
-      applyWithAiReaction,
-      isPlayerMain,
-      canAttackNow,
-      isPlayerBlocking,
-      selectedBlocker,
-      selectedChallengers,
-      challenges,
-    ],
+    [state, pendingSentinelaAbility, activatedTargetOk, beginActivatedAbilityPayment, reaction, pendingReaction, reactionTargetOk, finishReaction, pendingSpell, isValidSpellTarget, applyWithAiReaction, isPlayerMain, canAttackNow, isPlayerBlocking, selectedBlocker, selectedChallengers, challenges],
   );
-
-  const toggleActivatedDiscard = useCallback((instanceId: string) => {
-    setPendingActivatedDiscard((current) => {
-      if (!current) return current;
-      if (current.selectedIds.includes(instanceId)) {
-        return { ...current, selectedIds: current.selectedIds.filter((id) => id !== instanceId) };
-      }
-      if (current.selectedIds.length >= current.required) return current;
-      return { ...current, selectedIds: [...current.selectedIds, instanceId] };
-    });
-  }, []);
-
-  const confirmActivatedDiscard = useCallback(() => {
-    if (!pendingActivatedDiscard || pendingActivatedDiscard.selectedIds.length !== pendingActivatedDiscard.required) return;
-    commitActivatedAbility(
-      pendingActivatedDiscard.sourceInstanceId,
-      pendingActivatedDiscard.abilityIndex,
-      pendingActivatedDiscard.target,
-      pendingActivatedDiscard.modeId,
-      pendingActivatedDiscard.selectedIds,
-    );
-  }, [pendingActivatedDiscard, commitActivatedAbility]);
 
   const confirmAttack = useCallback(() => {
     if (!state || selectedAttackers.length === 0) return;
@@ -601,9 +424,7 @@ export default function GameClient() {
     const action: GameAction = { type: "attack", player: "player", attackerIds: selectedAttackers, challenges, sentinelaTargets: Object.keys(sentinelaTargets).length ? sentinelaTargets : undefined };
     if (isPvp) void sendPvpAction(action);
     else { recordAction(action); setState(declareAttack(state, "player", selectedAttackers, challenges, Object.keys(sentinelaTargets).length ? sentinelaTargets : undefined)); }
-    setSelectedAttackers([]);
-    setChallenges({});
-    setSentinelaTargets({});
+    setSelectedAttackers([]); setChallenges({}); setSentinelaTargets({});
   }, [state, selectedAttackers, challenges, sentinelaTargets, recordAction, isPvp, sendPvpAction]);
 
   const confirmBlocks = useCallback(() => {
@@ -613,21 +434,16 @@ export default function GameClient() {
     const action: GameAction = { type: "block", blocks: { ...locked, ...blockAssignments } };
     if (isPvp) void sendPvpAction(action);
     else { recordAction(action); setState(resolveCombat(state, { ...locked, ...blockAssignments })); }
-    setBlockAssignments({});
-    setSelectedBlocker(null);
+    setBlockAssignments({}); setSelectedBlocker(null);
   }, [state, blockAssignments, recordAction, isPvp, sendPvpAction]);
 
   const endMyTurn = useCallback(() => {
     if (!state || !isPlayerMain) return;
-    setSelectedAttackers([]);
-    setChallenges({});
-    setPendingSpell(null);
-    setPendingSentinelaAbility(null);
-    setPendingActivatedDiscard(null);
+    setSelectedAttackers([]); setChallenges({}); setPendingSpell(null); setPendingSentinelaAbility(null); cancelActivatedDiscard();
     const action: GameAction = { type: "pass", player: "player" };
     if (isPvp) void sendPvpAction(action);
     else { recordAction(action); setState(endTurn(state, "player")); }
-  }, [state, isPlayerMain, recordAction, isPvp, sendPvpAction]);
+  }, [state, isPlayerMain, recordAction, isPvp, sendPvpAction, cancelActivatedDiscard]);
 
   useEffect(() => {
     const onBattleKey = (event: KeyboardEvent) => {
@@ -647,98 +463,36 @@ export default function GameClient() {
   }, [settingsOpen, guideOpen, pendingActivatedDiscard, isPlayerBlocking, confirmBlocks, selectedAttackers.length, canAttackNow, confirmAttack, reaction, finishReaction, isPlayerMain, pendingSpell, pendingSentinelaAbility, endMyTurn]);
 
   if (screen === "select" || !state) {
-    return (
-      <DeckSelect
-        playerName={playerName}
-        setPlayerName={setPlayerName}
-        deckKey={deckKey}
-        setDeckKey={setDeckKey}
-        customDecks={customDecks}
-        presetDecks={presetDecks}
-        doctrines={doctrines}
-        aiDifficulty={aiDifficulty}
-        onAiDifficulty={(value) => { setAiDifficulty(value); localStorage.setItem("runeforge_ai_difficulty", value); }}
-        onStart={startMatch}
-      />
-    );
+    return <DeckSelect playerName={playerName} setPlayerName={setPlayerName} deckKey={deckKey} setDeckKey={setDeckKey} customDecks={customDecks} presetDecks={presetDecks} doctrines={doctrines} aiDifficulty={aiDifficulty} onAiDifficulty={(value) => { setAiDifficulty(value); localStorage.setItem("runeforge_ai_difficulty", value); }} onStart={startMatch} />;
   }
 
   if (!state.mulliganDone.player) {
-    return (
-      <MulliganView
-        state={state}
-        selection={mulliganSelection}
-        onToggle={(instanceId) => setMulliganSelection((previous) => previous.includes(instanceId) ? previous.filter((id) => id !== instanceId) : [...previous, instanceId])}
-        onConfirm={() => {
-          void import("@/lib/sounds").then(({ sfx }) => sfx.mulligan()).catch(() => {});
-          if (mulliganSelection.length > 0) {
-            const action: GameAction = { type: "mulligan", player: "player", cardIds: mulliganSelection };
-            if (isPvp) void sendPvpAction(action);
-            else { recordAction(action); setState(mulligan(state, "player", mulliganSelection)); }
-          } else {
-            const action: GameAction = { type: "skipMulligan", player: "player" };
-            if (isPvp) void sendPvpAction(action);
-            else { recordAction(action); setState(skipMulligan(state, "player")); }
-          }
-          setMulliganSelection([]);
-        }}
-      />
-    );
+    return <MulliganView state={state} selection={mulliganSelection} onToggle={(instanceId) => setMulliganSelection((previous) => previous.includes(instanceId) ? previous.filter((id) => id !== instanceId) : [...previous, instanceId])} onConfirm={() => {
+      void import("@/lib/sounds").then(({ sfx }) => sfx.mulligan()).catch(() => {});
+      const action: GameAction = mulliganSelection.length > 0 ? { type: "mulligan", player: "player", cardIds: mulliganSelection } : { type: "skipMulligan", player: "player" };
+      if (isPvp) void sendPvpAction(action);
+      else { recordAction(action); setState(mulliganSelection.length > 0 ? mulligan(state, "player", mulliganSelection) : skipMulligan(state, "player")); }
+      setMulliganSelection([]);
+    }} />;
   }
 
   return (
     <>
       <BattleView
-        state={state}
-        presetDecks={presetDecks}
-        activeEncounter={activeEncounter}
-        matchReward={matchReward}
-        reaction={reaction}
-        pendingSpell={pendingSpell}
-        pendingReaction={pendingReaction}
-        pendingSentinelaAbility={pendingSentinelaAbility}
-        selectedAttackers={selectedAttackers}
-        selectedChallengers={selectedChallengers}
-        selectedBlocker={selectedBlocker}
-        challenges={challenges}
-        blockAssignments={blockAssignments}
-        isPlayerMain={isPlayerMain}
-        isPlayerBlocking={isPlayerBlocking}
-        canAttackNow={canAttackNow}
-        timeLeft={timeLeft}
-        firstInfo={firstInfo}
-        presentation={presentation}
-        pvp={pvp}
-        isValidSpellTarget={isValidSpellTarget}
-        reactionTargetOk={reactionTargetOk}
-        activatedTargetOk={activatedTargetOk}
-        handlePermanentClick={handlePermanentClick}
-        handleSentinelaClick={handleSentinelaClick}
-        handleSentinelaActivate={handleActivatedAbility}
-        handleUnitClick={handleUnitClick}
-        handleHandClick={handleHandClick}
-        confirmAttack={confirmAttack}
-        confirmBlocks={confirmBlocks}
-        endMyTurn={endMyTurn}
-        finishReaction={finishReaction}
-        replay={startMatch}
-        changeDeck={() => { setPendingActivatedDiscard(null); setScreen("select"); }}
-        setPendingSpell={setPendingSpell}
-        setPendingReaction={setPendingReaction}
-        setPendingSentinelaAbility={setPendingSentinelaAbility}
-        setSelectedBlocker={setSelectedBlocker}
-        setChallenges={setChallenges}
-        setSentinelaTargets={setSentinelaTargets}
+        state={state} presetDecks={presetDecks} activeEncounter={activeEncounter} matchReward={matchReward}
+        reaction={reaction} pendingSpell={pendingSpell} pendingReaction={pendingReaction} pendingSentinelaAbility={pendingSentinelaAbility}
+        selectedAttackers={selectedAttackers} selectedChallengers={selectedChallengers} selectedBlocker={selectedBlocker}
+        challenges={challenges} blockAssignments={blockAssignments} isPlayerMain={isPlayerMain} isPlayerBlocking={isPlayerBlocking}
+        canAttackNow={canAttackNow} timeLeft={timeLeft} firstInfo={firstInfo} presentation={presentation} pvp={pvp}
+        isValidSpellTarget={isValidSpellTarget} reactionTargetOk={reactionTargetOk} activatedTargetOk={activatedTargetOk}
+        handlePermanentClick={handlePermanentClick} handleSentinelaClick={handleSentinelaClick} handleSentinelaActivate={handleActivatedAbility}
+        handleUnitClick={handleUnitClick} handleHandClick={handleHandClick} confirmAttack={confirmAttack} confirmBlocks={confirmBlocks}
+        endMyTurn={endMyTurn} finishReaction={finishReaction} replay={startMatch}
+        changeDeck={() => { cancelActivatedDiscard(); setScreen("select"); }} setPendingSpell={setPendingSpell}
+        setPendingReaction={setPendingReaction} setPendingSentinelaAbility={setPendingSentinelaAbility} setSelectedBlocker={setSelectedBlocker}
+        setChallenges={setChallenges} setSentinelaTargets={setSentinelaTargets}
       />
-      {pendingActivatedDiscard && (
-        <ActivatedDiscardPicker
-          state={state}
-          pending={pendingActivatedDiscard}
-          onToggle={toggleActivatedDiscard}
-          onConfirm={confirmActivatedDiscard}
-          onCancel={() => setPendingActivatedDiscard(null)}
-        />
-      )}
+      {pendingActivatedDiscard && <ActivatedDiscardPicker state={state} pending={pendingActivatedDiscard} onToggle={toggleActivatedDiscard} onConfirm={confirmActivatedDiscard} onCancel={cancelActivatedDiscard} />}
     </>
   );
 }
