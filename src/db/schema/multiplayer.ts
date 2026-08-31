@@ -43,6 +43,8 @@ export const pvpRooms = pgTable("pvp_rooms", {
   mode: text("mode").notNull().default("casual"),
   settledAt: timestamp("settled_at"),
   gameState: jsonb("game_state"),
+  /** Persisted network priority window. GameState stays pre-action until this resolves. */
+  reactionState: jsonb("reaction_state"),
   winner: text("winner"),
   /**
    * Lock otimista (compare-and-set): cada atualização de gameState deve
@@ -160,7 +162,19 @@ export const playerPacks = pgTable("player_packs", {
 export const packOpenings = pgTable("pack_openings", {
   id: serial("id").primaryKey(),
   playerId: integer("player_id").notNull(),
-  packType: text("pack_type").notNull(),
+  packType: text("pack_type").notNull(), // basic, epic, legendary
+  count: integer("count").notNull().default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  uniq: unique().on(t.playerId, t.packType),
+  countPositive: check("player_packs_count_positive", sql`${t.count} >= 1`),
+}));
+
+/** Pack opening history. */
+export const packOpenings = pgTable("pack_openings", {
+  id: serial("id").primaryKey(),
+  playerId: integer("player_id").notNull(),
+  packType: text("pack_type").notNull(), // basic, epic, legendary
   cardsReceived: text("cards_received").notNull(), // JSON of card defIds
   dustBonus: integer("dust_bonus").notNull().default(0),
   packSeed: integer("pack_seed"),
