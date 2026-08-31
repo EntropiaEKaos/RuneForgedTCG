@@ -294,7 +294,7 @@ export function validateAuthorableCardWithActivatedAbilities(raw: Partial<CardDe
     }
     const abilities: ReactionActivatedAbility[] = [];
     for (const [index, rawAbility] of suppliedReaction.entries()) {
-      const input = rawAbility as Record<string, unknown> | null;
+      const input = rawAbility as unknown as Record<string, unknown> | null;
       const timing = sanitizeRespondsTo(input?.respondsTo, index);
       if (!timing.ok) return timing;
       const core = sanitizeAbilityCore(rawAbility, card, index, "Reaction activated ability", true);
