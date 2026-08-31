@@ -172,6 +172,35 @@ function validateNonNegativeInteger(value: number | undefined, name: string): st
   return null;
 }
 
+function validateDiscardSelection(
+  handInstanceIds: readonly string[],
+  discardCount: number,
+  selectedInstanceIds: readonly string[] | undefined,
+  allowMissingSelection: boolean,
+): string | null {
+  if (discardCount === 0) {
+    if (selectedInstanceIds && selectedInstanceIds.length > 0) {
+      return "activated ability does not accept a discard cost selection";
+    }
+    return null;
+  }
+  if (handInstanceIds.length < discardCount) return "not enough cards in hand for activated ability discard cost";
+  if (selectedInstanceIds === undefined) {
+    return allowMissingSelection ? null : "activated ability discard cost requires explicit hand selection";
+  }
+  if (selectedInstanceIds.length !== discardCount) {
+    return "activated ability discard cost requires exactly the configured number of cards";
+  }
+  if (new Set(selectedInstanceIds).size !== selectedInstanceIds.length) {
+    return "activated ability discard cost selection contains duplicate cards";
+  }
+  const handIds = new Set(handInstanceIds);
+  if (selectedInstanceIds.some((id) => !handIds.has(id))) {
+    return "activated ability discard cost selection references a card outside actor hand";
+  }
+  return null;
+}
+
 function requiresBoardTarget(target: TargetKind): boolean {
   return !["none", "self", "spellOnStack"].includes(target);
 }
@@ -183,6 +212,7 @@ export function hasConsumingActivatedAbilityCost(ability: ActivatedAbility): boo
     (cost?.mana ?? 0) > 0 ||
     (cost?.spellMana ?? 0) > 0 ||
     (cost?.nexusHealth ?? 0) > 0 ||
+    (cost?.discardFromHand ?? 0) > 0 ||
     cost?.exhaustSelf ||
     cost?.consumeBarrier ||
     cost?.sacrificeSelf ||
@@ -213,6 +243,8 @@ export function validateActivatedAbilityActivation(
   abilityIndex: number,
   targetInstanceId?: string,
   modeId?: string,
+  costDiscardInstanceIds?: readonly string[],
+  allowMissingCostSelection: boolean = false,
 ): ActivatedAbilityValidation {
   if (state.phase !== "main" || state.activePlayer !== playerId) {
     return fail("activated abilities require the owner's main phase");
@@ -236,6 +268,9 @@ export function validateActivatedAbilityActivation(
   if (spellManaError) return fail(spellManaError);
   const healthError = validateNonNegativeInteger(ability.cost?.nexusHealth, "Nexus health cost");
   if (healthError) return fail(healthError);
+  const discardError = validateNonNegativeInteger(ability.cost?.discardFromHand, "discard from hand cost");
+  if (discardError) return fail(discardError);
+  if ((ability.cost?.discardFromHand ?? 0) > 10) return fail("discard from hand cost must be at most 10");
   if (ability.cost?.consumeBarrier !== undefined && typeof ability.cost.consumeBarrier !== "boolean") {
     return fail("consumeBarrier cost must be boolean");
   }
@@ -257,6 +292,13 @@ export function validateActivatedAbilityActivation(
   if (healthCost > 0 && player.nexusHealth <= healthCost) {
     return fail("Nexus health cost cannot be paid lethally");
   }
+  const selectedDiscardError = validateDiscardSelection(
+    player.hand.map((card) => card.instanceId),
+    ability.cost?.discardFromHand ?? 0,
+    costDiscardInstanceIds,
+    allowMissingCostSelection,
+  );
+  if (selectedDiscardError) return fail(selectedDiscardError);
 
   const limit = ability.maxUsesPerRound === undefined ? 1 : ability.maxUsesPerRound;
   // Every Sentinela — legacy or generic — shares the Planeswalker-style
@@ -332,9 +374,9 @@ export function validateActivatedAbilityActivation(
 /**
  * UI/preflight availability check. Targeted abilities are considered usable if
  * at least one legal board target exists; the actual target is still validated
- * authoritatively when the action is submitted. For a modal ability, omitting
- * modeId means "is at least one mode usable?" — authoritative activation still
- * requires the selected mode id.
+ * authoritatively when the action is submitted. Selection-dependent costs are
+ * considered payable when the resource exists; their exact instance ids are
+ * still required by authoritative activation.
  */
 export function canBeginActivateAbility(
   state: GameState,
@@ -357,7 +399,7 @@ export function canBeginActivateAbility(
   const resolved = resolveActivatedAbilityChoice(ability, modeId);
   if (!resolved.ok || resolved.choice.effect.target === "spellOnStack") return false;
   if (!requiresBoardTarget(resolved.choice.effect.target)) {
-    return validateActivatedAbilityActivation(state, playerId, instanceId, abilityIndex, undefined, modeId).ok;
+    return validateActivatedAbilityActivation(state, playerId, instanceId, abilityIndex, undefined, modeId, undefined, true).ok;
   }
   return boardEntities(state).some((entity) =>
     isValidTarget(state, playerId, resolved.choice.effect.target, entity) &&
@@ -368,6 +410,8 @@ export function canBeginActivateAbility(
       abilityIndex,
       boardEntityId(entity),
       modeId,
+      undefined,
+      true,
     ).ok,
   );
 }
@@ -379,6 +423,7 @@ export function canActivateAbility(
   abilityIndex: number,
   targetInstanceId?: string,
   modeId?: string,
+  costDiscardInstanceIds?: readonly string[],
 ): boolean {
   return validateActivatedAbilityActivation(
     state,
@@ -387,6 +432,7 @@ export function canActivateAbility(
     abilityIndex,
     targetInstanceId,
     modeId,
+    costDiscardInstanceIds,
   ).ok;
 }
 
@@ -394,11 +440,16 @@ function paySourceCosts(
   state: GameState,
   source: ActivatedAbilitySource,
   ability: ActivatedAbility,
+  costDiscardInstanceIds?: readonly string[],
 ): void {
   const player = state.players[source.owner];
   player.mana -= ability.cost?.mana ?? 0;
   player.spellMana -= ability.cost?.spellMana ?? 0;
   player.nexusHealth -= ability.cost?.nexusHealth ?? 0;
+  if ((ability.cost?.discardFromHand ?? 0) > 0 && costDiscardInstanceIds) {
+    const selected = new Set(costDiscardInstanceIds);
+    player.hand = player.hand.filter((card) => !selected.has(card.instanceId));
+  }
 
   if (ability.cost?.loyaltyDelta !== undefined && source.kind === "sentinela") {
     source.sen.loyalty += ability.cost.loyaltyDelta;
@@ -431,6 +482,7 @@ export function activateAbility(
   abilityIndex: number,
   targetInstanceId?: string,
   modeId?: string,
+  costDiscardInstanceIds?: readonly string[],
 ): GameState {
   const validation = validateActivatedAbilityActivation(
     state,
@@ -439,6 +491,7 @@ export function activateAbility(
     abilityIndex,
     targetInstanceId,
     modeId,
+    costDiscardInstanceIds,
   );
   if (!validation.ok || !validation.ability || !validation.source || !validation.effect) return state;
 
@@ -456,11 +509,13 @@ export function activateAbility(
   if (source.kind === "sentinela") source.sen.activatedThisTurn = true;
   if (!legacySentinela) recordAbilityUsage(source, abilityIndex, next.round);
 
-  paySourceCosts(next, source, ability);
+  paySourceCosts(next, source, ability, costDiscardInstanceIds);
   const modalSuffix = resolved.choice.modeId ? ` — ${resolved.choice.description}` : "";
   next.log.push(`${def.name} ativa "${ability.description}${modalSuffix}".`);
 
-  // Sacrifice is a real cost: the source leaves play before its effect resolves.
+  // Sacrifice and selected discard are real costs: they leave their zones
+  // before the effect resolves, so draw/recall/follow-up effects observe the
+  // post-payment state deterministically.
   if (ability.cost?.sacrificeSelf) {
     cleanupDead(next);
     cleanupSentinelas(next);
