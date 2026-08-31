@@ -1,6 +1,8 @@
 "use client";
 import type { CardDef } from "@/game/types";
 import { strategicRoleForCard, STRATEGIC_ROLE_IDENTITIES } from "@/game/card-role";
+import { CERTIFIED_SEMANTIC_CARD_TYPES, certifiedSemanticCardType } from "@/game/semantic-card-types";
+import { applyCertifiedSemanticCardType } from "@/game/semantic-card-type-authoring";
 import { EMPTY } from "./useCardAuthoringModel";
 import { F, Panel, ToggleField } from "./CardAuthoringFields";
 import {
@@ -14,14 +16,54 @@ import type { CardAuthoringModel } from "./CardAuthoringModel";
 
 export default function CardClassificationTab({ model }: { model: CardAuthoringModel }) {
   const { card, mechanicsCatalog, applyArchetypeItem, set, toggle, classes, toggleCustomKeyword } = model;
+  const certifiedType = certifiedSemanticCardType(card);
+
+  const applySemanticType = (key: string) => {
+    const next = applyCertifiedSemanticCardType(card, key as any) as Record<string, any>;
+    const managed = ["type", "archetypeKey", "archetypeName", "spell", "speed", "equipment", "sentinela", "maxHealth"];
+    for (const field of managed) set(field, next[field]);
+  };
+
+  const onArchetypeChange = (value: string) => {
+    if (!value) {
+      applyArchetypeItem(null);
+      return;
+    }
+    if (CERTIFIED_SEMANTIC_CARD_TYPES.some((item) => item.key === value)) {
+      applySemanticType(value);
+      return;
+    }
+    applyArchetypeItem(mechanicsCatalog.archetypes?.find((x:any)=>x.key===value));
+  };
+
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       <Panel title="Combat Profile" eyebrow="STATS & IDENTITY">
         <F l="Card archetype / custom type">
-          <select className="input mb-4" value={card.archetypeKey || ""} onChange={(e) => applyArchetypeItem(mechanicsCatalog.archetypes?.find((x:any)=>x.key===e.target.value))}>
+          <select className="input mb-3" value={card.archetypeKey || ""} onChange={(e) => onArchetypeChange(e.target.value)}>
             <option value="">Native type ({card.type})</option>
-            {(mechanicsCatalog.archetypes || []).map((x:any)=><option key={x.key} value={x.key}>{x.name} → {x.baseType}</option>)}
+            <optgroup label="Certified gameplay types">
+              {CERTIFIED_SEMANTIC_CARD_TYPES.map((item) => (
+                <option key={item.key} value={item.key}>{item.icon} {item.name} → {item.baseType}</option>
+              ))}
+            </optgroup>
+            {!!(mechanicsCatalog.archetypes || []).length && (
+              <optgroup label="Custom archetypes">
+                {(mechanicsCatalog.archetypes || []).map((x:any)=><option key={x.key} value={x.key}>{x.name} → {x.baseType}</option>)}
+              </optgroup>
+            )}
           </select>
+          {certifiedType && (
+            <div data-certified-card-type={certifiedType.key} className="mb-4 rounded-xl border border-amber-300/20 bg-amber-300/[.06] p-3 text-[10px] leading-4 text-slate-300">
+              <div className="flex flex-wrap items-center gap-2">
+                <b className="text-amber-200">{certifiedType.icon} {certifiedType.name}</b>
+                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] uppercase tracking-wider text-slate-400">base {certifiedType.baseType}</span>
+                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] uppercase tracking-wider text-slate-400">{certifiedType.timing}</span>
+                <span className="rounded-full border border-white/10 px-2 py-0.5 text-[9px] uppercase tracking-wider text-slate-400">{certifiedType.mana} mana</span>
+              </div>
+              <p className="mt-2 text-slate-400">{certifiedType.description}</p>
+            </div>
+          )}
         </F>
         <div className="grid gap-3 md:grid-cols-3">
           <F l="Power">
@@ -59,6 +101,7 @@ export default function CardClassificationTab({ model }: { model: CardAuthoringM
               min={1}
               value={card.maxHealth ?? ""}
               onChange={(e) => set("maxHealth", e.target.value === "" ? undefined : Number(e.target.value))}
+              disabled={certifiedType?.key === "ritual" || certifiedType?.key === "trap"}
             />
           </F>
         </div>
@@ -79,12 +122,22 @@ export default function CardClassificationTab({ model }: { model: CardAuthoringM
           <ToggleField label="Collectible" checked={card.collectible !== false} onChange={(v) => set("collectible", v)} />
           <ToggleField label="Legendary" checked={!!card.isLegend} onChange={(v) => set("isLegend", v)} />
           <ToggleField label="Champion" checked={!!card.isChampion} onChange={(v) => set("isChampion", v)} />
-          <F l="Spell speed">
-            <select className="input" value={card.speed || ""} onChange={(e) => set("speed", e.target.value || undefined)}>
-              <option value="">Normal</option><option value="Fast">Fast</option><option value="Burst">Burst</option>
+          <F l={certifiedType?.key === "trap" ? "Reaction speed" : "Spell speed"}>
+            <select
+              className="input"
+              value={card.speed || ""}
+              onChange={(e) => set("speed", e.target.value || undefined)}
+              disabled={certifiedType?.key === "ritual" || certifiedType?.key === "structure"}
+            >
+              {certifiedType?.key !== "trap" && <option value="">Normal</option>}
+              <option value="Fast">Fast</option>
+              <option value="Burst">Burst</option>
             </select>
           </F>
         </div>
+        {certifiedType?.key === "ritual" && <p className="mt-2 text-[9px] font-semibold text-cyan-200/75">Ritual é deliberadamente main-phase only; Fast/Burst é bloqueado pelo servidor.</p>}
+        {certifiedType?.key === "trap" && <p className="mt-2 text-[9px] font-semibold text-violet-200/80">Armadilha é reaction-only; Fast responde a ações não-spell e Burst usa a janela ampla já certificada.</p>}
+        {certifiedType?.key === "structure" && <p className="mt-2 text-[9px] font-semibold text-amber-200/80">Estrutura usa mana regular, ocupa permanente e não incrementa spellsCast.</p>}
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           <F l="Strategic role">
             <select className="input" value={card.strategicRole || ""} onChange={(e) => set("strategicRole", e.target.value || undefined)}>
