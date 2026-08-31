@@ -1,4 +1,5 @@
 import { getCard } from "../cards";
+import { canAttachEquipment, unitsWithEquipmentCapacity } from "../equipment-link-contract";
 import type { CardEffect, GameState, PermanentInstance, PlayerId, Race, SentinelaInstance, TriggerWhen, UnitInstance } from "../types";
 import { engineRulesFor } from "../match-rules";
 import { applyDamageToPermanent, applyDamageToSentinela, applyDamageToUnit, autoTarget, checkWin, clone, damageNexus, drawCards, findAnyBoardEntity, findPermanent, findSentinela, findUnit, hasClass, hasKw, hasRace, healNexus, makeUnit, other, poisonPlayer, recomputeHealth, recomputeStats, uid, unitRaces } from "./state";
@@ -242,14 +243,14 @@ export function applyEffect(
           const eqDef = getCard(eff.equipmentDefId);
           if (!eqDef.equipment) break;
           let targetUnit: UnitInstance | undefined;
-          if (ent && ent.kind === "unit" && ent.owner === playerId) {
+          if (ent && ent.kind === "unit" && ent.owner === playerId && canAttachEquipment(ent.unit)) {
             targetUnit = ent.unit;
           } else {
             const races = eff.races ?? (eff.race ? [eff.race] : undefined);
-            const allies = p.bench.filter((u) => hasRace(u, races));
+            const allies = unitsWithEquipmentCapacity(p.bench.filter((u) => hasRace(u, races)));
             targetUnit = [...allies].sort((a, b) => b.power - a.power)[0];
           }
-          if (targetUnit && targetUnit.equipment.length < 2 && eqDef.equipment) {
+          if (targetUnit && eqDef.equipment) {
             const slot = { instanceId: uid(state, "eq"), defId: eqDef.defId };
             const healthGain = eqDef.equipment.buffHealth;
             targetUnit.equipment.push(slot);
