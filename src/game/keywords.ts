@@ -219,6 +219,20 @@ export function keywordIsGrantable(keyword: Keyword): boolean {
 }
 
 /**
+ * Continuous Aura grants intentionally exclude Barrier: Barrier owns consumable
+ * instance state, so source re-derivation must never recreate a spent shield.
+ * LastBreath is already excluded because its executable death trigger cannot be
+ * transferred safely as a plain keyword grant.
+ */
+export const AURA_GRANTABLE_KEYWORDS = CANONICAL_KEYWORDS.filter(
+  (keyword): keyword is Keyword => keyword !== "Barrier" && keywordIsGrantable(keyword),
+);
+
+export function keywordIsAuraGrantable(keyword: Keyword): boolean {
+  return AURA_GRANTABLE_KEYWORDS.includes(keyword);
+}
+
+/**
  * Printed Last Breath is a marker for an executable death ability, not an
  * effect by itself. Reject authored cards that would publish that marker inert.
  */
