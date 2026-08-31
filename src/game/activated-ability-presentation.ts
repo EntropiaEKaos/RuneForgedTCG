@@ -18,8 +18,10 @@ export function activatedAbilityCostLabel(ability: ActivatedAbility): string {
   const parts: string[] = [];
   const cost = ability.cost;
   if (cost?.mana) parts.push(`💧${cost.mana}`);
+  if (cost?.spellMana) parts.push(`✦${cost.spellMana}`);
   if (cost?.nexusHealth) parts.push(`♥${cost.nexusHealth}`);
   if (cost?.exhaustSelf) parts.push("↷");
+  if (cost?.consumeBarrier) parts.push("◈");
   if (cost?.sacrificeSelf) parts.push("✕");
   if (cost?.loyaltyDelta !== undefined) parts.push(`${cost.loyaltyDelta > 0 ? "+" : ""}${cost.loyaltyDelta}◆`);
   return parts.length ? parts.join(" ") : "ATIVAR";
@@ -28,9 +30,11 @@ export function activatedAbilityCostLabel(ability: ActivatedAbility): string {
 export function activatedAbilityCostDescription(ability: ActivatedAbility): string {
   const parts: string[] = [];
   const cost = ability.cost;
-  if (cost?.mana) parts.push(`${cost.mana} de mana`);
+  if (cost?.mana) parts.push(`${cost.mana} de mana regular`);
+  if (cost?.spellMana) parts.push(`${cost.spellMana} de mana de feitiço`);
   if (cost?.nexusHealth) parts.push(`${cost.nexusHealth} de vida do Nexus`);
   if (cost?.exhaustSelf) parts.push("exaurir esta carta");
+  if (cost?.consumeBarrier) parts.push("consumir a Barrier ativa desta unidade");
   if (cost?.sacrificeSelf) parts.push("sacrificar esta carta");
   if (cost?.loyaltyDelta !== undefined) {
     parts.push(`${cost.loyaltyDelta > 0 ? "+" : ""}${cost.loyaltyDelta} de lealdade`);
@@ -47,7 +51,9 @@ export function activatedAbilityUnavailableLabel(reason?: string | null): string
     case "activated abilities require the owner's main phase":
       return "Disponível apenas na fase principal do controlador.";
     case "not enough regular mana for activated ability":
-      return "Mana insuficiente.";
+      return "Mana regular insuficiente.";
+    case "not enough spell mana for activated ability":
+      return "Mana de feitiço insuficiente.";
     case "Nexus health cost cannot be paid lethally":
       return "Vida do Nexus insuficiente para pagar sem ser letal.";
     case "Sentinela already activated this round":
@@ -62,6 +68,11 @@ export function activatedAbilityUnavailableLabel(reason?: string | null): string
       return "Uma unidade atordoada não pode pagar o custo de exaustão.";
     case "summoning-sick unit cannot pay an exhaust cost":
       return "Unidade recém-invocada precisa de Haste para pagar exaustão.";
+    case "source has no active Barrier to consume":
+      return "Esta unidade precisa de uma Barrier ativa para pagar o custo.";
+    case "Barrier cost requires a Unit source":
+    case "consumeBarrier cost must be boolean":
+      return "Configuração de custo de Barrier inválida.";
     case "activated ability requires a target":
     case "invalid activated ability target":
       return "Sem alvos válidos.";
