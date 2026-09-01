@@ -19,7 +19,7 @@ function defaultAuraCondition(kind: string): MechanicCondition {
   if (kind === "selfDamaged") return { kind: "selfDamaged" };
   if (kind === "allyRace" || kind === "enemyRace") return { kind, race: "Dragon", min: 1 } as MechanicCondition;
   if (kind === "allyClass" || kind === "enemyClass") return { kind, classKey: "mage", min: 1 } as MechanicCondition;
-  if (kind === "allyUnitsAtLeast" || kind === "enemyUnitsAtLeast") return { kind, min: 1 } as MechanicCondition;
+  if (kind === "allyUnitsAtLeast" || kind === "enemyUnitsAtLeast" || kind === "allyPermanentsAtLeast" || kind === "enemyPermanentsAtLeast") return { kind, min: 1 } as MechanicCondition;
   if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast" || kind === "roundAtLeast") return { kind, amount: 1 } as MechanicCondition;
   return { kind: "always" };
 }
@@ -66,6 +66,7 @@ export default function ContinuousAuraConditionEditor({
         </>}
 
         {(kind === "allyUnitsAtLeast" || kind === "enemyUnitsAtLeast") && <label className="block"><span className="label">{kind === "allyUnitsAtLeast" ? "Units aliadas vivas ≥" : "Units inimigas vivas ≥"}</span><input className="input" type="number" min={1} max={6} value={safeValue.min} onChange={(event) => onChange({ ...safeValue, min: Number(event.target.value) })} /></label>}
+        {(kind === "allyPermanentsAtLeast" || kind === "enemyPermanentsAtLeast") && <label className="block"><span className="label">{kind === "allyPermanentsAtLeast" ? "Permanents aliadas vivas ≥" : "Permanents inimigas vivas ≥"}</span><input className="input" type="number" min={1} max={8} value={safeValue.min} onChange={(event) => onChange({ ...safeValue, min: Number(event.target.value) })} /></label>}
 
         {(kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") && <label className="block"><span className="label">{kind === "nexusBelow" ? "Seu Nexus ≤" : kind === "opponentNexusBelow" ? "Nexus inimigo ≤" : kind === "manaAtLeast" ? "Mana ≥" : kind === "handAtLeast" ? "Sua mão ≥" : "Mão inimiga ≥"}</span><input className="input" type="number" min={0} max={20} value={safeValue.amount} onChange={(event) => onChange({ ...safeValue, amount: Number(event.target.value) })} /></label>}
         {kind === "roundAtLeast" && <label className="block"><span className="label">Rodada ≥</span><input className="input" type="number" min={1} max={2000} value={safeValue.amount} onChange={(event) => onChange({ ...safeValue, amount: Number(event.target.value) })} /></label>}
