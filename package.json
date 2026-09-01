@@ -43,6 +43,7 @@
     "test:gameplay": "tsx src/game/gameplay-profile.test.ts && tsx src/game/headless-simulation-2.35.test.ts && tsx src/components/MatchExperience.test.ts && tsx src/lib/gameplay-visual-regression.test.ts && tsx src/game/client/match-model.test.ts && tsx src/lib/pvp-client.test.ts && tsx src/lib/client-experience-2.42.test.ts && tsx src/lib/gameplay-visual-2.48.test.ts && tsx src/lib/gameplay-visual-2.65.test.ts && tsx src/lib/gameplay-art-2.74.test.ts",
     "audit:gameplay": "tsx scripts/gameplay-audit.ts",
     "audit:balance": "node --import tsx scripts/balance-audit-2.97.ts 100 8 --write BALANCE_AUDIT_2.97.json",
+    "audit:vanilla-balance": "node --import tsx scripts/vanilla-balance-audit.ts 40 5 --write VANILLA_BALANCE_AUDIT_1.1.json --enforce",
     "ranked:verify": "node --import tsx scripts/balance-audit-2.97.ts 100 8 --write BALANCE_AUDIT_2.97.json --enforce",
     "test:e2e:http": "tsx scripts/e2e-pvp-ranked.ts",
     "test:e2e:alpha-journey": "tsx scripts/alpha-player-journey.ts",
