@@ -17,11 +17,12 @@ export const UNIT_SOURCE_AURA_CONDITION_KINDS = [
   "selfDamaged",
 ] as const;
 
+/** Aura 2.5 compatibility contract: controller-scoped conditions only. */
 export const CONDITIONAL_AURA_CONTRACT = {
   rule: "conditionalAura",
   conditions: AURA_CONDITION_KINDS,
   controllerScoped: true,
-  sourceRelativeConditions: "separateCertifiedSlices",
+  unsupportedConditions: ["selfDamaged"],
   composition: ["and", "or", "not"],
   lifecycle: "recomputeWhenAuthoritativeStateChanges",
   malformedRuntime: "inactiveFailClosed",
