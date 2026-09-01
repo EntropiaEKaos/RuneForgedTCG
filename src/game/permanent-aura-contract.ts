@@ -1,6 +1,6 @@
 import "./aura-2-types";
 import { getCard } from "./cards";
-import { AURA_GRANTABLE_KEYWORDS } from "./keywords";
+import { AURA_GRANTABLE_KEYWORDS, AURA_SUPPRESSIBLE_KEYWORDS } from "./keywords";
 import type { GameState, Keyword, PermanentStatAura, PlayerId, UnitInstance } from "./types";
 
 /** Supported continuous allied-Unit stat slice of the broader Aura family. */
@@ -38,6 +38,19 @@ export const PERMANENT_KEYWORD_AURA_CONTRACT = {
   support: "supported",
 } as const;
 
+/** Aura 2.2 slice: hostile source-bound keyword suppression applied after all grants. */
+export const PERMANENT_KEYWORD_SUPPRESSION_AURA_CONTRACT = {
+  rule: "permanentKeywordSuppressionAura",
+  sources: ["Enchantment", "Artifact"],
+  target: "enemyUnit",
+  keywords: AURA_SUPPRESSIBLE_KEYWORDS,
+  lifecycle: "whileSourceInPlay",
+  stacking: "setUnion",
+  precedence: "afterDurableAndAuraGrants",
+  restoration: "automaticWhenSourceLeaves",
+  support: "supported",
+} as const;
+
 const AURA_PLAYERS = ["player", "ai"] as const satisfies readonly PlayerId[];
 
 function matchesAny(haystack: readonly string[] | undefined, needles: readonly string[] | undefined): boolean {
@@ -71,8 +84,8 @@ export interface PermanentAuraBonus {
 /**
  * Capture every known durable source before replacing the previous Aura layer.
  * Printed and Equipment keywords are recovered from CardDefs, so an overlapping
- * Aura can never hide their provenance. Existing durable entries carry one-shot
- * grants that were explicitly recorded by grantDurableKeyword().
+ * Aura or suppression can never erase their provenance. Existing durable entries
+ * carry one-shot grants that were explicitly recorded by grantDurableKeyword().
  */
 function captureDurableKeywords(unit: UnitInstance): Keyword[] {
   const result = new Set<Keyword>(unit.durableKeywords ?? []);
@@ -88,16 +101,19 @@ function captureDurableKeywords(unit: UnitInstance): Keyword[] {
   return [...result];
 }
 
-/** Rebuild the effective keyword view from explicit durable state plus current Aura contribution. */
+/** Rebuild the effective keyword view: durable + allied Aura grants, then hostile suppression. */
 export function recomputeEffectiveKeywords(unit: UnitInstance): void {
   const durable = [...new Set(unit.durableKeywords ?? [])];
   const aura = [...new Set(unit.auraKeywords ?? [])];
+  const suppressed = [...new Set(unit.auraSuppressedKeywords ?? [])];
+  const suppressedSet = new Set(suppressed);
   unit.durableKeywords = durable;
   unit.auraKeywords = aura;
-  unit.keywords = [...new Set([...durable, ...aura])];
+  unit.auraSuppressedKeywords = suppressed;
+  unit.keywords = [...new Set([...durable, ...aura])].filter((keyword) => !suppressedSet.has(keyword));
 }
 
-/** Record a persistent grant even when the same keyword is currently supplied by an Aura. */
+/** Record a persistent grant even when the same keyword is currently granted or suppressed by an Aura. */
 export function grantDurableKeyword(unit: UnitInstance, keyword: Keyword): void {
   const durable = new Set(captureDurableKeywords(unit));
   durable.add(keyword);
@@ -113,11 +129,29 @@ export function permanentAuraKeywordsForUnit(state: GameState, unit: UnitInstanc
       if (permanent.health <= 0) continue;
       const def = getCard(permanent.defId);
       if ((def.type !== "Enchantment" && def.type !== "Artifact") || !def.aura) continue;
-      // Aura 2.1 intentionally does not grant/remove keywords across enemy lines.
       if ((def.aura.affects ?? "allies") !== "allies") continue;
       if (!permanentAuraAffectsUnit(def.aura, sourceOwner, unit)) continue;
       for (const keyword of def.aura.keywords ?? []) {
         if (AURA_GRANTABLE_KEYWORDS.includes(keyword)) result.add(keyword);
+      }
+    }
+  }
+  return [...result];
+}
+
+/** Pure derivation of source-bound hostile keyword suppressions for an enemy Unit. */
+export function permanentAuraSuppressedKeywordsForUnit(state: GameState, unit: UnitInstance): Keyword[] {
+  const result = new Set<Keyword>();
+  for (const sourceOwner of AURA_PLAYERS) {
+    for (const permanent of state.players[sourceOwner].permanents) {
+      if (permanent.health <= 0) continue;
+      const def = getCard(permanent.defId);
+      if ((def.type !== "Enchantment" && def.type !== "Artifact") || !def.aura) continue;
+      // Suppression is intentionally hostile-only in Aura 2.2.
+      if (def.aura.affects !== "enemies") continue;
+      if (!permanentAuraAffectsUnit(def.aura, sourceOwner, unit)) continue;
+      for (const keyword of def.aura.suppressKeywords ?? []) {
+        if (AURA_SUPPRESSIBLE_KEYWORDS.includes(keyword)) result.add(keyword);
       }
     }
   }
@@ -145,10 +179,11 @@ function durableHealthBeforeAura(unit: UnitInstance): number {
 /**
  * Derive the live Aura contribution from authoritative battlefield state.
  *
- * Aura 2.1 scans both sides because an enemy-facing source contributes to the
- * opposing bench. Stat modifiers remain additive, but the Aura layer alone is
- * clamped so it cannot drive an otherwise non-negative Unit below 0 Power or
- * below 0 max Health. This keeps combat damage and new-unit lifecycle valid.
+ * Aura 2.x scans both sides because enemy-facing sources contribute to the
+ * opposing bench. Stat modifiers remain additive, while keyword provenance is
+ * rebuilt as durable + allied grants - hostile suppressions. The stat Aura layer
+ * is clamped so it cannot drive an otherwise non-negative Unit below 0 Power or
+ * below 0 max Health.
  */
 export function permanentAuraBonusForUnit(state: GameState, unit: UnitInstance): PermanentAuraBonus {
   const result: PermanentAuraBonus = { power: 0, health: 0, sources: 0 };
@@ -175,6 +210,7 @@ export function permanentAuraBonusForUnit(state: GameState, unit: UnitInstance):
 
   unit.durableKeywords = captureDurableKeywords(unit);
   unit.auraKeywords = permanentAuraKeywordsForUnit(state, unit);
+  unit.auraSuppressedKeywords = permanentAuraSuppressedKeywordsForUnit(state, unit);
   recomputeEffectiveKeywords(unit);
   return result;
 }

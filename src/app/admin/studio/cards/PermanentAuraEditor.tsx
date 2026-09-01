@@ -1,7 +1,7 @@
 "use client";
 
 import { CARD_RACES } from "@/game/card-authoring";
-import { AURA_GRANTABLE_KEYWORDS } from "@/game/keywords";
+import { AURA_GRANTABLE_KEYWORDS, AURA_SUPPRESSIBLE_KEYWORDS } from "@/game/keywords";
 import { F, Panel } from "./CardAuthoringFields";
 import type { CardAuthoringModel } from "./CardAuthoringModel";
 
@@ -12,6 +12,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
     buffPower: number;
     buffHealth: number;
     keywords?: string[];
+    suppressKeywords?: string[];
     races?: string[];
     classes?: string[];
     affects?: "allies" | "enemies";
@@ -25,8 +26,14 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
     if (next === "enemies") {
       let buffPower = aura.buffPower > 0 ? -aura.buffPower : aura.buffPower;
       const buffHealth = aura.buffHealth > 0 ? -aura.buffHealth : aura.buffHealth;
-      if (buffPower === 0 && buffHealth === 0) buffPower = -1;
-      set("aura", { ...aura, affects: "enemies", buffPower, buffHealth, keywords: [] });
+      if (buffPower === 0 && buffHealth === 0 && !(aura.suppressKeywords?.length)) buffPower = -1;
+      set("aura", {
+        ...aura,
+        affects: "enemies",
+        buffPower,
+        buffHealth,
+        keywords: [],
+      });
       return;
     }
     set("aura", {
@@ -34,14 +41,15 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
       affects: "allies",
       buffPower: aura.buffPower < 0 ? Math.abs(aura.buffPower) : aura.buffPower,
       buffHealth: aura.buffHealth < 0 ? Math.abs(aura.buffHealth) : aura.buffHealth,
+      suppressKeywords: [],
     });
   };
 
   return (
-    <Panel title="Continuous Aura" eyebrow="AURA 2.1 — ALLY BUFFS + ENEMY DEBUFFS">
+    <Panel title="Continuous Aura" eyebrow="AURA 2.2 — STATS + KEYWORD LAYERS">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-2xl text-xs leading-5 text-slate-400">
-          Enquanto esta fonte permanecer em jogo, a Aura recalcula continuamente as unidades elegíveis. Auras aliadas concedem stats/keywords; Auras inimigas aplicam apenas reduções de Power/Health. Dano marcado e grants duráveis são preservados quando a fonte entra ou sai.
+          Enquanto esta fonte permanecer em jogo, a Aura recalcula continuamente as unidades elegíveis. Auras aliadas concedem stats/keywords; Auras inimigas reduzem stats e/ou suprimem keywords. A origem durável nunca é apagada: ao remover a fonte hostil, a keyword reaparece se ainda existir por impressão, Equipment, grant permanente ou outra Aura.
         </p>
         <button type="button" className="btn-ghost text-xs" onClick={() => set("aura", aura ? undefined : { buffPower: 1, buffHealth: 0 })}>
           {aura ? "Remover Aura" : "+ Ativar Aura"}
@@ -66,15 +74,24 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
           </F>
         </div>
         {!enemyAura ? <div>
-          <div className="label">Keywords contínuas — opcional</div>
-          <p className="mt-1 text-[10px] leading-4 text-slate-500">Barrier e LastBreath ficam fora deste corte por dependerem de estado consumível/trigger próprio.</p>
+          <div className="label">Keywords concedidas continuamente — opcional</div>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500">Barrier e LastBreath ficam fora por dependerem de estado consumível/trigger próprio.</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {AURA_GRANTABLE_KEYWORDS.map((keyword) => {
               const selected = (aura.keywords ?? []).includes(keyword);
               return <button type="button" key={keyword} onClick={() => update({ keywords: selected ? (aura.keywords ?? []).filter((item: string) => item !== keyword) : [...(aura.keywords ?? []), keyword] })} className={`rounded-full border px-2 py-1 text-[10px] ${selected ? "bg-violet-300 text-slate-950" : "border-white/10"}`}>{selected ? "✓ " : ""}{keyword}</button>;
             })}
           </div>
-        </div> : <p className="rounded-lg border border-amber-300/20 bg-amber-300/5 p-3 text-[11px] leading-5 text-amber-100/80">Aura 2.1 não remove nem concede keywords a inimigos. Esse comportamento exige o futuro sistema genérico de layers/sub-layers.</p>}
+        </div> : <div>
+          <div className="label">Keywords suprimidas continuamente — opcional</div>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500">A supressão vence grants enquanto a fonte está ativa, mas não apaga sua origem. Barrier e LastBreath não são suprimíveis neste corte.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {AURA_SUPPRESSIBLE_KEYWORDS.map((keyword) => {
+              const selected = (aura.suppressKeywords ?? []).includes(keyword);
+              return <button type="button" key={keyword} onClick={() => update({ suppressKeywords: selected ? (aura.suppressKeywords ?? []).filter((item: string) => item !== keyword) : [...(aura.suppressKeywords ?? []), keyword] })} className={`rounded-full border px-2 py-1 text-[10px] ${selected ? "bg-rose-300 text-slate-950" : "border-white/10"}`}>{selected ? "✓ " : ""}{keyword}</button>;
+            })}
+          </div>
+        </div>}
         <div>
           <div className="label">Raças elegíveis — opcional</div>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -87,7 +104,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
         <F l="Classes elegíveis — IDs separados por vírgula">
           <input className="input font-mono text-xs" value={(aura.classes ?? []).join(", ")} onChange={(e) => update({ classes: e.target.value.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean) })} placeholder="guardian, warrior" />
         </F>
-        <p className="text-[11px] leading-5 text-slate-500">Dentro de cada filtro vale OU; raça + classe combinam como E. Múltiplas Auras somam os modificadores. Reduções de Power do layer contínuo nunca levam o Power efetivo abaixo de 0.</p>
+        <p className="text-[11px] leading-5 text-slate-500">Dentro de cada filtro vale OU; raça + classe combinam como E. Múltiplas Auras somam stats e unem grants/supressões sem duplicatas. No layer de keywords, durable + grants são calculados primeiro e supressões hostis são aplicadas por último.</p>
       </div>}
     </Panel>
   );

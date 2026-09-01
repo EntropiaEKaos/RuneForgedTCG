@@ -1,7 +1,11 @@
 import "./aura-2-types";
 import type { CardDef, Keyword } from "./types";
 import { validateAuthorableCardWithActivatedAbilities } from "./activated-ability-authoring";
-import { CANONICAL_KEYWORDS, keywordIsAuraGrantable } from "./keywords";
+import {
+  CANONICAL_KEYWORDS,
+  keywordIsAuraGrantable,
+  keywordIsAuraSuppressible,
+} from "./keywords";
 import {
   CERTIFIED_SEMANTIC_CARD_TYPES,
   type CertifiedSemanticCardTypeKey,
@@ -16,6 +20,7 @@ type ContinuousAuraRestore = {
   buffPower: number;
   buffHealth: number;
   keywords: Keyword[];
+  suppressKeywords: Keyword[];
   affects?: "enemies";
 };
 
@@ -41,7 +46,12 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
   const aura = auraRaw as unknown as Record<string, unknown>;
   const buffPower = Number(aura.buffPower ?? 0);
   const buffHealth = Number(aura.buffHealth ?? 0);
-  const extended = "keywords" in aura || "affects" in aura || buffPower < 0 || buffHealth < 0;
+  const extended =
+    "keywords" in aura ||
+    "suppressKeywords" in aura ||
+    "affects" in aura ||
+    buffPower < 0 ||
+    buffHealth < 0;
   if (!extended) return { ok: true, input };
 
   const rawAudience = aura.affects;
@@ -54,9 +64,18 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
   if (aura.keywords !== undefined) {
     if (!Array.isArray(aura.keywords)) return { ok: false, error: "Aura keywords must be an array" };
     if (aura.keywords.some((keyword) => !canonicalKeyword(keyword))) {
-      return { ok: false, error: "Aura contains an unknown keyword" };
+      return { ok: false, error: "Aura contains an unknown granted keyword" };
     }
     keywords = [...new Set(aura.keywords as Keyword[])];
+  }
+
+  let suppressKeywords: Keyword[] = [];
+  if (aura.suppressKeywords !== undefined) {
+    if (!Array.isArray(aura.suppressKeywords)) return { ok: false, error: "Aura suppressKeywords must be an array" };
+    if (aura.suppressKeywords.some((keyword) => !canonicalKeyword(keyword))) {
+      return { ok: false, error: "Aura contains an unknown suppressed keyword" };
+    }
+    suppressKeywords = [...new Set(aura.suppressKeywords as Keyword[])];
   }
 
   if (!Number.isInteger(buffPower) || !Number.isInteger(buffHealth) || buffPower < -20 || buffPower > 20 || buffHealth < -20 || buffHealth > 20) {
@@ -67,18 +86,25 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
     if (buffPower > 0 || buffHealth > 0) {
       return { ok: false, error: "Enemy Auras may only apply non-positive Power/Health modifiers" };
     }
-    if (buffPower === 0 && buffHealth === 0) {
-      return { ok: false, error: "Enemy Aura requires at least one negative stat modifier" };
-    }
     if (keywords.length > 0) {
-      return { ok: false, error: "Aura 2.1 enemy effects cannot grant or remove keywords" };
+      return { ok: false, error: "Enemy Auras cannot grant continuous keywords" };
+    }
+    const unsafeSuppression = suppressKeywords.find((keyword) => !keywordIsAuraSuppressible(keyword));
+    if (unsafeSuppression) {
+      return { ok: false, error: `${unsafeSuppression} cannot be suppressed by a continuous Aura.` };
+    }
+    if (buffPower === 0 && buffHealth === 0 && suppressKeywords.length === 0) {
+      return { ok: false, error: "Enemy Aura requires a negative stat modifier or at least one suppressed keyword" };
     }
   } else {
     if (buffPower < 0 || buffHealth < 0) {
       return { ok: false, error: "Allied Auras may only apply non-negative Power/Health modifiers" };
     }
-    const unsafe = keywords.find((keyword) => !keywordIsAuraGrantable(keyword));
-    if (unsafe) return { ok: false, error: `${unsafe} cannot be granted by a continuous Aura.` };
+    if (suppressKeywords.length > 0) {
+      return { ok: false, error: "Allied Auras cannot suppress keywords" };
+    }
+    const unsafeGrant = keywords.find((keyword) => !keywordIsAuraGrantable(keyword));
+    if (unsafeGrant) return { ok: false, error: `${unsafeGrant} cannot be granted by a continuous Aura.` };
     if (buffPower === 0 && buffHealth === 0 && keywords.length === 0) {
       return { ok: false, error: "Aura requires a stat modifier or at least one continuous keyword" };
     }
@@ -86,12 +112,15 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
 
   const legacyAura: Record<string, unknown> = { ...aura };
   delete legacyAura.keywords;
+  delete legacyAura.suppressKeywords;
   delete legacyAura.affects;
   if (affects === "enemies") {
     legacyAura.buffPower = Math.abs(buffPower);
     legacyAura.buffHealth = Math.abs(buffHealth);
+    // Suppression-only hostile Aura: probe legacy source/filter validation with +1.
+    if (buffPower === 0 && buffHealth === 0) legacyAura.buffPower = 1;
   } else if (buffPower === 0 && buffHealth === 0) {
-    // Keyword-only Aura: probe the legacy stat sanitizer with a temporary +1.
+    // Keyword-only allied Aura: probe the legacy stat sanitizer with a temporary +1.
     legacyAura.buffPower = 1;
     legacyAura.buffHealth = 0;
   }
@@ -104,6 +133,7 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
       buffPower,
       buffHealth,
       keywords,
+      suppressKeywords,
       ...(affects === "enemies" ? { affects: "enemies" as const } : {}),
     },
   };
@@ -131,6 +161,7 @@ export function validateAuthorableCardWithSemanticTypes(
         buffPower: prepared.restore.buffPower,
         buffHealth: prepared.restore.buffHealth,
         ...(prepared.restore.keywords.length ? { keywords: prepared.restore.keywords } : {}),
+        ...(prepared.restore.suppressKeywords.length ? { suppressKeywords: prepared.restore.suppressKeywords } : {}),
         ...(prepared.restore.affects ? { affects: prepared.restore.affects } : {}),
       },
     };
