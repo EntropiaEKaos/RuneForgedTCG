@@ -54,6 +54,7 @@ export const behavioralTests = [
   "src/game/vanilla-activated-identities.test.ts",
   "src/game/vanilla-content-audit.test.ts",
   "src/game/vanilla-balance-lab.test.ts",
+  "src/game/vanilla-utilization-telemetry.test.ts",
   "src/lib/admin-multiuser.test.ts",
   "src/lib/alpha-onboarding.test.ts",
   "src/lib/brawl-rule-authority.test.ts",
