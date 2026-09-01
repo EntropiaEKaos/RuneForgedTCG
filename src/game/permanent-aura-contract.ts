@@ -133,13 +133,22 @@ function durablePowerBeforeAura(unit: UnitInstance): number {
   return (def.power ?? 0) + equipmentPower + unit.powerBuffs;
 }
 
+function durableHealthBeforeAura(unit: UnitInstance): number {
+  const def = getCard(unit.defId);
+  let equipmentHealth = 0;
+  for (const equipment of unit.equipment) {
+    equipmentHealth += getCard(equipment.defId).equipment?.buffHealth ?? 0;
+  }
+  return (def.health ?? 0) + equipmentHealth + unit.permanentHealthModifier + unit.healthBuffs;
+}
+
 /**
  * Derive the live Aura contribution from authoritative battlefield state.
  *
  * Aura 2.1 scans both sides because an enemy-facing source contributes to the
  * opposing bench. Stat modifiers remain additive, but the Aura layer alone is
- * clamped so it can never drive an otherwise non-negative Unit below 0 Power;
- * this prevents negative combat damage from becoming accidental healing.
+ * clamped so it cannot drive an otherwise non-negative Unit below 0 Power or
+ * below 0 max Health. This keeps combat damage and new-unit lifecycle valid.
  */
 export function permanentAuraBonusForUnit(state: GameState, unit: UnitInstance): PermanentAuraBonus {
   const result: PermanentAuraBonus = { power: 0, health: 0, sources: 0 };
@@ -158,6 +167,10 @@ export function permanentAuraBonusForUnit(state: GameState, unit: UnitInstance):
   if (result.power < 0) {
     const durablePower = Math.max(0, durablePowerBeforeAura(unit));
     result.power = Math.max(result.power, -durablePower);
+  }
+  if (result.health < 0) {
+    const durableHealth = Math.max(0, durableHealthBeforeAura(unit));
+    result.health = Math.max(result.health, -durableHealth);
   }
 
   unit.durableKeywords = captureDurableKeywords(unit);
