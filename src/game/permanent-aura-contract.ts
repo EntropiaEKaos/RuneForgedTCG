@@ -66,12 +66,27 @@ export const UNIT_SOURCE_AURA_CONTRACT = {
   support: "supported",
 } as const;
 
+/** Aura 2.4 slice: Sentinelas project command Auras while they have positive loyalty. */
+export const SENTINELA_SOURCE_AURA_CONTRACT = {
+  rule: "sentinelaSourceAura",
+  sources: ["Sentinela"],
+  sourceZone: "sentinelas",
+  targets: ["allyUnit", "enemyUnit"],
+  alliedEffects: ["nonNegativeStats", "keywordGrants"],
+  enemyEffects: ["nonPositiveStats", "keywordSuppressions"],
+  lifecycle: "whileSourceHasPositiveLoyalty",
+  statStacking: "additive",
+  keywordStacking: "setUnion",
+  support: "supported",
+} as const;
+
 const AURA_PLAYERS = ["player", "ai"] as const satisfies readonly PlayerId[];
 
 type AuraSource = {
   owner: PlayerId;
   instanceId: string;
   def: CardDef;
+  excludeSelfUnit: boolean;
 };
 
 function matchesAny(haystack: readonly string[] | undefined, needles: readonly string[] | undefined): boolean {
@@ -83,7 +98,7 @@ function matchesAny(haystack: readonly string[] | undefined, needles: readonly s
 /**
  * Enumerate authoritative live Aura sources without creating a second runtime.
  * Permanent sources remain exactly as certified by Aura 2.0-2.2; Aura 2.3 adds
- * living Units on the bench. Dead sources contribute nothing before cleanup.
+ * living Units on the bench; Aura 2.4 adds positive-loyalty Sentinelas.
  */
 function auraSources(state: GameState): AuraSource[] {
   const result: AuraSource[] = [];
@@ -92,13 +107,19 @@ function auraSources(state: GameState): AuraSource[] {
       if (permanent.health <= 0) continue;
       const def = getCard(permanent.defId);
       if ((def.type !== "Enchantment" && def.type !== "Artifact") || !def.aura) continue;
-      result.push({ owner, instanceId: permanent.instanceId, def });
+      result.push({ owner, instanceId: permanent.instanceId, def, excludeSelfUnit: false });
     }
     for (const unit of state.players[owner].bench) {
       if (unit.health <= 0) continue;
       const def = getCard(unit.defId);
       if (def.type !== "Unit" || !def.aura) continue;
-      result.push({ owner, instanceId: unit.instanceId, def });
+      result.push({ owner, instanceId: unit.instanceId, def, excludeSelfUnit: true });
+    }
+    for (const sentinela of state.players[owner].sentinelas) {
+      if (sentinela.loyalty <= 0) continue;
+      const def = getCard(sentinela.defId);
+      if (def.type !== "Sentinela" || !def.aura) continue;
+      result.push({ owner, instanceId: sentinela.instanceId, def, excludeSelfUnit: false });
     }
   }
   return result;
@@ -111,16 +132,17 @@ export function permanentAuraAppliesToUnit(aura: PermanentStatAura, unit: UnitIn
 
 /**
  * Relationship gate between an Aura source and a candidate Unit. Missing
- * audience means legacy allies. Passing a source instance also enforces Aura
- * 2.3's lord rule: a Unit source never receives its own Aura.
+ * audience means legacy allies. Unit-source Auras may additionally exclude the
+ * exact source instance; non-Unit sources never need that exclusion.
  */
 export function permanentAuraAffectsUnit(
   aura: PermanentStatAura,
   sourceOwner: PlayerId,
   unit: UnitInstance,
   sourceInstanceId?: string,
+  excludeSourceInstance = Boolean(sourceInstanceId),
 ): boolean {
-  if (sourceInstanceId && sourceInstanceId === unit.instanceId) return false;
+  if (excludeSourceInstance && sourceInstanceId === unit.instanceId) return false;
   const audience = aura.affects ?? "allies";
   const relationshipMatches = audience === "enemies" ? sourceOwner !== unit.owner : sourceOwner === unit.owner;
   return relationshipMatches && permanentAuraAppliesToUnit(aura, unit);
@@ -178,7 +200,7 @@ export function permanentAuraKeywordsForUnit(state: GameState, unit: UnitInstanc
   for (const source of auraSources(state)) {
     const aura = source.def.aura!;
     if ((aura.affects ?? "allies") !== "allies") continue;
-    if (!permanentAuraAffectsUnit(aura, source.owner, unit, source.instanceId)) continue;
+    if (!permanentAuraAffectsUnit(aura, source.owner, unit, source.instanceId, source.excludeSelfUnit)) continue;
     for (const keyword of aura.keywords ?? []) {
       if (AURA_GRANTABLE_KEYWORDS.includes(keyword)) result.add(keyword);
     }
@@ -191,9 +213,8 @@ export function permanentAuraSuppressedKeywordsForUnit(state: GameState, unit: U
   const result = new Set<Keyword>();
   for (const source of auraSources(state)) {
     const aura = source.def.aura!;
-    // Suppression is intentionally hostile-only in Aura 2.2/2.3.
     if (aura.affects !== "enemies") continue;
-    if (!permanentAuraAffectsUnit(aura, source.owner, unit, source.instanceId)) continue;
+    if (!permanentAuraAffectsUnit(aura, source.owner, unit, source.instanceId, source.excludeSelfUnit)) continue;
     for (const keyword of aura.suppressKeywords ?? []) {
       if (AURA_SUPPRESSIBLE_KEYWORDS.includes(keyword)) result.add(keyword);
     }
@@ -219,21 +240,12 @@ function durableHealthBeforeAura(unit: UnitInstance): number {
   return (def.health ?? 0) + equipmentHealth + unit.permanentHealthModifier + unit.healthBuffs;
 }
 
-/**
- * Derive the live Aura contribution from authoritative battlefield state.
- *
- * Aura 2.x scans both sides because enemy-facing sources contribute to the
- * opposing bench. Aura 2.3 additionally scans living Unit sources and excludes
- * only the source instance itself. Stat modifiers remain additive, while keyword
- * provenance is rebuilt as durable + allied grants - hostile suppressions. The
- * stat Aura layer is clamped so it cannot drive an otherwise non-negative Unit
- * below 0 Power or below 0 max Health.
- */
+/** Derive live Aura contribution from authoritative battlefield state. */
 export function permanentAuraBonusForUnit(state: GameState, unit: UnitInstance): PermanentAuraBonus {
   const result: PermanentAuraBonus = { power: 0, health: 0, sources: 0 };
   for (const source of auraSources(state)) {
     const aura = source.def.aura!;
-    if (!permanentAuraAffectsUnit(aura, source.owner, unit, source.instanceId)) continue;
+    if (!permanentAuraAffectsUnit(aura, source.owner, unit, source.instanceId, source.excludeSelfUnit)) continue;
     result.power += aura.buffPower;
     result.health += aura.buffHealth;
     result.sources += 1;

@@ -137,7 +137,16 @@ assert.equal(semanticUnitAura.ok, true, "Aura 2.3 extends only the canonical sem
 assert.ok(semanticUnitAura.ok);
 assert.deepEqual(semanticUnitAura.card.aura, { buffPower: 0, buffHealth: 0, keywords: ["Flying"] });
 
-for (const type of ["Spell", "Equipment", "Sentinela"] as CardType[]) {
+const semanticSentinelaAura = validateAuthorableCardWithSemanticTypes({
+  ...makeSource("Sentinela"),
+  defId: "rt_keyword_source_sentinela",
+  aura: { buffPower: 0, buffHealth: 0, keywords: ["Flying" as const] },
+});
+assert.equal(semanticSentinelaAura.ok, true, "Aura 2.4 extends only the canonical semantic boundary to Sentinela command Auras");
+assert.ok(semanticSentinelaAura.ok);
+assert.deepEqual(semanticSentinelaAura.card.aura, { buffPower: 0, buffHealth: 0, keywords: ["Flying"] });
+
+for (const type of ["Spell", "Equipment"] as CardType[]) {
   const source = {
     ...makeSource(type),
     defId: `rt_keyword_source_${type.toLowerCase()}`,
@@ -163,4 +172,4 @@ const structureResult = validateAuthorableCardWithSemanticTypes({
 });
 assert.equal(structureResult.ok, true, "certified Structure inherits the Artifact Aura 2.0 contract without a second runtime path");
 
-console.log("PERMANENT AURA AUTHORING: PASS — legacy source restrictions preserved; Aura 2.x semantic Unit extension, filters, keywords and round-trip certified");
+console.log("PERMANENT AURA AUTHORING: PASS — legacy source restrictions preserved; Aura 2.x semantic Unit/Sentinela extensions, filters, keywords and round-trip certified");
