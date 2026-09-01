@@ -233,6 +233,21 @@ export function keywordIsAuraGrantable(keyword: Keyword): boolean {
 }
 
 /**
+ * Continuous hostile suppression uses the same plain-runtime keyword boundary,
+ * but is modeled separately so future grant/suppression capabilities can evolve
+ * independently. Barrier is excluded because its shield is consumable instance
+ * state; LastBreath is excluded because its executable onDeath contract lives
+ * outside the effective keyword array.
+ */
+export const AURA_SUPPRESSIBLE_KEYWORDS = CANONICAL_KEYWORDS.filter(
+  (keyword): keyword is Keyword => keyword !== "Barrier" && keyword !== "LastBreath",
+);
+
+export function keywordIsAuraSuppressible(keyword: Keyword): boolean {
+  return AURA_SUPPRESSIBLE_KEYWORDS.includes(keyword);
+}
+
+/**
  * Printed Last Breath is a marker for an executable death ability, not an
  * effect by itself. Reject authored cards that would publish that marker inert.
  */
