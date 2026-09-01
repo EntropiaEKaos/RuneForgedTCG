@@ -1,0 +1,30 @@
+name: Vanilla Utilization Bootstrap
+
+on:
+  push:
+    branches:
+      - feat/vanilla-1-2-utilization-telemetry
+
+permissions:
+  contents: read
+
+jobs:
+  telemetry:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Run Vanilla 1.2 telemetry behavioral smoke
+        run: npx tsx src/game/vanilla-utilization-telemetry.test.ts
+      - name: Run Vanilla 1.2 utilization matrix
+        run: node --import tsx scripts/vanilla-utilization-audit.ts 20 3 --write VANILLA_UTILIZATION_AUDIT_1.2.json --enforce
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vanilla-utilization-audit-1-2
+          path: VANILLA_UTILIZATION_AUDIT_1.2.json
+          if-no-files-found: error
