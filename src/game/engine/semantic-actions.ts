@@ -9,15 +9,44 @@ import { checkWin, clone, makePermanent, recomputeContinuousAuras } from "./stat
 export const effectiveCost = base.effectiveCost;
 export const spellNeedsTarget = base.spellNeedsTarget;
 export const isValidTarget = base.isValidTarget;
-export const castSpell = base.castSpell;
 export const isReadyToAttack = base.isReadyToAttack;
 export const canDeclareAttack = base.canDeclareAttack;
-export const declareAttack = base.declareAttack;
 export const canBlock = base.canBlock;
 export const resolveCombat = base.resolveCombat;
 export const mulligan = base.mulligan;
 export const skipMulligan = base.skipMulligan;
-export const endTurn = base.endTurn;
+
+/** Recompute controller-scoped Aura conditions after any successful spell transition. */
+export function castSpell(
+  state: GameState,
+  playerId: PlayerId,
+  instanceId: string,
+  targetInstanceId?: string,
+): GameState {
+  const next = base.castSpell(state, playerId, instanceId, targetInstanceId);
+  if (next !== state) recomputeContinuousAuras(next);
+  return next;
+}
+
+/** onAttack triggers can change board/Nexus state before blockers exist, so refresh conditional Auras immediately. */
+export function declareAttack(
+  state: GameState,
+  playerId: PlayerId,
+  attackerIds: string[],
+  challenges?: Record<string, string>,
+  sentinelaTargets?: Record<string, string>,
+): GameState {
+  const next = base.declareAttack(state, playerId, attackerIds, challenges, sentinelaTargets);
+  if (next !== state) recomputeContinuousAuras(next);
+  return next;
+}
+
+/** Mana refresh, fatigue and round-start state may toggle Aura 2.5 conditions. */
+export function endTurn(state: GameState, playerId: PlayerId): GameState {
+  const next = base.endTurn(state, playerId);
+  if (next !== state) recomputeContinuousAuras(next);
+  return next;
+}
 
 /**
  * Semantic timing gate layered over the legacy Spell reaction contract.
@@ -56,8 +85,8 @@ export function canPlayCard(state: GameState, playerId: PlayerId, instanceId: st
 
 /**
  * Structure is stored as Artifact for backwards-compatible persistence, but
- * resolves as a non-spell battlefield object. Sentinela command Auras reuse the
- * legacy Sentinela play path and only add a post-success continuous recompute.
+ * resolves as a non-spell battlefield object. Aura 2.5 refreshes the continuous
+ * layer after every successful play so controller-state conditions cannot stay stale.
  */
 export function playUnit(
   state: GameState,
@@ -70,7 +99,7 @@ export function playUnit(
   const def = getCard(instance.defId);
   if (!isStructureCard(def)) {
     const next = base.playUnit(state, playerId, instanceId, targetInstanceId);
-    if (next !== state && def.type === "Sentinela" && def.aura) recomputeContinuousAuras(next);
+    if (next !== state) recomputeContinuousAuras(next);
     return next;
   }
 
@@ -87,6 +116,7 @@ export function playUnit(
   player.permanents.push(makePermanent(s, def.defId, playerId));
   s.log.push(`${player.name} constrói ${def.name} (Estrutura).`);
   cleanupDead(s);
+  recomputeContinuousAuras(s);
   checkWin(s);
   return s;
 }
