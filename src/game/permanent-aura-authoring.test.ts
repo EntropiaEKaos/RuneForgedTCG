@@ -68,7 +68,7 @@ for (const type of ["Enchantment", "Artifact"] as CardType[]) {
 
 for (const type of ["Unit", "Spell", "Equipment", "Sentinela"] as CardType[]) {
   const result = validateAuthorableCard(makeSource(type));
-  assert.equal(result.ok, false, `${type} must reject a Permanent-only Aura contract`);
+  assert.equal(result.ok, false, `${type} must reject a Permanent-only Aura contract in the legacy validator`);
   if (!result.ok) assert.match(result.error, /Aura|Enchantment|Artifact/i);
 }
 
@@ -128,14 +128,23 @@ const unknownKeyword = validateAuthorableCardWithSemanticTypes({
 });
 assert.equal(unknownKeyword.ok, false, "unknown Aura keyword fails closed");
 
-for (const type of ["Unit", "Spell", "Equipment", "Sentinela"] as CardType[]) {
+const semanticUnitAura = validateAuthorableCardWithSemanticTypes({
+  ...makeSource("Unit"),
+  defId: "rt_keyword_source_unit",
+  aura: { buffPower: 0, buffHealth: 0, keywords: ["Flying" as const] },
+});
+assert.equal(semanticUnitAura.ok, true, "Aura 2.3 extends only the canonical semantic boundary to Unit-source lord effects");
+assert.ok(semanticUnitAura.ok);
+assert.deepEqual(semanticUnitAura.card.aura, { buffPower: 0, buffHealth: 0, keywords: ["Flying"] });
+
+for (const type of ["Spell", "Equipment", "Sentinela"] as CardType[]) {
   const source = {
     ...makeSource(type),
     defId: `rt_keyword_source_${type.toLowerCase()}`,
     aura: { buffPower: 0, buffHealth: 0, keywords: ["Flying" as const] },
   };
   const result = validateAuthorableCardWithSemanticTypes(source);
-  assert.equal(result.ok, false, `${type} must reject Aura 2.0 just like the legacy stat contract`);
+  assert.equal(result.ok, false, `${type} remains an unsupported continuous Aura source at the semantic boundary`);
 }
 
 const structureDraft = applyCertifiedSemanticCardType({
@@ -154,4 +163,4 @@ const structureResult = validateAuthorableCardWithSemanticTypes({
 });
 assert.equal(structureResult.ok, true, "certified Structure inherits the Artifact Aura 2.0 contract without a second runtime path");
 
-console.log("PERMANENT AURA 2.0 AUTHORING: PASS — legacy stats, continuous keywords, source restrictions, filters, semantic types and round-trip certified");
+console.log("PERMANENT AURA AUTHORING: PASS — legacy source restrictions preserved; Aura 2.x semantic Unit extension, filters, keywords and round-trip certified");
