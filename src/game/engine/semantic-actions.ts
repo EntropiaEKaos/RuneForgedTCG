@@ -9,6 +9,7 @@ import { checkWin, clone, makePermanent, recomputeContinuousAuras } from "./stat
 export const effectiveCost = base.effectiveCost;
 export const spellNeedsTarget = base.spellNeedsTarget;
 export const isValidTarget = base.isValidTarget;
+export const castSpell = base.castSpell;
 export const isReadyToAttack = base.isReadyToAttack;
 export const canDeclareAttack = base.canDeclareAttack;
 export const canBlock = base.canBlock;
@@ -16,19 +17,28 @@ export const resolveCombat = base.resolveCombat;
 export const mulligan = base.mulligan;
 export const skipMulligan = base.skipMulligan;
 
-/** Recompute controller-scoped Aura conditions after any successful spell transition. */
-export function castSpell(
-  state: GameState,
-  playerId: PlayerId,
-  instanceId: string,
-  targetInstanceId?: string,
-): GameState {
-  const next = base.castSpell(state, playerId, instanceId, targetInstanceId);
-  if (next !== state) recomputeContinuousAuras(next);
-  return next;
+/**
+ * Aura 2.5 must not add a blanket stat recomputation to legacy actions.
+ * Only states that actually contain a conditional Aura source need the extra
+ * post-transition refresh; ordinary games preserve their pre-2.5 behavior.
+ */
+function hasConditionalAuraSource(state: GameState): boolean {
+  for (const pid of ["player", "ai"] as PlayerId[]) {
+    const player = state.players[pid];
+    for (const instance of player.bench) {
+      if (getCard(instance.defId).aura?.condition) return true;
+    }
+    for (const instance of player.permanents) {
+      if (getCard(instance.defId).aura?.condition) return true;
+    }
+    for (const instance of player.sentinelas) {
+      if (getCard(instance.defId).aura?.condition) return true;
+    }
+  }
+  return false;
 }
 
-/** onAttack triggers can change board/Nexus state before blockers exist, so refresh conditional Auras immediately. */
+/** onAttack triggers can change board/Nexus state before blockers exist. */
 export function declareAttack(
   state: GameState,
   playerId: PlayerId,
@@ -36,15 +46,21 @@ export function declareAttack(
   challenges?: Record<string, string>,
   sentinelaTargets?: Record<string, string>,
 ): GameState {
+  const hadConditionalAura = hasConditionalAuraSource(state);
   const next = base.declareAttack(state, playerId, attackerIds, challenges, sentinelaTargets);
-  if (next !== state) recomputeContinuousAuras(next);
+  if (next !== state && (hadConditionalAura || hasConditionalAuraSource(next))) {
+    recomputeContinuousAuras(next);
+  }
   return next;
 }
 
 /** Mana refresh, fatigue and round-start state may toggle Aura 2.5 conditions. */
 export function endTurn(state: GameState, playerId: PlayerId): GameState {
+  const hadConditionalAura = hasConditionalAuraSource(state);
   const next = base.endTurn(state, playerId);
-  if (next !== state) recomputeContinuousAuras(next);
+  if (next !== state && (hadConditionalAura || hasConditionalAuraSource(next))) {
+    recomputeContinuousAuras(next);
+  }
   return next;
 }
 
@@ -84,9 +100,11 @@ export function canPlayCard(state: GameState, playerId: PlayerId, instanceId: st
 }
 
 /**
- * Structure is stored as Artifact for backwards-compatible persistence, but
- * resolves as a non-spell battlefield object. Aura 2.5 refreshes the continuous
- * layer after every successful play so controller-state conditions cannot stay stale.
+ * Structure is stored as Artifact for backwards-compatible persistence. Legacy
+ * Unit/Permanent/Equipment play already converges through cleanupDead(), which
+ * recomputes Auras. Sentinela is the only legacy play path that needs an extra
+ * refresh when its own Aura enters or when paying its mana can toggle another
+ * conditional Aura.
  */
 export function playUnit(
   state: GameState,
@@ -98,8 +116,15 @@ export function playUnit(
   if (!instance) return state;
   const def = getCard(instance.defId);
   if (!isStructureCard(def)) {
+    const hadConditionalAura = hasConditionalAuraSource(state);
     const next = base.playUnit(state, playerId, instanceId, targetInstanceId);
-    if (next !== state) recomputeContinuousAuras(next);
+    if (
+      next !== state &&
+      def.type === "Sentinela" &&
+      (Boolean(def.aura) || hadConditionalAura || hasConditionalAuraSource(next))
+    ) {
+      recomputeContinuousAuras(next);
+    }
     return next;
   }
 
@@ -116,7 +141,6 @@ export function playUnit(
   player.permanents.push(makePermanent(s, def.defId, playerId));
   s.log.push(`${player.name} constrói ${def.name} (Estrutura).`);
   cleanupDead(s);
-  recomputeContinuousAuras(s);
   checkWin(s);
   return s;
 }
