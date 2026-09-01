@@ -7,6 +7,7 @@ export const behavioralTests = [
   "src/game/aura-2-2-keyword-suppression.test.ts",
   "src/game/aura-2-3-unit-source-lord-effects.test.ts",
   "src/game/aura-2-4-sentinela-command-auras.test.ts",
+  "src/game/aura-2-5-conditional-auras.test.ts",
   "src/game/activated-abilities.test.ts",
   "src/game/expanded-activated-ability-costs.test.ts",
   "src/game/selected-discard-activated-cost.test.ts",

@@ -1,4 +1,4 @@
-import type { Keyword } from "./types";
+import type { Keyword, MechanicCondition } from "./types";
 
 declare module "./types" {
   interface PermanentStatAura {
@@ -8,6 +8,8 @@ declare module "./types" {
     suppressKeywords?: Keyword[];
     /** Legacy default is allies. Aura 2.1 adds enemy-facing continuous effects. */
     affects?: "allies" | "enemies";
+    /** Aura 2.5 controller-scoped condition. Missing means always active. */
+    condition?: MechanicCondition;
   }
 
   interface UnitInstance {

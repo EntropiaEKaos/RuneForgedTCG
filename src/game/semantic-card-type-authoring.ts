@@ -1,5 +1,6 @@
 import "./aura-2-types";
-import type { CardDef, Keyword, Race } from "./types";
+import { sanitizeAuraCondition } from "./aura-condition-contract";
+import type { CardDef, Keyword, MechanicCondition, Race } from "./types";
 import { validateAuthorableCardWithActivatedAbilities } from "./activated-ability-authoring";
 import { sanitizePermanentStatAura } from "./card-authoring";
 import {
@@ -25,6 +26,7 @@ type ContinuousAuraRestore = {
   races?: Race[];
   classes?: string[];
   affects?: "enemies";
+  condition?: MechanicCondition;
 };
 
 type ContinuousAuraPrepared =
@@ -49,6 +51,7 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
     "keywords" in aura ||
     "suppressKeywords" in aura ||
     "affects" in aura ||
+    "condition" in aura ||
     buffPower < 0 ||
     buffHealth < 0;
   if (!extended) return { ok: true, input };
@@ -58,6 +61,15 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
     return { ok: false, error: "Aura affects must be allies or enemies" };
   }
   const affects = rawAudience === "enemies" ? "enemies" : "allies";
+
+  let condition: MechanicCondition | undefined;
+  if (aura.condition !== undefined) {
+    const sanitizedCondition = sanitizeAuraCondition(aura.condition);
+    if (!sanitizedCondition) {
+      return { ok: false, error: "Aura condition must use supported controller-state conditions; selfDamaged is not supported" };
+    }
+    condition = sanitizedCondition;
+  }
 
   let keywords: Keyword[] = [];
   if (aura.keywords !== undefined) {
@@ -107,6 +119,7 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
   delete legacyAura.keywords;
   delete legacyAura.suppressKeywords;
   delete legacyAura.affects;
+  delete legacyAura.condition;
   if (affects === "enemies") {
     legacyAura.buffPower = Math.abs(buffPower);
     legacyAura.buffHealth = Math.abs(buffHealth);
@@ -133,6 +146,7 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
       ...(legacyValidated.races?.length ? { races: [...legacyValidated.races] } : {}),
       ...(legacyValidated.classes?.length ? { classes: [...legacyValidated.classes] } : {}),
       ...(affects === "enemies" ? { affects: "enemies" as const } : {}),
+      ...(condition ? { condition } : {}),
     },
   };
 }
@@ -160,6 +174,7 @@ export function validateAuthorableCardWithSemanticTypes(raw: Partial<CardDef>): 
         ...(prepared.restore.races?.length ? { races: prepared.restore.races } : {}),
         ...(prepared.restore.classes?.length ? { classes: prepared.restore.classes } : {}),
         ...(prepared.restore.affects ? { affects: prepared.restore.affects } : {}),
+        ...(prepared.restore.condition ? { condition: prepared.restore.condition } : {}),
       },
     };
   }

@@ -2,6 +2,8 @@
 
 import { CARD_RACES } from "@/game/card-authoring";
 import { AURA_GRANTABLE_KEYWORDS, AURA_SUPPRESSIBLE_KEYWORDS } from "@/game/keywords";
+import type { MechanicCondition } from "@/game/types";
+import ContinuousAuraConditionEditor from "./ContinuousAuraConditionEditor";
 import { F, Panel } from "./CardAuthoringFields";
 import type { CardAuthoringModel } from "./CardAuthoringModel";
 
@@ -18,6 +20,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
     races?: string[];
     classes?: string[];
     affects?: "allies" | "enemies";
+    condition?: MechanicCondition;
   } | undefined;
   const audience = aura?.affects ?? "allies";
   const enemyAura = audience === "enemies";
@@ -50,18 +53,18 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
   const sourceLabel = sentinelaSource ? "Sentinela Command Aura" : unitSource ? "Unit Lord Effect" : "Permanent Aura";
 
   return (
-    <Panel title="Continuous Aura" eyebrow="AURA 2.4 — PERMANENTS + UNIT LORDS + SENTINELA COMMANDS">
+    <Panel title="Continuous Aura" eyebrow="AURA 2.5 — CONDITIONAL CONTINUOUS EFFECTS">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-2xl space-y-2 text-xs leading-5 text-slate-400">
           <p>
-            Enquanto esta fonte permanecer ativa, a Aura recalcula continuamente as unidades elegíveis. Auras aliadas concedem stats/keywords; Auras inimigas reduzem stats e/ou suprimem keywords. A origem durável nunca é apagada.
+            Enquanto esta fonte permanecer ativa e sua condição opcional for verdadeira, a Aura recalcula continuamente as unidades elegíveis. Auras aliadas concedem stats/keywords; Auras inimigas reduzem stats e/ou suprimem keywords. A origem durável nunca é apagada.
           </p>
           <p className="rounded-lg border border-cyan-300/20 bg-cyan-300/5 px-3 py-2 text-cyan-100/80">
             {sourceLabel}: {unitSource
               ? "a própria Unit-fonte é sempre excluída do efeito; outras fontes podem afetá-la normalmente."
               : sentinelaSource
-                ? "a Aura permanece ativa enquanto a Sentinela tiver Lealdade positiva no battlefield."
-                : "a Aura permanece ativa enquanto a permanente estiver viva no battlefield."}
+                ? "a Aura permanece disponível enquanto a Sentinela tiver Lealdade positiva no battlefield."
+                : "a Aura permanece disponível enquanto a permanente estiver viva no battlefield."}
           </p>
         </div>
         <button type="button" className="btn-ghost text-xs" onClick={() => set("aura", aura ? undefined : { buffPower: 1, buffHealth: 0 })}>
@@ -108,6 +111,18 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
             })}
           </div>
         </div>}
+
+        <div className="rounded-xl border border-amber-300/10 bg-amber-300/[.02] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="label">Condição da fonte — opcional</div>
+              <p className="mt-1 text-[10px] leading-4 text-slate-500">Pode depender de raça/classe aliada, vida do Nexus, mana e composição AND/OR/NOT. `selfDamaged` fica fora deste corte por não ter semântica uniforme entre Unit, Permanent e Sentinela.</p>
+            </div>
+            <button type="button" className="btn-ghost text-xs" onClick={() => update({ condition: aura.condition ? undefined : { kind: "allyRace", race: "Dragon", min: 1 } })}>{aura.condition ? "Remover condição" : "+ Condição"}</button>
+          </div>
+          {aura.condition && <div className="mt-3"><ContinuousAuraConditionEditor value={aura.condition} onChange={(condition) => update({ condition })} /></div>}
+        </div>
+
         <div>
           <div className="label">Raças elegíveis — opcional</div>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -120,7 +135,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
         <F l="Classes elegíveis — IDs separados por vírgula">
           <input className="input font-mono text-xs" value={(aura.classes ?? []).join(", ")} onChange={(e) => update({ classes: e.target.value.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean) })} placeholder="guardian, warrior" />
         </F>
-        <p className="text-[11px] leading-5 text-slate-500">Dentro de cada filtro vale OU; raça + classe combinam como E. Múltiplas Auras somam stats e unem grants/supressões sem duplicatas. Durable + grants são calculados antes das supressões hostis.{unitSource ? " A própria Unit-fonte nunca conta como alvo da sua Aura." : sentinelaSource ? " Lealdade 0 encerra a Command Aura na mesma transição de cleanup." : ""}</p>
+        <p className="text-[11px] leading-5 text-slate-500">A condição decide se a fonte participa do layer; os filtros decidem quais Units ela afeta. Dentro de cada filtro vale OU; raça + classe combinam como E. Múltiplas Auras somam stats e unem grants/supressões sem duplicatas. Durable + grants são calculados antes das supressões hostis.{unitSource ? " A própria Unit-fonte nunca conta como alvo da sua Aura." : sentinelaSource ? " Lealdade 0 encerra a Command Aura na mesma transição de cleanup." : ""}</p>
       </div>}
     </Panel>
   );
