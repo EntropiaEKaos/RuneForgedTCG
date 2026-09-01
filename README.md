@@ -38,6 +38,28 @@ npm run alpha:certify
 - Ranked production activation remains **fail-closed by default** (`RANKED_RELEASE_CERTIFIED=false`) until the clean deployment machine completes the official dependency/toolchain/PostgreSQL release gate and deliberately switches it to `true`.
 - Mercado Pago: implementation is present and hardened; validate production/sandbox credentials and complete provider E2E before accepting real money.
 
+## Certified engineering ledger
+
+Final engineering outcomes are recorded here from Vanilla 1.0 onward. Detailed design/audit documents remain under `docs/`.
+
+### Vanilla 1.0 — Content Baseline & Balance Lab Intake
+
+- **429 code-authored Vanilla cards** are frozen as the current content baseline.
+- The dedicated experimental wave contains **180 `van_*` cards** across the six regions.
+- The Balance Lab intake contains **12 experimental 40-card decks**, exactly **2 per region**.
+- The 12-deck pool covers **180/180 experimental cards**; an orphaned experimental card blocks the gate.
+- A new deterministic audit measures catalog region/type/rarity distribution, regional identity tiers, semantic archetypes, per-deck type mix, mana curve, average cost, copies, missing references and region legality.
+- The audit is fail-closed and is also part of the behavioral suite as the **77th behavioral target**.
+- No card numbers are changed in this baseline step. The next step is **Vanilla 1.1 — Balance Lab Experimental Matrix**, reusing the existing 2.97 simulation/statistics infrastructure before any rebalance.
+
+Run the baseline report with:
+
+```bash
+node --import tsx scripts/vanilla-content-audit.ts --enforce
+```
+
+See `docs/VANILLA-1-0-CONTENT-BASELINE.md`.
+
 ## Ranked 2.97 architecture
 
 Season Zero Ranked accepts exactly four certified 40-card preconstructed decks:
@@ -84,9 +106,11 @@ RuneForge does not mix source-text checks with behavioral evidence:
 - `npm run audit:test-taxonomy` — prevents source-reading tests from being counted as behavioral.
 - `npm run test:e2e:alpha-journey` — real HTTP/PostgreSQL certification of the core Alpha player loop against a running production build.
 
-Final local evidence in this environment:
+Current behavioral certification after the Vanilla 1.0 baseline contains **77 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
 
-- **35/35 behavioral targets PASS**;
+Historical 2.97 local evidence retained for provenance:
+
+- **35/35 behavioral targets PASS** at the original 2.97 certification point;
 - **41/41 legacy source-contract audits PASS**, reported separately;
 - **28/28 current 2.97 source contracts PASS**, reported separately;
 - local imports **432 files PASS**;
