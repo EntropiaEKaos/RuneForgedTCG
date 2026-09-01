@@ -119,7 +119,7 @@ redundantStun.players.player.bench[0].stunned = true;
 assert.equal(aiChooseAction(redundantStun, "ai"), null, "already-stunned target must not consume another stun");
 
 const redundantKeyword = tacticalState("van_storm_s03", "ai", [], ["ember_whelp"]);
-redundantKeyword.players.ai.bench[0].keywords = [...new Set([...redundantKeyword.players.ai.bench[0].keywords, "Flying"])] as typeof redundantKeyword.players.ai.bench[0].keywords;
+redundantKeyword.players.ai.bench[0].keywords = [...redundantKeyword.players.ai.bench[0].keywords, "Flying"];
 assert.equal(aiChooseAction(redundantKeyword, "ai"), null, "grantKeyword must not be spent on a unit that already has the keyword");
 
 const emptyGlobalBuff = tacticalState("van_forest_s06", "ai", [], []);
