@@ -53,7 +53,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
   const sourceLabel = sentinelaSource ? "Sentinela Command Aura" : unitSource ? "Unit Lord Effect" : "Permanent Aura";
 
   return (
-    <Panel title="Continuous Aura" eyebrow="CONDITION 2.4 — LIVING BOARD SIZE">
+    <Panel title="Continuous Aura" eyebrow="CONDITION 2.5 — ROUND THRESHOLD">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-2xl space-y-2 text-xs leading-5 text-slate-400">
           <p>
@@ -117,8 +117,8 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
             <div>
               <div className="label">Condição da fonte — opcional</div>
               <p className="mt-1 text-[10px] leading-4 text-slate-500">{unitSource
-                ? "Pode depender de raça/classe aliada ou inimiga, quantidade de Units vivas aliadas ou inimigas, vida do próprio Nexus, vida do Nexus inimigo, mana, tamanho da própria mão ou da mão inimiga, dano marcado na própria Unit-fonte (`selfDamaged`) e composição AND/OR/NOT."
-                : "Pode depender de raça/classe aliada ou inimiga, quantidade de Units vivas aliadas ou inimigas, vida do próprio Nexus, vida do Nexus inimigo, mana, tamanho da própria mão ou da mão inimiga e composição AND/OR/NOT. `selfDamaged` é exclusivo de Unit-source porque Permanent e Sentinela não possuem o mesmo contrato de vida de Unit."}</p>
+                ? "Pode depender de raça/classe aliada ou inimiga, quantidade de Units vivas aliadas ou inimigas, rodada atual, vida do próprio Nexus, vida do Nexus inimigo, mana, tamanho da própria mão ou da mão inimiga, dano marcado na própria Unit-fonte (`selfDamaged`) e composição AND/OR/NOT."
+                : "Pode depender de raça/classe aliada ou inimiga, quantidade de Units vivas aliadas ou inimigas, rodada atual, vida do próprio Nexus, vida do Nexus inimigo, mana, tamanho da própria mão ou da mão inimiga e composição AND/OR/NOT. `selfDamaged` é exclusivo de Unit-source porque Permanent e Sentinela não possuem o mesmo contrato de vida de Unit."}</p>
             </div>
             <button type="button" className="btn-ghost text-xs" onClick={() => update({ condition: aura.condition ? undefined : { kind: "allyRace", race: "Dragon", min: 1 } })}>{aura.condition ? "Remover condição" : "+ Condição"}</button>
           </div>
