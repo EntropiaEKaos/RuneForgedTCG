@@ -3,6 +3,7 @@ export const behavioralTests = [
   "src/components/MatchExperience.test.ts",
   "src/game/ability-system.test.ts",
   "src/game/aura-2-ability-system.test.ts",
+  "src/game/aura-2-1-enemy-debuffs.test.ts",
   "src/game/activated-abilities.test.ts",
   "src/game/expanded-activated-ability-costs.test.ts",
   "src/game/selected-discard-activated-cost.test.ts",

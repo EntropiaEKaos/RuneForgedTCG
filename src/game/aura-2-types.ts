@@ -4,6 +4,8 @@ declare module "./types" {
   interface PermanentStatAura {
     /** Continuous keywords granted while the Aura source remains active. */
     keywords?: Keyword[];
+    /** Legacy default is allies. Aura 2.1 adds enemy-facing continuous stat debuffs. */
+    affects?: "allies" | "enemies";
   }
 
   interface UnitInstance {
