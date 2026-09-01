@@ -14,6 +14,7 @@ function tacticalState(
   spellDefId: string,
   acting: PlayerId = "ai",
   opposingBench: string[] = ["wood_ent"],
+  actingBench: string[] = [],
 ): GameState {
   const state = createCustomGame("Vanilla 1.3", deck, deck, {
     skipMulligan: true,
@@ -22,8 +23,8 @@ function tacticalState(
     aiStartingHand: 0,
     playerStartingMana: 10,
     aiStartingMana: 10,
-    playerBench: acting === "ai" ? opposingBench : [],
-    aiBench: acting === "player" ? opposingBench : [],
+    playerBench: acting === "ai" ? opposingBench : actingBench,
+    aiBench: acting === "player" ? opposingBench : actingBench,
     seed: 913_013,
   });
   state.phase = "main";
@@ -105,6 +106,28 @@ assert.equal(hexproofAction?.targetInstanceId, legalUnit.instanceId, "fallback m
 const starved = tacticalState("van_tide_s05", "ai", []);
 assert.equal(aiChooseAction(starved, "ai"), null, "target-starved control spell must not emit an invalid action");
 
+// Semantic usefulness is also fail-closed: a technically legal action that
+// would do nothing must remain in hand rather than converting the fix into
+// indiscriminate mana spending.
+const redundantFrostbite = tacticalState("van_tide_s05");
+redundantFrostbite.players.player.bench[0].frostbitten = true;
+redundantFrostbite.players.player.bench[0].power = 0;
+assert.equal(aiChooseAction(redundantFrostbite, "ai"), null, "already-frostbitten zero-power target must not consume another frostbite");
+
+const redundantStun = tacticalState("van_storm_s02");
+redundantStun.players.player.bench[0].stunned = true;
+assert.equal(aiChooseAction(redundantStun, "ai"), null, "already-stunned target must not consume another stun");
+
+const redundantKeyword = tacticalState("van_storm_s03", "ai", [], ["ember_whelp"]);
+redundantKeyword.players.ai.bench[0].keywords = [...new Set([...redundantKeyword.players.ai.bench[0].keywords, "Flying"])] as typeof redundantKeyword.players.ai.bench[0].keywords;
+assert.equal(aiChooseAction(redundantKeyword, "ai"), null, "grantKeyword must not be spent on a unit that already has the keyword");
+
+const emptyGlobalBuff = tacticalState("van_forest_s06", "ai", [], []);
+assert.equal(aiChooseAction(emptyGlobalBuff, "ai"), null, "buffAllies must not be spent on an empty allied board");
+
+const raceMiss = tacticalState("van_forest_s08", "ai", [], ["ember_whelp"]);
+assert.equal(aiChooseAction(raceMiss, "ai"), null, "buffRace must not be spent without a matching allied race");
+
 // The facade is symmetric: Balance Lab and authoritative bot-vs-bot callers can
 // ask the same policy to drive either player ID.
 const mirrored = tacticalState("van_tide_s02", "player", ["wood_ent"]);
@@ -120,5 +143,5 @@ assert.ok(historicalPriority, "fixture must produce an existing historical core 
 assert.deepEqual(aiChooseAction(priority, "ai"), historicalPriority, "tactical fallback must not reorder certified ai-core priorities");
 
 console.log(
-  "VANILLA 1.3 TACTICAL PLAYABILITY: PASS — facade preserves ai-core priorities and closes frostbite/recall/kill/burn/poison/mill dead-hand gaps with legal symmetric targeting",
+  "VANILLA 1.3 TACTICAL PLAYABILITY: PASS — facade preserves ai-core priorities, closes proven dead-hand gaps and rejects legal-but-redundant fallback actions",
 );
