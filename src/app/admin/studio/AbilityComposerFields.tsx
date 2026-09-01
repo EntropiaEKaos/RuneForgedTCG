@@ -135,8 +135,8 @@ export function StudioEffectEditor({
 export function defaultMechanicCondition(kind: string): MechanicCondition {
   if (kind === "and" || kind === "or") return { kind, children: [{ kind: "always" }, { kind: "selfDamaged" }] } as MechanicCondition;
   if (kind === "not") return { kind: "not", child: { kind: "selfDamaged" } };
-  if (kind === "allyRace") return { kind: "allyRace", race: "Dragon", min: 1 };
-  if (kind === "allyClass") return { kind: "allyClass", classKey: "mage", min: 1 };
+  if (kind === "allyRace" || kind === "enemyRace") return { kind, race: "Dragon", min: 1 } as MechanicCondition;
+  if (kind === "allyClass" || kind === "enemyClass") return { kind, classKey: "mage", min: 1 } as MechanicCondition;
   if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast") return { kind, amount: 1 } as MechanicCondition;
   return { kind: kind as "always" | "selfDamaged" };
 }
@@ -154,11 +154,11 @@ export function StudioConditionEditor({ value, onChange, depth = 0 }: { value: M
   return <div data-studio-condition-composer="semantic" data-condition-depth={depth} className={`rounded-xl border ${depth ? "border-violet-400/20 bg-violet-400/[.03]" : "border-white/10 bg-black/10"} p-3`}>
     <div className="grid gap-3 md:grid-cols-2">
       <Field label={depth ? `Condition #${depth + 1}` : "Condition"}><Select value={kind} options={availableKinds} onChange={setKind} /></Field>
-      {kind === "allyRace" && <Field label="Race"><Select value={(value as Extract<MechanicCondition, { kind: "allyRace" }>).race} options={CARD_RACES} onChange={(race) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyRace" }>), race: race as typeof CARD_RACES[number] })} /></Field>}
-      {kind === "allyRace" && <Field label="Minimum"><input className="input" type="number" min={1} max={6} value={(value as Extract<MechanicCondition, { kind: "allyRace" }>).min ?? 1} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyRace" }>), min: Number(event.target.value) })} /></Field>}
-      {kind === "allyClass" && <>
-        <Field label="Class key"><input className="input font-mono" value={(value as Extract<MechanicCondition, { kind: "allyClass" }>).classKey} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyClass" }>), classKey: event.target.value })} /></Field>
-        <Field label="Minimum"><input className="input" type="number" min={1} max={6} value={(value as Extract<MechanicCondition, { kind: "allyClass" }>).min ?? 1} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyClass" }>), min: Number(event.target.value) })} /></Field>
+      {(kind === "allyRace" || kind === "enemyRace") && <Field label={kind === "allyRace" ? "Ally race" : "Enemy race"}><Select value={(value as Extract<MechanicCondition, { kind: "allyRace" | "enemyRace" }>).race} options={CARD_RACES} onChange={(race) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyRace" | "enemyRace" }>), race: race as typeof CARD_RACES[number] })} /></Field>}
+      {(kind === "allyRace" || kind === "enemyRace") && <Field label="Minimum"><input className="input" type="number" min={1} max={6} value={(value as Extract<MechanicCondition, { kind: "allyRace" | "enemyRace" }>).min ?? 1} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyRace" | "enemyRace" }>), min: Number(event.target.value) })} /></Field>}
+      {(kind === "allyClass" || kind === "enemyClass") && <>
+        <Field label={kind === "allyClass" ? "Ally class key" : "Enemy class key"}><input className="input font-mono" value={(value as Extract<MechanicCondition, { kind: "allyClass" | "enemyClass" }>).classKey} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyClass" | "enemyClass" }>), classKey: event.target.value })} /></Field>
+        <Field label="Minimum"><input className="input" type="number" min={1} max={6} value={(value as Extract<MechanicCondition, { kind: "allyClass" | "enemyClass" }>).min ?? 1} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyClass" | "enemyClass" }>), min: Number(event.target.value) })} /></Field>
       </>}
       {(kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast") && <Field label={kind === "nexusBelow" ? "Your Nexus ≤" : kind === "opponentNexusBelow" ? "Opponent Nexus ≤" : "Mana ≥"}><input className="input" type="number" min={0} max={20} value={(value as Extract<MechanicCondition, { kind: "nexusBelow" | "opponentNexusBelow" | "manaAtLeast" }>).amount} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "nexusBelow" | "opponentNexusBelow" | "manaAtLeast" }>), amount: Number(event.target.value) })} /></Field>}
     </div>
