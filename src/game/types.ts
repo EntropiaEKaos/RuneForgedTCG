@@ -266,6 +266,7 @@ export type MechanicCondition =
   | { kind: "allyRace"; race: Race; min: number }
   | { kind: "allyClass"; classKey: string; min: number }
   | { kind: "nexusBelow"; amount: number }
+  | { kind: "opponentNexusBelow"; amount: number }
   | { kind: "manaAtLeast"; amount: number }
   | { kind: "and"; children: MechanicCondition[] }
   | { kind: "or"; children: MechanicCondition[] }
