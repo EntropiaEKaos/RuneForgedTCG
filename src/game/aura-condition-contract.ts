@@ -5,6 +5,8 @@ export const AURA_CONDITION_KINDS = [
   "always",
   "allyRace",
   "allyClass",
+  "enemyRace",
+  "enemyClass",
   "nexusBelow",
   "opponentNexusBelow",
   "manaAtLeast",
@@ -18,7 +20,7 @@ export const UNIT_SOURCE_AURA_CONDITION_KINDS = [
   "selfDamaged",
 ] as const;
 
-/** Aura 2.5 compatibility contract, extended by Condition 2.1 with opponent Nexus state. */
+/** Aura 2.5 compatibility contract, extended by Condition 2.1/2.2 with opponent state. */
 export const CONDITIONAL_AURA_CONTRACT = {
   rule: "conditionalAura",
   conditions: AURA_CONDITION_KINDS,
@@ -107,17 +109,22 @@ export function auraConditionMatches(
   if (condition.kind === "not") return !auraConditionMatches(state, sourceOwner, condition.child, sourceUnit);
 
   const player = state.players[sourceOwner];
+  const opponent: PlayerId = sourceOwner === "player" ? "ai" : "player";
+  const enemy = state.players[opponent];
   if (condition.kind === "allyRace") {
     return player.bench.filter((unit) => unit.race === condition.race || unit.races.includes(condition.race)).length >= condition.min;
   }
   if (condition.kind === "allyClass") {
     return player.bench.filter((unit) => (unit.classes ?? []).includes(condition.classKey)).length >= condition.min;
   }
-  if (condition.kind === "nexusBelow") return player.nexusHealth <= condition.amount;
-  if (condition.kind === "opponentNexusBelow") {
-    const opponent: PlayerId = sourceOwner === "player" ? "ai" : "player";
-    return state.players[opponent].nexusHealth <= condition.amount;
+  if (condition.kind === "enemyRace") {
+    return enemy.bench.filter((unit) => unit.health > 0 && (unit.race === condition.race || unit.races.includes(condition.race))).length >= condition.min;
   }
+  if (condition.kind === "enemyClass") {
+    return enemy.bench.filter((unit) => unit.health > 0 && (unit.classes ?? []).includes(condition.classKey)).length >= condition.min;
+  }
+  if (condition.kind === "nexusBelow") return player.nexusHealth <= condition.amount;
+  if (condition.kind === "opponentNexusBelow") return enemy.nexusHealth <= condition.amount;
   if (condition.kind === "manaAtLeast") return player.mana >= condition.amount;
   return false;
 }

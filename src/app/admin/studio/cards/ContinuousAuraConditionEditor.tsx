@@ -17,8 +17,8 @@ function defaultAuraCondition(kind: string): MechanicCondition {
   }
   if (kind === "not") return { kind: "not", child: { kind: "allyRace", race: "Dragon", min: 1 } };
   if (kind === "selfDamaged") return { kind: "selfDamaged" };
-  if (kind === "allyRace") return { kind: "allyRace", race: "Dragon", min: 1 };
-  if (kind === "allyClass") return { kind: "allyClass", classKey: "mage", min: 1 };
+  if (kind === "allyRace" || kind === "enemyRace") return { kind, race: "Dragon", min: 1 } as MechanicCondition;
+  if (kind === "allyClass" || kind === "enemyClass") return { kind, classKey: "mage", min: 1 } as MechanicCondition;
   if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast") return { kind, amount: 1 } as MechanicCondition;
   return { kind: "always" };
 }
@@ -54,13 +54,13 @@ export default function ContinuousAuraConditionEditor({
 
         {kind === "selfDamaged" && <div className="rounded-lg border border-rose-300/15 bg-rose-300/5 px-3 py-2 text-[10px] leading-4 text-rose-100/80">Ativa enquanto a própria Unit-fonte tiver dano marcado: vida atual menor que a vida máxima.</div>}
 
-        {kind === "allyRace" && <>
-          <label className="block"><span className="label">Raça aliada</span><select className="input" value={safeValue.race} onChange={(event) => onChange({ ...safeValue, race: event.target.value as typeof safeValue.race })}>{CARD_RACES.map((race) => <option key={race}>{race}</option>)}</select></label>
+        {(kind === "allyRace" || kind === "enemyRace") && <>
+          <label className="block"><span className="label">{kind === "allyRace" ? "Raça aliada" : "Raça inimiga"}</span><select className="input" value={safeValue.race} onChange={(event) => onChange({ ...safeValue, race: event.target.value as typeof safeValue.race })}>{CARD_RACES.map((race) => <option key={race}>{race}</option>)}</select></label>
           <label className="block"><span className="label">Mínimo</span><input className="input" type="number" min={1} max={6} value={safeValue.min} onChange={(event) => onChange({ ...safeValue, min: Number(event.target.value) })} /></label>
         </>}
 
-        {kind === "allyClass" && <>
-          <label className="block"><span className="label">Classe aliada</span><input className="input font-mono" value={safeValue.classKey} onChange={(event) => onChange({ ...safeValue, classKey: event.target.value })} placeholder="mage" /></label>
+        {(kind === "allyClass" || kind === "enemyClass") && <>
+          <label className="block"><span className="label">{kind === "allyClass" ? "Classe aliada" : "Classe inimiga"}</span><input className="input font-mono" value={safeValue.classKey} onChange={(event) => onChange({ ...safeValue, classKey: event.target.value })} placeholder="mage" /></label>
           <label className="block"><span className="label">Mínimo</span><input className="input" type="number" min={1} max={6} value={safeValue.min} onChange={(event) => onChange({ ...safeValue, min: Number(event.target.value) })} /></label>
         </>}
 

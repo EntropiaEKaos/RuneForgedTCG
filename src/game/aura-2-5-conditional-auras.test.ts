@@ -75,7 +75,7 @@ const spellCard = (
 
 assert.deepEqual(CONDITIONAL_AURA_CONTRACT, {
   rule: "conditionalAura",
-  conditions: ["always", "allyRace", "allyClass", "nexusBelow", "opponentNexusBelow", "manaAtLeast", "and", "or", "not"],
+  conditions: ["always", "allyRace", "allyClass", "enemyRace", "enemyClass", "nexusBelow", "opponentNexusBelow", "manaAtLeast", "and", "or", "not"],
   controllerScoped: true,
   unsupportedConditions: ["selfDamaged"],
   composition: ["and", "or", "not"],

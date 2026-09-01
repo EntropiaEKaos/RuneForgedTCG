@@ -206,7 +206,7 @@ export function sanitizePermanentStatAura(raw: unknown): PermanentStatAura | nul
   return aura;
 }
 
-export const MECHANIC_CONDITION_KINDS = ["always","selfDamaged","allyRace","allyClass","nexusBelow","opponentNexusBelow","manaAtLeast","and","or","not"] as const;
+export const MECHANIC_CONDITION_KINDS = ["always","selfDamaged","allyRace","allyClass","enemyRace","enemyClass","nexusBelow","opponentNexusBelow","manaAtLeast","and","or","not"] as const;
 
 export function sanitizeMechanicCondition(raw: unknown, depth = 0): MechanicCondition | null {
   if (depth > 6) return null;
@@ -214,8 +214,8 @@ export function sanitizeMechanicCondition(raw: unknown, depth = 0): MechanicCond
   const c = raw as Record<string, unknown>;
   const kind = String(c.kind || "always");
   if (kind === "always" || kind === "selfDamaged") return { kind } as MechanicCondition;
-  if (kind === "allyRace" && has(CARD_RACES, c.race)) return { kind, race: c.race, min: Math.max(1, Math.min(6, Math.trunc(finite(c.min, 1)))) };
-  if (kind === "allyClass" && cleanClass(c.classKey)) return { kind, classKey: c.classKey, min: Math.max(1, Math.min(6, Math.trunc(finite(c.min, 1)))) };
+  if ((kind === "allyRace" || kind === "enemyRace") && has(CARD_RACES, c.race)) return { kind, race: c.race, min: Math.max(1, Math.min(6, Math.trunc(finite(c.min, 1)))) } as MechanicCondition;
+  if ((kind === "allyClass" || kind === "enemyClass") && cleanClass(c.classKey)) return { kind, classKey: c.classKey, min: Math.max(1, Math.min(6, Math.trunc(finite(c.min, 1)))) } as MechanicCondition;
   if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast") return { kind, amount: Math.max(0, Math.min(20, Math.trunc(finite(c.amount)))) } as MechanicCondition;
   if (kind === "and" || kind === "or") {
     if (!Array.isArray(c.children) || c.children.length < 1 || c.children.length > 8) return null;
