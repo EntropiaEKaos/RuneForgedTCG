@@ -274,6 +274,9 @@ export type MechanicCondition =
   | { kind: "nexusBelow"; amount: number }
   | { kind: "opponentNexusBelow"; amount: number }
   | { kind: "manaAtLeast"; amount: number }
+  | { kind: "opponentManaAtLeast"; amount: number }
+  | { kind: "spellManaAtLeast"; amount: number }
+  | { kind: "opponentSpellManaAtLeast"; amount: number }
   | { kind: "handAtLeast"; amount: number }
   | { kind: "opponentHandAtLeast"; amount: number }
   | { kind: "roundAtLeast"; amount: number }

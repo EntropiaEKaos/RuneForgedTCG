@@ -213,3 +213,8 @@ As extensões possuem suítes comportamentais e documentação separadas:
 ## Condition 2.6 — Permanent Board Thresholds
 
 `allyPermanentsAtLeast` e `enemyPermanentsAtLeast` contam exclusivamente Permanents com `health > 0` nas zonas orientadas pelo controlador. Structures entram por usarem a base `Artifact`; Sentinelas permanecem fora em sua zona dedicada. O envelope de authoring é `1..8`, alinhado ao `permanentsCap` administrável. Entrada e remoção convergem pelos cleanups/recompute já existentes, sem novo hook ou cache. Veja `docs/CONDITION-2-6.md`.
+
+
+## Condition 2.7 — Resource Thresholds
+
+Continuous Auras podem usar `opponentManaAtLeast`, `spellManaAtLeast` e `opponentSpellManaAtLeast`. As condições leem apenas mana pública do controlador/oponente; bank de spell mana na virada de rodada e gasto por spell reutilizam os ciclos autoritativos existentes de recomputação. Veja `docs/CONDITION-2-7.md`.
