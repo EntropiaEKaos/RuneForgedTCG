@@ -13,6 +13,7 @@ export const behavioralTests = [
   "src/game/condition-2-1-opponent-nexus-threshold.test.ts",
   "src/game/condition-2-2-enemy-board-identity.test.ts",
   "src/game/condition-2-3-hand-size-thresholds.test.ts",
+  "src/game/condition-2-4-board-size-thresholds.test.ts",
   "src/game/activated-abilities.test.ts",
   "src/game/expanded-activated-ability-costs.test.ts",
   "src/game/selected-discard-activated-cost.test.ts",
