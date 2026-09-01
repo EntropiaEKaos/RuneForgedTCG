@@ -1,4 +1,5 @@
 import "./aura-2-types";
+import { auraConditionMatches } from "./aura-condition-contract";
 import { getCard } from "./cards";
 import { AURA_GRANTABLE_KEYWORDS, AURA_SUPPRESSIBLE_KEYWORDS } from "./keywords";
 import type { CardDef, GameState, Keyword, PermanentStatAura, PlayerId, UnitInstance } from "./types";
@@ -98,7 +99,8 @@ function matchesAny(haystack: readonly string[] | undefined, needles: readonly s
 /**
  * Enumerate authoritative live Aura sources without creating a second runtime.
  * Permanent sources remain exactly as certified by Aura 2.0-2.2; Aura 2.3 adds
- * living Units on the bench; Aura 2.4 adds positive-loyalty Sentinelas.
+ * living Units; Aura 2.4 adds positive-loyalty Sentinelas; Aura 2.5 additionally
+ * requires an optional controller-scoped condition to be true.
  */
 function auraSources(state: GameState): AuraSource[] {
   const result: AuraSource[] = [];
@@ -107,18 +109,21 @@ function auraSources(state: GameState): AuraSource[] {
       if (permanent.health <= 0) continue;
       const def = getCard(permanent.defId);
       if ((def.type !== "Enchantment" && def.type !== "Artifact") || !def.aura) continue;
+      if (!auraConditionMatches(state, owner, def.aura.condition)) continue;
       result.push({ owner, instanceId: permanent.instanceId, def, excludeSelfUnit: false });
     }
     for (const unit of state.players[owner].bench) {
       if (unit.health <= 0) continue;
       const def = getCard(unit.defId);
       if (def.type !== "Unit" || !def.aura) continue;
+      if (!auraConditionMatches(state, owner, def.aura.condition)) continue;
       result.push({ owner, instanceId: unit.instanceId, def, excludeSelfUnit: true });
     }
     for (const sentinela of state.players[owner].sentinelas) {
       if (sentinela.loyalty <= 0) continue;
       const def = getCard(sentinela.defId);
       if (def.type !== "Sentinela" || !def.aura) continue;
+      if (!auraConditionMatches(state, owner, def.aura.condition)) continue;
       result.push({ owner, instanceId: sentinela.instanceId, def, excludeSelfUnit: false });
     }
   }
