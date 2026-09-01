@@ -7,8 +7,9 @@ import type { CardAuthoringModel } from "./CardAuthoringModel";
 
 export default function PermanentAuraEditor({ model }: { model: CardAuthoringModel }) {
   const { card, set } = model;
-  if (card.type !== "Unit" && card.type !== "Enchantment" && card.type !== "Artifact") return null;
+  if (card.type !== "Unit" && card.type !== "Sentinela" && card.type !== "Enchantment" && card.type !== "Artifact") return null;
   const unitSource = card.type === "Unit";
+  const sentinelaSource = card.type === "Sentinela";
   const aura = card.aura as {
     buffPower: number;
     buffHealth: number;
@@ -46,14 +47,22 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
     });
   };
 
+  const sourceLabel = sentinelaSource ? "Sentinela Command Aura" : unitSource ? "Unit Lord Effect" : "Permanent Aura";
+
   return (
-    <Panel title="Continuous Aura" eyebrow="AURA 2.3 — PERMANENTS + UNIT LORD EFFECTS">
+    <Panel title="Continuous Aura" eyebrow="AURA 2.4 — PERMANENTS + UNIT LORDS + SENTINELA COMMANDS">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-2xl space-y-2 text-xs leading-5 text-slate-400">
           <p>
-            Enquanto esta fonte permanecer em jogo, a Aura recalcula continuamente as unidades elegíveis. Auras aliadas concedem stats/keywords; Auras inimigas reduzem stats e/ou suprimem keywords. A origem durável nunca é apagada: ao remover a fonte hostil, a keyword reaparece se ainda existir por impressão, Equipment, grant permanente ou outra Aura.
+            Enquanto esta fonte permanecer ativa, a Aura recalcula continuamente as unidades elegíveis. Auras aliadas concedem stats/keywords; Auras inimigas reduzem stats e/ou suprimem keywords. A origem durável nunca é apagada.
           </p>
-          {unitSource && <p className="rounded-lg border border-cyan-300/20 bg-cyan-300/5 px-3 py-2 text-cyan-100/80">Unit-source Aura: a própria Unit-fonte é sempre excluída do efeito. Outras Units-fonte podem afetá-la normalmente.</p>}
+          <p className="rounded-lg border border-cyan-300/20 bg-cyan-300/5 px-3 py-2 text-cyan-100/80">
+            {sourceLabel}: {unitSource
+              ? "a própria Unit-fonte é sempre excluída do efeito; outras fontes podem afetá-la normalmente."
+              : sentinelaSource
+                ? "a Aura permanece ativa enquanto a Sentinela tiver Lealdade positiva no battlefield."
+                : "a Aura permanece ativa enquanto a permanente estiver viva no battlefield."}
+          </p>
         </div>
         <button type="button" className="btn-ghost text-xs" onClick={() => set("aura", aura ? undefined : { buffPower: 1, buffHealth: 0 })}>
           {aura ? "Remover Aura" : "+ Ativar Aura"}
@@ -91,7 +100,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
           </div>
         </div> : <div>
           <div className="label">Keywords suprimidas continuamente — opcional</div>
-          <p className="mt-1 text-[10px] leading-4 text-slate-500">A supressão vence grants enquanto a fonte está ativa, mas não apaga sua origem. Barrier e LastBreath não são suprimíveis neste corte.</p>
+          <p className="mt-1 text-[10px] leading-4 text-slate-500">A supressão vence grants enquanto a fonte está ativa, mas não apaga sua origem. Barrier e LastBreath não são suprimíveis.</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {AURA_SUPPRESSIBLE_KEYWORDS.map((keyword) => {
               const selected = (aura.suppressKeywords ?? []).includes(keyword);
@@ -111,7 +120,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
         <F l="Classes elegíveis — IDs separados por vírgula">
           <input className="input font-mono text-xs" value={(aura.classes ?? []).join(", ")} onChange={(e) => update({ classes: e.target.value.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean) })} placeholder="guardian, warrior" />
         </F>
-        <p className="text-[11px] leading-5 text-slate-500">Dentro de cada filtro vale OU; raça + classe combinam como E. Múltiplas Auras somam stats e unem grants/supressões sem duplicatas. No layer de keywords, durable + grants são calculados primeiro e supressões hostis são aplicadas por último.{unitSource ? " A própria Unit-fonte nunca conta como alvo da sua Aura." : ""}</p>
+        <p className="text-[11px] leading-5 text-slate-500">Dentro de cada filtro vale OU; raça + classe combinam como E. Múltiplas Auras somam stats e unem grants/supressões sem duplicatas. Durable + grants são calculados antes das supressões hostis.{unitSource ? " A própria Unit-fonte nunca conta como alvo da sua Aura." : sentinelaSource ? " Lealdade 0 encerra a Command Aura na mesma transição de cleanup." : ""}</p>
       </div>}
     </Panel>
   );
