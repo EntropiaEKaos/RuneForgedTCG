@@ -17,8 +17,14 @@ import {
   spellNeedsTarget,
   type CardAction,
 } from "./engine";
-import type { BoardEntity, CardEffect, GameState, PlayerId } from "./types";
+import type { BoardEntity, CardEffect, GameState, PlayerId, UnitInstance } from "./types";
 
+/**
+ * Effects observed in the Vanilla experimental spell suites that the historical
+ * ai-core can legally afford but does not always route into a main-phase action.
+ * Keep this list intentionally narrow: the existing priority tree still owns
+ * draw/heal/ordinary damage/AOE/buffUnit/grantBarrier decisions.
+ */
 const TACTICAL_FALLBACK_EFFECTS = new Set<CardEffect["kind"]>([
   "damageNexus",
   "frostbite",
@@ -27,13 +33,9 @@ const TACTICAL_FALLBACK_EFFECTS = new Set<CardEffect["kind"]>([
   "killUnit",
   "poison",
   "mill",
-  "buffSelf",
   "buffAllies",
   "buffRace",
-  "buffClass",
   "grantKeyword",
-  "summonToken",
-  "manaRefund",
 ]);
 
 const HOSTILE_TARGETED_EFFECTS = new Set<CardEffect["kind"]>([
@@ -75,6 +77,35 @@ function allBoardEntities(state: GameState): BoardEntity[] {
   return entities;
 }
 
+function fallbackTargetUseful(entity: BoardEntity, effect: CardEffect): boolean {
+  if (entity.kind !== "unit") return true;
+  if (effect.kind === "frostbite") return !entity.unit.frostbitten && entity.unit.power > 0;
+  if (effect.kind === "stun") return !entity.unit.stunned;
+  if (effect.kind === "grantKeyword") {
+    return Boolean(effect.keyword) && !entity.unit.keywords.includes(effect.keyword!);
+  }
+  return true;
+}
+
+function unitMatchesRaceEffect(unit: UnitInstance, effect: CardEffect): boolean {
+  const races = effect.races ?? (effect.race ? [effect.race] : []);
+  if (races.length === 0) return false;
+  return unit.races.some((race) => races.includes(race));
+}
+
+function fallbackEffectUseful(state: GameState, playerId: PlayerId, effect: CardEffect): boolean {
+  const me = state.players[playerId];
+  const enemy = state.players[other(playerId)];
+  if (effect.kind === "damageNexus") return enemy.nexusHealth > 0 && effect.amount > 0;
+  if (effect.kind === "poison") return enemy.poisonCounters < 10 && effect.amount > 0;
+  if (effect.kind === "mill") return enemy.deck.length > 0 && effect.amount > 0;
+  if (effect.kind === "buffAllies") return me.bench.length > 0 && Boolean((effect.buffPower ?? 0) || (effect.buffHealth ?? 0));
+  if (effect.kind === "buffRace") {
+    return Boolean((effect.buffPower ?? 0) || (effect.buffHealth ?? 0)) && me.bench.some((unit) => unitMatchesRaceEffect(unit, effect));
+  }
+  return true;
+}
+
 function chooseFallbackTarget(
   state: GameState,
   playerId: PlayerId,
@@ -89,6 +120,7 @@ function chooseFallbackTarget(
   const candidates = allBoardEntities(state)
     .filter((entity) => isValidTarget(state, playerId, targetKind, entity))
     .filter((entity) => hostile ? entity.owner === enemyId : entity.owner === playerId)
+    .filter((entity) => fallbackTargetUseful(entity, effect))
     .map((entity) => ({ entity, id: boardEntityId(entity), score: boardEntityValue(entity, effect) }))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 
@@ -97,10 +129,9 @@ function chooseFallbackTarget(
 
 /**
  * Vanilla 1.3 fallback: preserve every historical ai-core priority and only
- * intervene when the core would otherwise return null despite an actionable
- * main-phase spell. The whitelist deliberately excludes effects that already
- * have value thresholds in ai-core (draw/heal/ordinary damage/aoe/buffs), so
- * the AI does not become a blind "spend all mana" policy.
+ * intervene when the core would otherwise return null despite a useful,
+ * actionable main-phase spell. Target legality and minimum semantic usefulness
+ * are both checked so the fix cannot become a blind "spend all mana" policy.
  */
 function chooseTacticalMainPhaseFallback(state: GameState, playerId: PlayerId): AiAction | null {
   if (state.phase !== "main" || state.activePlayer !== playerId) return null;
@@ -113,6 +144,7 @@ function chooseTacticalMainPhaseFallback(state: GameState, playerId: PlayerId): 
 
   for (const { card, def } of candidates) {
     const effect = def.spell!;
+    if (!fallbackEffectUseful(state, playerId, effect)) continue;
     const targetKind = spellNeedsTarget(def.defId);
     const targetInstanceId = chooseFallbackTarget(state, playerId, effect);
     if (targetKind && targetKind !== "none" && targetKind !== "self" && targetInstanceId == null) continue;
