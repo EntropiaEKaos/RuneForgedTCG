@@ -1,5 +1,5 @@
 import { sanitizeMechanicCondition } from "./card-authoring";
-import type { GameState, MechanicCondition, PlayerId } from "./types";
+import type { GameState, MechanicCondition, PlayerId, UnitInstance } from "./types";
 
 export const AURA_CONDITION_KINDS = [
   "always",
@@ -12,46 +12,97 @@ export const AURA_CONDITION_KINDS = [
   "not",
 ] as const;
 
+export const UNIT_SOURCE_AURA_CONDITION_KINDS = [
+  ...AURA_CONDITION_KINDS,
+  "selfDamaged",
+] as const;
+
 export const CONDITIONAL_AURA_CONTRACT = {
   rule: "conditionalAura",
   conditions: AURA_CONDITION_KINDS,
   controllerScoped: true,
-  unsupportedConditions: ["selfDamaged"],
+  sourceRelativeConditions: "separateCertifiedSlices",
   composition: ["and", "or", "not"],
   lifecycle: "recomputeWhenAuthoritativeStateChanges",
   malformedRuntime: "inactiveFailClosed",
   support: "supported",
 } as const;
 
-/** Aura 2.5 intentionally excludes source-relative selfDamaged semantics. */
-export function auraConditionTreeSupported(condition: MechanicCondition): boolean {
-  if (condition.kind === "selfDamaged") return false;
+/** Aura 2.7: only a living Unit source has an unambiguous self for selfDamaged. */
+export const UNIT_SOURCE_SELF_DAMAGED_AURA_CONTRACT = {
+  rule: "unitSourceSelfDamagedAuraCondition",
+  sources: ["Unit"],
+  sourceZone: "bench",
+  condition: "selfDamaged",
+  predicate: "sourceUnit.health < sourceUnit.maxHealth",
+  composition: ["and", "or", "not"],
+  permanentSources: "unsupportedFailClosed",
+  sentinelaSources: "unsupportedFailClosed",
+  lifecycle: "recomputeWhenAuthoritativeStateChanges",
+  support: "supported",
+} as const;
+
+function auraConditionTreeSupportedInternal(condition: MechanicCondition, allowSelfDamaged: boolean): boolean {
+  if (condition.kind === "selfDamaged") return allowSelfDamaged;
   if (condition.kind === "and" || condition.kind === "or") {
-    return condition.children.every(auraConditionTreeSupported);
+    return condition.children.every((child) => auraConditionTreeSupportedInternal(child, allowSelfDamaged));
   }
-  if (condition.kind === "not") return auraConditionTreeSupported(condition.child);
+  if (condition.kind === "not") return auraConditionTreeSupportedInternal(condition.child, allowSelfDamaged);
   return (AURA_CONDITION_KINDS as readonly string[]).includes(condition.kind);
 }
 
-/** Strict authoring boundary: unlike the generic sanitizer, explicit malformed/null input is rejected. */
-export function sanitizeAuraCondition(raw: unknown): MechanicCondition | null {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const condition = sanitizeMechanicCondition(raw);
-  if (!condition || !auraConditionTreeSupported(condition)) return null;
-  return condition;
+/** Aura 2.5 compatibility boundary: controller-scoped conditions only. */
+export function auraConditionTreeSupported(condition: MechanicCondition): boolean {
+  return auraConditionTreeSupportedInternal(condition, false);
 }
 
-/** Evaluate only controller-scoped state; no target stats or other continuous layers participate. */
+/** Aura 2.7 boundary: Unit sources additionally support selfDamaged at any valid tree depth. */
+export function unitSourceAuraConditionTreeSupported(condition: MechanicCondition): boolean {
+  return auraConditionTreeSupportedInternal(condition, true);
+}
+
+/** Strict authoring boundary: unlike the generic sanitizer, explicit malformed/null input is rejected. */
+export function sanitizeAuraCondition(raw: unknown, allowUnitSourceSelfDamaged = false): MechanicCondition | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const condition = sanitizeMechanicCondition(raw);
+  if (!condition) return null;
+  const supported = allowUnitSourceSelfDamaged
+    ? unitSourceAuraConditionTreeSupported(condition)
+    : auraConditionTreeSupported(condition);
+  return supported ? condition : null;
+}
+
+/**
+ * Evaluate the certified Aura condition slice. `selfDamaged` is source-relative
+ * and therefore only receives meaning when the caller supplies the live Unit source.
+ */
 export function auraConditionMatches(
   state: GameState,
   sourceOwner: PlayerId,
   condition: MechanicCondition | undefined,
+  sourceUnit?: UnitInstance,
 ): boolean {
   if (!condition || condition.kind === "always") return true;
-  if (!auraConditionTreeSupported(condition)) return false;
-  if (condition.kind === "and") return condition.children.every((child) => auraConditionMatches(state, sourceOwner, child));
-  if (condition.kind === "or") return condition.children.some((child) => auraConditionMatches(state, sourceOwner, child));
-  if (condition.kind === "not") return !auraConditionMatches(state, sourceOwner, condition.child);
+  const supported = sourceUnit
+    ? unitSourceAuraConditionTreeSupported(condition)
+    : auraConditionTreeSupported(condition);
+  if (!supported) return false;
+
+  if (condition.kind === "selfDamaged") {
+    return Boolean(
+      sourceUnit &&
+      sourceUnit.owner === sourceOwner &&
+      sourceUnit.health > 0 &&
+      sourceUnit.health < sourceUnit.maxHealth,
+    );
+  }
+  if (condition.kind === "and") {
+    return condition.children.every((child) => auraConditionMatches(state, sourceOwner, child, sourceUnit));
+  }
+  if (condition.kind === "or") {
+    return condition.children.some((child) => auraConditionMatches(state, sourceOwner, child, sourceUnit));
+  }
+  if (condition.kind === "not") return !auraConditionMatches(state, sourceOwner, condition.child, sourceUnit);
 
   const player = state.players[sourceOwner];
   if (condition.kind === "allyRace") {
