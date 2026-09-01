@@ -267,6 +267,8 @@ export type MechanicCondition =
   | { kind: "allyClass"; classKey: string; min: number }
   | { kind: "enemyRace"; race: Race; min: number }
   | { kind: "enemyClass"; classKey: string; min: number }
+  | { kind: "allyUnitsAtLeast"; min: number }
+  | { kind: "enemyUnitsAtLeast"; min: number }
   | { kind: "nexusBelow"; amount: number }
   | { kind: "opponentNexusBelow"; amount: number }
   | { kind: "manaAtLeast"; amount: number }
