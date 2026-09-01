@@ -81,6 +81,28 @@ npm run audit:vanilla-balance
 
 See `docs/VANILLA-1-1-BALANCE-LAB.md`.
 
+### Vanilla 1.2 — Utilization Telemetry
+
+- The Balance Lab now has an **opt-in, read-only telemetry path**; the historical `runBalanceSimulation()` contract remains unchanged.
+- An executable A/B contract runs the same deterministic simulation with and without telemetry and requires an identical `SimulationSummary`, proving the instrument does not change match outcomes.
+- The diagnostic matrix covered **66/66 matchups and 3,960 games** across 3 deterministic strata, with zero pool errors, zero telemetry errors and zero incomplete matchups.
+- Vanguard finished at **70.1%** aggregate win rate versus **29.9%** for Ascendant in this diagnostic run, a **40.2 pp** gap.
+- Vanguard played **11.8 cards/game** versus **9.7**, ended with **2.7 cards** in hand versus **5.3**, dealt **22.8 Nexus damage/game** versus **11.9**, and summoned **10.8 allies/game** versus **4.3**.
+- Ascendant accumulated **54,416 target-starved samples** versus **11,439** for Vanguard and **26,491 ignored-playable samples** versus **10,251**.
+- Both families recorded **0 `policyUnsupportedSamples`**: there is no evidence of a simple missing semantic-card-type implementation. The friction is concentrated in targeting, timing, composition and action prioritization.
+- The signal appears under both `player-heuristic` and `ai-core`; `ai-core` is especially prone to ending turns while a telemetry-playable card remains available.
+- Highest-priority target-starved examples include **Prisão de Gelo, Tridente da Lua Azul, Prisão Elétrica, Foice do Último Suspiro, Asas de Relâmpago, Juramento da Forja, Pele de Carvalho** and **Pele da Matilha**.
+- Vanilla 1.2 therefore **does not buff/nerf cards**. The next slice is **Vanilla 1.3 — Tactical Coverage & Playability Friction**, which must reproduce and classify these failures before recipe/curve/stat changes.
+- The non-invasive telemetry contract is the **79th behavioral target**; the 3,960-game matrix remains an explicit heavyweight audit.
+
+Run the telemetry matrix with:
+
+```bash
+npm run audit:vanilla-utilization
+```
+
+See `docs/VANILLA-1-2-UTILIZATION-TELEMETRY.md`.
+
 ## Ranked 2.97 architecture
 
 Season Zero Ranked accepts exactly four certified 40-card preconstructed decks:
@@ -127,7 +149,7 @@ RuneForge does not mix source-text checks with behavioral evidence:
 - `npm run audit:test-taxonomy` — prevents source-reading tests from being counted as behavioral.
 - `npm run test:e2e:alpha-journey` — real HTTP/PostgreSQL certification of the core Alpha player loop against a running production build.
 
-Current behavioral certification after Vanilla 1.1 contains **78 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
+Current behavioral certification after Vanilla 1.2 contains **79 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
 
 Historical 2.97 local evidence retained for provenance:
 
