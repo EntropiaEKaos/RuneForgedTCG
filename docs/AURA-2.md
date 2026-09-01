@@ -209,3 +209,7 @@ As extensões possuem suítes comportamentais e documentação separadas:
 - `docs/CONDITION-2-3.md` — hand-size thresholds compartilhados por Mechanics e Aura;
 - `docs/CONDITION-2-4.md` — living board-size thresholds compartilhados por Mechanics e Aura;
 - `docs/CONDITION-2-5.md` — match-scoped round thresholds compartilhados por Mechanics e Aura.
+
+## Condition 2.6 — Permanent Board Thresholds
+
+`allyPermanentsAtLeast` e `enemyPermanentsAtLeast` contam exclusivamente Permanents com `health > 0` nas zonas orientadas pelo controlador. Structures entram por usarem a base `Artifact`; Sentinelas permanecem fora em sua zona dedicada. O envelope de authoring é `1..8`, alinhado ao `permanentsCap` administrável. Entrada e remoção convergem pelos cleanups/recompute já existentes, sem novo hook ou cache. Veja `docs/CONDITION-2-6.md`.
