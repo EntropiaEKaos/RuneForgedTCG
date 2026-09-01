@@ -4,7 +4,7 @@ import { isRitualCard, isStructureCard, isTrapCard } from "../semantic-card-type
 import type { GameState, PlayerId } from "../types";
 import * as base from "./actions";
 import { cleanupDead } from "./effects";
-import { checkWin, clone, makePermanent } from "./state";
+import { checkWin, clone, makePermanent, recomputeContinuousAuras } from "./state";
 
 export const effectiveCost = base.effectiveCost;
 export const spellNeedsTarget = base.spellNeedsTarget;
@@ -56,8 +56,8 @@ export function canPlayCard(state: GameState, playerId: PlayerId, instanceId: st
 
 /**
  * Structure is stored as Artifact for backwards-compatible persistence, but
- * resolves as a non-spell battlefield object: regular mana only and no
- * spellsCast progression. All legacy structural cards use the original path.
+ * resolves as a non-spell battlefield object. Sentinela command Auras reuse the
+ * legacy Sentinela play path and only add a post-success continuous recompute.
  */
 export function playUnit(
   state: GameState,
@@ -68,7 +68,11 @@ export function playUnit(
   const instance = state.players[playerId].hand.find((card) => card.instanceId === instanceId);
   if (!instance) return state;
   const def = getCard(instance.defId);
-  if (!isStructureCard(def)) return base.playUnit(state, playerId, instanceId, targetInstanceId);
+  if (!isStructureCard(def)) {
+    const next = base.playUnit(state, playerId, instanceId, targetInstanceId);
+    if (next !== state && def.type === "Sentinela" && def.aura) recomputeContinuousAuras(next);
+    return next;
+  }
 
   if (state.phase !== "main" || state.activePlayer !== playerId) return state;
   const s = clone(state);
