@@ -4,6 +4,8 @@ import { resolveReactionActivatedAbility, type ReactionActivatedAbilityAction } 
 import { isStructureCard } from "../semantic-card-types";
 import type { GameState, PlayerId } from "../types";
 import { castSpell, effectiveCost, playUnit } from "./semantic-actions";
+import { checkLevelUps } from "./effects";
+import { recomputeContinuousAuras } from "./state";
 
 /**
  * Result of a stack resolution. If awaitingReaction is set, the human must
@@ -66,6 +68,8 @@ function consumeNegatedCard(state: GameState, item: StackFrame): void {
     player.mana = Math.max(0, player.mana - cost);
   }
   player.hand = player.hand.filter((card) => card.instanceId !== item.instanceId);
+  checkLevelUps(state);
+  recomputeContinuousAuras(state);
 }
 
 function pushLegalResponse(

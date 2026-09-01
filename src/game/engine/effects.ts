@@ -438,6 +438,12 @@ export function mechanicConditionMatches(state: GameState, unit: UnitInstance, c
   if (condition.kind === "opponentManaAtLeast") return opponent.mana >= condition.amount;
   if (condition.kind === "spellManaAtLeast") return p.spellMana >= condition.amount;
   if (condition.kind === "opponentSpellManaAtLeast") return opponent.spellMana >= condition.amount;
+  if (condition.kind === "spellsCastAtLeast") return p.stats.spellsCast >= condition.amount;
+  if (condition.kind === "opponentSpellsCastAtLeast") return opponent.stats.spellsCast >= condition.amount;
+  if (condition.kind === "alliesSummonedAtLeast") return p.stats.alliesSummoned >= condition.amount;
+  if (condition.kind === "opponentAlliesSummonedAtLeast") return opponent.stats.alliesSummoned >= condition.amount;
+  if (condition.kind === "nexusDamageDealtAtLeast") return p.stats.nexusDamageDealt >= condition.amount;
+  if (condition.kind === "opponentNexusDamageDealtAtLeast") return opponent.stats.nexusDamageDealt >= condition.amount;
   if (condition.kind === "handAtLeast") return p.hand.length >= condition.amount;
   if (condition.kind === "opponentHandAtLeast") return opponent.hand.length >= condition.amount;
   if (condition.kind === "roundAtLeast") return state.round >= condition.amount;

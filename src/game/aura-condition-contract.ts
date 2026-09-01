@@ -19,6 +19,12 @@ export const AURA_CONDITION_KINDS = [
   "opponentManaAtLeast",
   "spellManaAtLeast",
   "opponentSpellManaAtLeast",
+  "spellsCastAtLeast",
+  "opponentSpellsCastAtLeast",
+  "alliesSummonedAtLeast",
+  "opponentAlliesSummonedAtLeast",
+  "nexusDamageDealtAtLeast",
+  "opponentNexusDamageDealtAtLeast",
   "handAtLeast",
   "opponentHandAtLeast",
   "roundAtLeast",
@@ -148,6 +154,12 @@ export function auraConditionMatches(
   if (condition.kind === "opponentManaAtLeast") return enemy.mana >= condition.amount;
   if (condition.kind === "spellManaAtLeast") return player.spellMana >= condition.amount;
   if (condition.kind === "opponentSpellManaAtLeast") return enemy.spellMana >= condition.amount;
+  if (condition.kind === "spellsCastAtLeast") return player.stats.spellsCast >= condition.amount;
+  if (condition.kind === "opponentSpellsCastAtLeast") return enemy.stats.spellsCast >= condition.amount;
+  if (condition.kind === "alliesSummonedAtLeast") return player.stats.alliesSummoned >= condition.amount;
+  if (condition.kind === "opponentAlliesSummonedAtLeast") return enemy.stats.alliesSummoned >= condition.amount;
+  if (condition.kind === "nexusDamageDealtAtLeast") return player.stats.nexusDamageDealt >= condition.amount;
+  if (condition.kind === "opponentNexusDamageDealtAtLeast") return enemy.stats.nexusDamageDealt >= condition.amount;
   if (condition.kind === "handAtLeast") return player.hand.length >= condition.amount;
   if (condition.kind === "opponentHandAtLeast") return enemy.hand.length >= condition.amount;
   if (condition.kind === "roundAtLeast") return state.round >= condition.amount;
