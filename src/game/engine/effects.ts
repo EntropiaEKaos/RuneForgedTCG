@@ -424,8 +424,8 @@ export function mechanicConditionMatches(state: GameState, unit: UnitInstance, c
   const opponent = state.players[other(unit.owner)];
   if (condition.kind === "allyRace") return p.bench.filter((u) => hasRace(u, condition.race)).length >= condition.min;
   if (condition.kind === "allyClass") return p.bench.filter((u) => hasClass(u, condition.classKey)).length >= condition.min;
-  if (condition.kind === "enemyRace") return opponent.bench.filter((u) => hasRace(u, condition.race)).length >= condition.min;
-  if (condition.kind === "enemyClass") return opponent.bench.filter((u) => hasClass(u, condition.classKey)).length >= condition.min;
+  if (condition.kind === "enemyRace") return opponent.bench.filter((u) => u.health > 0 && hasRace(u, condition.race)).length >= condition.min;
+  if (condition.kind === "enemyClass") return opponent.bench.filter((u) => u.health > 0 && hasClass(u, condition.classKey)).length >= condition.min;
   if (condition.kind === "nexusBelow") return p.nexusHealth <= condition.amount;
   if (condition.kind === "opponentNexusBelow") return opponent.nexusHealth <= condition.amount;
   if (condition.kind === "manaAtLeast") return p.mana >= condition.amount;
