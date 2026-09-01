@@ -206,7 +206,7 @@ export function sanitizePermanentStatAura(raw: unknown): PermanentStatAura | nul
   return aura;
 }
 
-export const MECHANIC_CONDITION_KINDS = ["always","selfDamaged","allyRace","allyClass","enemyRace","enemyClass","allyUnitsAtLeast","enemyUnitsAtLeast","allyPermanentsAtLeast","enemyPermanentsAtLeast","allySentinelasAtLeast","enemySentinelasAtLeast","nexusBelow","opponentNexusBelow","manaAtLeast","opponentManaAtLeast","spellManaAtLeast","opponentSpellManaAtLeast","handAtLeast","opponentHandAtLeast","roundAtLeast","and","or","not"] as const;
+export const MECHANIC_CONDITION_KINDS = ["always","selfDamaged","allyRace","allyClass","enemyRace","enemyClass","allyUnitsAtLeast","enemyUnitsAtLeast","allyPermanentsAtLeast","enemyPermanentsAtLeast","allySentinelasAtLeast","enemySentinelasAtLeast","nexusBelow","opponentNexusBelow","manaAtLeast","opponentManaAtLeast","spellManaAtLeast","opponentSpellManaAtLeast","spellsCastAtLeast","opponentSpellsCastAtLeast","alliesSummonedAtLeast","opponentAlliesSummonedAtLeast","nexusDamageDealtAtLeast","opponentNexusDamageDealtAtLeast","handAtLeast","opponentHandAtLeast","roundAtLeast","and","or","not"] as const;
 
 export function sanitizeMechanicCondition(raw: unknown, depth = 0): MechanicCondition | null {
   if (depth > 6) return null;
@@ -221,6 +221,7 @@ export function sanitizeMechanicCondition(raw: unknown, depth = 0): MechanicCond
   if (kind === "allySentinelasAtLeast" || kind === "enemySentinelasAtLeast") return { kind, min: Math.max(1, Math.min(20, Math.trunc(finite(c.min, 1)))) } as MechanicCondition;
   if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "opponentManaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") return { kind, amount: Math.max(0, Math.min(20, Math.trunc(finite(c.amount)))) } as MechanicCondition;
   if (kind === "spellManaAtLeast" || kind === "opponentSpellManaAtLeast") return { kind, amount: Math.max(0, Math.min(10, Math.trunc(finite(c.amount)))) } as MechanicCondition;
+  if (kind === "spellsCastAtLeast" || kind === "opponentSpellsCastAtLeast" || kind === "alliesSummonedAtLeast" || kind === "opponentAlliesSummonedAtLeast" || kind === "nexusDamageDealtAtLeast" || kind === "opponentNexusDamageDealtAtLeast") return { kind, amount: Math.max(1, Math.min(2000, Math.trunc(finite(c.amount, 1)))) } as MechanicCondition;
   if (kind === "roundAtLeast") return { kind, amount: Math.max(1, Math.min(2000, Math.trunc(finite(c.amount, 1)))) } as MechanicCondition;
   if (kind === "and" || kind === "or") {
     if (!Array.isArray(c.children) || c.children.length < 1 || c.children.length > 8) return null;

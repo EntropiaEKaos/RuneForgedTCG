@@ -279,6 +279,12 @@ export type MechanicCondition =
   | { kind: "opponentManaAtLeast"; amount: number }
   | { kind: "spellManaAtLeast"; amount: number }
   | { kind: "opponentSpellManaAtLeast"; amount: number }
+  | { kind: "spellsCastAtLeast"; amount: number }
+  | { kind: "opponentSpellsCastAtLeast"; amount: number }
+  | { kind: "alliesSummonedAtLeast"; amount: number }
+  | { kind: "opponentAlliesSummonedAtLeast"; amount: number }
+  | { kind: "nexusDamageDealtAtLeast"; amount: number }
+  | { kind: "opponentNexusDamageDealtAtLeast"; amount: number }
   | { kind: "handAtLeast"; amount: number }
   | { kind: "opponentHandAtLeast"; amount: number }
   | { kind: "roundAtLeast"; amount: number }

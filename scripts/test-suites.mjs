@@ -18,6 +18,7 @@ export const behavioralTests = [
   "src/game/condition-2-6-permanent-board-thresholds.test.ts",
   "src/game/condition-2-7-resource-thresholds.test.ts",
   "src/game/condition-2-8-sentinela-board-thresholds.test.ts",
+  "src/game/condition-2-9-match-progress-thresholds.test.ts",
   "src/game/activated-abilities.test.ts",
   "src/game/expanded-activated-ability-costs.test.ts",
   "src/game/selected-discard-activated-cost.test.ts",

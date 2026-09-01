@@ -223,3 +223,8 @@ Continuous Auras podem usar `opponentManaAtLeast`, `spellManaAtLeast` e `opponen
 ## Condition System 2.8 — Sentinela Board Thresholds
 
 Continuous Auras podem agora observar `allySentinelasAtLeast` e `enemySentinelasAtLeast`. Só contam Sentinelas com `loyalty > 0`, usando a zona autoritativa `PlayerState.sentinelas`. Uma Sentinela-fonte com condição aliada conta a si própria enquanto tiver Lealdade positiva. A remoção de qualquer Sentinela por `cleanupSentinelas()` recompõe Auras no mesmo estado, inclusive quando a Sentinela removida não possuía Aura própria.
+
+
+## Condition System 2.9 — Match Progress Thresholds
+
+Continuous Auras podem observar feitiços conjurados, aliados invocados e dano total causado ao Nexus, tanto do controlador quanto do oponente. As folhas leem diretamente `PlayerState.stats` e reutilizam os ciclos autoritativos de cast, summon, combate e habilidades. O consumo de uma Spell negada agora também converge level-up e Auras condicionais no mesmo estado. Veja `docs/CONDITION-2-9.md`.
