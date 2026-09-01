@@ -24,7 +24,7 @@ jobs:
           cache: npm
 
       - name: Implement Condition 2.9
-        run: python3 scripts/condition-2-9-bootstrap.py
+        run: python3 scripts/condition-2-9-bootstrap-runner.py
 
       - name: Install dependencies
         run: npm run ci:install
