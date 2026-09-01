@@ -34,16 +34,7 @@ type ContinuousAuraPrepared =
 const canonicalKeyword = (value: unknown): value is Keyword =>
   typeof value === "string" && (CANONICAL_KEYWORDS as readonly string[]).includes(value);
 
-/**
- * Compatibility boundary for Aura 2.x.
- *
- * The legacy stat-Aura sanitizer remains unchanged for historical payloads.
- * Extended Aura fields are validated here, projected through the legacy source
- * and filter checks with a harmless probe, then restored exactly afterward.
- * Aura 2.3 Unit sources are validated with that same stat/filter sanitizer, but
- * the Aura is removed before the legacy card validator because that validator
- * intentionally knows only the original Enchantment/Artifact source contract.
- */
+/** Compatibility boundary for certified Aura 2.x source families. */
 function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepared {
   const input = { ...raw } as Partial<CardDef> & Record<string, unknown>;
   const auraRaw = (raw as Partial<CardDef> & Record<string, unknown>).aura;
@@ -52,9 +43,9 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
   const aura = auraRaw as unknown as Record<string, unknown>;
   const buffPower = Number(aura.buffPower ?? 0);
   const buffHealth = Number(aura.buffHealth ?? 0);
-  const unitSource = raw.type === "Unit";
+  const semanticOnlySource = raw.type === "Unit" || raw.type === "Sentinela";
   const extended =
-    unitSource ||
+    semanticOnlySource ||
     "keywords" in aura ||
     "suppressKeywords" in aura ||
     "affects" in aura ||
@@ -94,13 +85,9 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
     if (buffPower > 0 || buffHealth > 0) {
       return { ok: false, error: "Enemy Auras may only apply non-positive Power/Health modifiers" };
     }
-    if (keywords.length > 0) {
-      return { ok: false, error: "Enemy Auras cannot grant continuous keywords" };
-    }
+    if (keywords.length > 0) return { ok: false, error: "Enemy Auras cannot grant continuous keywords" };
     const unsafeSuppression = suppressKeywords.find((keyword) => !keywordIsAuraSuppressible(keyword));
-    if (unsafeSuppression) {
-      return { ok: false, error: `${unsafeSuppression} cannot be suppressed by a continuous Aura.` };
-    }
+    if (unsafeSuppression) return { ok: false, error: `${unsafeSuppression} cannot be suppressed by a continuous Aura.` };
     if (buffPower === 0 && buffHealth === 0 && suppressKeywords.length === 0) {
       return { ok: false, error: "Enemy Aura requires a negative stat modifier or at least one suppressed keyword" };
     }
@@ -108,9 +95,7 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
     if (buffPower < 0 || buffHealth < 0) {
       return { ok: false, error: "Allied Auras may only apply non-negative Power/Health modifiers" };
     }
-    if (suppressKeywords.length > 0) {
-      return { ok: false, error: "Allied Auras cannot suppress keywords" };
-    }
+    if (suppressKeywords.length > 0) return { ok: false, error: "Allied Auras cannot suppress keywords" };
     const unsafeGrant = keywords.find((keyword) => !keywordIsAuraGrantable(keyword));
     if (unsafeGrant) return { ok: false, error: `${unsafeGrant} cannot be granted by a continuous Aura.` };
     if (buffPower === 0 && buffHealth === 0 && keywords.length === 0) {
@@ -125,10 +110,8 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
   if (affects === "enemies") {
     legacyAura.buffPower = Math.abs(buffPower);
     legacyAura.buffHealth = Math.abs(buffHealth);
-    // Suppression-only hostile Aura: probe legacy source/filter validation with +1.
     if (buffPower === 0 && buffHealth === 0) legacyAura.buffPower = 1;
   } else if (buffPower === 0 && buffHealth === 0) {
-    // Keyword-only allied Aura: probe the legacy stat sanitizer with a temporary +1.
     legacyAura.buffPower = 1;
     legacyAura.buffHealth = 0;
   }
@@ -136,11 +119,8 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
   const legacyValidated = sanitizePermanentStatAura(legacyAura);
   if (!legacyValidated) return { ok: false, error: "Invalid continuous Aura stat/filter contract" };
 
-  if (unitSource) {
-    delete (input as Record<string, unknown>).aura;
-  } else {
-    (input as Record<string, unknown>).aura = legacyValidated;
-  }
+  if (semanticOnlySource) delete (input as Record<string, unknown>).aura;
+  else (input as Record<string, unknown>).aura = legacyValidated;
 
   return {
     ok: true,
@@ -158,9 +138,7 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
 }
 
 /** Canonical publish/import/sandbox validator for cards plus certified semantic gameplay types. */
-export function validateAuthorableCardWithSemanticTypes(
-  raw: Partial<CardDef>,
-): SemanticAuthoringResult {
+export function validateAuthorableCardWithSemanticTypes(raw: Partial<CardDef>): SemanticAuthoringResult {
   const prepared = prepareContinuousAuraInput(raw);
   if (!prepared.ok) return prepared;
 
@@ -169,8 +147,8 @@ export function validateAuthorableCardWithSemanticTypes(
 
   let card = base.card;
   if (prepared.restore) {
-    if (card.type !== "Unit" && card.type !== "Enchantment" && card.type !== "Artifact") {
-      return { ok: false, error: "Continuous Aura is supported only on Unit, Enchantment or Artifact cards" };
+    if (card.type !== "Unit" && card.type !== "Sentinela" && card.type !== "Enchantment" && card.type !== "Artifact") {
+      return { ok: false, error: "Continuous Aura is supported only on Unit, Sentinela, Enchantment or Artifact cards" };
     }
     card = {
       ...card,
@@ -189,10 +167,6 @@ export function validateAuthorableCardWithSemanticTypes(
   return validateCertifiedSemanticCardType(card);
 }
 
-/**
- * Convert a Studio draft to one of the certified semantic gameplay types while
- * preserving fields that are meaningful for that structural base.
- */
 export function applyCertifiedSemanticCardType(
   card: Partial<CardDef>,
   key: CertifiedSemanticCardTypeKey,
