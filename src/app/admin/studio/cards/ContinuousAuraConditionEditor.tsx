@@ -19,7 +19,7 @@ function defaultAuraCondition(kind: string): MechanicCondition {
   if (kind === "selfDamaged") return { kind: "selfDamaged" };
   if (kind === "allyRace" || kind === "enemyRace") return { kind, race: "Dragon", min: 1 } as MechanicCondition;
   if (kind === "allyClass" || kind === "enemyClass") return { kind, classKey: "mage", min: 1 } as MechanicCondition;
-  if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast") return { kind, amount: 1 } as MechanicCondition;
+  if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") return { kind, amount: 1 } as MechanicCondition;
   return { kind: "always" };
 }
 
@@ -64,7 +64,7 @@ export default function ContinuousAuraConditionEditor({
           <label className="block"><span className="label">Mínimo</span><input className="input" type="number" min={1} max={6} value={safeValue.min} onChange={(event) => onChange({ ...safeValue, min: Number(event.target.value) })} /></label>
         </>}
 
-        {(kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast") && <label className="block"><span className="label">{kind === "nexusBelow" ? "Seu Nexus ≤" : kind === "opponentNexusBelow" ? "Nexus inimigo ≤" : "Mana ≥"}</span><input className="input" type="number" min={0} max={20} value={safeValue.amount} onChange={(event) => onChange({ ...safeValue, amount: Number(event.target.value) })} /></label>}
+        {(kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") && <label className="block"><span className="label">{kind === "nexusBelow" ? "Seu Nexus ≤" : kind === "opponentNexusBelow" ? "Nexus inimigo ≤" : kind === "manaAtLeast" ? "Mana ≥" : kind === "handAtLeast" ? "Sua mão ≥" : "Mão inimiga ≥"}</span><input className="input" type="number" min={0} max={20} value={safeValue.amount} onChange={(event) => onChange({ ...safeValue, amount: Number(event.target.value) })} /></label>}
       </div>
 
       {depthLimited && <p className="mt-3 text-[10px] leading-4 text-amber-100/75">Profundidade máxima do contrato atingida; apenas folhas válidas permanecem disponíveis.</p>}
