@@ -23,6 +23,9 @@ const freshFiles = [
   "drizzle/0037_schema_replay_hotfix_2_96_1.sql",
   "drizzle/0038_engineering_integrity_2_96_2.sql",
   "drizzle/0039_ranked_certification_2_97.sql",
+  "drizzle/0040_pvp_content_snapshot_2_97.sql",
+  "drizzle/0041_pvp_reaction_priority.sql",
+  "drizzle/0042_site_portal_cms.sql",
 ];
 const readMany = (files) => files.map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
 const historical = readMany(historicalFiles.map((file) => `drizzle/${file}`));
