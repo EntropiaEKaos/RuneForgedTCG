@@ -11,6 +11,8 @@ export const AURA_CONDITION_KINDS = [
   "enemyUnitsAtLeast",
   "allyPermanentsAtLeast",
   "enemyPermanentsAtLeast",
+  "allySentinelasAtLeast",
+  "enemySentinelasAtLeast",
   "nexusBelow",
   "opponentNexusBelow",
   "manaAtLeast",
@@ -138,6 +140,8 @@ export function auraConditionMatches(
   if (condition.kind === "enemyUnitsAtLeast") return enemy.bench.filter((unit) => unit.health > 0).length >= condition.min;
   if (condition.kind === "allyPermanentsAtLeast") return player.permanents.filter((permanent) => permanent.health > 0).length >= condition.min;
   if (condition.kind === "enemyPermanentsAtLeast") return enemy.permanents.filter((permanent) => permanent.health > 0).length >= condition.min;
+  if (condition.kind === "allySentinelasAtLeast") return player.sentinelas.filter((sentinela) => sentinela.loyalty > 0).length >= condition.min;
+  if (condition.kind === "enemySentinelasAtLeast") return enemy.sentinelas.filter((sentinela) => sentinela.loyalty > 0).length >= condition.min;
   if (condition.kind === "nexusBelow") return player.nexusHealth <= condition.amount;
   if (condition.kind === "opponentNexusBelow") return enemy.nexusHealth <= condition.amount;
   if (condition.kind === "manaAtLeast") return player.mana >= condition.amount;

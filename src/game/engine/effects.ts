@@ -430,6 +430,8 @@ export function mechanicConditionMatches(state: GameState, unit: UnitInstance, c
   if (condition.kind === "enemyUnitsAtLeast") return opponent.bench.filter((u) => u.health > 0).length >= condition.min;
   if (condition.kind === "allyPermanentsAtLeast") return p.permanents.filter((permanent) => permanent.health > 0).length >= condition.min;
   if (condition.kind === "enemyPermanentsAtLeast") return opponent.permanents.filter((permanent) => permanent.health > 0).length >= condition.min;
+  if (condition.kind === "allySentinelasAtLeast") return p.sentinelas.filter((sentinela) => sentinela.loyalty > 0).length >= condition.min;
+  if (condition.kind === "enemySentinelasAtLeast") return opponent.sentinelas.filter((sentinela) => sentinela.loyalty > 0).length >= condition.min;
   if (condition.kind === "nexusBelow") return p.nexusHealth <= condition.amount;
   if (condition.kind === "opponentNexusBelow") return opponent.nexusHealth <= condition.amount;
   if (condition.kind === "manaAtLeast") return p.mana >= condition.amount;
