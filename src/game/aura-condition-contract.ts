@@ -14,6 +14,7 @@ export const AURA_CONDITION_KINDS = [
   "manaAtLeast",
   "handAtLeast",
   "opponentHandAtLeast",
+  "roundAtLeast",
   "and",
   "or",
   "not",
@@ -134,5 +135,6 @@ export function auraConditionMatches(
   if (condition.kind === "manaAtLeast") return player.mana >= condition.amount;
   if (condition.kind === "handAtLeast") return player.hand.length >= condition.amount;
   if (condition.kind === "opponentHandAtLeast") return enemy.hand.length >= condition.amount;
+  if (condition.kind === "roundAtLeast") return state.round >= condition.amount;
   return false;
 }
