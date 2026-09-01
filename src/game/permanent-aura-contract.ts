@@ -1,7 +1,7 @@
 import "./aura-2-types";
 import { getCard } from "./cards";
 import { AURA_GRANTABLE_KEYWORDS, AURA_SUPPRESSIBLE_KEYWORDS } from "./keywords";
-import type { GameState, Keyword, PermanentStatAura, PlayerId, UnitInstance } from "./types";
+import type { CardDef, GameState, Keyword, PermanentStatAura, PlayerId, UnitInstance } from "./types";
 
 /** Supported continuous allied-Unit stat slice of the broader Aura family. */
 export const PERMANENT_STAT_AURA_CONTRACT = {
@@ -51,7 +51,28 @@ export const PERMANENT_KEYWORD_SUPPRESSION_AURA_CONTRACT = {
   support: "supported",
 } as const;
 
+/** Aura 2.3 slice: living Unit sources reuse the certified Aura payload but never affect themselves. */
+export const UNIT_SOURCE_AURA_CONTRACT = {
+  rule: "unitSourceAura",
+  sources: ["Unit"],
+  sourceZone: "bench",
+  targets: ["allyUnit", "enemyUnit"],
+  selfExclusion: "sourceInstanceAlwaysExcluded",
+  alliedEffects: ["nonNegativeStats", "keywordGrants"],
+  enemyEffects: ["nonPositiveStats", "keywordSuppressions"],
+  lifecycle: "whileSourceAliveOnBench",
+  statStacking: "additive",
+  keywordStacking: "setUnion",
+  support: "supported",
+} as const;
+
 const AURA_PLAYERS = ["player", "ai"] as const satisfies readonly PlayerId[];
+
+type AuraSource = {
+  owner: PlayerId;
+  instanceId: string;
+  def: CardDef;
+};
 
 function matchesAny(haystack: readonly string[] | undefined, needles: readonly string[] | undefined): boolean {
   if (!needles?.length) return true;
@@ -59,17 +80,47 @@ function matchesAny(haystack: readonly string[] | undefined, needles: readonly s
   return needles.some((needle) => haystack.includes(needle));
 }
 
+/**
+ * Enumerate authoritative live Aura sources without creating a second runtime.
+ * Permanent sources remain exactly as certified by Aura 2.0-2.2; Aura 2.3 adds
+ * living Units on the bench. Dead sources contribute nothing before cleanup.
+ */
+function auraSources(state: GameState): AuraSource[] {
+  const result: AuraSource[] = [];
+  for (const owner of AURA_PLAYERS) {
+    for (const permanent of state.players[owner].permanents) {
+      if (permanent.health <= 0) continue;
+      const def = getCard(permanent.defId);
+      if ((def.type !== "Enchantment" && def.type !== "Artifact") || !def.aura) continue;
+      result.push({ owner, instanceId: permanent.instanceId, def });
+    }
+    for (const unit of state.players[owner].bench) {
+      if (unit.health <= 0) continue;
+      const def = getCard(unit.defId);
+      if (def.type !== "Unit" || !def.aura) continue;
+      result.push({ owner, instanceId: unit.instanceId, def });
+    }
+  }
+  return result;
+}
+
 /** Race-list and class-list are OR internally; when both exist they combine as AND. */
 export function permanentAuraAppliesToUnit(aura: PermanentStatAura, unit: UnitInstance): boolean {
   return matchesAny(unit.races, aura.races) && matchesAny(unit.classes, aura.classes);
 }
 
-/** Relationship gate between an Aura source and a candidate Unit. Missing audience means legacy allies. */
+/**
+ * Relationship gate between an Aura source and a candidate Unit. Missing
+ * audience means legacy allies. Passing a source instance also enforces Aura
+ * 2.3's lord rule: a Unit source never receives its own Aura.
+ */
 export function permanentAuraAffectsUnit(
   aura: PermanentStatAura,
   sourceOwner: PlayerId,
   unit: UnitInstance,
+  sourceInstanceId?: string,
 ): boolean {
+  if (sourceInstanceId && sourceInstanceId === unit.instanceId) return false;
   const audience = aura.affects ?? "allies";
   const relationshipMatches = audience === "enemies" ? sourceOwner !== unit.owner : sourceOwner === unit.owner;
   return relationshipMatches && permanentAuraAppliesToUnit(aura, unit);
@@ -124,16 +175,12 @@ export function grantDurableKeyword(unit: UnitInstance, keyword: Keyword): void 
 /** Pure derivation of source-bound keyword grants for an allied Unit. */
 export function permanentAuraKeywordsForUnit(state: GameState, unit: UnitInstance): Keyword[] {
   const result = new Set<Keyword>();
-  for (const sourceOwner of AURA_PLAYERS) {
-    for (const permanent of state.players[sourceOwner].permanents) {
-      if (permanent.health <= 0) continue;
-      const def = getCard(permanent.defId);
-      if ((def.type !== "Enchantment" && def.type !== "Artifact") || !def.aura) continue;
-      if ((def.aura.affects ?? "allies") !== "allies") continue;
-      if (!permanentAuraAffectsUnit(def.aura, sourceOwner, unit)) continue;
-      for (const keyword of def.aura.keywords ?? []) {
-        if (AURA_GRANTABLE_KEYWORDS.includes(keyword)) result.add(keyword);
-      }
+  for (const source of auraSources(state)) {
+    const aura = source.def.aura!;
+    if ((aura.affects ?? "allies") !== "allies") continue;
+    if (!permanentAuraAffectsUnit(aura, source.owner, unit, source.instanceId)) continue;
+    for (const keyword of aura.keywords ?? []) {
+      if (AURA_GRANTABLE_KEYWORDS.includes(keyword)) result.add(keyword);
     }
   }
   return [...result];
@@ -142,17 +189,13 @@ export function permanentAuraKeywordsForUnit(state: GameState, unit: UnitInstanc
 /** Pure derivation of source-bound hostile keyword suppressions for an enemy Unit. */
 export function permanentAuraSuppressedKeywordsForUnit(state: GameState, unit: UnitInstance): Keyword[] {
   const result = new Set<Keyword>();
-  for (const sourceOwner of AURA_PLAYERS) {
-    for (const permanent of state.players[sourceOwner].permanents) {
-      if (permanent.health <= 0) continue;
-      const def = getCard(permanent.defId);
-      if ((def.type !== "Enchantment" && def.type !== "Artifact") || !def.aura) continue;
-      // Suppression is intentionally hostile-only in Aura 2.2.
-      if (def.aura.affects !== "enemies") continue;
-      if (!permanentAuraAffectsUnit(def.aura, sourceOwner, unit)) continue;
-      for (const keyword of def.aura.suppressKeywords ?? []) {
-        if (AURA_SUPPRESSIBLE_KEYWORDS.includes(keyword)) result.add(keyword);
-      }
+  for (const source of auraSources(state)) {
+    const aura = source.def.aura!;
+    // Suppression is intentionally hostile-only in Aura 2.2/2.3.
+    if (aura.affects !== "enemies") continue;
+    if (!permanentAuraAffectsUnit(aura, source.owner, unit, source.instanceId)) continue;
+    for (const keyword of aura.suppressKeywords ?? []) {
+      if (AURA_SUPPRESSIBLE_KEYWORDS.includes(keyword)) result.add(keyword);
     }
   }
   return [...result];
@@ -180,23 +223,20 @@ function durableHealthBeforeAura(unit: UnitInstance): number {
  * Derive the live Aura contribution from authoritative battlefield state.
  *
  * Aura 2.x scans both sides because enemy-facing sources contribute to the
- * opposing bench. Stat modifiers remain additive, while keyword provenance is
- * rebuilt as durable + allied grants - hostile suppressions. The stat Aura layer
- * is clamped so it cannot drive an otherwise non-negative Unit below 0 Power or
- * below 0 max Health.
+ * opposing bench. Aura 2.3 additionally scans living Unit sources and excludes
+ * only the source instance itself. Stat modifiers remain additive, while keyword
+ * provenance is rebuilt as durable + allied grants - hostile suppressions. The
+ * stat Aura layer is clamped so it cannot drive an otherwise non-negative Unit
+ * below 0 Power or below 0 max Health.
  */
 export function permanentAuraBonusForUnit(state: GameState, unit: UnitInstance): PermanentAuraBonus {
   const result: PermanentAuraBonus = { power: 0, health: 0, sources: 0 };
-  for (const sourceOwner of AURA_PLAYERS) {
-    for (const permanent of state.players[sourceOwner].permanents) {
-      if (permanent.health <= 0) continue;
-      const def = getCard(permanent.defId);
-      if ((def.type !== "Enchantment" && def.type !== "Artifact") || !def.aura) continue;
-      if (!permanentAuraAffectsUnit(def.aura, sourceOwner, unit)) continue;
-      result.power += def.aura.buffPower;
-      result.health += def.aura.buffHealth;
-      result.sources += 1;
-    }
+  for (const source of auraSources(state)) {
+    const aura = source.def.aura!;
+    if (!permanentAuraAffectsUnit(aura, source.owner, unit, source.instanceId)) continue;
+    result.power += aura.buffPower;
+    result.health += aura.buffHealth;
+    result.sources += 1;
   }
 
   if (result.power < 0) {
