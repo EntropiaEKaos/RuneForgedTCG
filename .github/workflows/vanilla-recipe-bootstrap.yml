@@ -1,0 +1,28 @@
+name: Vanilla Recipe Bootstrap
+
+on:
+  push:
+    branches:
+      - feat/vanilla-1-4-ascendant-recipe-curve-reconstruction
+
+permissions:
+  contents: read
+
+jobs:
+  recipe-audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run typecheck
+      - name: Generate Vanilla content baseline
+        run: node --import tsx scripts/vanilla-content-audit.ts --write VANILLA_RECIPE_BASELINE_1.4.json --enforce
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vanilla-recipe-baseline-1-4
+          path: VANILLA_RECIPE_BASELINE_1.4.json
+          if-no-files-found: error
