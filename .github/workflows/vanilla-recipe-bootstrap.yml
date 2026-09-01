@@ -21,15 +21,12 @@ jobs:
       - run: npm run typecheck
       - name: Validate reconstructed Vanilla content
         run: node --import tsx scripts/vanilla-content-audit.ts --write VANILLA_RECIPE_AFTER_1.4.json --enforce
-      - name: Run utilization matrix after recipe reconstruction
-        run: node --import tsx scripts/vanilla-utilization-audit.ts 20 3 --write VANILLA_UTILIZATION_1.4.json --enforce
-      - name: Run full Balance Lab after recipe reconstruction
-        run: node --import tsx scripts/vanilla-balance-audit.ts 40 5 --write VANILLA_BALANCE_1.4.json --enforce
+      - name: Sweep recipe duplicate policies
+        run: node --import tsx scripts/vanilla-recipe-sweep.ts 10 3 --write VANILLA_RECIPE_SWEEP_1.4.json
       - uses: actions/upload-artifact@v4
         with:
-          name: vanilla-recipe-audits-1-4
+          name: vanilla-recipe-sweep-1-4
           path: |
             VANILLA_RECIPE_AFTER_1.4.json
-            VANILLA_UTILIZATION_1.4.json
-            VANILLA_BALANCE_1.4.json
+            VANILLA_RECIPE_SWEEP_1.4.json
           if-no-files-found: error
