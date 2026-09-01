@@ -249,7 +249,11 @@ assert.deepEqual(auraBlueprint.rule, {
   kind: "permanentStatAura",
   aura: { buffPower: 1, buffHealth: 2, races: ["Beast", "Spirit"], classes: ["guardian"] },
 });
-assert.equal(blueprintFromPermanentStatAura({ ...authoredAura, type: "Unit" }), null, "Aura projection fails closed on unsupported source types");
+const unitAuraBlueprint = blueprintFromPermanentStatAura({ ...authoredAura, type: "Unit" });
+assert.ok(unitAuraBlueprint, "Aura 2.3 projects Unit-source lord effects through the compatibility envelope");
+assert.equal(unitAuraBlueprint.target, "allyUnit");
+assert.deepEqual(unitAuraBlueprint.rule, auraBlueprint.rule, "Unit source reuses the same certified Aura payload projection");
+assert.equal(blueprintFromPermanentStatAura({ ...authoredAura, type: "Spell" }), null, "Aura projection still fails closed on unsupported source types");
 assert.equal(blueprintFromPermanentStatAura({ ...authoredAura, aura: undefined }), null, "Aura projection requires an explicit Aura contract");
 
 const denyBlueprint = blueprintFromReactionSpell(getCard("tide_deny"));
