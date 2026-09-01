@@ -7,6 +7,8 @@ export const AURA_CONDITION_KINDS = [
   "allyClass",
   "enemyRace",
   "enemyClass",
+  "allyUnitsAtLeast",
+  "enemyUnitsAtLeast",
   "nexusBelow",
   "opponentNexusBelow",
   "manaAtLeast",
@@ -125,6 +127,8 @@ export function auraConditionMatches(
   if (condition.kind === "enemyClass") {
     return enemy.bench.filter((unit) => unit.health > 0 && (unit.classes ?? []).includes(condition.classKey)).length >= condition.min;
   }
+  if (condition.kind === "allyUnitsAtLeast") return player.bench.filter((unit) => unit.health > 0).length >= condition.min;
+  if (condition.kind === "enemyUnitsAtLeast") return enemy.bench.filter((unit) => unit.health > 0).length >= condition.min;
   if (condition.kind === "nexusBelow") return player.nexusHealth <= condition.amount;
   if (condition.kind === "opponentNexusBelow") return enemy.nexusHealth <= condition.amount;
   if (condition.kind === "manaAtLeast") return player.mana >= condition.amount;
