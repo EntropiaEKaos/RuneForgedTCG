@@ -195,6 +195,7 @@ assert.deepEqual(authored.card.aura?.condition, {
   ],
 });
 const blueprint = blueprintFromPermanentStatAura(authored.card);
+assert.ok(blueprint);
 assert.deepEqual(blueprint.condition, authored.card.aura?.condition);
 assert.equal(blueprint.features.includes("conditional"), true);
 
