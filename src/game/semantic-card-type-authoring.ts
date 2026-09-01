@@ -64,9 +64,15 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
 
   let condition: MechanicCondition | undefined;
   if (aura.condition !== undefined) {
-    const sanitizedCondition = sanitizeAuraCondition(aura.condition);
+    const unitSource = raw.type === "Unit";
+    const sanitizedCondition = sanitizeAuraCondition(aura.condition, unitSource);
     if (!sanitizedCondition) {
-      return { ok: false, error: "Aura condition must use supported controller-state conditions; selfDamaged is not supported" };
+      return {
+        ok: false,
+        error: unitSource
+          ? "Aura condition must use certified controller-state conditions or Unit-source selfDamaged"
+          : "Aura condition must use supported controller-state conditions; selfDamaged is Unit-source only",
+      };
     }
     condition = sanitizedCondition;
   }

@@ -12,7 +12,8 @@ Os slices são incrementais:
 - **Aura 2.3** — Units vivas como fontes de Aura (“lord effects”), com autoexclusão por `instanceId`;
 - **Aura 2.4** — Sentinelas como fontes de Command Aura enquanto tiverem Lealdade positiva;
 - **Aura 2.5** — ativação condicional controller-scoped com raça/classe aliada, Nexus, mana e AND/OR/NOT;
-- **Aura 2.6** — Ability Grammar/introspection projeta o contrato condicional certificado sem alterar runtime.
+- **Aura 2.6** — Ability Grammar/introspection projeta o contrato condicional certificado sem alterar runtime;
+- **Aura 2.7** — `selfDamaged` como condição source-relative exclusivamente para Unit-source/lord effects.
 
 Estruturas continuam usando sua base estrutural `Artifact`, portanto herdam o contrato de Permanent Aura sem alterar replay, DTO ou o `CardType` persistido.
 
@@ -22,9 +23,11 @@ Estruturas continuam usando sua base estrutural `Artifact`, portanto herdam o co
 
 `Enchantment` e `Artifact` continuam usando os contratos históricos de Aura 2.0–2.2.
 
-### Unit sources — Aura 2.3
+### Unit sources — Aura 2.3 + 2.7
 
 Uma `Unit` com `CardDef.aura` é fonte contínua enquanto estiver viva no bench. A regra de “lord effect” é intrínseca: **a Unit-fonte nunca afeta o próprio `instanceId`**. Outra fonte de Aura pode afetá-la normalmente.
+
+Aura 2.7 acrescenta uma única condição source-relative certificada para essa família: `selfDamaged`. Ela significa exatamente `sourceUnit.health < sourceUnit.maxHealth`, com a fonte viva e pertencendo ao controller avaliado. A condição observa a Unit-fonte, mas não altera sua autoexclusão como alvo.
 
 ### Sentinela sources — Aura 2.4
 
@@ -36,13 +39,13 @@ Sentinelas reutilizam o mesmo payload já certificado:
 - inimigos: `buffPower <= 0`, `buffHealth <= 0`, `suppressKeywords` seguras;
 - filtros opcionais `races` e `classes`.
 
-Como Sentinela não é Unit, ela nunca pertence ao conjunto de alvos Unit e não requer regra especial de autoexclusão.
+Como Sentinela não é Unit, ela nunca pertence ao conjunto de alvos Unit e não requer regra especial de autoexclusão. `selfDamaged` continua inválido para Sentinela; Lealdade não é reinterpretada como vida de Unit.
 
-## Condições de fonte — Aura 2.5
+## Condições de fonte — Aura 2.5 + 2.7
 
 `PermanentStatAura.condition` é opcional. Ausente significa o comportamento histórico “sempre ativa enquanto o lifecycle da fonte for válido”.
 
-O primeiro corte aceita somente condições de estado do controlador:
+O contrato controller-scoped de Aura 2.5 aceita:
 
 - `always`;
 - `allyRace`;
@@ -53,7 +56,9 @@ O primeiro corte aceita somente condições de estado do controlador:
 
 A condição decide se **a fonte inteira participa do layer**. Os filtros `races` / `classes` continuam decidindo quais Units aquela fonte afeta.
 
-`selfDamaged` não entra em Aura 2.5 porque não possui uma única semântica entre Unit, Permanent e Sentinela. Authoring rejeita esse nó em qualquer profundidade; runtime considera payloads malformados/unsupported como fonte inativa.
+`CONDITIONAL_AURA_CONTRACT` permanece compatível com Aura 2.5 e continua declarando `selfDamaged` como unsupported no contrato geral. Aura 2.7 adiciona `UNIT_SOURCE_SELF_DAMAGED_AURA_CONTRACT` como exceção certificada exclusivamente para Unit-source. `selfDamaged` pode aparecer em qualquer profundidade válida de `and`, `or` e `not` quando a fonte é Unit.
+
+Permanent e Sentinela continuam rejeitando `selfDamaged` no authoring e tratando payloads bypassados como fonte inativa em runtime.
 
 ## Ciclo de vida
 
@@ -63,13 +68,11 @@ A contribuição existe somente enquanto a fonte está ativa na zona correta **e
 - `Unit` — no `bench` com vida positiva;
 - `Sentinela` — em `sentinelas` com Lealdade positiva.
 
-Entrada, saída, destruição, recall, transformação e mudança de elegibilidade convergem para `recomputeContinuousAuras()` / cleanups autoritativos. Aura 2.4 garante lifecycle imediato de Sentinelas; Aura 2.5 acrescenta reatividade para estado do controlador.
+Entrada, saída, destruição, recall, transformação e mudança de elegibilidade convergem para `recomputeContinuousAuras()` / cleanups autoritativos. Aura 2.4 garante lifecycle imediato de Sentinelas; Aura 2.5 acrescenta reatividade para estado do controlador; Aura 2.7 reutiliza a mesma convergência para observar dano/cura da Unit-fonte.
 
 O facade `engine/semantic-actions.ts` recompõe Continuous Auras depois de transições válidas de jogar carta, conjurar feitiço, declarar ataque e encerrar turno. Combate resolvido e activated/Sentinela abilities já convergem pelos cleanups autoritativos.
 
-Isso cobre mudanças de board, mana, dano/cura do Nexus e triggers de ataque sem espalhar um segundo sistema de observers pelo engine.
-
-Dano já marcado continua preservado quando `maxHealth` muda por ativação/desativação de Aura.
+Dano já marcado continua preservado quando `maxHealth` muda por ativação/desativação de Aura. Isso é particularmente importante em Aura 2.7: uma fonte ilesa não passa a contar como `selfDamaged` apenas porque outra Aura aumentou seu `maxHealth`; uma fonte com dano marcado mantém o mesmo déficit quando um bônus de Health entra ou sai.
 
 ## Proveniência de keywords
 
@@ -115,29 +118,29 @@ O editor de Continuous Aura está disponível para:
 - `Unit` — Lord Effect;
 - `Sentinela` — Command Aura.
 
-Aura 2.5 acrescenta um editor opcional de condição. Ele expõe somente condições Aura-safe e composição AND/OR/NOT; `selfDamaged` não aparece como opção.
+O editor opcional de condição expõe as condições controller-scoped em todas as famílias. Em Aura 2.7, `ContinuousAuraConditionEditor` recebe uma capability explícita e mostra `selfDamaged` somente para `Unit`, inclusive dentro de composição AND/OR/NOT.
 
-A UI diferencia condição da fonte de filtros de alvo. Para Units, o Studio informa que o próprio source instance é excluído. Para Sentinelas, informa que a fonte permanece disponível enquanto houver Lealdade positiva.
+A UI diferencia condição da fonte de filtros de alvo. Para Units, o Studio informa que o próprio source instance é excluído e que `selfDamaged` observa dano marcado da fonte. Para Sentinelas, informa que a fonte permanece disponível enquanto houver Lealdade positiva.
 
-O servidor continua fail-closed. O sanitizer legado de stat Aura permanece preservado para payloads/replays anteriores. Unit e Sentinela são validadas como fontes semânticas no boundary `validateAuthorableCardWithSemanticTypes()`. Aura 2.5 valida `condition`, remove extensões antes do sanitizer legado e restaura somente o payload sanitizado depois.
+O servidor continua fail-closed. O sanitizer legado de stat Aura permanece preservado para payloads/replays anteriores. Unit e Sentinela são validadas como fontes semânticas no boundary `validateAuthorableCardWithSemanticTypes()`. A capability de `selfDamaged` é habilitada apenas quando `raw.type === "Unit"`.
 
-Isso evita ampliar silenciosamente o contrato antigo de `validateAuthorableCard()`.
+Isso evita ampliar silenciosamente o contrato antigo de `validateAuthorableCard()` e evita reinterpretar Permanent/Sentinela como Unit.
 
-## Ability Grammar 2.0 — Aura 2.6
+## Ability Grammar 2.0 — Aura 2.6/2.7
 
-O catálogo expõe os contratos certificados de fonte de Aura 2.0–2.4 e agora também publica `conditionalAuraContract: CONDITIONAL_AURA_CONTRACT`, reutilizando exatamente o contrato funcional certificado em Aura 2.5.
+O catálogo expõe os contratos certificados de fonte de Aura e `conditionalAuraContract: CONDITIONAL_AURA_CONTRACT`, reutilizando exatamente o contrato controller-scoped funcional certificado em Aura 2.5.
 
-`blueprintFromPermanentStatAura()` passa a representar a condição real da fonte:
+`blueprintFromPermanentStatAura()` representa a condição real da fonte:
 
 - `AbilityBlueprint.condition` recebe uma cópia defensiva de `card.aura.condition`;
 - `AbilityRule.permanentStatAura.aura.condition` preserva a mesma semântica em outra cópia defensiva;
 - Aura sem condição explícita continua projetando `condition: { kind: "always" }` e não ganha um campo `condition` artificial dentro do rule payload.
 
-O marker `features: ["conditional"]` aparece se houver condição de fonte diferente de `always` **ou** filtros de alvo `races`/`classes`. Isso preserva o comportamento histórico de filtros sem confundir os dois níveis: o campo `condition` descreve a fonte; filtros continuam no payload da Aura e descrevem os alvos.
+Por isso uma Unit-source Aura 2.7 com `selfDamaged` já é projetada corretamente como habilidade condicional sem exigir um novo rule kind. O contrato dedicado `UNIT_SOURCE_SELF_DAMAGED_AURA_CONTRACT` permanece no módulo autoritativo de condições para distinguir explicitamente essa exceção do contrato geral Aura 2.5.
 
-As árvores projetadas não compartilham referência mutável com o `CardDef` nem entre a metadata do blueprint e o rule payload. Ability Grammar continua sendo introspecção read-only e não consegue alterar a definição autoritativa da carta por mutação acidental.
+O marker `features: ["conditional"]` aparece se houver condição de fonte diferente de `always` **ou** filtros de alvo `races`/`classes`.
 
-A família `aura` permanece marcada como **partial**. Aura 2.6 não promove o envelope `permanentStatAura` a um layer system genérico entre famílias diferentes.
+A família `aura` permanece marcada como **partial**. Aura 2.7 não promove o envelope `permanentStatAura` a um layer system genérico entre famílias diferentes.
 
 O sistema de gameplay cobre:
 
@@ -149,11 +152,12 @@ O sistema de gameplay cobre:
 - Unit-source / lord effects;
 - Sentinela-source / command effects;
 - condições controller-scoped de Aura — Aura 2.5;
-- introspecção fiel dessas condições pela Ability Grammar — Aura 2.6.
+- introspecção fiel dessas condições pela Ability Grammar — Aura 2.6;
+- `selfDamaged` source-relative para Unit Lord Effects — Aura 2.7.
 
 Ainda ficam fora do contrato genérico:
 
-- `selfDamaged` multi-family;
+- `selfDamaged` para Permanent e Sentinela;
 - condições dependentes do alvo ou do resultado de outra Aura;
 - dependências arbitrárias entre efeitos persistentes;
 - ordenação genérica de layers/sub-layers entre famílias diferentes;
@@ -170,4 +174,5 @@ As extensões possuem suítes comportamentais e documentação separadas:
 - `docs/AURA-2-3.md` — Unit-source / lord effects;
 - `docs/AURA-2-4.md` — Sentinela-source / command effects;
 - `docs/AURA-2-5.md` — conditional continuous Auras;
-- `docs/AURA-2-6.md` — conditional Aura Ability Grammar/introspection.
+- `docs/AURA-2-6.md` — conditional Aura Ability Grammar/introspection;
+- `docs/AURA-2-7.md` — Unit-source `selfDamaged` conditions.

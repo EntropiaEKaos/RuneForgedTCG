@@ -8,13 +8,15 @@ import {
 } from "@/game/condition-contract";
 import type { MechanicCondition } from "@/game/types";
 
-const auraKindsAtDepth = (depth: number) => conditionKindsAtDepth(depth).filter((kind) => kind !== "selfDamaged");
+const auraKindsAtDepth = (depth: number, allowSelfDamaged: boolean) =>
+  conditionKindsAtDepth(depth).filter((kind) => allowSelfDamaged || kind !== "selfDamaged");
 
 function defaultAuraCondition(kind: string): MechanicCondition {
   if (kind === "and" || kind === "or") {
     return { kind, children: [{ kind: "always" }, { kind: "allyRace", race: "Dragon", min: 1 }] } as MechanicCondition;
   }
   if (kind === "not") return { kind: "not", child: { kind: "allyRace", race: "Dragon", min: 1 } };
+  if (kind === "selfDamaged") return { kind: "selfDamaged" };
   if (kind === "allyRace") return { kind: "allyRace", race: "Dragon", min: 1 };
   if (kind === "allyClass") return { kind: "allyClass", classKey: "mage", min: 1 };
   if (kind === "nexusBelow" || kind === "manaAtLeast") return { kind, amount: 1 } as MechanicCondition;
@@ -25,12 +27,14 @@ export default function ContinuousAuraConditionEditor({
   value,
   onChange,
   depth = 0,
+  allowSelfDamaged = false,
 }: {
   value: MechanicCondition;
   onChange: (value: MechanicCondition) => void;
   depth?: number;
+  allowSelfDamaged?: boolean;
 }) {
-  const availableKinds = auraKindsAtDepth(depth);
+  const availableKinds = auraKindsAtDepth(depth, allowSelfDamaged);
   const safeValue = availableKinds.includes(value.kind as typeof availableKinds[number]) ? value : ({ kind: "always" } as MechanicCondition);
   const kind = safeValue.kind;
   const depthLimited = depth >= CONDITION_MAX_SUPPORTED_DEPTH;
@@ -47,6 +51,8 @@ export default function ContinuousAuraConditionEditor({
             {availableKinds.map((candidate) => <option key={candidate} value={candidate}>{candidate}</option>)}
           </select>
         </label>
+
+        {kind === "selfDamaged" && <div className="rounded-lg border border-rose-300/15 bg-rose-300/5 px-3 py-2 text-[10px] leading-4 text-rose-100/80">Ativa enquanto a própria Unit-fonte tiver dano marcado: vida atual menor que a vida máxima.</div>}
 
         {kind === "allyRace" && <>
           <label className="block"><span className="label">Raça aliada</span><select className="input" value={safeValue.race} onChange={(event) => onChange({ ...safeValue, race: event.target.value as typeof safeValue.race })}>{CARD_RACES.map((race) => <option key={race}>{race}</option>)}</select></label>
@@ -69,6 +75,7 @@ export default function ContinuousAuraConditionEditor({
             <ContinuousAuraConditionEditor
               value={child}
               depth={depth + 1}
+              allowSelfDamaged={allowSelfDamaged}
               onChange={(nextChild) => onChange({ kind, children: groupChildren.map((candidate, childIndex) => childIndex === index ? nextChild : candidate) })}
             />
             {groupChildren.length > 1 && <button type="button" className="btn-ghost absolute right-2 top-2 !px-2 !py-1 text-[10px] text-red-300" onClick={() => onChange({ kind, children: groupChildren.filter((_, childIndex) => childIndex !== index) })}>Remover</button>}
@@ -77,7 +84,7 @@ export default function ContinuousAuraConditionEditor({
         {canAddGroupChild ? <button type="button" className="btn-ghost text-xs" onClick={() => onChange({ kind, children: [...groupChildren, { kind: "always" }] })}>＋ Condição</button> : <span className="text-[10px] text-slate-500">Limite estrutural do grupo atingido.</span>}
       </div>}
 
-      {kind === "not" && <div className="mt-3"><ContinuousAuraConditionEditor value={safeValue.child} depth={depth + 1} onChange={(child) => onChange({ kind: "not", child })} /></div>}
+      {kind === "not" && <div className="mt-3"><ContinuousAuraConditionEditor value={safeValue.child} depth={depth + 1} allowSelfDamaged={allowSelfDamaged} onChange={(child) => onChange({ kind: "not", child })} /></div>}
     </div>
   );
 }

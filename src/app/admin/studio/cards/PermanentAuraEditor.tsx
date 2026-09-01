@@ -53,7 +53,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
   const sourceLabel = sentinelaSource ? "Sentinela Command Aura" : unitSource ? "Unit Lord Effect" : "Permanent Aura";
 
   return (
-    <Panel title="Continuous Aura" eyebrow="AURA 2.5 — CONDITIONAL CONTINUOUS EFFECTS">
+    <Panel title="Continuous Aura" eyebrow="AURA 2.7 — UNIT SOURCE DAMAGE CONDITIONS">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-2xl space-y-2 text-xs leading-5 text-slate-400">
           <p>
@@ -61,7 +61,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
           </p>
           <p className="rounded-lg border border-cyan-300/20 bg-cyan-300/5 px-3 py-2 text-cyan-100/80">
             {sourceLabel}: {unitSource
-              ? "a própria Unit-fonte é sempre excluída do efeito; outras fontes podem afetá-la normalmente."
+              ? "a própria Unit-fonte é sempre excluída do efeito; outras fontes podem afetá-la normalmente. `selfDamaged` pode observar o dano marcado desta Unit-fonte."
               : sentinelaSource
                 ? "a Aura permanece disponível enquanto a Sentinela tiver Lealdade positiva no battlefield."
                 : "a Aura permanece disponível enquanto a permanente estiver viva no battlefield."}
@@ -116,11 +116,13 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="label">Condição da fonte — opcional</div>
-              <p className="mt-1 text-[10px] leading-4 text-slate-500">Pode depender de raça/classe aliada, vida do Nexus, mana e composição AND/OR/NOT. `selfDamaged` fica fora deste corte por não ter semântica uniforme entre Unit, Permanent e Sentinela.</p>
+              <p className="mt-1 text-[10px] leading-4 text-slate-500">{unitSource
+                ? "Pode depender de raça/classe aliada, vida do Nexus, mana, dano marcado na própria Unit-fonte (`selfDamaged`) e composição AND/OR/NOT."
+                : "Pode depender de raça/classe aliada, vida do Nexus, mana e composição AND/OR/NOT. `selfDamaged` é exclusivo de Unit-source porque Permanent e Sentinela não possuem o mesmo contrato de vida de Unit."}</p>
             </div>
             <button type="button" className="btn-ghost text-xs" onClick={() => update({ condition: aura.condition ? undefined : { kind: "allyRace", race: "Dragon", min: 1 } })}>{aura.condition ? "Remover condição" : "+ Condição"}</button>
           </div>
-          {aura.condition && <div className="mt-3"><ContinuousAuraConditionEditor value={aura.condition} onChange={(condition) => update({ condition })} /></div>}
+          {aura.condition && <div className="mt-3"><ContinuousAuraConditionEditor value={aura.condition} allowSelfDamaged={unitSource} onChange={(condition) => update({ condition })} /></div>}
         </div>
 
         <div>
@@ -135,7 +137,7 @@ export default function PermanentAuraEditor({ model }: { model: CardAuthoringMod
         <F l="Classes elegíveis — IDs separados por vírgula">
           <input className="input font-mono text-xs" value={(aura.classes ?? []).join(", ")} onChange={(e) => update({ classes: e.target.value.split(",").map((item) => item.trim().toLowerCase()).filter(Boolean) })} placeholder="guardian, warrior" />
         </F>
-        <p className="text-[11px] leading-5 text-slate-500">A condição decide se a fonte participa do layer; os filtros decidem quais Units ela afeta. Dentro de cada filtro vale OU; raça + classe combinam como E. Múltiplas Auras somam stats e unem grants/supressões sem duplicatas. Durable + grants são calculados antes das supressões hostis.{unitSource ? " A própria Unit-fonte nunca conta como alvo da sua Aura." : sentinelaSource ? " Lealdade 0 encerra a Command Aura na mesma transição de cleanup." : ""}</p>
+        <p className="text-[11px] leading-5 text-slate-500">A condição decide se a fonte participa do layer; os filtros decidem quais Units ela afeta. Dentro de cada filtro vale OU; raça + classe combinam como E. Múltiplas Auras somam stats e unem grants/supressões sem duplicatas. Durable + grants são calculados antes das supressões hostis.{unitSource ? " A própria Unit-fonte nunca conta como alvo da sua Aura, e seu dano marcado controla `selfDamaged` sem ser criado por mudanças do teto de vida." : sentinelaSource ? " Lealdade 0 encerra a Command Aura na mesma transição de cleanup." : ""}</p>
       </div>}
     </Panel>
   );

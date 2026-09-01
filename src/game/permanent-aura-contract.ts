@@ -100,7 +100,8 @@ function matchesAny(haystack: readonly string[] | undefined, needles: readonly s
  * Enumerate authoritative live Aura sources without creating a second runtime.
  * Permanent sources remain exactly as certified by Aura 2.0-2.2; Aura 2.3 adds
  * living Units; Aura 2.4 adds positive-loyalty Sentinelas; Aura 2.5 additionally
- * requires an optional controller-scoped condition to be true.
+ * requires an optional controller-scoped condition to be true; Aura 2.7 allows
+ * Unit sources to evaluate source-relative selfDamaged against their live instance.
  */
 function auraSources(state: GameState): AuraSource[] {
   const result: AuraSource[] = [];
@@ -116,7 +117,7 @@ function auraSources(state: GameState): AuraSource[] {
       if (unit.health <= 0) continue;
       const def = getCard(unit.defId);
       if (def.type !== "Unit" || !def.aura) continue;
-      if (!auraConditionMatches(state, owner, def.aura.condition)) continue;
+      if (!auraConditionMatches(state, owner, def.aura.condition, unit)) continue;
       result.push({ owner, instanceId: unit.instanceId, def, excludeSelfUnit: true });
     }
     for (const sentinela of state.players[owner].sentinelas) {
