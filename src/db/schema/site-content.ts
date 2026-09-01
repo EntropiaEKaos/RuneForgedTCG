@@ -19,7 +19,7 @@ export const siteContent = pgTable("site_content", {
 
 export const siteContentVersions = pgTable("site_content_versions", {
   id: serial("id").primaryKey(),
-  contentId: integer("content_id").notNull(),
+  contentId: integer("content_id").notNull().references(() => siteContent.id, { onDelete: "cascade" }),
   version: integer("version").notNull(),
   status: text("status").notNull(),
   snapshot: jsonb("snapshot").notNull().default({}),
