@@ -13,12 +13,14 @@ Estruturas continuam usando sua base estrutural `Artifact`, portanto herdam esse
 
 A contribuição existe somente enquanto a fonte permanece viva no battlefield. Entrada, saída, destruição e mudança de elegibilidade por raça/classe passam pelo mesmo `recomputeContinuousAuras()` que já preserva dano marcado e remove corretamente bônus de vida.
 
-Para keywords, `UnitInstance.keywords` permanece a visão efetiva consumida pelo gameplay e pela UI. Dois campos opcionais preservam proveniência sem invalidar replays antigos:
+Para keywords, `UnitInstance.keywords` permanece a visão efetiva consumida pelo gameplay e pela UI. Aura 2.0 introduziu dois campos opcionais de proveniência sem invalidar replays antigos:
 
 - `durableKeywords` — impressão da carta, Equipment e grants permanentes/one-shot;
-- `auraKeywords` — contribuição derivada das fontes de Aura ativas.
+- `auraKeywords` — contribuição derivada das fontes aliadas de Aura ativas.
 
-Ao remover uma fonte, somente `auraKeywords` é recalculado. Um grant durável feito enquanto a mesma keyword já estava presente por Aura continua existindo depois que a fonte sai.
+Aura 2.2 adiciona uma terceira camada opcional, `auraSuppressedKeywords`, sem mudar essa proveniência de origem. A visão efetiva passa a ser derivada como **durable + grants de Aura − supressões hostis**.
+
+Ao remover uma fonte, somente as camadas source-bound são recalculadas. Um grant durável feito enquanto a mesma keyword estava presente ou suprimida por Aura continua existindo depois que a fonte sai.
 
 ## Filtros e stacking
 
@@ -28,48 +30,50 @@ Ao remover uma fonte, somente `auraKeywords` é recalculado. Um grant durável f
 - dentro da lista de classes vale **OU**;
 - quando os dois grupos existem, raça e classe combinam como **E**.
 
-Múltiplas Auras somam Power/Health e unem keywords sem duplicação.
+Múltiplas Auras somam Power/Health e unem grants/supressões de keywords sem duplicação.
 
 ## Keywords permitidas
 
-Studio, authoring e runtime compartilham `AURA_GRANTABLE_KEYWORDS`.
+Studio, authoring e runtime compartilham vocabulários fechados para grants e supressões contínuas.
 
-A lista parte das keywords já grantable pelo runtime e exclui explicitamente:
+`AURA_GRANTABLE_KEYWORDS` e `AURA_SUPPRESSIBLE_KEYWORDS` excluem os casos que não podem ser representados corretamente apenas pelo array efetivo de keywords:
 
-- **Barrier** — possui estado consumível próprio; rederivá-la continuamente poderia recriar uma proteção já gasta;
-- **LastBreath** — depende de um trigger `onDeath` executável na própria carta e já não é uma keyword genericamente grantable.
+- **Barrier** — possui estado consumível próprio; rederivá-la ou “suprimi-la” somente no array não representaria corretamente o shield;
+- **LastBreath** — depende de um trigger `onDeath` executável e não é uma regra puramente estática.
 
-As demais keywords permitidas reutilizam os runtimes autoritativos já existentes de ataque, bloqueio, strike, dano, rodada e targeting.
+As demais keywords reutilizam os runtimes autoritativos já existentes de ataque, bloqueio, strike, dano, rodada e targeting.
 
 ## Card Studio e validação
 
-O editor de Continuous Aura agora permite combinar stats, filtros e keywords. O servidor continua fail-closed:
+O editor de Continuous Aura evoluiu por slices:
 
-- keyword desconhecida é rejeitada;
-- keyword não segura para Aura é rejeitada;
-- bônus devem continuar inteiros entre 0 e 20;
-- Aura continua restrita a `Enchantment` e `Artifact` (incluindo Structure semanticamente);
-- Aura exclusivamente de keyword (`0/0 + keywords`) é válida.
+- Aura 2.0 — buffs de stats + grants de keywords em aliados;
+- Aura 2.1 — debuffs contínuos de Power/Health em inimigos;
+- Aura 2.2 — supressão source-bound de keywords em inimigos.
 
-A validação Aura 2.0 vive no boundary semântico usado por publicação, importação, sandbox e QA, preservando o sanitizer legado de stat Aura para payloads/replays anteriores.
+O servidor continua fail-closed e o sanitizer legado de stat Aura permanece preservado para payloads/replays anteriores. Extensões 2.x são validadas no boundary semântico usado por publicação, importação, sandbox e QA.
 
 ## Ability Grammar 2.0
 
-O catálogo expõe `PERMANENT_KEYWORD_AURA_CONTRACT`, enquanto a projeção histórica `permanentStatAura` continua sendo usada como envelope compatível e agora transporta também `aura.keywords`.
+O catálogo expõe contratos separados para os slices certificados, enquanto a projeção histórica `permanentStatAura` continua sendo usada como envelope compatível para `aura.keywords`, `aura.suppressKeywords` e a audiência `aura.affects`.
 
-A família `aura` permanece marcada como **partial**. Este PR não pretende resolver ainda:
+A família `aura` permanece marcada como **partial**. Já estão certificados:
 
-- debuffs contínuos em inimigos;
-- remoção contínua de keywords;
-- dependências entre efeitos persistentes;
-- ordenação genérica de layers/sub-layers;
-- replacement effects contínuos.
+- buffs contínuos de stats em aliados;
+- grants contínuos de keywords em aliados;
+- debuffs contínuos de stats em inimigos — Aura 2.1;
+- supressão contínua de keywords em inimigos — Aura 2.2.
 
-Esses itens pertencem a um corte futuro de Aura 2.1 / layer system.
+Ainda ficam fora do contrato genérico:
+
+- dependências arbitrárias entre efeitos persistentes;
+- ordenação genérica de layers/sub-layers entre famílias diferentes;
+- replacement effects contínuos;
+- regras contínuas que transformem tipo, texto ou controller da carta.
 
 ## Certificação
 
-A suíte comportamental cobre:
+A suíte histórica de Aura 2.0 cobre:
 
 - entrada e saída de keyword Aura;
 - isolamento por jogador;
@@ -81,3 +85,5 @@ A suíte comportamental cobre:
 - bloqueio de `Barrier`, `LastBreath` e keywords desconhecidas;
 - Structure herdando o contrato por sua base `Artifact`;
 - projeção no Ability Grammar 2.0.
+
+As extensões são certificadas separadamente em `docs/AURA-2-1.md` e `docs/AURA-2-2.md`.
