@@ -11,7 +11,11 @@ import {
 } from "./card-authoring";
 import { CONDITION_AUTHORING_CONTRACT, CONDITION_RUNTIME_SUPPORT } from "./condition-contract";
 import { KEYWORD_INFO, type KeywordRuntimeDomain } from "./keywords";
-import { PERMANENT_KEYWORD_AURA_CONTRACT, PERMANENT_STAT_AURA_CONTRACT } from "./permanent-aura-contract";
+import {
+  PERMANENT_ENEMY_STAT_AURA_CONTRACT,
+  PERMANENT_KEYWORD_AURA_CONTRACT,
+  PERMANENT_STAT_AURA_CONTRACT,
+} from "./permanent-aura-contract";
 import { TRIGGER_TIMING_BY_EVENT, triggerTiming } from "./trigger-contract";
 import type {
   CardDef,
@@ -247,6 +251,7 @@ export const ABILITY_GRAMMAR_CATALOG = {
   costReductionKinds: COST_REDUCTION_KINDS,
   costReductionContracts: COST_REDUCTION_CONTRACTS,
   permanentStatAuraContract: PERMANENT_STAT_AURA_CONTRACT,
+  permanentEnemyStatAuraContract: PERMANENT_ENEMY_STAT_AURA_CONTRACT,
   permanentKeywordAuraContract: PERMANENT_KEYWORD_AURA_CONTRACT,
   keywords: CARD_KEYWORDS,
   keywordContracts: KEYWORD_INFO,
@@ -385,6 +390,7 @@ export function blueprintFromEquipment(card: CardDef): AbilityBlueprint | null {
 export function blueprintFromPermanentStatAura(card: CardDef): AbilityBlueprint | null {
   if ((card.type !== "Enchantment" && card.type !== "Artifact") || !card.aura) return null;
   const filtered = Boolean(card.aura.races?.length || card.aura.classes?.length);
+  const enemyAura = card.aura.affects === "enemies";
   return {
     version: ABILITY_GRAMMAR_VERSION,
     origin: "aura",
@@ -394,12 +400,13 @@ export function blueprintFromPermanentStatAura(card: CardDef): AbilityBlueprint 
     description: card.description,
     condition: ALWAYS,
     costs: [],
-    target: "allyUnit",
+    target: enemyAura ? "enemyUnit" : "allyUnit",
     rule: {
       kind: "permanentStatAura",
       aura: {
         buffPower: card.aura.buffPower,
         buffHealth: card.aura.buffHealth,
+        ...(enemyAura ? { affects: "enemies" as const } : {}),
         ...(card.aura.keywords?.length ? { keywords: [...card.aura.keywords] } : {}),
         ...(card.aura.races?.length ? { races: [...card.aura.races] } : {}),
         ...(card.aura.classes?.length ? { classes: [...card.aura.classes] } : {}),
