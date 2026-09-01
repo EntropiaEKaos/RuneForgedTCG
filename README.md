@@ -60,6 +60,27 @@ node --import tsx scripts/vanilla-content-audit.ts --enforce
 
 See `docs/VANILLA-1-0-CONTENT-BASELINE.md`.
 
+### Vanilla 1.1 — Balance Lab Experimental Matrix
+
+- The 12 experimental decks remain isolated from Ranked and are injected into the existing real-engine balance simulator through deck overrides.
+- The certified intake matrix covers **66/66 pairwise matchups**: 6 same-region and 60 cross-region.
+- The initial full run executed **13,200 games**: 200 per matchup, split across 5 deterministic independent seed strata.
+- Simulation quality passed: **66/66 stable matchups**, zero incomplete matchups, zero pool errors, **49.9% first-player win rate**, **0% draws**, average **10.6 rounds**, maximum seed deviation **18.5 pp** against a **23.7 pp** quality threshold.
+- Balance itself is deliberately reported separately and is **BLOCKED**: **9 healthy / 5 watch / 52 critical** matchups.
+- Strongest deck: **Tidecall Vanguard — 85.5%** over 2,200 games. Weakest deck: **Florestia Ascendant — 21.4%** over 2,200 games.
+- Most extreme matchup: **Tidecall Vanguard 97.5% × 2.5% Florestia Ascendant** over 200 games.
+- The dominant pattern is structural: Vanguard recipes generally outperform Ascendant recipes. This points the next engineering slice toward deck/AI utilization telemetry before card-stat rebalance.
+- The simulator contract is now the **78th behavioral target**; the 13,200-game matrix stays a reproducible heavyweight audit instead of slowing every normal CI run.
+- No experimental deck is promoted to Ranked and no card stat/cost is changed by Vanilla 1.1.
+
+Run the matrix with:
+
+```bash
+npm run audit:vanilla-balance
+```
+
+See `docs/VANILLA-1-1-BALANCE-LAB.md`.
+
 ## Ranked 2.97 architecture
 
 Season Zero Ranked accepts exactly four certified 40-card preconstructed decks:
@@ -106,7 +127,7 @@ RuneForge does not mix source-text checks with behavioral evidence:
 - `npm run audit:test-taxonomy` — prevents source-reading tests from being counted as behavioral.
 - `npm run test:e2e:alpha-journey` — real HTTP/PostgreSQL certification of the core Alpha player loop against a running production build.
 
-Current behavioral certification after the Vanilla 1.0 baseline contains **77 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
+Current behavioral certification after Vanilla 1.1 contains **78 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
 
 Historical 2.97 local evidence retained for provenance:
 
