@@ -25,11 +25,12 @@ export const UNIT_SOURCE_AURA_CONDITION_KINDS = [
   "selfDamaged",
 ] as const;
 
-/** Aura 2.5 compatibility contract, extended by Condition 2.x with controller/opponent public state. */
+/** Aura 2.5 compatibility contract, extended by Condition 2.x with controller/opponent and match public state. */
 export const CONDITIONAL_AURA_CONTRACT = {
   rule: "conditionalAura",
   conditions: AURA_CONDITION_KINDS,
   controllerScoped: true,
+  matchScopedConditions: ["roundAtLeast"],
   unsupportedConditions: ["selfDamaged"],
   composition: ["and", "or", "not"],
   lifecycle: "recomputeWhenAuthoritativeStateChanges",
@@ -60,7 +61,7 @@ function auraConditionTreeSupportedInternal(condition: MechanicCondition, allowS
   return (AURA_CONDITION_KINDS as readonly string[]).includes(condition.kind);
 }
 
-/** Aura 2.5 compatibility boundary: controller-scoped conditions only. */
+/** Aura 2.5 compatibility boundary: controller/match-scoped conditions only. */
 export function auraConditionTreeSupported(condition: MechanicCondition): boolean {
   return auraConditionTreeSupportedInternal(condition, false);
 }
