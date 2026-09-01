@@ -1,6 +1,7 @@
 import "./aura-2-types";
-import type { CardDef, Keyword } from "./types";
+import type { CardDef, Keyword, Race } from "./types";
 import { validateAuthorableCardWithActivatedAbilities } from "./activated-ability-authoring";
+import { sanitizePermanentStatAura } from "./card-authoring";
 import {
   CANONICAL_KEYWORDS,
   keywordIsAuraGrantable,
@@ -21,6 +22,8 @@ type ContinuousAuraRestore = {
   buffHealth: number;
   keywords: Keyword[];
   suppressKeywords: Keyword[];
+  races?: Race[];
+  classes?: string[];
   affects?: "enemies";
 };
 
@@ -37,6 +40,9 @@ const canonicalKeyword = (value: unknown): value is Keyword =>
  * The legacy stat-Aura sanitizer remains unchanged for historical payloads.
  * Extended Aura fields are validated here, projected through the legacy source
  * and filter checks with a harmless probe, then restored exactly afterward.
+ * Aura 2.3 Unit sources are validated with that same stat/filter sanitizer, but
+ * the Aura is removed before the legacy card validator because that validator
+ * intentionally knows only the original Enchantment/Artifact source contract.
  */
 function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepared {
   const input = { ...raw } as Partial<CardDef> & Record<string, unknown>;
@@ -46,7 +52,9 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
   const aura = auraRaw as unknown as Record<string, unknown>;
   const buffPower = Number(aura.buffPower ?? 0);
   const buffHealth = Number(aura.buffHealth ?? 0);
+  const unitSource = raw.type === "Unit";
   const extended =
+    unitSource ||
     "keywords" in aura ||
     "suppressKeywords" in aura ||
     "affects" in aura ||
@@ -124,7 +132,15 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
     legacyAura.buffPower = 1;
     legacyAura.buffHealth = 0;
   }
-  (input as Record<string, unknown>).aura = legacyAura;
+
+  const legacyValidated = sanitizePermanentStatAura(legacyAura);
+  if (!legacyValidated) return { ok: false, error: "Invalid continuous Aura stat/filter contract" };
+
+  if (unitSource) {
+    delete (input as Record<string, unknown>).aura;
+  } else {
+    (input as Record<string, unknown>).aura = legacyValidated;
+  }
 
   return {
     ok: true,
@@ -134,6 +150,8 @@ function prepareContinuousAuraInput(raw: Partial<CardDef>): ContinuousAuraPrepar
       buffHealth,
       keywords,
       suppressKeywords,
+      ...(legacyValidated.races?.length ? { races: [...legacyValidated.races] } : {}),
+      ...(legacyValidated.classes?.length ? { classes: [...legacyValidated.classes] } : {}),
       ...(affects === "enemies" ? { affects: "enemies" as const } : {}),
     },
   };
@@ -151,17 +169,18 @@ export function validateAuthorableCardWithSemanticTypes(
 
   let card = base.card;
   if (prepared.restore) {
-    if (card.type !== "Enchantment" && card.type !== "Artifact") {
-      return { ok: false, error: "Continuous Aura is supported only on Enchantment or Artifact cards" };
+    if (card.type !== "Unit" && card.type !== "Enchantment" && card.type !== "Artifact") {
+      return { ok: false, error: "Continuous Aura is supported only on Unit, Enchantment or Artifact cards" };
     }
     card = {
       ...card,
       aura: {
-        ...(card.aura ?? { buffPower: 0, buffHealth: 0 }),
         buffPower: prepared.restore.buffPower,
         buffHealth: prepared.restore.buffHealth,
         ...(prepared.restore.keywords.length ? { keywords: prepared.restore.keywords } : {}),
         ...(prepared.restore.suppressKeywords.length ? { suppressKeywords: prepared.restore.suppressKeywords } : {}),
+        ...(prepared.restore.races?.length ? { races: prepared.restore.races } : {}),
+        ...(prepared.restore.classes?.length ? { classes: prepared.restore.classes } : {}),
         ...(prepared.restore.affects ? { affects: prepared.restore.affects } : {}),
       },
     };
