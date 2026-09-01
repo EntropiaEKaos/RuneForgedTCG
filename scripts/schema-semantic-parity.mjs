@@ -21,6 +21,9 @@ const freshFiles = [
   "drizzle/0037_schema_replay_hotfix_2_96_1.sql",
   "drizzle/0038_engineering_integrity_2_96_2.sql",
   "drizzle/0039_ranked_certification_2_97.sql",
+  "drizzle/0040_pvp_content_snapshot_2_97.sql",
+  "drizzle/0041_pvp_reaction_priority.sql",
+  "drizzle/0042_site_portal_cms.sql",
 ];
 const sql = freshFiles.map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n").replace(/--.*$/gm, "");
 const failures = [];
@@ -37,6 +40,8 @@ for (const m of sql.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`]?([\
   for (const line of m[2].split(/\r?\n/)) {
     const inline = line.match(/^[\s"`]*([A-Za-z_][\w]*)["`]?\s+[^,]*?REFERENCES\s+["`]?([\w]+)["`]?\s*\(([\w"`]+)\)/i);
     if (inline) dbFks.add(`${table}(${inline[1]})->${inline[2]}(${inline[3].replace(/["`]/g, "")})`);
+    const tableLevel = line.trim().match(/^(?:CONSTRAINT\s+[A-Za-z0-9_]+\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s+REFERENCES\s+["`]?([\w]+)["`]?\s*\(([^)]+)\)/i);
+    if (tableLevel) dbFks.add(`${table}(${normalizeCols(tableLevel[1])})->${tableLevel[2]}(${normalizeCols(tableLevel[3])})`);
   }
 }
 
@@ -72,10 +77,6 @@ const byVariable = new Map(schemaEntries.map((entry) => [entry.variable, entry])
 
 let drizzleFkCount = 0;
 for (const entry of schemaEntries) {
-  // All current Drizzle FK declarations are field-local. Parsing line-by-line is
-  // intentionally strict: it cannot accidentally start at `id:` and wander into
-  // a later `playerId.references(...)` declaration, which was the source of a
-  // false positive in the first semantic checker draft.
   for (const line of entry.block.split(/\r?\n/)) {
     const m = line.match(/^\s*(\w+)\s*:\s*\w+\("([^"]+)"\)[^,\n]*?\.references\(\(\)\s*=>\s*(\w+)\.(\w+)/);
     if (!m) continue;
