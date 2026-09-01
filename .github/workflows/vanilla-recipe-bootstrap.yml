@@ -19,14 +19,17 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run typecheck
-      - name: Validate reconstructed Vanilla content
-        run: node --import tsx scripts/vanilla-content-audit.ts --write VANILLA_RECIPE_AFTER_1.4.json --enforce
-      - name: Sweep recipe duplicate policies
-        run: node --import tsx scripts/vanilla-recipe-sweep.ts 10 3 --write VANILLA_RECIPE_SWEEP_1.4.json
+      - name: Validate finalized Vanilla recipe structure
+        run: node --import tsx scripts/vanilla-content-audit.ts --write VANILLA_RECIPE_FINAL_1.4.json --enforce
+      - name: Run final utilization matrix
+        run: node --import tsx scripts/vanilla-utilization-audit.ts 20 3 --write VANILLA_UTILIZATION_FINAL_1.4.json --enforce
+      - name: Run final full Balance Lab
+        run: node --import tsx scripts/vanilla-balance-audit.ts 40 5 --write VANILLA_BALANCE_FINAL_1.4.json --enforce
       - uses: actions/upload-artifact@v4
         with:
-          name: vanilla-recipe-sweep-1-4
+          name: vanilla-recipe-final-audits-1-4
           path: |
-            VANILLA_RECIPE_AFTER_1.4.json
-            VANILLA_RECIPE_SWEEP_1.4.json
+            VANILLA_RECIPE_FINAL_1.4.json
+            VANILLA_UTILIZATION_FINAL_1.4.json
+            VANILLA_BALANCE_FINAL_1.4.json
           if-no-files-found: error
