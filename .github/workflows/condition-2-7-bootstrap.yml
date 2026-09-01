@@ -2,266 +2,28 @@ name: Condition 2.7 Bootstrap
 
 on:
   push:
-    branches: [feat/condition-2-7-resource-thresholds]
+    branches:
+      - "feat/condition-2-7-resource-thresholds"
 
 permissions:
   contents: write
 
 jobs:
   implement:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: true
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 22.23.2
           package-manager-cache: false
       - name: Implement Condition 2.7
-        shell: bash
-        run: |
-          python3 <<'PY'
-          from pathlib import Path
-
-          def rep(path, old, new):
-              p = Path(path)
-              text = p.read_text()
-              if old not in text:
-                  raise SystemExit(f"anchor not found in {path}: {old[:120]!r}")
-              p.write_text(text.replace(old, new, 1))
-
-          rep("src/game/types.ts",
-              '  | { kind: "manaAtLeast"; amount: number }\n  | { kind: "handAtLeast"; amount: number }',
-              '  | { kind: "manaAtLeast"; amount: number }\n  | { kind: "opponentManaAtLeast"; amount: number }\n  | { kind: "spellManaAtLeast"; amount: number }\n  | { kind: "opponentSpellManaAtLeast"; amount: number }\n  | { kind: "handAtLeast"; amount: number }')
-
-          rep("src/game/card-authoring.ts",
-              'export const MECHANIC_CONDITION_KINDS = ["always","selfDamaged","allyRace","allyClass","enemyRace","enemyClass","allyUnitsAtLeast","enemyUnitsAtLeast","allyPermanentsAtLeast","enemyPermanentsAtLeast","nexusBelow","opponentNexusBelow","manaAtLeast","handAtLeast","opponentHandAtLeast","roundAtLeast","and","or","not"] as const;',
-              'export const MECHANIC_CONDITION_KINDS = ["always","selfDamaged","allyRace","allyClass","enemyRace","enemyClass","allyUnitsAtLeast","enemyUnitsAtLeast","allyPermanentsAtLeast","enemyPermanentsAtLeast","nexusBelow","opponentNexusBelow","manaAtLeast","opponentManaAtLeast","spellManaAtLeast","opponentSpellManaAtLeast","handAtLeast","opponentHandAtLeast","roundAtLeast","and","or","not"] as const;')
-          rep("src/game/card-authoring.ts",
-              '  if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") return { kind, amount: Math.max(0, Math.min(20, Math.trunc(finite(c.amount)))) } as MechanicCondition;\n  if (kind === "roundAtLeast")',
-              '  if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "opponentManaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") return { kind, amount: Math.max(0, Math.min(20, Math.trunc(finite(c.amount)))) } as MechanicCondition;\n  if (kind === "spellManaAtLeast" || kind === "opponentSpellManaAtLeast") return { kind, amount: Math.max(0, Math.min(10, Math.trunc(finite(c.amount)))) } as MechanicCondition;\n  if (kind === "roundAtLeast")')
-
-          rep("src/game/condition-contract.ts",
-              '  manaAtLeast: { kind: "manaAtLeast", amount: 1 },\n  handAtLeast:',
-              '  manaAtLeast: { kind: "manaAtLeast", amount: 1 },\n  opponentManaAtLeast: { kind: "opponentManaAtLeast", amount: 1 },\n  spellManaAtLeast: { kind: "spellManaAtLeast", amount: 1 },\n  opponentSpellManaAtLeast: { kind: "opponentSpellManaAtLeast", amount: 1 },\n  handAtLeast:')
-
-          rep("src/game/aura-condition-contract.ts",
-              '  "manaAtLeast",\n  "handAtLeast",',
-              '  "manaAtLeast",\n  "opponentManaAtLeast",\n  "spellManaAtLeast",\n  "opponentSpellManaAtLeast",\n  "handAtLeast",')
-          rep("src/game/aura-condition-contract.ts",
-              '  if (condition.kind === "manaAtLeast") return player.mana >= condition.amount;\n  if (condition.kind === "handAtLeast")',
-              '  if (condition.kind === "manaAtLeast") return player.mana >= condition.amount;\n  if (condition.kind === "opponentManaAtLeast") return enemy.mana >= condition.amount;\n  if (condition.kind === "spellManaAtLeast") return player.spellMana >= condition.amount;\n  if (condition.kind === "opponentSpellManaAtLeast") return enemy.spellMana >= condition.amount;\n  if (condition.kind === "handAtLeast")')
-
-          rep("src/game/engine/effects.ts",
-              '  if (condition.kind === "manaAtLeast") return p.mana >= condition.amount;\n  if (condition.kind === "handAtLeast")',
-              '  if (condition.kind === "manaAtLeast") return p.mana >= condition.amount;\n  if (condition.kind === "opponentManaAtLeast") return opponent.mana >= condition.amount;\n  if (condition.kind === "spellManaAtLeast") return p.spellMana >= condition.amount;\n  if (condition.kind === "opponentSpellManaAtLeast") return opponent.spellMana >= condition.amount;\n  if (condition.kind === "handAtLeast")')
-
-          rep("src/app/admin/studio/AbilityComposerFields.tsx",
-              '  if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast" || kind === "roundAtLeast") return { kind, amount: 1 } as MechanicCondition;',
-              '  if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "opponentManaAtLeast" || kind === "spellManaAtLeast" || kind === "opponentSpellManaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast" || kind === "roundAtLeast") return { kind, amount: 1 } as MechanicCondition;')
-          rep("src/app/admin/studio/AbilityComposerFields.tsx",
-              '      {(kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") && <Field label={kind === "nexusBelow" ? "Your Nexus ≤" : kind === "opponentNexusBelow" ? "Opponent Nexus ≤" : kind === "manaAtLeast" ? "Mana ≥" : kind === "handAtLeast" ? "Your hand ≥" : "Opponent hand ≥"}><input className="input" type="number" min={0} max={20} value={(value as Extract<MechanicCondition, { kind: "nexusBelow" | "opponentNexusBelow" | "manaAtLeast" | "handAtLeast" | "opponentHandAtLeast" }>).amount} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "nexusBelow" | "opponentNexusBelow" | "manaAtLeast" | "handAtLeast" | "opponentHandAtLeast" }>), amount: Number(event.target.value) })} /></Field>}',
-              '      {(kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "opponentManaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") && <Field label={kind === "nexusBelow" ? "Your Nexus ≤" : kind === "opponentNexusBelow" ? "Opponent Nexus ≤" : kind === "manaAtLeast" ? "Your mana ≥" : kind === "opponentManaAtLeast" ? "Opponent mana ≥" : kind === "handAtLeast" ? "Your hand ≥" : "Opponent hand ≥"}><input className="input" type="number" min={0} max={20} value={(value as Extract<MechanicCondition, { kind: "nexusBelow" | "opponentNexusBelow" | "manaAtLeast" | "opponentManaAtLeast" | "handAtLeast" | "opponentHandAtLeast" }>).amount} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "nexusBelow" | "opponentNexusBelow" | "manaAtLeast" | "opponentManaAtLeast" | "handAtLeast" | "opponentHandAtLeast" }>), amount: Number(event.target.value) })} /></Field>}\n      {(kind === "spellManaAtLeast" || kind === "opponentSpellManaAtLeast") && <Field label={kind === "spellManaAtLeast" ? "Your spell mana ≥" : "Opponent spell mana ≥"}><input className="input" type="number" min={0} max={10} value={(value as Extract<MechanicCondition, { kind: "spellManaAtLeast" | "opponentSpellManaAtLeast" }>).amount} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "spellManaAtLeast" | "opponentSpellManaAtLeast" }>), amount: Number(event.target.value) })} /></Field>}')
-
-          rep("src/app/admin/studio/cards/ContinuousAuraConditionEditor.tsx",
-              '  if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast" || kind === "roundAtLeast") return { kind, amount: 1 } as MechanicCondition;',
-              '  if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "opponentManaAtLeast" || kind === "spellManaAtLeast" || kind === "opponentSpellManaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast" || kind === "roundAtLeast") return { kind, amount: 1 } as MechanicCondition;')
-          rep("src/app/admin/studio/cards/ContinuousAuraConditionEditor.tsx",
-              '        {(kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") && <label className="block"><span className="label">{kind === "nexusBelow" ? "Seu Nexus ≤" : kind === "opponentNexusBelow" ? "Nexus inimigo ≤" : kind === "manaAtLeast" ? "Mana ≥" : kind === "handAtLeast" ? "Sua mão ≥" : "Mão inimiga ≥"}</span><input className="input" type="number" min={0} max={20} value={safeValue.amount} onChange={(event) => onChange({ ...safeValue, amount: Number(event.target.value) })} /></label>}',
-              '        {(kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast" || kind === "opponentManaAtLeast" || kind === "handAtLeast" || kind === "opponentHandAtLeast") && <label className="block"><span className="label">{kind === "nexusBelow" ? "Seu Nexus ≤" : kind === "opponentNexusBelow" ? "Nexus inimigo ≤" : kind === "manaAtLeast" ? "Sua mana ≥" : kind === "opponentManaAtLeast" ? "Mana inimiga ≥" : kind === "handAtLeast" ? "Sua mão ≥" : "Mão inimiga ≥"}</span><input className="input" type="number" min={0} max={20} value={safeValue.amount} onChange={(event) => onChange({ ...safeValue, amount: Number(event.target.value) })} /></label>}\n        {(kind === "spellManaAtLeast" || kind === "opponentSpellManaAtLeast") && <label className="block"><span className="label">{kind === "spellManaAtLeast" ? "Sua mana de magia ≥" : "Mana de magia inimiga ≥"}</span><input className="input" type="number" min={0} max={10} value={safeValue.amount} onChange={(event) => onChange({ ...safeValue, amount: Number(event.target.value) })} /></label>}')
-
-          rep("src/app/admin/studio/cards/PermanentAuraEditor.tsx",
-              '<Panel title="Continuous Aura" eyebrow="CONDITION 2.6 — PERMANENT BOARD THRESHOLDS">',
-              '<Panel title="Continuous Aura" eyebrow="CONDITION 2.7 — RESOURCE THRESHOLDS">')
-          rep("src/app/admin/studio/cards/PermanentAuraEditor.tsx",
-              'quantidade de Permanents vivas aliadas ou inimigas, rodada atual, vida do próprio Nexus, vida do Nexus inimigo, mana, tamanho da própria mão ou da mão inimiga, dano marcado',
-              'quantidade de Permanents vivas aliadas ou inimigas, rodada atual, vida do próprio Nexus, vida do Nexus inimigo, mana normal própria/inimiga, mana de magia própria/inimiga, tamanho da própria mão ou da mão inimiga, dano marcado')
-          rep("src/app/admin/studio/cards/PermanentAuraEditor.tsx",
-              'quantidade de Permanents vivas aliadas ou inimigas, rodada atual, vida do próprio Nexus, vida do Nexus inimigo, mana, tamanho da própria mão ou da mão inimiga e composição',
-              'quantidade de Permanents vivas aliadas ou inimigas, rodada atual, vida do próprio Nexus, vida do Nexus inimigo, mana normal própria/inimiga, mana de magia própria/inimiga, tamanho da própria mão ou da mão inimiga e composição')
-
-          rep("src/game/aura-2-5-conditional-auras.test.ts",
-              '"nexusBelow", "opponentNexusBelow", "manaAtLeast", "handAtLeast", "opponentHandAtLeast", "roundAtLeast"',
-              '"nexusBelow", "opponentNexusBelow", "manaAtLeast", "opponentManaAtLeast", "spellManaAtLeast", "opponentSpellManaAtLeast", "handAtLeast", "opponentHandAtLeast", "roundAtLeast"')
-
-          rep("scripts/test-suites.mjs",
-              '  "src/game/condition-2-6-permanent-board-thresholds.test.ts",\n  "src/game/activated-abilities.test.ts",',
-              '  "src/game/condition-2-6-permanent-board-thresholds.test.ts",\n  "src/game/condition-2-7-resource-thresholds.test.ts",\n  "src/game/activated-abilities.test.ts",')
-
-          test = r'''import assert from "node:assert/strict";
-import "./aura-2-types";
-import { ABILITY_GRAMMAR_CATALOG, blueprintFromPermanentStatAura } from "./ability-system";
-import { auraConditionMatches } from "./aura-condition-contract";
-import { MECHANIC_CONDITION_KINDS, sanitizeMechanicCondition, validateAuthorableCard } from "./card-authoring";
-import { CONDITION_RUNTIME_SUPPORT, conditionKindsAtDepth } from "./condition-contract";
-import { withRegisteredCardSnapshot } from "./custom-registry";
-import { DECKS } from "./decks";
-import { castSpell, createGame, endTurn, makePermanent, makeUnit, mechanicConditionMatches, recomputeContinuousAuras } from "./engine";
-import { validateAuthorableCardWithSemanticTypes } from "./semantic-card-type-authoring";
-import type { CardDef, MechanicCondition, PermanentStatAura } from "./types";
-
-const unitCard = (defId: string, mechanics?: CardDef["mechanics"]): CardDef => ({
-  defId, name: defId, region: "Tidecall", type: "Unit", cost: 1, power: 2, health: 4, race: "Spirit",
-  ...(mechanics?.length ? { mechanics } : {}), description: "Condition 2.7 resource threshold test unit.", rarity: "Common", emoji: "💧",
-});
-const auraCard = (aura: PermanentStatAura, defId: string): CardDef => ({
-  defId, name: defId, region: "Tidecall", type: "Enchantment", cost: 1, maxHealth: 4, aura,
-  description: "Condition 2.7 resource threshold Aura.", rarity: "Rare", emoji: "🔷",
-});
-const spellCard = (defId: string, cost = 2): CardDef => ({
-  defId, name: defId, region: "Tidecall", type: "Spell", cost,
-  spell: { kind: "draw", amount: 0, target: "none" }, description: "Condition 2.7 spell-mana spend probe.", rarity: "Common", emoji: "✨",
-});
-
-for (const kind of ["opponentManaAtLeast", "spellManaAtLeast", "opponentSpellManaAtLeast"] as const) {
-  assert.equal(MECHANIC_CONDITION_KINDS.includes(kind), true);
-  assert.equal(CONDITION_RUNTIME_SUPPORT[kind], "supported");
-  assert.equal(conditionKindsAtDepth(0).includes(kind), true);
-  assert.equal(ABILITY_GRAMMAR_CATALOG.conditions.includes(kind), true);
-  assert.equal(ABILITY_GRAMMAR_CATALOG.conditionContracts[kind], "supported");
-}
-assert.deepEqual(sanitizeMechanicCondition({ kind: "opponentManaAtLeast", amount: 99 }), { kind: "opponentManaAtLeast", amount: 20 });
-assert.deepEqual(sanitizeMechanicCondition({ kind: "spellManaAtLeast", amount: 99 }), { kind: "spellManaAtLeast", amount: 10 });
-assert.deepEqual(sanitizeMechanicCondition({ kind: "opponentSpellManaAtLeast", amount: -4 }), { kind: "opponentSpellManaAtLeast", amount: 0 });
-
-withRegisteredCardSnapshot([unitCard("test_condition27_source")], () => {
-  const state = createGame("Condition 2.7 Orientation", DECKS[3], DECKS[2], true, 627001);
-  const playerSource = makeUnit(state, "test_condition27_source", "player");
-  const aiSource = makeUnit(state, "test_condition27_source", "ai");
-  state.players.player.bench = [playerSource];
-  state.players.ai.bench = [aiSource];
-  state.players.player.mana = 4;
-  state.players.player.spellMana = 2;
-  state.players.ai.mana = 3;
-  state.players.ai.spellMana = 1;
-
-  assert.equal(mechanicConditionMatches(state, playerSource, { kind: "opponentManaAtLeast", amount: 3 }), true);
-  assert.equal(mechanicConditionMatches(state, playerSource, { kind: "spellManaAtLeast", amount: 2 }), true);
-  assert.equal(mechanicConditionMatches(state, playerSource, { kind: "opponentSpellManaAtLeast", amount: 2 }), false);
-  assert.equal(mechanicConditionMatches(state, aiSource, { kind: "opponentManaAtLeast", amount: 4 }), true, "AI reads player mana symmetrically");
-  assert.equal(mechanicConditionMatches(state, aiSource, { kind: "opponentSpellManaAtLeast", amount: 2 }), true, "AI reads player spell mana symmetrically");
-
-  const composed: MechanicCondition = { kind: "and", children: [
-    { kind: "opponentManaAtLeast", amount: 3 },
-    { kind: "not", child: { kind: "opponentSpellManaAtLeast", amount: 2 } },
-  ] };
-  assert.equal(mechanicConditionMatches(state, playerSource, composed), true);
-  assert.equal(auraConditionMatches(state, "player", { kind: "opponentManaAtLeast", amount: 3 }), true);
-  assert.equal(auraConditionMatches(state, "player", { kind: "spellManaAtLeast", amount: 2 }), true);
-  assert.equal(auraConditionMatches(state, "ai", { kind: "opponentSpellManaAtLeast", amount: 2 }), true);
-});
-
-// Real round refresh converts unused normal mana into spell mana and activates the Aura;
-// a real spell then consumes that spell mana and disables it in the returned state.
-withRegisteredCardSnapshot([
-  auraCard({ buffPower: 2, buffHealth: 0, condition: { kind: "spellManaAtLeast", amount: 2 } }, "test_condition27_resource_aura"),
-  unitCard("test_condition27_ally"),
-  spellCard("test_condition27_spend_spell", 2),
-], () => {
-  const state = createGame("Condition 2.7 Resource Lifecycle", DECKS[3], DECKS[2], true, 627002);
-  state.players.player.bench = [];
-  state.players.player.permanents = [makePermanent(state, "test_condition27_resource_aura", "player")];
-  const ally = makeUnit(state, "test_condition27_ally", "player");
-  state.players.player.bench.push(ally);
-  state.players.player.mana = 2;
-  state.players.player.maxMana = 2;
-  state.players.player.spellMana = 0;
-  state.players.ai.mana = 0;
-  state.players.ai.spellMana = 0;
-  state.activePlayer = "player";
-  state.attackToken = "player";
-  state.phase = "main";
-  recomputeContinuousAuras(state);
-  assert.equal(ally.power, 2, "spell-mana Aura begins inactive");
-
-  const aiTurn = endTurn(state, "player");
-  const round2 = endTurn(aiTurn, "ai");
-  const chargedAlly = round2.players.player.bench.find((unit) => unit.instanceId === ally.instanceId)!;
-  assert.equal(round2.players.player.spellMana, 2, "unused mana is banked by authoritative round refresh");
-  assert.equal(chargedAlly.power, 4, "banking spell mana activates the Aura in the returned state");
-
-  round2.players.player.mana = 0;
-  round2.players.player.hand = [{ instanceId: "condition27_spell", defId: "test_condition27_spend_spell" }];
-  round2.activePlayer = "player";
-  round2.phase = "main";
-  const spent = castSpell(round2, "player", "condition27_spell");
-  const spentAlly = spent.players.player.bench.find((unit) => unit.instanceId === ally.instanceId)!;
-  assert.equal(spent.players.player.spellMana, 0, "spell cost falls through to spell mana when normal mana is empty");
-  assert.equal(spentAlly.power, 2, "spending below the threshold disables the Aura in the same resolution");
-});
-
-const mechanicAuthored = validateAuthorableCard(unitCard("valid_condition27_mechanic", [{
-  key: "resource_read", name: "Resource Read", trigger: "onRoundStart",
-  condition: { kind: "opponentManaAtLeast", amount: 4 }, effect: { kind: "draw", amount: 1, target: "none" },
-}]));
-assert.equal(mechanicAuthored.ok, true);
-assert.ok(mechanicAuthored.ok);
-assert.deepEqual(mechanicAuthored.card.mechanics?.[0].condition, { kind: "opponentManaAtLeast", amount: 4 });
-
-const auraAuthored = validateAuthorableCardWithSemanticTypes(auraCard({
-  buffPower: 1, buffHealth: 0,
-  condition: { kind: "and", children: [
-    { kind: "spellManaAtLeast", amount: 2 },
-    { kind: "not", child: { kind: "opponentSpellManaAtLeast", amount: 3 } },
-  ] },
-}, "valid_condition27_aura"));
-assert.equal(auraAuthored.ok, true);
-assert.ok(auraAuthored.ok);
-const blueprint = blueprintFromPermanentStatAura(auraAuthored.card);
-assert.ok(blueprint);
-assert.deepEqual(blueprint.condition, auraAuthored.card.aura?.condition);
-assert.equal(blueprint.features.includes("conditional"), true);
-
-console.log("CONDITION SYSTEM 2.7: PASS — opponent normal mana plus own/opponent spell-mana thresholds, symmetric public-resource orientation, 0..20/0..10 authoring envelopes, composition, authoritative bank/spend Aura lifecycle, authoring and Ability Grammar certified");
-'''
-          Path("src/game/condition-2-7-resource-thresholds.test.ts").write_text(test)
-
-          docs = '''# Condition System 2.7 — Resource Thresholds
-
-## Objetivo
-
-Condition 2.7 completa a leitura pública de recursos de mana sem introduzir um segundo modelo de recursos:
-
-```ts
-{ kind: "opponentManaAtLeast", amount: N }
-{ kind: "spellManaAtLeast", amount: N }
-{ kind: "opponentSpellManaAtLeast", amount: N }
-```
-
-`manaAtLeast` continua representando a mana normal do controlador da fonte.
-
-## Semântica autoritativa
-
-As quatro leituras de mana são orientadas pelo controlador da fonte. Para uma fonte do jogador, `opponent*` lê a IA; para uma fonte da IA, lê o jogador. Nenhuma condição inspeciona cartas, decisões ocultas ou informação privada.
-
-`opponentManaAtLeast` preserva o envelope histórico de recursos gerais `0..20`. `spellManaAtLeast` e `opponentSpellManaAtLeast` usam `0..10`, alinhado ao teto administrativo real de `maxSpellMana`; o default atual continua 3.
-
-## Lifecycle
-
-O runtime lê diretamente `PlayerState.mana` e `PlayerState.spellMana`. `grantMana()` já converte mana normal não usada em spell mana no começo de uma nova rodada; `endTurn()` recompõe Auras condicionais após a transição. `castSpell()` paga mana normal primeiro e spell mana depois, terminando no ciclo certificado de `cleanupDead()`/recomputação.
-
-Assim, uma Aura pode ligar quando spell mana é bancada e desligar imediatamente quando o recurso é gasto, sem cache, contador duplicado ou hook novo.
-
-## Studio e Ability Grammar
-
-Os três kinds aparecem no Ability Composer e no editor de Continuous Aura, incluindo composição `AND`, `OR` e `NOT`. Spell mana recebe input `0..10`; mana normal preserva `0..20`. Ability Grammar deriva os novos kinds do mesmo catálogo canônico e os publica como `supported`.
-
-## Certificação
-
-A suíte `condition-2-7-resource-thresholds.test.ts` cobre catálogo, clamps, orientação player/IA, composição, Mechanics, Aura, bank real de spell mana na virada de rodada, gasto real por spell, authoring e Ability Grammar. O total comportamental sobe de 73 para 74 targets.
-'''
-          Path("docs/CONDITION-2-7.md").write_text(docs)
-
-          aura_docs = Path("docs/AURA-2.md")
-          text = aura_docs.read_text()
-          marker = "## Condition 2.7 — Resource Thresholds"
-          if marker not in text:
-              text += "\n\n" + marker + "\n\nContinuous Auras podem usar `opponentManaAtLeast`, `spellManaAtLeast` e `opponentSpellManaAtLeast`. As condições leem apenas mana pública do controlador/oponente; bank de spell mana na virada de rodada e gasto por spell reutilizam os ciclos autoritativos existentes de recomputação. Veja `docs/CONDITION-2-7.md`.\n"
-              aura_docs.write_text(text)
-          PY
+        run: python3 scripts/condition-2-7-bootstrap.py
       - name: Install dependencies
         run: npm run ci:install
       - name: Validate implementation
@@ -270,9 +32,8 @@ A suíte `condition-2-7-resource-thresholds.test.ts` cobre catálogo, clamps, or
           npm run lint -- --max-warnings 0
           npm run test:behavior
       - name: Commit implementation
-        shell: bash
         run: |
-          rm .github/workflows/condition-2-7-bootstrap.yml
+          rm .github/workflows/condition-2-7-bootstrap.yml scripts/condition-2-7-bootstrap.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
