@@ -218,3 +218,8 @@ As extensões possuem suítes comportamentais e documentação separadas:
 ## Condition 2.7 — Resource Thresholds
 
 Continuous Auras podem usar `opponentManaAtLeast`, `spellManaAtLeast` e `opponentSpellManaAtLeast`. As condições leem apenas mana pública do controlador/oponente; bank de spell mana na virada de rodada e gasto por spell reutilizam os ciclos autoritativos existentes de recomputação. Veja `docs/CONDITION-2-7.md`.
+
+
+## Condition System 2.8 — Sentinela Board Thresholds
+
+Continuous Auras podem agora observar `allySentinelasAtLeast` e `enemySentinelasAtLeast`. Só contam Sentinelas com `loyalty > 0`, usando a zona autoritativa `PlayerState.sentinelas`. Uma Sentinela-fonte com condição aliada conta a si própria enquanto tiver Lealdade positiva. A remoção de qualquer Sentinela por `cleanupSentinelas()` recompõe Auras no mesmo estado, inclusive quando a Sentinela removida não possuía Aura própria.

@@ -271,6 +271,8 @@ export type MechanicCondition =
   | { kind: "enemyUnitsAtLeast"; min: number }
   | { kind: "allyPermanentsAtLeast"; min: number }
   | { kind: "enemyPermanentsAtLeast"; min: number }
+  | { kind: "allySentinelasAtLeast"; min: number }
+  | { kind: "enemySentinelasAtLeast"; min: number }
   | { kind: "nexusBelow"; amount: number }
   | { kind: "opponentNexusBelow"; amount: number }
   | { kind: "manaAtLeast"; amount: number }
