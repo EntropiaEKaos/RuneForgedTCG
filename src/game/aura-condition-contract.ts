@@ -118,10 +118,10 @@ export function auraConditionMatches(
     return player.bench.filter((unit) => (unit.classes ?? []).includes(condition.classKey)).length >= condition.min;
   }
   if (condition.kind === "enemyRace") {
-    return enemy.bench.filter((unit) => unit.race === condition.race || unit.races.includes(condition.race)).length >= condition.min;
+    return enemy.bench.filter((unit) => unit.health > 0 && (unit.race === condition.race || unit.races.includes(condition.race))).length >= condition.min;
   }
   if (condition.kind === "enemyClass") {
-    return enemy.bench.filter((unit) => (unit.classes ?? []).includes(condition.classKey)).length >= condition.min;
+    return enemy.bench.filter((unit) => unit.health > 0 && (unit.classes ?? []).includes(condition.classKey)).length >= condition.min;
   }
   if (condition.kind === "nexusBelow") return player.nexusHealth <= condition.amount;
   if (condition.kind === "opponentNexusBelow") return enemy.nexusHealth <= condition.amount;
