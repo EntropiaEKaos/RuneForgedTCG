@@ -20,6 +20,7 @@ const CONDITION_PROBES: Record<MechanicConditionKind, MechanicCondition> = {
   manaAtLeast: { kind: "manaAtLeast", amount: 1 },
   handAtLeast: { kind: "handAtLeast", amount: 1 },
   opponentHandAtLeast: { kind: "opponentHandAtLeast", amount: 1 },
+  roundAtLeast: { kind: "roundAtLeast", amount: 1 },
   and: { kind: "and", children: [{ kind: "always" }] },
   or: { kind: "or", children: [{ kind: "always" }] },
   not: { kind: "not", child: { kind: "always" } },
