@@ -1,15 +1,19 @@
 import { getCard } from "../cards";
 import type { GameState, PlayerId } from "../types";
+import { recomputeContinuousAuras } from "./state";
 
 export function cleanupSentinelas(state: GameState): void {
+  let removed = false;
   for (const pid of ["player", "ai"] as PlayerId[]) {
     const p = state.players[pid];
     const dead = p.sentinelas.filter((s) => s.loyalty <= 0);
     for (const s of dead) {
       state.log.push(`A Sentinela ${getCard(s.defId).name} foi destruída (Lealdade 0).`);
     }
+    if (dead.length > 0) removed = true;
     p.sentinelas = p.sentinelas.filter((s) => s.loyalty > 0);
   }
+  if (removed) recomputeContinuousAuras(state);
 }
 export function resetSentinelasActivation(state: GameState): void {
   for (const pid of ["player", "ai"] as PlayerId[]) {
