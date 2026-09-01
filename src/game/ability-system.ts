@@ -14,6 +14,7 @@ import { KEYWORD_INFO, type KeywordRuntimeDomain } from "./keywords";
 import {
   PERMANENT_ENEMY_STAT_AURA_CONTRACT,
   PERMANENT_KEYWORD_AURA_CONTRACT,
+  PERMANENT_KEYWORD_SUPPRESSION_AURA_CONTRACT,
   PERMANENT_STAT_AURA_CONTRACT,
 } from "./permanent-aura-contract";
 import { TRIGGER_TIMING_BY_EVENT, triggerTiming } from "./trigger-contract";
@@ -253,6 +254,7 @@ export const ABILITY_GRAMMAR_CATALOG = {
   permanentStatAuraContract: PERMANENT_STAT_AURA_CONTRACT,
   permanentEnemyStatAuraContract: PERMANENT_ENEMY_STAT_AURA_CONTRACT,
   permanentKeywordAuraContract: PERMANENT_KEYWORD_AURA_CONTRACT,
+  permanentKeywordSuppressionAuraContract: PERMANENT_KEYWORD_SUPPRESSION_AURA_CONTRACT,
   keywords: CARD_KEYWORDS,
   keywordContracts: KEYWORD_INFO,
 } as const;
@@ -386,7 +388,7 @@ export function blueprintFromEquipment(card: CardDef): AbilityBlueprint | null {
   };
 }
 
-/** Project the supported stat + keyword slices of source-bound Permanent Auras. */
+/** Project the supported stat, grant and suppression slices of source-bound Permanent Auras. */
 export function blueprintFromPermanentStatAura(card: CardDef): AbilityBlueprint | null {
   if ((card.type !== "Enchantment" && card.type !== "Artifact") || !card.aura) return null;
   const filtered = Boolean(card.aura.races?.length || card.aura.classes?.length);
@@ -408,6 +410,7 @@ export function blueprintFromPermanentStatAura(card: CardDef): AbilityBlueprint 
         buffHealth: card.aura.buffHealth,
         ...(enemyAura ? { affects: "enemies" as const } : {}),
         ...(card.aura.keywords?.length ? { keywords: [...card.aura.keywords] } : {}),
+        ...(card.aura.suppressKeywords?.length ? { suppressKeywords: [...card.aura.suppressKeywords] } : {}),
         ...(card.aura.races?.length ? { races: [...card.aura.races] } : {}),
         ...(card.aura.classes?.length ? { classes: [...card.aura.classes] } : {}),
       },
