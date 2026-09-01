@@ -16,6 +16,7 @@ import {
   PERMANENT_KEYWORD_AURA_CONTRACT,
   PERMANENT_KEYWORD_SUPPRESSION_AURA_CONTRACT,
   PERMANENT_STAT_AURA_CONTRACT,
+  UNIT_SOURCE_AURA_CONTRACT,
 } from "./permanent-aura-contract";
 import { TRIGGER_TIMING_BY_EVENT, triggerTiming } from "./trigger-contract";
 import type {
@@ -255,6 +256,7 @@ export const ABILITY_GRAMMAR_CATALOG = {
   permanentEnemyStatAuraContract: PERMANENT_ENEMY_STAT_AURA_CONTRACT,
   permanentKeywordAuraContract: PERMANENT_KEYWORD_AURA_CONTRACT,
   permanentKeywordSuppressionAuraContract: PERMANENT_KEYWORD_SUPPRESSION_AURA_CONTRACT,
+  unitSourceAuraContract: UNIT_SOURCE_AURA_CONTRACT,
   keywords: CARD_KEYWORDS,
   keywordContracts: KEYWORD_INFO,
 } as const;
@@ -388,9 +390,9 @@ export function blueprintFromEquipment(card: CardDef): AbilityBlueprint | null {
   };
 }
 
-/** Project the supported stat, grant and suppression slices of source-bound Permanent Auras. */
+/** Project the supported stat, grant and suppression slices of any certified source-bound Aura. */
 export function blueprintFromPermanentStatAura(card: CardDef): AbilityBlueprint | null {
-  if ((card.type !== "Enchantment" && card.type !== "Artifact") || !card.aura) return null;
+  if ((card.type !== "Unit" && card.type !== "Enchantment" && card.type !== "Artifact") || !card.aura) return null;
   const filtered = Boolean(card.aura.races?.length || card.aura.classes?.length);
   const enemyAura = card.aura.affects === "enemies";
   return {
