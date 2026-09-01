@@ -1,5 +1,6 @@
 import "./aura-2-types";
 import type { ActivatedAbility, ActivatedAbilityCost } from "./activated-ability-types";
+import { CONDITIONAL_AURA_CONTRACT } from "./aura-condition-contract";
 import {
   CARD_EFFECT_KINDS,
   CARD_KEYWORDS,
@@ -259,6 +260,7 @@ export const ABILITY_GRAMMAR_CATALOG = {
   permanentKeywordSuppressionAuraContract: PERMANENT_KEYWORD_SUPPRESSION_AURA_CONTRACT,
   unitSourceAuraContract: UNIT_SOURCE_AURA_CONTRACT,
   sentinelaSourceAuraContract: SENTINELA_SOURCE_AURA_CONTRACT,
+  conditionalAuraContract: CONDITIONAL_AURA_CONTRACT,
   keywords: CARD_KEYWORDS,
   keywordContracts: KEYWORD_INFO,
 } as const;
@@ -392,19 +394,20 @@ export function blueprintFromEquipment(card: CardDef): AbilityBlueprint | null {
   };
 }
 
-/** Project the supported stat, grant and suppression slices of any certified source-bound Aura. */
+/** Project the supported stat, grant, suppression and source-condition slices of any certified Aura. */
 export function blueprintFromPermanentStatAura(card: CardDef): AbilityBlueprint | null {
   if ((card.type !== "Unit" && card.type !== "Sentinela" && card.type !== "Enchantment" && card.type !== "Artifact") || !card.aura) return null;
   const filtered = Boolean(card.aura.races?.length || card.aura.classes?.length);
   const enemyAura = card.aura.affects === "enemies";
+  const condition = card.aura.condition ? structuredClone(card.aura.condition) : ALWAYS;
   return {
     version: ABILITY_GRAMMAR_VERSION,
     origin: "aura",
     kind: "aura",
-    features: filtered ? ["conditional"] : [],
+    features: filtered || condition.kind !== "always" ? ["conditional"] : [],
     timing: "static",
     description: card.description,
-    condition: ALWAYS,
+    condition,
     costs: [],
     target: enemyAura ? "enemyUnit" : "allyUnit",
     rule: {
@@ -417,6 +420,7 @@ export function blueprintFromPermanentStatAura(card: CardDef): AbilityBlueprint 
         ...(card.aura.suppressKeywords?.length ? { suppressKeywords: [...card.aura.suppressKeywords] } : {}),
         ...(card.aura.races?.length ? { races: [...card.aura.races] } : {}),
         ...(card.aura.classes?.length ? { classes: [...card.aura.classes] } : {}),
+        ...(card.aura.condition ? { condition: structuredClone(card.aura.condition) } : {}),
       },
     },
   };
