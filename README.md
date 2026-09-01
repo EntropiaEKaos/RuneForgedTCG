@@ -103,6 +103,21 @@ npm run audit:vanilla-utilization
 
 See `docs/VANILLA-1-2-UTILIZATION-TELEMETRY.md`.
 
+### Vanilla 1.3 — Tactical Coverage & Playability Friction
+
+- The historical `ai-core` priority tree remains untouched; the public `ai.ts` facade only invokes a narrow tactical fallback after the certified core returns `null`.
+- The fallback closes reproduced main-phase gaps for `frostbite`, `stun`, `recall`, `killUnit`, nonlethal Nexus damage, `poison`, `mill`, `buffAllies`, `buffRace` and `grantKeyword`.
+- Target selection reuses the canonical `spellNeedsTarget()` + `isValidTarget()` contracts, respects ownership/Hexproof and fails closed when no legal target exists.
+- Semantic usefulness guards prevent no-op spending: no repeated Frostbite/Stun/keyword grants, no empty global buffs and no racial buff without a matching ally.
+- The repeated **3,960-game utilization matrix** passed with zero pool/telemetry/incomplete errors. Ascendant cards played rose **9.7 → 10.4/game**, final hand fell **5.3 → 4.8**, and `ignored-playable` fell **26,491 → 12,610 (-52.4%)**.
+- The key isolation signal is policy-specific: Ascendant `player-heuristic` end-turn-with-playable stayed essentially flat (**16.9% → 17.1%**), while `ai-core` fell **53.5% → 28.1%**. The correction therefore acts where the diagnosed gap actually existed.
+- The full **13,200-game Balance Lab** also remained statistically valid: **66/66 stable**, first-player win rate **49.8%**, draw rate **0%**, average **10.6 rounds**, quality gate **PASS**.
+- Balance remains deliberately **BLOCKED** at **8 healthy / 8 watch / 50 critical**. Tidecall Ascendant improved **45.0% → 50.0%** and Voidborn Ascendant **27.7% → 29.5%**, but the other Ascendant recipes remain structurally weak.
+- This proves the AI gap was real but not the sole cause of Vanguard dominance. The next slice is **Vanilla 1.4 — Ascendant Recipe & Curve Reconstruction**, before any card-stat rebalance.
+- Vanilla 1.3 changes no card costs/stats/text, no experimental recipe, no authoritative rules and no Ranked pool. Its executable regression is the **80th behavioral target**.
+
+See `docs/VANILLA-1-3-TACTICAL-PLAYABILITY.md`.
+
 ## Ranked 2.97 architecture
 
 Season Zero Ranked accepts exactly four certified 40-card preconstructed decks:
@@ -149,7 +164,7 @@ RuneForge does not mix source-text checks with behavioral evidence:
 - `npm run audit:test-taxonomy` — prevents source-reading tests from being counted as behavioral.
 - `npm run test:e2e:alpha-journey` — real HTTP/PostgreSQL certification of the core Alpha player loop against a running production build.
 
-Current behavioral certification after Vanilla 1.2 contains **79 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
+Current behavioral certification after Vanilla 1.3 contains **80 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
 
 Historical 2.97 local evidence retained for provenance:
 
