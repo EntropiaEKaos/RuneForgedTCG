@@ -433,6 +433,7 @@ export function mechanicConditionMatches(state: GameState, unit: UnitInstance, c
   if (condition.kind === "manaAtLeast") return p.mana >= condition.amount;
   if (condition.kind === "handAtLeast") return p.hand.length >= condition.amount;
   if (condition.kind === "opponentHandAtLeast") return opponent.hand.length >= condition.amount;
+  if (condition.kind === "roundAtLeast") return state.round >= condition.amount;
   return false;
 }
 
