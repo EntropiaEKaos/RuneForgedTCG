@@ -11,7 +11,8 @@ Os slices são incrementais:
 - **Aura 2.2** — supressão source-bound de keywords em inimigos;
 - **Aura 2.3** — Units vivas como fontes de Aura (“lord effects”), com autoexclusão por `instanceId`;
 - **Aura 2.4** — Sentinelas como fontes de Command Aura enquanto tiverem Lealdade positiva;
-- **Aura 2.5** — ativação condicional controller-scoped com raça/classe aliada, Nexus, mana e AND/OR/NOT.
+- **Aura 2.5** — ativação condicional controller-scoped com raça/classe aliada, Nexus, mana e AND/OR/NOT;
+- **Aura 2.6** — Ability Grammar/introspection projeta o contrato condicional certificado sem alterar runtime.
 
 Estruturas continuam usando sua base estrutural `Artifact`, portanto herdam o contrato de Permanent Aura sem alterar replay, DTO ou o `CardType` persistido.
 
@@ -122,11 +123,21 @@ O servidor continua fail-closed. O sanitizer legado de stat Aura permanece prese
 
 Isso evita ampliar silenciosamente o contrato antigo de `validateAuthorableCard()`.
 
-## Ability Grammar 2.0
+## Ability Grammar 2.0 — Aura 2.6
 
-O catálogo continua expondo os contratos certificados de fonte de Aura 2.0–2.4 e a família `aura` permanece marcada como **partial**.
+O catálogo expõe os contratos certificados de fonte de Aura 2.0–2.4 e agora também publica `conditionalAuraContract: CONDITIONAL_AURA_CONTRACT`, reutilizando exatamente o contrato funcional certificado em Aura 2.5.
 
-Aura 2.5 reutiliza o mesmo vocabulário `MechanicCondition` consumido pela Ability Grammar, mas este PR não promove o envelope histórico `permanentStatAura` a uma definição genérica de layers condicionais entre famílias diferentes. Essa integração de catálogo pode ser certificada em um corte separado, sem acoplar o risco funcional do runtime ao modelo de introspecção.
+`blueprintFromPermanentStatAura()` passa a representar a condição real da fonte:
+
+- `AbilityBlueprint.condition` recebe uma cópia defensiva de `card.aura.condition`;
+- `AbilityRule.permanentStatAura.aura.condition` preserva a mesma semântica em outra cópia defensiva;
+- Aura sem condição explícita continua projetando `condition: { kind: "always" }` e não ganha um campo `condition` artificial dentro do rule payload.
+
+O marker `features: ["conditional"]` aparece se houver condição de fonte diferente de `always` **ou** filtros de alvo `races`/`classes`. Isso preserva o comportamento histórico de filtros sem confundir os dois níveis: o campo `condition` descreve a fonte; filtros continuam no payload da Aura e descrevem os alvos.
+
+As árvores projetadas não compartilham referência mutável com o `CardDef` nem entre a metadata do blueprint e o rule payload. Ability Grammar continua sendo introspecção read-only e não consegue alterar a definição autoritativa da carta por mutação acidental.
+
+A família `aura` permanece marcada como **partial**. Aura 2.6 não promove o envelope `permanentStatAura` a um layer system genérico entre famílias diferentes.
 
 O sistema de gameplay cobre:
 
@@ -137,7 +148,8 @@ O sistema de gameplay cobre:
 - Permanent sources;
 - Unit-source / lord effects;
 - Sentinela-source / command effects;
-- condições controller-scoped de Aura — Aura 2.5.
+- condições controller-scoped de Aura — Aura 2.5;
+- introspecção fiel dessas condições pela Ability Grammar — Aura 2.6.
 
 Ainda ficam fora do contrato genérico:
 
@@ -157,4 +169,5 @@ As extensões possuem suítes comportamentais e documentação separadas:
 - `docs/AURA-2-2.md` — keyword suppression;
 - `docs/AURA-2-3.md` — Unit-source / lord effects;
 - `docs/AURA-2-4.md` — Sentinela-source / command effects;
-- `docs/AURA-2-5.md` — conditional continuous Auras.
+- `docs/AURA-2-5.md` — conditional continuous Auras;
+- `docs/AURA-2-6.md` — conditional Aura Ability Grammar/introspection.
