@@ -88,16 +88,17 @@ Condições controller-scoped podem mudar quando:
 - triggers de ataque alteram o board antes dos bloqueios;
 - uma nova rodada começa.
 
-O facade `engine/semantic-actions.ts` recompõe Continuous Auras depois de transições válidas de:
+As transições de `playUnit()` e `castSpell()` já convergem pelos cleanups históricos que recompõem Auras depois de alterações de mana/board/Nexus. Aura 2.5 adiciona refresh pós-transição somente onde o engine anterior não possuía essa convergência:
 
-- `playUnit()`;
-- `castSpell()`;
-- `declareAttack()`;
-- `endTurn()`.
+- `declareAttack()` — depois de triggers `onAttack`, antes dos bloqueios;
+- `endTurn()` — depois de refresh de mana/fadiga/round-start;
+- `playUnit()` de Sentinela — caminho legado que não executa `cleanupDead()`.
 
-Combate resolvido e activated/Sentinela abilities já convergem pelos cleanups autoritativos que recomputam Auras.
+Esses refreshes **só são extras quando existe uma fonte com `aura.condition` antes ou depois da transição**. Partidas sem Aura condicional mantêm o caminho pré-2.5 sem uma recomputação adicional de stats. A exceção já certificada de Aura 2.4 permanece: uma Sentinela que é ela própria fonte de Aura ainda precisa recompor imediatamente ao entrar.
 
-Assim uma condição não fica congelada aguardando outra ação não relacionada.
+Combate resolvido e activated/Sentinela abilities continuam convergindo pelos cleanups autoritativos que já recompõem Auras.
+
+Assim uma condição não fica congelada aguardando outra ação não relacionada, sem alterar a semântica de estados legacy/custom que não usam Aura 2.5.
 
 ## Card Studio
 
@@ -147,3 +148,5 @@ A família `aura` continua marcada como **partial** no Ability System 2.0.
 - runtime fail-closed para `selfDamaged`;
 - authoring válido e round-trip da condição;
 - rejeição de `selfDamaged`, nested `selfDamaged`, `null` e condition-only sem efeito.
+
+A suíte histórica `src/game/engine.test.ts` também atua como guarda de compatibilidade: ações sem fontes condicionais não podem ganhar uma recomputação extra que normalize estados customizados que o engine pré-2.5 preservava.
