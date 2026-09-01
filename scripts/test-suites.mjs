@@ -10,6 +10,7 @@ export const behavioralTests = [
   "src/game/aura-2-5-conditional-auras.test.ts",
   "src/game/aura-2-6-ability-grammar.test.ts",
   "src/game/aura-2-7-unit-source-self-damaged.test.ts",
+  "src/game/condition-2-1-opponent-nexus-threshold.test.ts",
   "src/game/activated-abilities.test.ts",
   "src/game/expanded-activated-ability-costs.test.ts",
   "src/game/selected-discard-activated-cost.test.ts",

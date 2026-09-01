@@ -6,6 +6,7 @@ export const AURA_CONDITION_KINDS = [
   "allyRace",
   "allyClass",
   "nexusBelow",
+  "opponentNexusBelow",
   "manaAtLeast",
   "and",
   "or",
@@ -17,7 +18,7 @@ export const UNIT_SOURCE_AURA_CONDITION_KINDS = [
   "selfDamaged",
 ] as const;
 
-/** Aura 2.5 compatibility contract: controller-scoped conditions only. */
+/** Aura 2.5 compatibility contract, extended by Condition 2.1 with opponent Nexus state. */
 export const CONDITIONAL_AURA_CONTRACT = {
   rule: "conditionalAura",
   conditions: AURA_CONDITION_KINDS,
@@ -113,6 +114,10 @@ export function auraConditionMatches(
     return player.bench.filter((unit) => (unit.classes ?? []).includes(condition.classKey)).length >= condition.min;
   }
   if (condition.kind === "nexusBelow") return player.nexusHealth <= condition.amount;
+  if (condition.kind === "opponentNexusBelow") {
+    const opponent: PlayerId = sourceOwner === "player" ? "ai" : "player";
+    return state.players[opponent].nexusHealth <= condition.amount;
+  }
   if (condition.kind === "manaAtLeast") return player.mana >= condition.amount;
   return false;
 }

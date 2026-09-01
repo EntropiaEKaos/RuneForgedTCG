@@ -13,7 +13,8 @@ Os slices são incrementais:
 - **Aura 2.4** — Sentinelas como fontes de Command Aura enquanto tiverem Lealdade positiva;
 - **Aura 2.5** — ativação condicional controller-scoped com raça/classe aliada, Nexus, mana e AND/OR/NOT;
 - **Aura 2.6** — Ability Grammar/introspection projeta o contrato condicional certificado sem alterar runtime;
-- **Aura 2.7** — `selfDamaged` como condição source-relative exclusivamente para Unit-source/lord effects.
+- **Aura 2.7** — `selfDamaged` como condição source-relative exclusivamente para Unit-source/lord effects;
+- **Condition 2.1 integration** — `opponentNexusBelow` amplia o vocabulário controller-scoped com limiar do Nexus adversário sem criar dependência entre layers.
 
 Estruturas continuam usando sua base estrutural `Artifact`, portanto herdam o contrato de Permanent Aura sem alterar replay, DTO ou o `CardType` persistido.
 
@@ -41,22 +42,25 @@ Sentinelas reutilizam o mesmo payload já certificado:
 
 Como Sentinela não é Unit, ela nunca pertence ao conjunto de alvos Unit e não requer regra especial de autoexclusão. `selfDamaged` continua inválido para Sentinela; Lealdade não é reinterpretada como vida de Unit.
 
-## Condições de fonte — Aura 2.5 + 2.7
+## Condições de fonte — Aura 2.5 + 2.7 + Condition 2.1
 
 `PermanentStatAura.condition` é opcional. Ausente significa o comportamento histórico “sempre ativa enquanto o lifecycle da fonte for válido”.
 
-O contrato controller-scoped de Aura 2.5 aceita:
+O contrato controller-scoped aceita:
 
 - `always`;
 - `allyRace`;
 - `allyClass`;
-- `nexusBelow`;
+- `nexusBelow` — Nexus do próprio controlador ≤ X;
+- `opponentNexusBelow` — Nexus do adversário do controlador ≤ X;
 - `manaAtLeast`;
 - `and` / `or` / `not`.
 
 A condição decide se **a fonte inteira participa do layer**. Os filtros `races` / `classes` continuam decidindo quais Units aquela fonte afeta.
 
-`CONDITIONAL_AURA_CONTRACT` permanece compatível com Aura 2.5 e continua declarando `selfDamaged` como unsupported no contrato geral. Aura 2.7 adiciona `UNIT_SOURCE_SELF_DAMAGED_AURA_CONTRACT` como exceção certificada exclusivamente para Unit-source. `selfDamaged` pode aparecer em qualquer profundidade válida de `and`, `or` e `not` quando a fonte é Unit.
+Condition 2.1 adiciona `opponentNexusBelow` ao mesmo contrato controller-scoped. A orientação é simétrica: uma fonte de `player` lê o Nexus da `ai`; uma fonte de `ai` lê o Nexus de `player`. O threshold é inclusivo e reutiliza o clamp canônico 0..20.
+
+`CONDITIONAL_AURA_CONTRACT` continua declarando `selfDamaged` como unsupported no contrato geral. Aura 2.7 adiciona `UNIT_SOURCE_SELF_DAMAGED_AURA_CONTRACT` como exceção certificada exclusivamente para Unit-source. `selfDamaged` pode aparecer em qualquer profundidade válida de `and`, `or` e `not` quando a fonte é Unit.
 
 Permanent e Sentinela continuam rejeitando `selfDamaged` no authoring e tratando payloads bypassados como fonte inativa em runtime.
 
@@ -68,7 +72,7 @@ A contribuição existe somente enquanto a fonte está ativa na zona correta **e
 - `Unit` — no `bench` com vida positiva;
 - `Sentinela` — em `sentinelas` com Lealdade positiva.
 
-Entrada, saída, destruição, recall, transformação e mudança de elegibilidade convergem para `recomputeContinuousAuras()` / cleanups autoritativos. Aura 2.4 garante lifecycle imediato de Sentinelas; Aura 2.5 acrescenta reatividade para estado do controlador; Aura 2.7 reutiliza a mesma convergência para observar dano/cura da Unit-fonte.
+Entrada, saída, destruição, recall, transformação e mudança de elegibilidade convergem para `recomputeContinuousAuras()` / cleanups autoritativos. Aura 2.4 garante lifecycle imediato de Sentinelas; Aura 2.5 acrescenta reatividade para estado do controlador; Aura 2.7 reutiliza a mesma convergência para observar dano/cura da Unit-fonte; Condition 2.1 reutiliza essa reatividade para mudanças do Nexus adversário.
 
 O facade `engine/semantic-actions.ts` recompõe Continuous Auras depois de transições válidas de jogar carta, conjurar feitiço, declarar ataque e encerrar turno. Combate resolvido e activated/Sentinela abilities já convergem pelos cleanups autoritativos.
 
@@ -118,7 +122,7 @@ O editor de Continuous Aura está disponível para:
 - `Unit` — Lord Effect;
 - `Sentinela` — Command Aura.
 
-O editor opcional de condição expõe as condições controller-scoped em todas as famílias. Em Aura 2.7, `ContinuousAuraConditionEditor` recebe uma capability explícita e mostra `selfDamaged` somente para `Unit`, inclusive dentro de composição AND/OR/NOT.
+O editor opcional de condição expõe as condições controller-scoped em todas as famílias, incluindo agora limiares separados para o próprio Nexus e o Nexus inimigo. Em Aura 2.7, `ContinuousAuraConditionEditor` recebe uma capability explícita e mostra `selfDamaged` somente para `Unit`, inclusive dentro de composição AND/OR/NOT.
 
 A UI diferencia condição da fonte de filtros de alvo. Para Units, o Studio informa que o próprio source instance é excluído e que `selfDamaged` observa dano marcado da fonte. Para Sentinelas, informa que a fonte permanece disponível enquanto houver Lealdade positiva.
 
@@ -126,9 +130,9 @@ O servidor continua fail-closed. O sanitizer legado de stat Aura permanece prese
 
 Isso evita ampliar silenciosamente o contrato antigo de `validateAuthorableCard()` e evita reinterpretar Permanent/Sentinela como Unit.
 
-## Ability Grammar 2.0 — Aura 2.6/2.7
+## Ability Grammar 2.0 — Aura 2.6/2.7 + Condition 2.1
 
-O catálogo expõe os contratos certificados de fonte de Aura e `conditionalAuraContract: CONDITIONAL_AURA_CONTRACT`, reutilizando exatamente o contrato controller-scoped funcional certificado em Aura 2.5.
+O catálogo expõe os contratos certificados de fonte de Aura e `conditionalAuraContract: CONDITIONAL_AURA_CONTRACT`. `ABILITY_GRAMMAR_CATALOG.conditions` e `conditionContracts` derivam do vocabulário canônico, portanto `opponentNexusBelow` aparece como `supported` sem um rule kind paralelo.
 
 `blueprintFromPermanentStatAura()` representa a condição real da fonte:
 
@@ -136,11 +140,11 @@ O catálogo expõe os contratos certificados de fonte de Aura e `conditionalAura
 - `AbilityRule.permanentStatAura.aura.condition` preserva a mesma semântica em outra cópia defensiva;
 - Aura sem condição explícita continua projetando `condition: { kind: "always" }` e não ganha um campo `condition` artificial dentro do rule payload.
 
-Por isso uma Unit-source Aura 2.7 com `selfDamaged` já é projetada corretamente como habilidade condicional sem exigir um novo rule kind. O contrato dedicado `UNIT_SOURCE_SELF_DAMAGED_AURA_CONTRACT` permanece no módulo autoritativo de condições para distinguir explicitamente essa exceção do contrato geral Aura 2.5.
+Por isso uma Unit-source Aura 2.7 com `selfDamaged` ou qualquer Aura controller-scoped com `opponentNexusBelow` é projetada corretamente como habilidade condicional sem exigir um novo rule kind.
 
 O marker `features: ["conditional"]` aparece se houver condição de fonte diferente de `always` **ou** filtros de alvo `races`/`classes`.
 
-A família `aura` permanece marcada como **partial**. Aura 2.7 não promove o envelope `permanentStatAura` a um layer system genérico entre famílias diferentes.
+A família `aura` permanece marcada como **partial**. Condition 2.1 não promove o envelope `permanentStatAura` a um layer system genérico entre famílias diferentes.
 
 O sistema de gameplay cobre:
 
@@ -153,7 +157,8 @@ O sistema de gameplay cobre:
 - Sentinela-source / command effects;
 - condições controller-scoped de Aura — Aura 2.5;
 - introspecção fiel dessas condições pela Ability Grammar — Aura 2.6;
-- `selfDamaged` source-relative para Unit Lord Effects — Aura 2.7.
+- `selfDamaged` source-relative para Unit Lord Effects — Aura 2.7;
+- threshold do Nexus adversário controller-scoped — Condition 2.1.
 
 Ainda ficam fora do contrato genérico:
 
@@ -175,4 +180,5 @@ As extensões possuem suítes comportamentais e documentação separadas:
 - `docs/AURA-2-4.md` — Sentinela-source / command effects;
 - `docs/AURA-2-5.md` — conditional continuous Auras;
 - `docs/AURA-2-6.md` — conditional Aura Ability Grammar/introspection;
-- `docs/AURA-2-7.md` — Unit-source `selfDamaged` conditions.
+- `docs/AURA-2-7.md` — Unit-source `selfDamaged` conditions;
+- `docs/CONDITION-2-1.md` — opponent Nexus thresholds compartilhados por Mechanics e Aura.

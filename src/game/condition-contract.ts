@@ -12,6 +12,7 @@ const CONDITION_PROBES: Record<MechanicConditionKind, MechanicCondition> = {
   allyRace: { kind: "allyRace", race: "Dragon", min: 1 },
   allyClass: { kind: "allyClass", classKey: "mage", min: 1 },
   nexusBelow: { kind: "nexusBelow", amount: 1 },
+  opponentNexusBelow: { kind: "opponentNexusBelow", amount: 1 },
   manaAtLeast: { kind: "manaAtLeast", amount: 1 },
   and: { kind: "and", children: [{ kind: "always" }] },
   or: { kind: "or", children: [{ kind: "always" }] },

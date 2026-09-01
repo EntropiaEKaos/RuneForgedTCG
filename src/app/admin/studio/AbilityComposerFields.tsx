@@ -137,7 +137,7 @@ export function defaultMechanicCondition(kind: string): MechanicCondition {
   if (kind === "not") return { kind: "not", child: { kind: "selfDamaged" } };
   if (kind === "allyRace") return { kind: "allyRace", race: "Dragon", min: 1 };
   if (kind === "allyClass") return { kind: "allyClass", classKey: "mage", min: 1 };
-  if (kind === "nexusBelow" || kind === "manaAtLeast") return { kind, amount: 1 } as MechanicCondition;
+  if (kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast") return { kind, amount: 1 } as MechanicCondition;
   return { kind: kind as "always" | "selfDamaged" };
 }
 
@@ -160,7 +160,7 @@ export function StudioConditionEditor({ value, onChange, depth = 0 }: { value: M
         <Field label="Class key"><input className="input font-mono" value={(value as Extract<MechanicCondition, { kind: "allyClass" }>).classKey} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyClass" }>), classKey: event.target.value })} /></Field>
         <Field label="Minimum"><input className="input" type="number" min={1} max={6} value={(value as Extract<MechanicCondition, { kind: "allyClass" }>).min ?? 1} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "allyClass" }>), min: Number(event.target.value) })} /></Field>
       </>}
-      {(kind === "nexusBelow" || kind === "manaAtLeast") && <Field label="Amount"><input className="input" type="number" min={0} max={20} value={(value as Extract<MechanicCondition, { kind: "nexusBelow" | "manaAtLeast" }>).amount} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "nexusBelow" | "manaAtLeast" }>), amount: Number(event.target.value) })} /></Field>}
+      {(kind === "nexusBelow" || kind === "opponentNexusBelow" || kind === "manaAtLeast") && <Field label={kind === "nexusBelow" ? "Your Nexus ≤" : kind === "opponentNexusBelow" ? "Opponent Nexus ≤" : "Mana ≥"}><input className="input" type="number" min={0} max={20} value={(value as Extract<MechanicCondition, { kind: "nexusBelow" | "opponentNexusBelow" | "manaAtLeast" }>).amount} onChange={(event) => onChange({ ...(value as Extract<MechanicCondition, { kind: "nexusBelow" | "opponentNexusBelow" | "manaAtLeast" }>), amount: Number(event.target.value) })} /></Field>}
     </div>
     {depthLimited && <div data-condition-depth-limit="reached" className="mt-3 rounded-lg border border-amber-300/15 bg-amber-300/[.05] px-3 py-2 text-[10px] leading-4 text-amber-100/80">Profundidade máxima do contrato atingida. Neste nível o Studio oferece apenas condições-folha executáveis.</div>}
     {(kind === "and" || kind === "or") && <div className="mt-3 space-y-2">
