@@ -44,6 +44,7 @@
     "audit:gameplay": "tsx scripts/gameplay-audit.ts",
     "audit:balance": "node --import tsx scripts/balance-audit-2.97.ts 100 8 --write BALANCE_AUDIT_2.97.json",
     "audit:vanilla-balance": "node --import tsx scripts/vanilla-balance-audit.ts 40 5 --write VANILLA_BALANCE_AUDIT_1.1.json --enforce",
+    "audit:vanilla-utilization": "node --import tsx scripts/vanilla-utilization-audit.ts 20 3 --write VANILLA_UTILIZATION_AUDIT_1.2.json --enforce",
     "ranked:verify": "node --import tsx scripts/balance-audit-2.97.ts 100 8 --write BALANCE_AUDIT_2.97.json --enforce",
     "test:e2e:http": "tsx scripts/e2e-pvp-ranked.ts",
     "test:e2e:alpha-journey": "tsx scripts/alpha-player-journey.ts",
