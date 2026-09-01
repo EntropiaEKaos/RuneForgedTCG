@@ -66,7 +66,7 @@ export const CARD_EFFECT_CONTRACTS = {
   buffAllies: { targets: ["none"], amount: "any", requires: ["buff"] },
   buffRace: { targets: ["none"], amount: "any", requires: ["buff", "race"] },
   buffClass: { targets: ["none"], amount: "any", requires: ["buff", "classKey"] },
-  aoeEnemy: { targets: ["none"], amount: "any" },
+  aoeEnemy: { targets: ["none"], amount: "nonNegative" },
   draw: { targets: ["none"], amount: "nonNegative" },
   grantBarrier: { targets: [...UNIT_TARGETS, "none"], amount: "any" },
   grantKeyword: { targets: [...UNIT_TARGETS, "none"], amount: "any", requires: ["keyword"] },
