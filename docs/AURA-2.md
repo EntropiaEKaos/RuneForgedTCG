@@ -17,7 +17,8 @@ Os slices são incrementais:
 - **Condition 2.1 integration** — `opponentNexusBelow` amplia o vocabulário controller-scoped com limiar do Nexus adversário sem criar dependência entre layers;
 - **Condition 2.2 integration** — `enemyRace` / `enemyClass` observam identidade pública das Units vivas no bench adversário;
 - **Condition 2.3 integration** — `handAtLeast` / `opponentHandAtLeast` observam somente a quantidade pública de cartas nas mãos;
-- **Condition 2.4 integration** — `allyUnitsAtLeast` / `enemyUnitsAtLeast` observam a quantidade de Units vivas nos benches aliado e adversário.
+- **Condition 2.4 integration** — `allyUnitsAtLeast` / `enemyUnitsAtLeast` observam a quantidade de Units vivas nos benches aliado e adversário;
+- **Condition 2.5 integration** — `roundAtLeast` observa a rodada autoritativa compartilhada da partida como condição match-scoped.
 
 Estruturas continuam usando sua base estrutural `Artifact`, portanto herdam o contrato de Permanent Aura sem alterar replay, DTO ou o `CardType` persistido.
 
@@ -45,11 +46,11 @@ Sentinelas reutilizam o mesmo payload já certificado:
 
 Como Sentinela não é Unit, ela nunca pertence ao conjunto de alvos Unit e não requer regra especial de autoexclusão. `selfDamaged` continua inválido para Sentinela; Lealdade não é reinterpretada como vida de Unit.
 
-## Condições de fonte — Aura 2.5 + 2.7 + Condition 2.1/2.2/2.3/2.4
+## Condições de fonte — Aura 2.5 + 2.7 + Condition 2.1/2.2/2.3/2.4/2.5
 
 `PermanentStatAura.condition` é opcional. Ausente significa o comportamento histórico “sempre ativa enquanto o lifecycle da fonte for válido”.
 
-O contrato controller-scoped aceita:
+O contrato aceita condições controller-scoped e match-scoped:
 
 - `always`;
 - `allyRace`;
@@ -63,6 +64,7 @@ O contrato controller-scoped aceita:
 - `manaAtLeast`;
 - `handAtLeast` — quantidade de cartas na própria mão ≥ X;
 - `opponentHandAtLeast` — quantidade de cartas na mão adversária ≥ X;
+- `roundAtLeast` — rodada autoritativa da partida ≥ X;
 - `and` / `or` / `not`.
 
 A condição decide se **a fonte inteira participa do layer**. Os filtros `races` / `classes` continuam decidindo quais Units aquela fonte afeta.
@@ -74,6 +76,8 @@ Condition 2.2 adiciona `enemyRace` e `enemyClass`, também orientados pelo contr
 Condition 2.3 adiciona `handAtLeast` e `opponentHandAtLeast`. Ambas leem exclusivamente `PlayerState.hand.length`: nenhuma identidade, ordem ou outro conteúdo oculto da mão adversária participa da regra. Limiares inferiores são expressáveis por `not` sem criar folhas redundantes.
 
 Condition 2.4 adiciona `allyUnitsAtLeast` e `enemyUnitsAtLeast`. Ambas contam exclusivamente Units com `health > 0` no bench orientado pelo controlador. Sentinelas, Permanents, cartas na mão e corpos já letais aguardando cleanup não entram na contagem. O threshold usa o envelope canônico `1..6`; limites inferiores continuam expressáveis por `not`.
+
+Condition 2.5 adiciona `roundAtLeast`. Diferente das folhas orientadas pelo controller, ela é match-scoped e compara somente `GameState.round` com o threshold inclusivo. Player e AI observam o mesmo relógio autoritativo. O envelope de authoring é `1..2000`, coerente com o limite máximo configurável de rodadas; “antes da rodada N” continua expressável por `not`.
 
 `CONDITIONAL_AURA_CONTRACT` continua declarando `selfDamaged` como unsupported no contrato geral. Aura 2.7 adiciona `UNIT_SOURCE_SELF_DAMAGED_AURA_CONTRACT` como exceção certificada exclusivamente para Unit-source. `selfDamaged` pode aparecer em qualquer profundidade válida de `and`, `or` e `not` quando a fonte é Unit.
 
@@ -87,7 +91,7 @@ A contribuição existe somente enquanto a fonte está ativa na zona correta **e
 - `Unit` — no `bench` com vida positiva;
 - `Sentinela` — em `sentinelas` com Lealdade positiva.
 
-Entrada, saída, destruição, recall, transformação e mudança de elegibilidade convergem para `recomputeContinuousAuras()` / cleanups autoritativos. Aura 2.4 garante lifecycle imediato de Sentinelas; Aura 2.5 acrescenta reatividade para estado do controlador; Aura 2.7 reutiliza a mesma convergência para observar dano/cura da Unit-fonte; Condition 2.1 reutiliza essa reatividade para mudanças do Nexus adversário; Condition 2.2 reutiliza a convergência de board para entrada, saída e morte de Units inimigas; Condition 2.3 usa os mesmos boundaries para mudanças de mão por jogar, conjurar e comprar cartas; Condition 2.4 usa a convergência já existente de summon, morte, recall e cleanup para cruzar thresholds de quantidade de Units vivas.
+Entrada, saída, destruição, recall, transformação e mudança de elegibilidade convergem para `recomputeContinuousAuras()` / cleanups autoritativos. Aura 2.4 garante lifecycle imediato de Sentinelas; Aura 2.5 acrescenta reatividade para estado do controlador; Aura 2.7 reutiliza a mesma convergência para observar dano/cura da Unit-fonte; Condition 2.1 reutiliza essa reatividade para mudanças do Nexus adversário; Condition 2.2 reutiliza a convergência de board para entrada, saída e morte de Units inimigas; Condition 2.3 usa os mesmos boundaries para mudanças de mão por jogar, conjurar e comprar cartas; Condition 2.4 usa a convergência já existente de summon, morte, recall e cleanup para cruzar thresholds de quantidade de Units vivas; Condition 2.5 usa o boundary já certificado de `endTurn()` para recompor Auras quando a rodada autoritativa avança.
 
 O facade `engine/semantic-actions.ts` recompõe Continuous Auras depois de transições válidas de jogar carta, conjurar feitiço, declarar ataque e encerrar turno. Combate resolvido e activated/Sentinela abilities já convergem pelos cleanups autoritativos.
 
@@ -137,7 +141,7 @@ O editor de Continuous Aura está disponível para:
 - `Unit` — Lord Effect;
 - `Sentinela` — Command Aura.
 
-O editor opcional de condição expõe as condições controller-scoped em todas as famílias, incluindo limiares separados para o próprio Nexus e o Nexus inimigo, tamanho da própria mão e da mão inimiga, quantidade de Units vivas aliadas/inimigas, além de raça/classe aliada ou inimiga. Em Aura 2.7, `ContinuousAuraConditionEditor` recebe uma capability explícita e mostra `selfDamaged` somente para `Unit`, inclusive dentro de composição AND/OR/NOT.
+O editor opcional de condição expõe as condições controller-scoped em todas as famílias e a condição match-scoped `roundAtLeast`, incluindo limiares separados para o próprio Nexus e o Nexus inimigo, tamanho da própria mão e da mão inimiga, quantidade de Units vivas aliadas/inimigas, além de raça/classe aliada ou inimiga. Em Aura 2.7, `ContinuousAuraConditionEditor` recebe uma capability explícita e mostra `selfDamaged` somente para `Unit`, inclusive dentro de composição AND/OR/NOT.
 
 A UI diferencia condição da fonte de filtros de alvo. Para Units, o Studio informa que o próprio source instance é excluído e que `selfDamaged` observa dano marcado da fonte. Para Sentinelas, informa que a fonte permanece disponível enquanto houver Lealdade positiva.
 
@@ -145,9 +149,9 @@ O servidor continua fail-closed. O sanitizer legado de stat Aura permanece prese
 
 Isso evita ampliar silenciosamente o contrato antigo de `validateAuthorableCard()` e evita reinterpretar Permanent/Sentinela como Unit.
 
-## Ability Grammar 2.0 — Aura 2.6/2.7 + Condition 2.1/2.2/2.3/2.4
+## Ability Grammar 2.0 — Aura 2.6/2.7 + Condition 2.1/2.2/2.3/2.4/2.5
 
-O catálogo expõe os contratos certificados de fonte de Aura e `conditionalAuraContract: CONDITIONAL_AURA_CONTRACT`. `ABILITY_GRAMMAR_CATALOG.conditions` e `conditionContracts` derivam do vocabulário canônico, portanto `opponentNexusBelow`, `enemyRace`, `enemyClass`, `handAtLeast`, `opponentHandAtLeast`, `allyUnitsAtLeast` e `enemyUnitsAtLeast` aparecem como `supported` sem rule kinds paralelos.
+O catálogo expõe os contratos certificados de fonte de Aura e `conditionalAuraContract: CONDITIONAL_AURA_CONTRACT`. `ABILITY_GRAMMAR_CATALOG.conditions` e `conditionContracts` derivam do vocabulário canônico, portanto `opponentNexusBelow`, `enemyRace`, `enemyClass`, `handAtLeast`, `opponentHandAtLeast`, `allyUnitsAtLeast`, `enemyUnitsAtLeast` e `roundAtLeast` aparecem como `supported` sem rule kinds paralelos.
 
 `blueprintFromPermanentStatAura()` representa a condição real da fonte:
 
@@ -155,11 +159,11 @@ O catálogo expõe os contratos certificados de fonte de Aura e `conditionalAura
 - `AbilityRule.permanentStatAura.aura.condition` preserva a mesma semântica em outra cópia defensiva;
 - Aura sem condição explícita continua projetando `condition: { kind: "always" }` e não ganha um campo `condition` artificial dentro do rule payload.
 
-Por isso uma Unit-source Aura 2.7 com `selfDamaged` ou qualquer Aura controller-scoped com condições de Nexus, identidade/quantidade de board ou tamanho de mão é projetada corretamente como habilidade condicional sem exigir um novo rule kind.
+Por isso uma Unit-source Aura 2.7 com `selfDamaged` ou qualquer Aura com condições de Nexus, identidade/quantidade de board, tamanho de mão ou rodada é projetada corretamente como habilidade condicional sem exigir um novo rule kind.
 
 O marker `features: ["conditional"]` aparece se houver condição de fonte diferente de `always` **ou** filtros de alvo `races`/`classes`.
 
-A família `aura` permanece marcada como **partial**. Condition 2.4 não promove o envelope `permanentStatAura` a um layer system genérico entre famílias diferentes.
+A família `aura` permanece marcada como **partial**. Condition 2.5 não promove o envelope `permanentStatAura` a um layer system genérico entre famílias diferentes.
 
 O sistema de gameplay cobre:
 
@@ -176,7 +180,8 @@ O sistema de gameplay cobre:
 - threshold do Nexus adversário controller-scoped — Condition 2.1;
 - identidade pública de raça/classe do board adversário — Condition 2.2;
 - thresholds de quantidade da própria mão e mão adversária — Condition 2.3;
-- thresholds de quantidade de Units vivas aliadas e inimigas — Condition 2.4.
+- thresholds de quantidade de Units vivas aliadas e inimigas — Condition 2.4;
+- threshold match-scoped da rodada autoritativa — Condition 2.5.
 
 Ainda ficam fora do contrato genérico:
 
@@ -202,4 +207,5 @@ As extensões possuem suítes comportamentais e documentação separadas:
 - `docs/CONDITION-2-1.md` — opponent Nexus thresholds compartilhados por Mechanics e Aura;
 - `docs/CONDITION-2-2.md` — enemy board race/class identity compartilhada por Mechanics e Aura;
 - `docs/CONDITION-2-3.md` — hand-size thresholds compartilhados por Mechanics e Aura;
-- `docs/CONDITION-2-4.md` — living board-size thresholds compartilhados por Mechanics e Aura.
+- `docs/CONDITION-2-4.md` — living board-size thresholds compartilhados por Mechanics e Aura;
+- `docs/CONDITION-2-5.md` — match-scoped round thresholds compartilhados por Mechanics e Aura.
