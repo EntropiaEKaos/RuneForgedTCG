@@ -128,8 +128,8 @@ withRegisteredCardSnapshot([
   assert.equal(round2.round, 2);
   assert.equal(round2Ally.power, 2, "Aura remains inactive during round two");
 
-  const aiTurnRound2 = endTurn(round2, "player");
-  const round3 = endTurn(aiTurnRound2, "ai");
+  const playerTurnRound2 = endTurn(round2, "ai");
+  const round3 = endTurn(playerTurnRound2, "player");
   const round3Ally = round3.players.player.bench.find((unit) => unit.instanceId === ally.instanceId)!;
   assert.equal(round3.round, 3);
   assert.equal(round3Ally.power, 4, "round transition recomputes and activates the Aura at round three");
