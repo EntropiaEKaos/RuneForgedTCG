@@ -429,6 +429,8 @@ export function mechanicConditionMatches(state: GameState, unit: UnitInstance, c
   if (condition.kind === "nexusBelow") return p.nexusHealth <= condition.amount;
   if (condition.kind === "opponentNexusBelow") return opponent.nexusHealth <= condition.amount;
   if (condition.kind === "manaAtLeast") return p.mana >= condition.amount;
+  if (condition.kind === "handAtLeast") return p.hand.length >= condition.amount;
+  if (condition.kind === "opponentHandAtLeast") return opponent.hand.length >= condition.amount;
   return false;
 }
 

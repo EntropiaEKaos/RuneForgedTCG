@@ -270,6 +270,8 @@ export type MechanicCondition =
   | { kind: "nexusBelow"; amount: number }
   | { kind: "opponentNexusBelow"; amount: number }
   | { kind: "manaAtLeast"; amount: number }
+  | { kind: "handAtLeast"; amount: number }
+  | { kind: "opponentHandAtLeast"; amount: number }
   | { kind: "and"; children: MechanicCondition[] }
   | { kind: "or"; children: MechanicCondition[] }
   | { kind: "not"; child: MechanicCondition };

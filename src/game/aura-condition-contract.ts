@@ -10,6 +10,8 @@ export const AURA_CONDITION_KINDS = [
   "nexusBelow",
   "opponentNexusBelow",
   "manaAtLeast",
+  "handAtLeast",
+  "opponentHandAtLeast",
   "and",
   "or",
   "not",
@@ -20,7 +22,7 @@ export const UNIT_SOURCE_AURA_CONDITION_KINDS = [
   "selfDamaged",
 ] as const;
 
-/** Aura 2.5 compatibility contract, extended by Condition 2.1/2.2 with opponent state. */
+/** Aura 2.5 compatibility contract, extended by Condition 2.x with controller/opponent public state. */
 export const CONDITIONAL_AURA_CONTRACT = {
   rule: "conditionalAura",
   conditions: AURA_CONDITION_KINDS,
@@ -126,5 +128,7 @@ export function auraConditionMatches(
   if (condition.kind === "nexusBelow") return player.nexusHealth <= condition.amount;
   if (condition.kind === "opponentNexusBelow") return enemy.nexusHealth <= condition.amount;
   if (condition.kind === "manaAtLeast") return player.mana >= condition.amount;
+  if (condition.kind === "handAtLeast") return player.hand.length >= condition.amount;
+  if (condition.kind === "opponentHandAtLeast") return enemy.hand.length >= condition.amount;
   return false;
 }
