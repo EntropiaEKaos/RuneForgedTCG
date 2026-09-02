@@ -209,7 +209,11 @@ export function applyCertifiedSemanticCardType(
     delete next.sentinela;
     next.maxHealth = next.maxHealth ?? 3;
   } else {
-    next.spell = next.spell ?? { kind: "draw", amount: 1, target: "none" };
+    if (!next.spell) {
+      next.spell = key === "ritual"
+        ? { kind: "manaRefund", amount: 1, target: "none" }
+        : { kind: "draw", amount: 1, target: "none" };
+    }
     delete next.equipment;
     delete next.sentinela;
     if (key === "ritual") delete next.speed;
