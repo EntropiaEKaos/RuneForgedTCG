@@ -31,8 +31,8 @@ jobs:
       - name: Install dependencies
         run: npm run ci:install
 
-      - name: Tempestade Vanguard recipe screen
-        run: node --import tsx scripts/vanilla-1-6-tempestade-recipe-diagnostic.ts 16 3 --write artifacts/vanilla-1-6/tempestade-recipe-screen.json
+      - name: Tempestade Vanguard full-strata finalist validation
+        run: node --import tsx scripts/vanilla-1-6-tempestade-recipe-diagnostic.ts 40 5 --write artifacts/vanilla-1-6/tempestade-recipe-full-strata.json
 
       - name: Upload diagnostic
         if: always()
