@@ -118,6 +118,22 @@ See `docs/VANILLA-1-2-UTILIZATION-TELEMETRY.md`.
 
 See `docs/VANILLA-1-3-TACTICAL-PLAYABILITY.md`.
 
+### Vanilla 1.4 — Ascendant Recipe & Curve Reconstruction
+
+- The six old Ascendant recipes shared the same structural defect: only **16/40 Units**, average cost around **4.6**, just 2 early cards and excessive concentration at costs 4–5 and 7+.
+- Ascendant is now constructed deterministically as **1× all 30 regional `van_*` cards + exactly 10 evidence-selected duplicates**, preserving **180/180 experimental-card coverage** and a maximum of two copies.
+- Vanguard is also expressed through a helper but preserves its certified historical recipe exactly: **36 Units + 4 Spells**, average cost **3.7**.
+- Final Ascendant recipes contain **26–28 Units**, average cost **3.63**, at least 5 cards at cost 0–1 and no more than 3 at cost 7+.
+- A deterministic policy sweep selected power-aware duplicates for Emberhold, Ironwood, Voidborn, Florestia and Tempestade; Tidecall uses a midrange + engine policy to avoid overcorrection.
+- The final **3,960-game utilization matrix** shows Ascendant at **13.9 cards played/game**, **2.7 cards in final hand**, **15.6 Nexus damage/game**, **9.7 summons/game**, `ai-core` end-turn-with-playable **10.2%**, **13,731 target-starved** samples and only **3,021 ignored-playable** samples.
+- The execution gap is effectively normalized: Vanguard plays 13.6 cards/game and its `ai-core` end-turn-with-playable rate is 10.0%, almost identical to Ascendant.
+- The final **13,200-game Balance Lab** retained simulation quality **PASS**: 66/66 complete and stable matchups, first-player **50.1%**, 0% draws, max seed deviation **16.0 pp** under the 23.7 pp limit.
+- Meta health improves from **8 healthy / 8 watch / 50 critical** in 1.3 to **14 healthy / 11 watch / 41 critical** in 1.4, but remains correctly **BLOCKED**.
+- The strongest outlier is now unambiguous: **Tidecall Vanguard — 82.4% global win rate and 11/11 critical matchups**. The next slice is **Vanilla 1.5 — Regional Power Outliers**, beginning there.
+- Vanilla 1.4 changes only experimental deck composition; card stats/cost/text, engine rules, AI policy and Ranked remain untouched. The reconstructed-recipe contract is the **81st behavioral target**.
+
+See `docs/VANILLA-1-4-ASCENDANT-RECIPES.md`.
+
 ## Ranked 2.97 architecture
 
 Season Zero Ranked accepts exactly four certified 40-card preconstructed decks:
@@ -164,7 +180,7 @@ RuneForge does not mix source-text checks with behavioral evidence:
 - `npm run audit:test-taxonomy` — prevents source-reading tests from being counted as behavioral.
 - `npm run test:e2e:alpha-journey` — real HTTP/PostgreSQL certification of the core Alpha player loop against a running production build.
 
-Current behavioral certification after Vanilla 1.3 contains **80 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
+Current behavioral certification after Vanilla 1.4 contains **81 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
 
 Historical 2.97 local evidence retained for provenance:
 
