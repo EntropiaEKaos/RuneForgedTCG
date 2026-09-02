@@ -1,0 +1,374 @@
+/* ========================================================================== 
+   RuneForge Visual 3.0 — Battlefield Cinematic Pass
+   Presentation-only layer. It deliberately reuses the certified battlefield
+   DOM/state hooks and region artwork; no rules, authority, hitboxes or card
+   semantics are introduced here.
+   ========================================================================== */
+
+.tcg-arena[data-battlefield-cinematic="v3"] {
+  --rf-v3-light: rgba(var(--arena-accent, 214,163,62), .24);
+  --rf-v3-light-soft: rgba(var(--arena-accent, 214,163,62), .10);
+  --rf-v3-secondary: rgba(var(--arena-secondary, 84,110,145), .16);
+  --rf-v3-gold: rgba(233, 193, 111, .72);
+  --rf-v3-stone: rgba(13, 18, 24, .76);
+  background:
+    radial-gradient(ellipse at 50% 34%, var(--rf-v3-light), transparent 32%),
+    radial-gradient(ellipse at 50% 58%, rgba(232,190,106,.08), transparent 38%),
+    radial-gradient(circle at 9% 48%, var(--rf-v3-secondary), transparent 30%),
+    radial-gradient(circle at 91% 52%, var(--rf-v3-light-soft), transparent 28%),
+    linear-gradient(180deg, #111924 0%, #060a0f 37%, #030507 66%, #090d12 100%);
+  box-shadow:
+    inset 0 0 64px rgba(0,0,0,.48),
+    inset 0 -120px 180px rgba(0,0,0,.26);
+}
+
+/* The regional illustration becomes scenery rather than a watermark. */
+.tcg-arena[data-battlefield-cinematic="v3"] > .arena-identity {
+  opacity: .96;
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .arena-backdrop {
+  opacity: .52;
+  filter: saturate(1.08) brightness(.78) contrast(1.05);
+  background-position: center 38%;
+  background-size: cover;
+  transform: scale(1.04);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 56%, rgba(0,0,0,.72) 74%, transparent 100%);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .arena-convergence {
+  opacity: .72;
+  mix-blend-mode: screen;
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .arena-crest {
+  opacity: .58;
+  filter: saturate(.94) drop-shadow(0 8px 22px rgba(0,0,0,.5));
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .arena-motes {
+  opacity: .58;
+  filter: drop-shadow(0 0 10px var(--rf-v3-light));
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .arena-scanlines {
+  opacity: .035;
+}
+
+/* The game surface now reads as a physical altar floating above the scenery. */
+.tcg-arena[data-battlefield-cinematic="v3"] > .mx-auto {
+  width: min(1440px, calc(100vw - 18px));
+  max-width: 1440px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.018), transparent 5%, transparent 95%, rgba(255,255,255,.018)),
+    linear-gradient(180deg, rgba(4,7,11,.42), rgba(2,4,7,.20) 42%, rgba(3,5,8,.38) 100%);
+  border-inline-color: rgba(236,199,125,.14);
+  box-shadow:
+    0 0 120px rgba(0,0,0,.52),
+    0 18px 70px rgba(0,0,0,.34),
+    inset 1px 0 rgba(255,255,255,.025),
+    inset -1px 0 rgba(255,255,255,.025);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] > .mx-auto::before,
+.tcg-arena[data-battlefield-cinematic="v3"] > .mx-auto::after {
+  width: 2px;
+  background: linear-gradient(transparent, var(--rf-v3-gold) 18%, rgba(var(--arena-accent,214,163,62),.24) 52%, var(--rf-v3-gold) 82%, transparent);
+  box-shadow: 0 0 24px var(--rf-v3-light-soft);
+  opacity: .44;
+}
+
+/* Header recedes; the battlefield, not the chrome, becomes the brightest mass. */
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-match-header {
+  background:
+    linear-gradient(90deg, rgba(var(--arena-accent,214,163,62),.065), transparent 24%, transparent 76%, rgba(232,190,106,.04)),
+    linear-gradient(180deg, rgba(8,12,17,.84), rgba(3,5,8,.68));
+  backdrop-filter: blur(14px);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .match-command-rail,
+.tcg-arena[data-battlefield-cinematic="v3"] .board-status-strip,
+.tcg-arena[data-battlefield-cinematic="v3"] .archetype-tracker {
+  background-color: rgba(4,7,11,.54);
+  backdrop-filter: blur(12px);
+}
+
+/* Player plates float over the board rather than walling it off. */
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-playerbar {
+  background:
+    radial-gradient(ellipse at 11% 50%, var(--rf-v3-light-soft), transparent 23%),
+    linear-gradient(90deg, rgba(255,255,255,.02), transparent 20%, transparent 80%, rgba(255,255,255,.018)),
+    linear-gradient(180deg, rgba(12,17,23,.84), rgba(4,7,10,.72));
+  backdrop-filter: blur(13px);
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.03),
+    0 12px 34px rgba(0,0,0,.22);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-playerbar::before {
+  border-color: rgba(234,196,121,.11);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-playerbar-active {
+  box-shadow:
+    inset 0 0 46px var(--rf-v3-light-soft),
+    inset 0 1px rgba(255,255,255,.04),
+    0 12px 36px rgba(0,0,0,.24);
+}
+
+/* Nexus becomes a real focal object, with an energy halo connected to the arena. */
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-nexus {
+  overflow: visible;
+  border-color: rgba(238,200,124,.20);
+  background: linear-gradient(145deg, rgba(19,27,36,.86), rgba(3,6,10,.90));
+  box-shadow:
+    0 12px 32px rgba(0,0,0,.42),
+    0 0 28px rgba(var(--arena-accent,214,163,62),.06),
+    inset 0 1px rgba(255,255,255,.045);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-nexus::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -18px;
+  top: 50%;
+  width: 86px;
+  height: 86px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--rf-v3-light) 0%, var(--rf-v3-light-soft) 30%, transparent 68%);
+  filter: blur(2px);
+  opacity: .72;
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-nexus-gem {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 20px rgba(255,219,139,.25),
+    0 0 42px var(--rf-v3-light),
+    inset 0 0 15px rgba(255,225,155,.17);
+}
+
+/* Deployment lanes are illuminated stone platforms with a perspective seam. */
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-row {
+  z-index: 6;
+  background:
+    radial-gradient(ellipse at 50% 54%, rgba(var(--arena-accent,214,163,62),.09), transparent 48%),
+    linear-gradient(90deg, rgba(255,255,255,.014), transparent 12%, transparent 88%, rgba(255,255,255,.014));
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-row::before {
+  left: 54px;
+  right: 54px;
+  border-color: rgba(236,199,126,.10);
+  background:
+    linear-gradient(90deg, transparent, rgba(var(--arena-accent,214,163,62),.055) 16%, transparent 34%, transparent 66%, rgba(var(--arena-accent,214,163,62),.055) 84%, transparent),
+    repeating-linear-gradient(90deg, transparent 0 118px, rgba(236,199,126,.03) 119px 120px),
+    linear-gradient(180deg, rgba(19,25,32,.34), rgba(1,3,5,.16));
+  box-shadow:
+    inset 0 1px rgba(255,255,255,.018),
+    inset 0 -30px 40px rgba(0,0,0,.12),
+    0 8px 30px rgba(0,0,0,.10);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-row::after {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  left: 7%;
+  right: 7%;
+  top: 50%;
+  height: 72%;
+  transform: translateY(-50%) perspective(500px) rotateX(64deg);
+  transform-origin: center;
+  pointer-events: none;
+  border: 1px solid rgba(235,198,125,.08);
+  background:
+    linear-gradient(90deg, transparent 0 6%, rgba(var(--arena-accent,214,163,62),.055) 50%, transparent 94% 100%),
+    linear-gradient(180deg, rgba(255,255,255,.015), rgba(0,0,0,.10));
+  box-shadow: 0 0 40px var(--rf-v3-light-soft);
+  opacity: .72;
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-row[data-bench-side="ai"] {
+  box-shadow: inset 0 -34px 62px rgba(117,35,34,.06);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-row[data-bench-side="player"] {
+  box-shadow: inset 0 34px 62px rgba(var(--arena-accent,214,163,62),.055);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-row-label {
+  color: rgba(190,202,216,.52);
+  text-shadow: 0 0 14px rgba(0,0,0,.7);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-row-label::before {
+  color: rgba(var(--arena-accent,214,163,62),.58);
+  text-shadow: 0 0 18px var(--rf-v3-light);
+}
+
+/* Cards on the table gain slightly more physical presence without changing rows. */
+@media (min-width: 901px) {
+  .tcg-arena[data-battlefield-cinematic="v3"] .tcg-row {
+    min-height: 112px;
+  }
+
+  .tcg-arena[data-battlefield-cinematic="v3"] .tcg-row .card-shell {
+    width: 98px;
+    height: 138px;
+    box-shadow:
+      0 16px 30px rgba(0,0,0,.46),
+      0 0 0 1px rgba(255,255,255,.028),
+      0 0 20px rgba(var(--arena-accent,214,163,62),.025);
+  }
+
+  .tcg-arena[data-battlefield-cinematic="v3"] .tcg-row .card-shell.card-interactive:hover {
+    transform: translateY(-10px) scale(1.085);
+    box-shadow:
+      0 24px 46px rgba(0,0,0,.58),
+      0 0 34px var(--rf-v3-light);
+  }
+}
+
+/* The conflict zone is the visual heart of the match. */
+.tcg-arena[data-battlefield-cinematic="v3"] .arena-conflict-zone {
+  min-height: 96px;
+  margin-inline: 22px;
+  border-color: rgba(236,198,124,.13) !important;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(var(--arena-accent,214,163,62),.18), transparent 15%),
+    radial-gradient(ellipse at 50% 50%, rgba(var(--arena-accent,214,163,62),.09), transparent 42%),
+    linear-gradient(90deg, transparent, rgba(227,190,117,.035) 28%, rgba(227,190,117,.035) 72%, transparent),
+    linear-gradient(180deg, rgba(5,8,12,.44), rgba(1,3,5,.58)) !important;
+  box-shadow:
+    inset 0 0 70px rgba(0,0,0,.30),
+    inset 0 1px rgba(255,255,255,.02),
+    0 12px 36px rgba(0,0,0,.16),
+    0 0 40px var(--rf-v3-light-soft);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .arena-conflict-zone::before {
+  width: 260px;
+  height: 260px;
+  opacity: .50;
+  filter: drop-shadow(0 0 26px var(--rf-v3-light));
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .arena-conflict-zone::after {
+  width: 52px;
+  height: 52px;
+  border-color: rgba(255,222,148,.34);
+  background:
+    radial-gradient(circle, rgba(var(--arena-accent,214,163,62),.22), rgba(4,7,11,.92) 68%);
+  box-shadow:
+    0 0 26px var(--rf-v3-light),
+    0 0 58px var(--rf-v3-light-soft),
+    inset 0 0 18px rgba(235,195,116,.08);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .arena-center-glow {
+  opacity: .72 !important;
+  filter: saturate(1.15) blur(.2px);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .match-last-action {
+  border-color: rgba(236,198,124,.10);
+  background: rgba(3,5,8,.44);
+  backdrop-filter: blur(9px);
+}
+
+/* Phase lighting makes the board feel alive without changing semantics. */
+.tcg-arena[data-battlefield-cinematic="v3"][data-match-phase="main"] .arena-conflict-zone {
+  animation: rf-v3-arena-breathe 5.5s ease-in-out infinite;
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"][data-match-phase="combat"] .arena-conflict-zone {
+  border-color: rgba(255,120,91,.20) !important;
+  box-shadow:
+    inset 0 0 74px rgba(105,18,18,.18),
+    0 0 52px rgba(255,87,64,.10);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"][data-match-phase="combat"] .arena-conflict-zone::after {
+  box-shadow: 0 0 34px rgba(255,92,67,.34), 0 0 72px rgba(255,92,67,.12), inset 0 0 18px rgba(255,170,116,.11);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"][data-match-phase="response"] .arena-conflict-zone {
+  border-color: rgba(112,231,248,.20) !important;
+  box-shadow:
+    inset 0 0 72px rgba(13,95,119,.15),
+    0 0 52px rgba(70,211,239,.10);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"][data-match-phase="response"] .arena-conflict-zone::after {
+  box-shadow: 0 0 34px rgba(90,225,247,.34), 0 0 72px rgba(90,225,247,.12), inset 0 0 18px rgba(156,245,255,.10);
+}
+
+/* Hand and actions remain readable but stop forming a solid black wall. */
+.tcg-arena[data-battlefield-cinematic="v3"] .player-hand-shell {
+  background:
+    radial-gradient(ellipse at 50% 118%, rgba(var(--arena-accent,214,163,62),.15), transparent 44%),
+    linear-gradient(180deg, rgba(3,6,9,.46), rgba(5,8,12,.82));
+  backdrop-filter: blur(12px);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-actions {
+  background:
+    linear-gradient(90deg, transparent, rgba(var(--arena-accent,214,163,62),.045) 28%, rgba(var(--arena-accent,214,163,62),.045) 72%, transparent),
+    rgba(3,6,9,.82);
+  backdrop-filter: blur(13px);
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"] .tcg-log {
+  background: rgba(2,4,7,.76) !important;
+  backdrop-filter: blur(10px);
+}
+
+@keyframes rf-v3-arena-breathe {
+  0%, 100% { box-shadow: inset 0 0 70px rgba(0,0,0,.30), 0 12px 36px rgba(0,0,0,.16), 0 0 34px var(--rf-v3-light-soft); }
+  50% { box-shadow: inset 0 0 68px rgba(0,0,0,.26), 0 12px 36px rgba(0,0,0,.16), 0 0 58px var(--rf-v3-light); }
+}
+
+/* Compact/mobile: preserve certified geometry and reduce decorative GPU work. */
+@media (max-width: 900px) {
+  .tcg-arena[data-battlefield-cinematic="v3"] .arena-backdrop {
+    opacity: .34;
+    filter: saturate(.95) brightness(.62);
+    transform: none;
+  }
+
+  .tcg-arena[data-battlefield-cinematic="v3"] > .mx-auto {
+    width: 100%;
+    background: linear-gradient(180deg, rgba(4,7,11,.58), rgba(2,4,7,.44));
+  }
+
+  .tcg-arena[data-battlefield-cinematic="v3"] .tcg-row::after {
+    display: none;
+  }
+
+  .tcg-arena[data-battlefield-cinematic="v3"] .arena-conflict-zone {
+    margin-inline: 6px;
+  }
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"][data-performance="low"] .arena-backdrop,
+.tcg-arena[data-battlefield-cinematic="v3"][data-performance="low"] .arena-motes {
+  filter: none;
+}
+
+.tcg-arena[data-battlefield-cinematic="v3"][data-fx="reduced"] .arena-conflict-zone,
+.tcg-arena[data-battlefield-cinematic="v3"][data-fx="reduced"] .arena-conflict-zone::before,
+.tcg-arena[data-battlefield-cinematic="v3"][data-fx="reduced"] .arena-conflict-zone::after {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena[data-battlefield-cinematic="v3"] .arena-conflict-zone,
+  .tcg-arena[data-battlefield-cinematic="v3"] .arena-conflict-zone::before,
+  .tcg-arena[data-battlefield-cinematic="v3"] .arena-conflict-zone::after {
+    animation: none !important;
+  }
+}
