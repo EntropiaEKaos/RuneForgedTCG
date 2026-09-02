@@ -1,4 +1,4 @@
-name: Vanilla 1.5 Tidecall Diagnostic
+name: Vanilla 1.5 Product Certification
 
 on:
   push:
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  diagnose:
+  certify:
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -30,13 +30,22 @@ jobs:
       - name: Install dependencies
         run: npm run ci:install
 
-      - name: Tidecall Vanguard finalist matrix
-        run: node --import tsx scripts/vanilla-1-5-tidecall-diagnostic.ts 40 5 --write artifacts/vanilla-1-5/tidecall-diagnostic.json
+      - name: Vanilla 1.4 historical boundary
+        run: node --import tsx src/game/vanilla-ascendant-recipes-1-4.test.ts
 
-      - name: Upload diagnostic
+      - name: Vanilla 1.5 behavioral contract
+        run: node --import tsx src/game/vanilla-regional-power-outliers-1-5.test.ts
+
+      - name: Test taxonomy
+        run: npm run audit:test-taxonomy
+
+      - name: Official Vanilla Balance Lab
+        run: npm run audit:vanilla-balance
+
+      - name: Upload official balance evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
         with:
-          name: vanilla-1-5-tidecall-diagnostic-${{ github.sha }}
-          path: artifacts/vanilla-1-5
+          name: vanilla-1-5-product-certification-${{ github.sha }}
+          path: VANILLA_BALANCE_AUDIT_1.1.json
           if-no-files-found: error
           retention-days: 7
