@@ -1,5 +1,7 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+import { getCardArt } from "@/game/card-art";
 import { getCard } from "@/game/cards";
 import { activatedAbilitiesForInstance, activatedAbilityChoices } from "@/game/engine";
 import {
@@ -8,6 +10,7 @@ import {
   activatedAbilityUiState,
 } from "@/game/activated-ability-presentation";
 import ActivatedAbilityIntelligence from "./ActivatedAbilityIntelligence";
+import CardArtViewerButton from "./CardArtViewerButton";
 import CardView, { type CardViewProps } from "./CardView";
 import CardInfo from "./CardInfo";
 import Tooltip from "./Tooltip";
@@ -15,14 +18,20 @@ import Tooltip from "./Tooltip";
 export interface CardTipProps extends CardViewProps {
   /** Battlefield-only activation callback. Hand/deck cards omit this entirely. */
   onActivateAbility?: (abilityIndex: number, modeId?: string) => void;
+  /** Explicit override for the full-art viewer. By default it is enabled only in Codex and Collection. */
+  artViewer?: boolean;
 }
 
-export default function CardTip({ onActivateAbility, ...cardProps }: CardTipProps) {
+export default function CardTip({ onActivateAbility, artViewer, ...cardProps }: CardTipProps) {
+  const pathname = usePathname();
   const { defId, definition, unit, state, costOverride } = cardProps;
   const def = definition ?? getCard(defId);
   const abilities = state && unit && onActivateAbility
     ? activatedAbilitiesForInstance(state, unit.owner, unit.instanceId)
     : [];
+  const artViewerEnabled = artViewer ?? (pathname === "/codex" || pathname === "/collection");
+  const artUrl = getCardArt(defId)?.url ?? def.art ?? null;
+  const restoreCollectionPointerEvents = pathname === "/collection";
 
   return (
     <Tooltip
@@ -35,12 +44,19 @@ export default function CardTip({ onActivateAbility, ...cardProps }: CardTipProp
             owner={unit?.owner}
             instanceId={unit?.instanceId}
           />
+          {artViewerEnabled && (
+            <CardArtViewerButton defId={defId} name={def.name} artUrl={artUrl} />
+          )}
         </div>
       )}
       panelWidth={420}
-      panelHeightEstimate={860}
+      panelHeightEstimate={900}
     >
-      <span data-card-tip-def-id={defId} data-unit-id={unit?.instanceId} className="inline-flex flex-col items-stretch gap-1 align-top">
+      <span
+        data-card-tip-def-id={defId}
+        data-unit-id={unit?.instanceId}
+        className={`inline-flex flex-col items-stretch gap-1 align-top ${restoreCollectionPointerEvents ? "pointer-events-auto" : ""}`}
+      >
         <CardView {...cardProps} />
         {abilities.length > 0 && unit && state && (
           <span className="flex max-w-full flex-col gap-1" data-activated-ability-tray={unit.instanceId}>
