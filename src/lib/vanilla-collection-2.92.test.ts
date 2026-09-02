@@ -10,13 +10,20 @@ import { validateAuthorableCard } from "@/game/card-authoring";
 const all = baseCardsOnly();
 const additional = Object.values(VANILLA_ADDITIONAL_CARDS);
 const release296 = Object.values(RELEASE_296_CARDS);
-const previous = all.filter((card) => !card.defId.startsWith("van_") && !card.defId.startsWith("rf296_"));
+// Historical 2.92 accounting must exclude every later explicitly versioned wave.
+// This keeps the migration contract immutable without turning a historical test
+// into a permanent ceiling on future Vanilla content.
+const previous = all.filter((card) =>
+  !card.defId.startsWith("van_") &&
+  !card.defId.startsWith("rf296_") &&
+  !card.defId.startsWith("rfalpha_"),
+);
 
 assert.equal(previous.length, 216, "2.92 must preserve all 216 pre-Vanilla-expansion cards");
 assert.equal(additional.length, 180, "Vanilla expansion must add exactly 180 cards");
 assert.equal(release296.length, 33, "2.96 Sentinelas & Convergência must add exactly 33 cards");
-assert.equal(all.length, 429, "Vanilla must contain 429 code-authored cards through release 2.96");
-assert.equal(new Set(all.map((card) => card.defId)).size, 429, "every Vanilla card defId must be unique");
+assert.ok(all.length >= 429, "Vanilla must retain the complete 429-card catalog through release 2.96 while allowing later waves");
+assert.equal(new Set(all.map((card) => card.defId)).size, all.length, "every current Vanilla card defId must be unique");
 assert.equal(new Set(additional.map((card) => card.name)).size, 180, "all 180 new cards must have unique names");
 const oldNames = new Set(previous.map((card) => card.name));
 assert.deepEqual(additional.filter((card) => oldNames.has(card.name)).map((card) => card.name), [], "new cards must not reuse old display names");
@@ -60,4 +67,4 @@ const migrated296Ids = [...migration296.matchAll(/\('([^']+)'\)/g)].map((match) 
 assert.equal(new Set(migrated296Ids).size, 33, "migration 0036 must assign all 33 release 2.96 cards to Vanilla");
 assert.match(migration296, /cardCount.*429/s);
 
-console.log("VANILLA COLLECTION: 180-card 2.92 expansion preserved · 33-card 2.96 wave assigned · 429 total · symbol present");
+console.log("VANILLA COLLECTION: historical 180-card 2.92 expansion + 33-card 2.96 wave preserved · later Vanilla waves allowed · symbol present");
