@@ -21,6 +21,7 @@ assert.equal(ember.duplicateCopies.van_ember_s04, undefined, "s04 must be the si
 assert.equal(ember.duplicateCopies.van_ember_s01, 2);
 assert.equal(ember.duplicateCopies.van_ember_s02, 2);
 
+// Florestia evolves again in Vanilla 1.8; the unchanged 1.7 Ascendant contracts remain historical here.
 const evolved = {
   vanilla_wood_2: {
     tripled: ["van_wood_u03", "van_wood_u08", "van_wood_u11", "van_wood_u13", "van_wood_u18"],
@@ -29,10 +30,6 @@ const evolved = {
   vanilla_void_2: {
     tripled: ["van_void_u03", "van_void_u08", "van_void_u11", "van_void_u13", "van_void_u18"],
     doubled: [],
-  },
-  vanilla_forest_2: {
-    tripled: ["van_forest_u08", "van_forest_u11", "van_forest_u13"],
-    doubled: ["van_forest_u03", "van_forest_u05", "van_forest_u14", "van_forest_u18"],
   },
 } as const;
 
