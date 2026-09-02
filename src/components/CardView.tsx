@@ -7,6 +7,7 @@ import { strategicRoleForCard } from "@/game/card-role";
 import { getCardCollection, type CardCollectionIdentity } from "@/game/card-collections";
 import { getCardArt } from "@/game/card-art";
 import { getClientArtFallbackUrl } from "@/game/client-game-config";
+import { certifiedSemanticCardType, semanticCardTypeLabel } from "@/game/semantic-card-types";
 import CollectionSymbolMark from "./CollectionSymbolMark";
 import { useCatalogRevision } from "./CatalogContext";
 import { cardRegions, identityForRegions, REGION_IDENTITY_STYLE, regionalRuleText } from "@/game/region-identity";
@@ -37,6 +38,10 @@ const KEYWORD_ICON: Record<Keyword, string> = {
   Overwhelm: "⚔", QuickAttack: "⚡", DoubleStrike: "⚔⚔", Elusive: "◈", Lifesteal: "🩸", Barrier: "🛡", Fearsome: "☠", Tough: "◆", Regeneration: "✚", Challenger: "↯", Unblockable: "➤", Ephemeral: "💨", LastBreath: "☽", Deathtouch: "☠", Poisonous: "🧪", Haste: "»", Wither: "◌", Hexproof: "◇", Reach: "⌁", Flying: "✦",
 };
 
+function cssBackgroundUrl(url: string): string {
+  return `url(${JSON.stringify(url)})`;
+}
+
 export function KeywordChips({ keywords, compact = false }: { keywords: Keyword[]; compact?: boolean }) {
   if (!keywords.length) return null;
   const visible = compact ? keywords.slice(0, 2) : keywords;
@@ -64,8 +69,13 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
   const style = REGION_STYLE[def.region];
   const configuredFallbackArt = getClientArtFallbackUrl();
   const artAssignment = getCardArt(def.defId);
-  const artUrl = artAssignment?.url || def.art || configuredFallbackArt || style.art;
+  const primaryArtUrl = artAssignment?.url || def.art || configuredFallbackArt || null;
+  const artSource = artAssignment?.url ? "editorial" : def.art ? "definition" : configuredFallbackArt ? "configured-fallback" : "regional-fallback";
+  const artBackground = primaryArtUrl && primaryArtUrl !== style.art
+    ? `${cssBackgroundUrl(primaryArtUrl)}, ${cssBackgroundUrl(style.art)}`
+    : cssBackgroundUrl(style.art);
   const artCrop = artAssignment?.crop;
+  const semanticType = certifiedSemanticCardType(def);
   const regions = cardRegions(def);
   const identity = identityForRegions(regions);
   const masteryText = regionalRuleText(def);
@@ -98,13 +108,15 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
       data-card-identity={identity.key}
       data-card-rarity={(def.rarity || "Common").toLowerCase()}
       data-card-type={def.type.toLowerCase()}
+      data-card-semantic-type={semanticType?.key || "base"}
+      data-card-art-source={artSource}
       data-card-role={role.id}
       data-card-collection={collection?.code.toLowerCase() || "unassigned"}
       data-card-state={cardState}
       className={["card-shell relative flex flex-col overflow-hidden rounded-xl border-2 text-left", dims, style.border, style.aura, rarity, rarityTier, className ?? "", onClick ? "cursor-pointer card-interactive" : "cursor-default", selected ? `ring-4 ${style.ring} -translate-y-2` : "", targetable ? "ring-4 ring-yellow-300 card-targetable" : "", attacking ? "ring-4 ring-red-400 card-attacking" : "", dimmed ? "opacity-40 grayscale-[0.5]" : "", leveled ? "card-leveled" : ""].join(" ")}
     >
-      <div className="card-art absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${artUrl})`, backgroundPosition: artCrop ? `${Math.max(0, Math.min(1, Number(artCrop.x ?? .5))) * 100}% ${Math.max(0, Math.min(1, Number(artCrop.y ?? .5))) * 100}%` : undefined, backgroundSize: artCrop && Number(artCrop.scale) > 1 ? `${Math.min(250, Math.max(100, Number(artCrop.scale) * 100))}%` : undefined }}>
-        {!def.art && !artAssignment?.url && <div className="card-art-fallback"><i /><span>{def.emoji}</span><b>{style.sigil}</b></div>}
+      <div className="card-art absolute inset-0 bg-cover bg-center" style={{ backgroundImage: artBackground, backgroundPosition: artCrop ? `${Math.max(0, Math.min(1, Number(artCrop.x ?? .5))) * 100}% ${Math.max(0, Math.min(1, Number(artCrop.y ?? .5))) * 100}%` : undefined, backgroundSize: artCrop && Number(artCrop.scale) > 1 ? `${Math.min(250, Math.max(100, Number(artCrop.scale) * 100))}%` : undefined }}>
+        {artSource !== "editorial" && artSource !== "definition" && <div className="card-art-fallback"><i /><span>{def.emoji}</span><b>{style.sigil}</b></div>}
       </div>
       {regions.length > 1 && <div className="card-region-spectrum" style={{ background: spectrum }} aria-hidden="true" />}
       <div className="card-vignette absolute inset-0" />
@@ -120,7 +132,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
 
         <div className="card-nameplate">
           <div className="card-name-line"><span className="card-name-gem">◆</span><p className="truncate font-black leading-tight text-white drop-shadow-lg">{def.name}</p></div>
-          {size !== "sm" && <p className="card-type">{def.archetypeName || def.type}{def.race ? ` · ${def.race}` : ""}<span>{rarityLabel}</span></p>}
+          {size !== "sm" && <p className="card-type">{semanticCardTypeLabel(def)}{def.race ? ` · ${def.race}` : ""}<span>{rarityLabel}</span></p>}
           {size !== "sm" && <span className={`card-role card-role-${role.id}`} title="Função estratégica da carta"><i>{role.icon}</i>{role.label}</span>}
         </div>
 
