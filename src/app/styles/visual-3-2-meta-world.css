@@ -1,0 +1,362 @@
+/* ========================================================================== 
+   RuneForge Visual 3.2 — Meta UI World Pass
+   Makes the player-facing meta routes feel like places inside the Nexus rather
+   than flat admin surfaces. Presentation only: no state, network or geometry.
+   ========================================================================== */
+
+/* Route identity is inferred from stable page-owned selectors/ARIA contracts.
+   This avoids teaching presentation code about router/game state. */
+.rf-app-page:has(section[aria-label="Resumo da coleção"]) {
+  --rf-world-accent: #68d7ff;
+  --rf-world-accent-soft: rgba(104,215,255,.12);
+  --rf-world-accent-deep: rgba(30,113,150,.14);
+  --rf-world-glyph: "◈";
+  --rf-world-scene-x: 19%;
+}
+.rf-app-page:has(section[aria-label="Resumo da Forja"]) {
+  --rf-world-accent: #f4b650;
+  --rf-world-accent-soft: rgba(244,182,80,.13);
+  --rf-world-accent-deep: rgba(145,73,22,.15);
+  --rf-world-glyph: "⚒";
+  --rf-world-scene-x: 82%;
+}
+.rf-app-page.modes-page {
+  --rf-world-accent: #62ead1;
+  --rf-world-accent-soft: rgba(98,234,209,.11);
+  --rf-world-accent-deep: rgba(26,105,112,.15);
+  --rf-world-glyph: "✦";
+  --rf-world-scene-x: 18%;
+}
+.rf-app-page:has(section[aria-label="Resumo de progressão"]) {
+  --rf-world-accent: #e7c56d;
+  --rf-world-accent-soft: rgba(231,197,109,.115);
+  --rf-world-accent-deep: rgba(107,84,31,.14);
+  --rf-world-glyph: "◆";
+  --rf-world-scene-x: 80%;
+}
+.rf-app-page.codex-page {
+  --rf-world-accent: #72dcff;
+  --rf-world-accent-soft: rgba(114,220,255,.105);
+  --rf-world-accent-deep: rgba(54,71,166,.15);
+  --rf-world-glyph: "◇";
+  --rf-world-scene-x: 80%;
+}
+
+/* Only the five release-critical meta destinations gain the world layer. */
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at var(--rf-world-scene-x, 76%) 10%, var(--rf-world-accent-soft, rgba(217,164,65,.1)), transparent 26rem),
+    radial-gradient(circle at calc(100% - var(--rf-world-scene-x, 76%)) 68%, var(--rf-world-accent-deep, rgba(217,164,65,.08)), transparent 34rem),
+    linear-gradient(180deg, #04070a 0%, #020406 38%, #030508 100%);
+}
+
+/* Etched Nexus map. It is fixed beneath all content so long pages feel like one
+   continuous location rather than a stack of unrelated dashboard panels. */
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+)::before {
+  content: "";
+  position: fixed;
+  z-index: -2;
+  inset: 92px 0 0;
+  pointer-events: none;
+  opacity: .43;
+  background-image:
+    linear-gradient(30deg, transparent 49.72%, color-mix(in srgb, var(--rf-world-accent) 8%, transparent) 49.9%, color-mix(in srgb, var(--rf-world-accent) 8%, transparent) 50.1%, transparent 50.28%),
+    linear-gradient(150deg, transparent 49.72%, color-mix(in srgb, var(--rf-world-accent) 6%, transparent) 49.9%, color-mix(in srgb, var(--rf-world-accent) 6%, transparent) 50.1%, transparent 50.28%),
+    radial-gradient(circle at 50% 28%, transparent 0 90px, color-mix(in srgb, var(--rf-world-accent) 8%, transparent) 91px 92px, transparent 93px 145px, color-mix(in srgb, var(--rf-world-accent) 5%, transparent) 146px 147px, transparent 148px),
+    linear-gradient(90deg, transparent 0 49.85%, color-mix(in srgb, var(--rf-world-accent) 5%, transparent) 50%, transparent 50.15%);
+  background-size: 180px 104px, 180px 104px, 720px 720px, 360px 100%;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,.92), rgba(0,0,0,.45) 54%, transparent 96%);
+}
+
+/* A huge route sigil replaces the feeling of empty black space with a quiet
+   landmark. It never receives pointer input and remains below page content. */
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+)::after {
+  content: var(--rf-world-glyph, "◇");
+  position: fixed;
+  z-index: -1;
+  right: clamp(28px, 6vw, 110px);
+  top: 145px;
+  width: clamp(210px, 24vw, 360px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--rf-world-accent) 10%, transparent);
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--rf-world-accent) 11%, transparent);
+  box-shadow:
+    0 0 0 28px color-mix(in srgb, var(--rf-world-accent) 2.5%, transparent),
+    0 0 0 72px color-mix(in srgb, var(--rf-world-accent) 1.7%, transparent),
+    0 0 95px var(--rf-world-accent-soft);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(92px, 13vw, 190px);
+  line-height: 1;
+  pointer-events: none;
+  transform: rotate(-9deg);
+}
+
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) .rf-app-shell {
+  position: relative;
+  z-index: 1;
+}
+
+/* Page title becomes the entrance plaque of each location. */
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) .rf-app-heading {
+  margin-bottom: 30px;
+  padding: 28px 0 25px;
+}
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) .rf-app-heading::before {
+  content: "";
+  position: absolute;
+  left: -22px;
+  top: 18px;
+  bottom: 22px;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--rf-world-accent), transparent);
+  box-shadow: 0 0 18px var(--rf-world-accent-soft);
+  opacity: .78;
+  pointer-events: none;
+}
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) .rf-app-heading::after {
+  background: linear-gradient(90deg, var(--rf-world-accent), color-mix(in srgb, var(--rf-world-accent) 25%, rgba(255,255,255,.06)) 30%, transparent 82%);
+  opacity: .55;
+  box-shadow: 0 2px 18px color-mix(in srgb, var(--rf-world-accent) 10%, transparent);
+}
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) .rf-eyebrow {
+  color: color-mix(in srgb, var(--rf-world-accent) 70%, #dce7ef);
+}
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) .rf-eyebrow > span {
+  background: linear-gradient(90deg, transparent, var(--rf-world-accent));
+  box-shadow: 0 0 9px var(--rf-world-accent-soft);
+}
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) .rf-app-heading h1 {
+  text-shadow: 0 7px 28px rgba(0,0,0,.75), 0 0 42px color-mix(in srgb, var(--rf-world-accent) 8%, transparent);
+}
+
+/* Convert common meta panels into translucent in-world surfaces while keeping
+   all page-owned spacing, dimensions, controls and semantics untouched. */
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) :where(section, aside, article).rounded-2xl {
+  border-color: color-mix(in srgb, var(--rf-world-accent) 12%, rgba(255,255,255,.09)) !important;
+  box-shadow: 0 18px 54px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.018);
+  backdrop-filter: blur(8px);
+}
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) :where(section, aside, article).rounded-xl {
+  box-shadow: inset 0 1px rgba(255,255,255,.018), 0 10px 30px rgba(0,0,0,.12);
+}
+
+/* Summary cards gain a subtle directional highlight. The selector is based on
+   stable accessibility contracts, not position-dependent nth-child rules. */
+.rf-app-page:has(section[aria-label="Resumo da coleção"]) section[aria-label="Resumo da coleção"] > *,
+.rf-app-page:has(section[aria-label="Resumo da Forja"]) section[aria-label="Resumo da Forja"] > *,
+.rf-app-page:has(section[aria-label="Resumo de progressão"]) section[aria-label="Resumo de progressão"] > * {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--rf-world-accent) 12%, rgba(255,255,255,.08)) !important;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--rf-world-accent) 4%, rgba(3,7,12,.82)), rgba(2,5,9,.68)) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.02);
+}
+.rf-app-page:has(section[aria-label="Resumo da coleção"]) section[aria-label="Resumo da coleção"] > *::before,
+.rf-app-page:has(section[aria-label="Resumo da Forja"]) section[aria-label="Resumo da Forja"] > *::before,
+.rf-app-page:has(section[aria-label="Resumo de progressão"]) section[aria-label="Resumo de progressão"] > *::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 58%;
+  height: 1px;
+  background: linear-gradient(90deg, var(--rf-world-accent), transparent);
+  opacity: .36;
+  pointer-events: none;
+}
+
+/* Buttons inherit the place accent only as light/reflection, keeping RuneForge
+   gold as the actual primary action language. */
+.rf-app-page:is(
+  :has(section[aria-label="Resumo da coleção"]),
+  :has(section[aria-label="Resumo da Forja"]),
+  .modes-page,
+  :has(section[aria-label="Resumo de progressão"]),
+  .codex-page
+) .rf-button-secondary:hover {
+  border-color: color-mix(in srgb, var(--rf-world-accent) 30%, rgba(255,255,255,.16));
+  box-shadow: 0 0 24px color-mix(in srgb, var(--rf-world-accent) 7%, transparent);
+}
+
+/* Distinct micro-textures make each destination recognizable at a glance. */
+.rf-app-page:has(section[aria-label="Resumo da coleção"]) .rf-app-shell {
+  background-image: linear-gradient(90deg, transparent 0 96%, rgba(104,215,255,.018) 96% 96.2%, transparent 96.2%);
+  background-size: 44px 100%;
+}
+.rf-app-page:has(section[aria-label="Resumo da Forja"]) .rf-app-shell {
+  background-image: radial-gradient(circle at 100% 14%, rgba(244,182,80,.035) 0 2px, transparent 2.5px);
+  background-size: 38px 38px;
+}
+.rf-app-page.modes-page .rf-app-shell {
+  background-image:
+    linear-gradient(32deg, transparent 49.8%, rgba(98,234,209,.025) 50%, transparent 50.2%),
+    linear-gradient(148deg, transparent 49.8%, rgba(98,234,209,.018) 50%, transparent 50.2%);
+  background-size: 120px 72px;
+}
+.rf-app-page:has(section[aria-label="Resumo de progressão"]) .rf-app-shell {
+  background-image: radial-gradient(circle at 50% 0, rgba(231,197,109,.025), transparent 34%);
+}
+.rf-app-page.codex-page .rf-app-shell {
+  background-image: linear-gradient(90deg, transparent 49.85%, rgba(114,220,255,.018) 50%, transparent 50.15%);
+  background-size: 86px 100%;
+}
+
+@media (max-width: 920px) {
+  .rf-app-page:is(
+    :has(section[aria-label="Resumo da coleção"]),
+    :has(section[aria-label="Resumo da Forja"]),
+    .modes-page,
+    :has(section[aria-label="Resumo de progressão"]),
+    .codex-page
+  )::after {
+    right: -80px;
+    top: 150px;
+    width: 230px;
+    opacity: .72;
+  }
+  .rf-app-page:is(
+    :has(section[aria-label="Resumo da coleção"]),
+    :has(section[aria-label="Resumo da Forja"]),
+    .modes-page,
+    :has(section[aria-label="Resumo de progressão"]),
+    .codex-page
+  ) .rf-app-heading::before {
+    left: -10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .rf-app-page:is(
+    :has(section[aria-label="Resumo da coleção"]),
+    :has(section[aria-label="Resumo da Forja"]),
+    .modes-page,
+    :has(section[aria-label="Resumo de progressão"]),
+    .codex-page
+  )::before {
+    opacity: .26;
+    background-size: 150px 86px, 150px 86px, 520px 520px, 280px 100%;
+  }
+  .rf-app-page:is(
+    :has(section[aria-label="Resumo da coleção"]),
+    :has(section[aria-label="Resumo da Forja"]),
+    .modes-page,
+    :has(section[aria-label="Resumo de progressão"]),
+    .codex-page
+  )::after {
+    display: none;
+  }
+  .rf-app-page:is(
+    :has(section[aria-label="Resumo da coleção"]),
+    :has(section[aria-label="Resumo da Forja"]),
+    .modes-page,
+    :has(section[aria-label="Resumo de progressão"]),
+    .codex-page
+  ) .rf-app-heading {
+    margin-bottom: 22px;
+    padding-top: 19px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-app-page:is(
+    :has(section[aria-label="Resumo da coleção"]),
+    :has(section[aria-label="Resumo da Forja"]),
+    .modes-page,
+    :has(section[aria-label="Resumo de progressão"]),
+    .codex-page
+  ) *,
+  .rf-app-page:is(
+    :has(section[aria-label="Resumo da coleção"]),
+    :has(section[aria-label="Resumo da Forja"]),
+    .modes-page,
+    :has(section[aria-label="Resumo de progressão"]),
+    .codex-page
+  ) *::before,
+  .rf-app-page:is(
+    :has(section[aria-label="Resumo da coleção"]),
+    :has(section[aria-label="Resumo da Forja"]),
+    .modes-page,
+    :has(section[aria-label="Resumo de progressão"]),
+    .codex-page
+  ) *::after {
+    scroll-behavior: auto !important;
+  }
+}
