@@ -6,15 +6,25 @@
  */
 
 @media (min-width: 901px) and (max-height: 1050px) {
+  /* The ritual center should feel spacious, not consume the player's controls.
+     Stop the flex-1 conflict zone from swallowing all spare viewport height;
+     combat content can still grow it naturally when present. */
+  .tcg-row[data-bench-side="ai"] + .relative.flex-1,
+  .tcg-arena > .mx-auto > .tcg-row + .relative.flex-1 {
+    flex: 0 1 auto !important;
+    min-height: 128px;
+  }
+
   .tcg-arena .player-hand-shell {
-    min-height: 178px;
-    flex: 0 0 178px;
+    min-height: 166px;
+    flex: 0 0 166px;
   }
 
   .tcg-arena .tcg-hand {
-    min-height: 178px;
-    padding-top: 8px;
-    padding-bottom: 4px;
+    min-height: 166px;
+    height: 166px;
+    padding-top: 6px;
+    padding-bottom: 2px;
   }
 
   .tcg-arena .tcg-hand .tcg-hand-card .card-shell {
@@ -23,7 +33,7 @@
   }
 
   .tcg-hand-card {
-    margin-top: 2px !important;
+    margin-top: 0 !important;
     margin-left: -18px;
     transform-origin: 50% 112%;
   }
@@ -32,13 +42,13 @@
 
   .tcg-hand-card:hover,
   .tcg-hand-card:focus-within {
-    transform: translateY(-16px) rotate(0deg) scale(1.07);
+    transform: translateY(-14px) rotate(0deg) scale(1.07);
   }
 
   .tcg-actions {
-    min-height: 50px;
-    padding-top: 6px !important;
-    padding-bottom: 6px !important;
+    min-height: 48px;
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
   }
 
   .tcg-actions .btn-primary,
