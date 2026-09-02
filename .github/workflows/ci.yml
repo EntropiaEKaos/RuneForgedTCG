@@ -150,6 +150,7 @@ jobs:
           node scripts/alpha-visual-journey.mjs
           node scripts/alpha-semantic-codex-browser-cert.mjs
           node scripts/alpha-flagship-champions-browser-cert.mjs
+          node scripts/alpha-card-art-viewer-browser-cert.mjs
           node scripts/alpha-runtime-tooltip-cert.mjs
           node scripts/alpha-activated-ability-browser-cert.mjs
           node scripts/alpha-casual-pvp-journey.mjs
