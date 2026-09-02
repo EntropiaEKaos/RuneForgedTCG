@@ -29,6 +29,8 @@ assert.ok(viewportPolish.includes("max-height: 1050px") && viewportPolish.includ
 assert.ok(viewportPolish.includes("min-height: 44px") && viewportPolish.includes("min-height: 34px"), "Certified desktop viewport must retain the primary action surface below the complete hand");
 assert.ok(viewportPolish.includes("flex: 0 1 auto !important") && viewportPolish.includes("min-height: 104px"), "Certified desktop viewport must reserve height for the player controls instead of letting the ritual center consume it");
 assert.ok(viewportPolish.includes("min-height: 88px") && viewportPolish.includes("min-height: 52px"), "Short desktop chrome and deployment rows must compact before the player's cards do");
+assert.ok(viewportPolish.includes(".archetype-tracker") && viewportPolish.includes("pointer-events: none"), "Informational archetype telemetry must never intercept PvP/dialog hit targets");
+assert.ok(viewportPolish.includes("margin-top: -8px !important"), "Certified desktop hand fan must lift above the action surface so card bottoms remain visible");
 assert.ok(cardBack.includes("RuneForge card back") && cardBack.includes("RUNE FORGE"), "Official card-back asset must carry RuneForge identity");
 assert.ok(warSeal.includes('viewBox="0 0 600 600"'), "War seal must remain a scalable SVG asset");
 assert.ok(artBible.includes("Arcane War Table") && artBible.includes("Engineering boundary"), "Art Bible must preserve the visual direction and engineering boundary");
