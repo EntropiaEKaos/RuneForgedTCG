@@ -109,6 +109,8 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
   };
 
   const handleClickCapture = (event: ReactMouseEvent) => {
+    const target = event.target as Element | null;
+    if (target?.closest?.('[data-tooltip-panel="true"]')) return;
     if (suppressNextClick.current) {
       event.preventDefault();
       event.stopPropagation();
