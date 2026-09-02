@@ -5,6 +5,12 @@
  * hit targets and authoritative rules remain untouched.
  */
 
+/* ArchetypeTracker is informational only. It must never steal a physical click
+   from transient PvP/dialog controls that can occupy the same visual band. */
+.archetype-tracker {
+  pointer-events: none;
+}
+
 @media (min-width: 901px) and (max-height: 1050px) {
   /* Short desktop viewports prioritize the playable table. Chrome compresses;
      the hand remains the hero and the action surface stays fully visible. */
@@ -82,8 +88,10 @@
     height: 157px;
   }
 
+  /* The fan deliberately rises into the hand shelf rather than underlapping
+     the action bar. This keeps printed stats and the card frame bottom visible. */
   .tcg-hand-card {
-    margin-top: 0 !important;
+    margin-top: -8px !important;
     margin-left: -16px;
     transform-origin: 50% 110%;
   }
