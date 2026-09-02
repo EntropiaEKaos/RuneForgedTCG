@@ -31,14 +31,14 @@ jobs:
       - name: Install dependencies
         run: npm run ci:install
 
-      - name: Run Vanilla 1.7 recipe laboratory
-        run: node --import tsx scripts/vanilla-1-7-balance-diagnostic.ts 16 3 --write artifacts/vanilla-1-7/recipe-screen.json
+      - name: Run Vanilla 1.7 structural concentration screen
+        run: node --import tsx scripts/vanilla-1-7-structure-diagnostic.ts 16 3 --write artifacts/vanilla-1-7/structure-screen.json
 
       - name: Upload diagnostic
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: vanilla-1-7-recipe-screen-${{ github.sha }}
+          name: vanilla-1-7-structure-screen-${{ github.sha }}
           path: artifacts/vanilla-1-7
           if-no-files-found: error
           retention-days: 7
