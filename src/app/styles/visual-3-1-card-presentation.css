@@ -1,0 +1,214 @@
+/* ========================================================================== 
+   RuneForge Visual 3.1 — Card Art / Presentation
+   Global presentation layer. No card geometry, hitboxes, rules or authority.
+   ========================================================================== */
+
+.card-shell {
+  --rf-v31-semantic: rgba(220, 184, 105, .34);
+  --rf-v31-semantic-strong: rgba(239, 210, 146, .72);
+  --rf-v31-art-glow: rgba(255,255,255,.06);
+  box-shadow:
+    0 12px 26px rgba(0,0,0,.44),
+    inset 0 0 0 1px rgba(255,255,255,.025),
+    inset 0 1px rgba(255,255,255,.035);
+}
+
+.card-shell .card-art {
+  background-color: #080b10;
+  background-repeat: no-repeat;
+  transition: filter .22s ease, opacity .22s ease;
+}
+
+.card-shell .card-vignette {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.08) 0%, rgba(0,0,0,.02) 30%, rgba(0,0,0,.25) 62%, rgba(0,0,0,.86) 100%),
+    radial-gradient(ellipse at 50% 38%, transparent 25%, rgba(0,0,0,.15) 70%, rgba(0,0,0,.48) 100%);
+}
+
+.card-shell .card-frame-ornament {
+  opacity: .82;
+  filter: drop-shadow(0 0 4px rgba(0,0,0,.55));
+}
+
+.card-shell[data-card-rarity="epic"],
+.card-shell[data-card-rarity="legend"] {
+  box-shadow:
+    0 14px 30px rgba(0,0,0,.50),
+    0 0 18px var(--rf-v31-art-glow),
+    inset 0 0 0 1px rgba(255,255,255,.04),
+    inset 0 1px rgba(255,255,255,.055);
+}
+
+/* Regional fallback is a first-class presentation, not a broken-art state. */
+.card-shell[data-card-art-source="regional-fallback"] .card-art,
+.card-shell[data-card-art-source="configured-fallback"] .card-art {
+  filter: saturate(.92) contrast(1.06) brightness(.78);
+}
+
+.card-shell[data-card-art-source="regional-fallback"] .card-art-fallback,
+.card-shell[data-card-art-source="configured-fallback"] .card-art-fallback {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255,255,255,.10), transparent 31%),
+    linear-gradient(180deg, rgba(2,4,8,.03), rgba(2,4,8,.28));
+}
+
+.card-shell[data-card-art-source="regional-fallback"] .card-art-fallback > span,
+.card-shell[data-card-art-source="configured-fallback"] .card-art-fallback > span {
+  filter: drop-shadow(0 5px 10px rgba(0,0,0,.72));
+}
+
+.card-shell[data-card-art-source="regional-fallback"] .card-art-fallback > b,
+.card-shell[data-card-art-source="configured-fallback"] .card-art-fallback > b {
+  opacity: .28;
+  filter: saturate(.75) drop-shadow(0 0 12px currentColor);
+}
+
+/* --------------------------------------------------------------------------
+   Certified semantic types — recognizable before the rules text is read.
+   -------------------------------------------------------------------------- */
+
+.card-shell[data-card-semantic-type="structure"] {
+  --rf-v31-semantic: rgba(207, 151, 79, .38);
+  --rf-v31-semantic-strong: rgba(239, 190, 117, .88);
+  --rf-v31-art-glow: rgba(210, 145, 70, .15);
+  border-color: rgba(213, 163, 98, .78) !important;
+}
+
+.card-shell[data-card-semantic-type="structure"] .card-frame-ornament {
+  opacity: 1;
+  filter: sepia(.25) saturate(1.25) drop-shadow(0 0 5px rgba(217,161,87,.25));
+}
+
+.card-shell[data-card-semantic-type="structure"] .card-vignette {
+  background:
+    linear-gradient(180deg, rgba(75,44,18,.07), transparent 30%, rgba(22,11,5,.28) 65%, rgba(4,3,2,.90) 100%),
+    repeating-linear-gradient(90deg, transparent 0 17%, rgba(224,172,103,.035) 17.5% 18%, transparent 18.5% 34%);
+}
+
+.card-shell[data-card-semantic-type="ritual"] {
+  --rf-v31-semantic: rgba(86, 211, 239, .34);
+  --rf-v31-semantic-strong: rgba(135, 233, 255, .88);
+  --rf-v31-art-glow: rgba(66, 200, 236, .17);
+  border-color: rgba(107, 218, 242, .76) !important;
+}
+
+.card-shell[data-card-semantic-type="ritual"] .card-frame-ornament {
+  opacity: .96;
+  filter: hue-rotate(150deg) saturate(1.45) brightness(1.08) drop-shadow(0 0 6px rgba(77,209,238,.28));
+}
+
+.card-shell[data-card-semantic-type="ritual"] .card-vignette {
+  background:
+    radial-gradient(circle at 50% 43%, rgba(66,208,239,.13), transparent 28%),
+    repeating-radial-gradient(circle at 50% 42%, transparent 0 18px, rgba(116,230,250,.035) 19px 20px, transparent 21px 37px),
+    linear-gradient(180deg, rgba(4,28,37,.06), transparent 34%, rgba(3,20,29,.32) 68%, rgba(2,7,12,.91) 100%);
+}
+
+.card-shell[data-card-semantic-type="trap"] {
+  --rf-v31-semantic: rgba(224, 73, 121, .34);
+  --rf-v31-semantic-strong: rgba(247, 119, 160, .88);
+  --rf-v31-art-glow: rgba(211, 56, 105, .16);
+  border-color: rgba(224, 91, 134, .76) !important;
+}
+
+.card-shell[data-card-semantic-type="trap"] .card-frame-ornament {
+  opacity: .98;
+  filter: hue-rotate(300deg) saturate(1.35) drop-shadow(0 0 6px rgba(225,70,121,.28));
+}
+
+.card-shell[data-card-semantic-type="trap"] .card-vignette {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 18px, rgba(238,94,141,.038) 19px 20px, transparent 21px 38px),
+    linear-gradient(180deg, rgba(49,5,20,.05), transparent 33%, rgba(42,4,18,.34) 68%, rgba(9,2,6,.92) 100%);
+}
+
+/* Tiny semantic seal: informative, non-interactive and inside existing bounds. */
+.card-shell[data-card-semantic-type="structure"]::after,
+.card-shell[data-card-semantic-type="ritual"]::after,
+.card-shell[data-card-semantic-type="trap"]::after {
+  position: absolute;
+  z-index: 24;
+  left: 5px;
+  bottom: 5px;
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  border: 1px solid var(--rf-v31-semantic-strong);
+  border-radius: 50%;
+  background: rgba(3,6,10,.88);
+  color: #f7f0df;
+  box-shadow: 0 0 12px var(--rf-v31-semantic), inset 0 0 8px rgba(255,255,255,.035);
+  font-family: var(--font-display), serif;
+  font-size: 10px;
+  line-height: 1;
+  pointer-events: none;
+}
+.card-shell[data-card-semantic-type="structure"]::after { content: "▰"; }
+.card-shell[data-card-semantic-type="ritual"]::after { content: "◉"; }
+.card-shell[data-card-semantic-type="trap"]::after { content: "◇"; transform: rotate(45deg); }
+
+.card-shell[data-card-semantic-type="structure"] .card-type,
+.card-shell[data-card-semantic-type="ritual"] .card-type,
+.card-shell[data-card-semantic-type="trap"] .card-type {
+  color: color-mix(in srgb, var(--rf-v31-semantic-strong) 82%, white 18%);
+  text-shadow: 0 0 8px var(--rf-v31-semantic);
+}
+
+.card-shell[data-card-semantic-type="ritual"] .card-cost {
+  box-shadow: 0 0 14px rgba(89,210,240,.20), inset 0 0 8px rgba(89,210,240,.08);
+}
+
+.card-shell[data-card-semantic-type="trap"] .card-speed {
+  border-color: rgba(238,106,150,.32);
+  color: rgba(255,190,211,.92);
+}
+
+/* Meta surfaces receive the same forged-card quality without changing layout. */
+.codex-card-grid .card-shell,
+.collection-grid .card-shell,
+.deck-card-grid .card-shell,
+.studio-card-preview .card-shell {
+  box-shadow:
+    0 16px 34px rgba(0,0,0,.50),
+    0 0 20px var(--rf-v31-art-glow),
+    inset 0 0 0 1px rgba(255,255,255,.03),
+    inset 0 1px rgba(255,255,255,.045);
+}
+
+.codex-card-grid .card-shell.card-interactive:hover,
+.collection-grid .card-shell.card-interactive:hover,
+.deck-card-grid .card-shell.card-interactive:hover {
+  box-shadow:
+    0 22px 44px rgba(0,0,0,.58),
+    0 0 28px var(--rf-v31-semantic),
+    inset 0 0 0 1px rgba(255,255,255,.05);
+}
+
+/* Arena keeps its certified geometry; 3.1 only adds semantic material cues. */
+.tcg-arena .card-shell[data-card-semantic-type="structure"],
+.tcg-arena .card-shell[data-card-semantic-type="ritual"],
+.tcg-arena .card-shell[data-card-semantic-type="trap"] {
+  box-shadow:
+    0 16px 30px rgba(0,0,0,.48),
+    0 0 22px var(--rf-v31-art-glow),
+    inset 0 0 0 1px rgba(255,255,255,.035);
+}
+
+@media (max-width: 900px) {
+  .card-shell[data-card-semantic-type="structure"]::after,
+  .card-shell[data-card-semantic-type="ritual"]::after,
+  .card-shell[data-card-semantic-type="trap"]::after {
+    width: 16px;
+    height: 16px;
+    left: 4px;
+    bottom: 4px;
+    font-size: 8px;
+  }
+
+  .card-shell .card-art { transition: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-shell .card-art { transition: none !important; }
+}
