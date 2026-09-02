@@ -19,15 +19,40 @@ assert.ok(
 );
 
 // Each world identity is anchored to a page-owned semantic/accessibility contract.
-for (const [source, contract, label] of [
-  [collection, 'aria-label="Resumo da coleção"', "collection"],
-  [forge, 'aria-label="Resumo da Forja"', "forge"],
-  [modes, 'className="rf-app-page modes-page"', "modes"],
-  [profile, 'aria-label="Resumo de progressão"', "profile"],
-  [codex, 'className="rf-app-page codex-page"', "codex"],
+for (const { source, sourceContract, cssContract, label } of [
+  {
+    source: collection,
+    sourceContract: 'aria-label="Resumo da coleção"',
+    cssContract: ':has(section[aria-label="Resumo da coleção"])',
+    label: "collection",
+  },
+  {
+    source: forge,
+    sourceContract: 'aria-label="Resumo da Forja"',
+    cssContract: ':has(section[aria-label="Resumo da Forja"])',
+    label: "forge",
+  },
+  {
+    source: modes,
+    sourceContract: 'className="rf-app-page modes-page"',
+    cssContract: ".rf-app-page.modes-page",
+    label: "modes",
+  },
+  {
+    source: profile,
+    sourceContract: 'aria-label="Resumo de progressão"',
+    cssContract: ':has(section[aria-label="Resumo de progressão"])',
+    label: "profile",
+  },
+  {
+    source: codex,
+    sourceContract: 'className="rf-app-page codex-page"',
+    cssContract: ".rf-app-page.codex-page",
+    label: "codex",
+  },
 ] as const) {
-  assert.ok(source.includes(contract), `Visual 3.2 stable route contract missing: ${label}`);
-  assert.ok(css.includes(contract.replace('className="rf-app-page ', '.rf-app-page.').replace('"', '')), `Visual 3.2 CSS identity missing: ${label}`);
+  assert.ok(source.includes(sourceContract), `Visual 3.2 stable route contract missing: ${label}`);
+  assert.ok(css.includes(cssContract), `Visual 3.2 CSS identity missing: ${label}`);
 }
 
 for (const contract of [
