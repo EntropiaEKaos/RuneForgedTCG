@@ -21,7 +21,7 @@ const releaseCards = Object.values(RELEASE_296_CARDS);
 assert.equal(releaseCards.length, 33); checks.push("2.96 contains 33 new cards");
 assert.equal(releaseCards.filter((card) => card.type === "Sentinela").length, 12); checks.push("2.96 contains 12 new Sentinelas");
 assert.equal(releaseCards.filter((card) => cardRegions(card).length > 1).length, 27); checks.push("2.96 contains 27 multi-region cards");
-assert.equal(baseCardsOnly().length, 429); checks.push("Vanilla code-authored catalog totals 429 cards");
+assert.ok(baseCardsOnly().length >= 429); checks.push("Vanilla catalog retains the complete 429-card 2.96 floor while allowing later content waves");
 
 const duals = new Set(releaseCards.filter((card) => cardRegions(card).length === 2).map((card) => identityForRegions(cardRegions(card)).name));
 const triads = new Set(releaseCards.filter((card) => cardRegions(card).length === 3).map((card) => identityForRegions(cardRegions(card)).name));
