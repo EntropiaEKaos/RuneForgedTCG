@@ -273,7 +273,12 @@ assert.equal(
   VANILLA_CODE_AUTHORED_CARD_BASELINE,
   `Ability grammar certification covers the complete canonical ${VANILLA_CODE_AUTHORED_CARD_BASELINE}-card catalog`,
 );
-assert.equal(cards.filter((card) => card.aura).length, 0, "existing Round Start buffs remain triggers instead of being silently reinterpreted as continuous Auras");
+const productionAuraCards = cards.filter((card) => card.aura);
+assert.equal(productionAuraCards.length, 6, "Alpha semantic wave must expose exactly six production continuous Auras");
+assert.ok(
+  productionAuraCards.every((card) => card.archetypeKey === "structure"),
+  "every production continuous Aura in the Alpha catalog must come from a certified Structure",
+);
 
 let blueprintCount = 0;
 let cardsWithGrammar = 0;
@@ -330,17 +335,16 @@ for (const card of cards) {
   }
 }
 
-// These origins are genuinely present in the static catalog today. Dynamic
-// Mechanics Studio and Aura compatibility are proven by dedicated probes above.
-for (const origin of ["keyword", "costReduction", "equipment", "legacyTrigger", "spell", "activated", "sentinela", "levelUp"]) {
+// These origins are genuinely present in the static catalog today. Mechanics
+// Studio compatibility is proven by the dedicated dynamic probe above.
+for (const origin of ["keyword", "costReduction", "equipment", "legacyTrigger", "spell", "activated", "sentinela", "levelUp", "aura"]) {
   assert.ok(origins.has(origin), `canonical catalog exercises ${origin} compatibility`);
 }
-assert.deepEqual([...ruleKinds].sort(), ["costReduction", "equipmentAttachment"]);
+assert.deepEqual([...ruleKinds].sort(), ["costReduction", "equipmentAttachment", "permanentStatAura"]);
 assert.equal(origins.has("mechanic"), false, "base catalog truthfully records that mechanics are dynamic/published content today");
-assert.equal(origins.has("aura"), false, "base catalog truthfully records that continuous Aura is authored/published content today");
 assert.ok(blueprintCount > 0);
 assert.ok(cardsWithGrammar > 0);
 assert.ok(keywordBlueprints > 0, "canonical catalog exercises keyword runtime contracts");
 assert.ok(combatTimedTriggers > 0, "canonical catalog contains combat-timed trigger abilities");
 
-console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/${VANILLA_CODE_AUTHORED_CARD_BASELINE} cards without gameplay mutation · ${keywordBlueprints} keyword contracts · ${combatTimedTriggers} combat-timed triggers · permanent stat Aura contract certified · modal activated runtime slice certified`);
+console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/${VANILLA_CODE_AUTHORED_CARD_BASELINE} cards without gameplay mutation · ${keywordBlueprints} keyword contracts · ${combatTimedTriggers} combat-timed triggers · 6 production Structure Auras certified · modal activated runtime slice certified`);
