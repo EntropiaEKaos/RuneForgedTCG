@@ -3,9 +3,11 @@ import type { DeckDef } from "./decks";
 /**
  * Vanilla experimental recipe helpers.
  *
- * Five Vanguards intentionally preserve the historical 36 Unit + 4 Spell intake.
+ * Four Vanguards intentionally preserve the historical 36 Unit + 4 Spell intake.
  * Tidecall Vanguard owns an evidence-driven Vanilla 1.5 exception that reduces
- * duplicated top-end and adds regional control tools without changing CardDefs.
+ * duplicated top-end. Tempestade Vanguard owns an evidence-driven Vanilla 1.6
+ * exception that reduces repeated evasive/draw pressure. Both add regional
+ * control tools without changing CardDefs.
  * Ascendant keeps one copy of every regional `van_*` card and adds exactly ten
  * explicit duplicates selected by deterministic Balance Lab evidence. This
  * makes the recipe contract auditable while preserving 180/180 pool coverage.
@@ -73,6 +75,28 @@ function tidecallVanguardRecipe(): string[] {
     cardId("van_tide", "s05"),
     cardId("van_tide", "s06"),
     cardId("van_tide", "s06"),
+  ];
+}
+
+/** Vanilla 1.6: 32 Units + 8 Spells, with u03/u05/u08/u11 as singletons. */
+function tempestadeVanguardRecipe(): string[] {
+  const units = unitIds("van_storm");
+  const singletonUnits = new Set([
+    cardId("van_storm", "u03"),
+    cardId("van_storm", "u05"),
+    cardId("van_storm", "u08"),
+    cardId("van_storm", "u11"),
+  ]);
+  return [
+    ...units.flatMap((defId) => singletonUnits.has(defId) ? [defId] : [defId, defId]),
+    cardId("van_storm", "s01"),
+    cardId("van_storm", "s01"),
+    cardId("van_storm", "s02"),
+    cardId("van_storm", "s02"),
+    cardId("van_storm", "s05"),
+    cardId("van_storm", "s05"),
+    cardId("van_storm", "s06"),
+    cardId("van_storm", "s06"),
   ];
 }
 
@@ -182,7 +206,7 @@ export const VANILLA_EXPERIMENTAL_DECKS: DeckDef[] = [
     regions: ["Tempestade"],
     description: "Experimental Vanilla archetype for Tempestade. Kept outside ranked until Balance Lab certification.",
     emoji: "⚡",
-    cards: vanguardRecipe("van_storm"),
+    cards: tempestadeVanguardRecipe(),
   },
   {
     id: "vanilla_storm_2",
