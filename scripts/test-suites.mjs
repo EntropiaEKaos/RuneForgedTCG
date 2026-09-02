@@ -31,6 +31,7 @@ export const behavioralTests = [
   "src/game/semantic-card-types.test.ts",
   "src/game/semantic-alpha-wave.test.ts",
   "src/game/starter-deck-certification.test.ts",
+  "src/game/flagship-art.test.ts",
   "src/game/cost-reduction-contract.test.ts",
   "src/game/effect-chain-contract.test.ts",
   "src/game/equipment-link-contract.test.ts",
@@ -91,6 +92,7 @@ export const behavioralTests = [
 export const sourceContractTests = [
   "src/lib/api-contract-regression.test.ts",
   "src/lib/alpha-onboarding-regression.test.ts",
+  "src/lib/alpha-visual-feature-freeze-regression.test.ts",
   "src/lib/art-optimization-2.95.test.ts",
   "src/lib/brawl-contract-assistant-regression.test.ts",
   "src/lib/bugfix-2.88.test.ts",
