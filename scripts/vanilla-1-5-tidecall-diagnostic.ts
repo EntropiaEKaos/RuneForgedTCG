@@ -16,114 +16,115 @@ const writeIndex = process.argv.indexOf("--write");
 const writePath = writeIndex >= 0 ? process.argv[writeIndex + 1] : "";
 if (STRATA > VANILLA_BALANCE_STRATUM_BASES.length) throw new Error("strata outside seed table");
 
-const baseOverrides = vanillaExperimentalOverrides();
-const targetBase = baseOverrides[TARGET_ID];
+const overrides = vanillaExperimentalOverrides();
+const targetBase = overrides[TARGET_ID];
 if (!targetBase) throw new Error(`${TARGET_ID} missing`);
-const matchups = vanillaBalanceMatchups().filter((row) => row.leftId === TARGET_ID || row.rightId === TARGET_ID);
-if (matchups.length !== 11) throw new Error(`expected 11 Tidecall Vanguard matchups, found ${matchups.length}`);
+const matchups = vanillaBalanceMatchups();
+if (matchups.length !== 66) throw new Error(`expected 66 matchups, found ${matchups.length}`);
 
-function round1(value: number): number { return Math.round(value * 10) / 10; }
-function pct(n: number, d: number): number { return round1((n / Math.max(1, d)) * 100); }
 function copies(ids: string[]): string[] { return ids.flatMap((id) => [id, id]); }
 function range(prefix: string, from: number, to: number): string[] {
   return Array.from({ length: to - from + 1 }, (_, i) => `${prefix}${String(from + i).padStart(2, "0")}`);
 }
+function round1(value: number): number { return Math.round(value * 10) / 10; }
+function pct(n: number, d: number): number { return round1((n / Math.max(1, d)) * 100); }
 
-const u01u18 = range("van_tide_u", 1, 18);
 const u01u14 = range("van_tide_u", 1, 14);
 const u15u18 = range("van_tide_u", 15, 18);
-const s01 = "van_tide_s01";
-const s02 = "van_tide_s02";
-const s03 = "van_tide_s03";
-const s05 = "van_tide_s05";
-const s06 = "van_tide_s06";
-
-const recipes = [
-  { name: "baseline_36u4s", cards: [...copies(u01u18), s01, s01, s02, s02] },
-  { name: "recipe32_control", cards: [...copies(u01u14), ...u15u18, s01, s01, s02, s02, s05, s05, s06, s06] },
-  { name: "recipe32_toolbox", cards: [...copies(u01u14), ...u15u18, s01, s01, s02, s02, s03, s03, s05, s05] },
+export const TIDECALL_VANGUARD_1_5_RECIPE = [
+  ...copies(u01u14),
+  ...u15u18,
+  "van_tide_s01", "van_tide_s01",
+  "van_tide_s02", "van_tide_s02",
+  "van_tide_s05", "van_tide_s05",
+  "van_tide_s06", "van_tide_s06",
 ];
-for (const recipe of recipes) {
-  if (recipe.cards.length !== 40) throw new Error(`${recipe.name}: ${recipe.cards.length} cards`);
-  for (const defId of recipe.cards) getCard(defId);
-}
+if (TIDECALL_VANGUARD_1_5_RECIPE.length !== 40) throw new Error("Tidecall Vanguard 1.5 recipe must contain 40 cards");
+for (const defId of TIDECALL_VANGUARD_1_5_RECIPE) getCard(defId);
+overrides[TARGET_ID] = { ...targetBase, cards: [...TIDECALL_VANGUARD_1_5_RECIPE] };
 
-function recipeStats(cards: string[]) {
-  const defs = cards.map(getCard);
-  return {
-    units: defs.filter((card) => card.type === "Unit").length,
-    spells: defs.filter((card) => card.type === "Spell").length,
-    uniqueCards: new Set(cards).size,
-    averageCost: round1(defs.reduce((sum, card) => sum + card.cost, 0) / cards.length),
-    topEnd7Plus: defs.filter((card) => card.cost >= 7).length,
-    early1To2: defs.filter((card) => card.cost <= 2).length,
-  };
-}
+type DeckAggregate = { wins: number; losses: number; draws: number; games: number };
+const decks: Record<string, DeckAggregate> = {};
+const matchupRows: Array<{ leftId: string; rightId: string; games: number; winRateA: number; status: string; maxSeedDeviation: number }> = [];
+let firstWins = 0;
+let decisive = 0;
+let draws = 0;
+let totalGames = 0;
+let maxSeedDeviation = 0;
+const health = { healthy: 0, watch: 0, critical: 0 };
 
-type Result = {
-  name: string;
-  stats: ReturnType<typeof recipeStats>;
-  games: number;
-  winRate: number;
-  avgRounds: number;
-  maxWinRate: number;
-  minWinRate: number;
-  health: { healthy: number; watch: number; critical: number };
-  matchups: Array<{ opponent: string; games: number; winRate: number; status: string }>;
-};
-
-function runRecipe(name: string, cards: string[]): Result {
-  const overrides = { ...baseOverrides, [TARGET_ID]: { ...targetBase, cards: [...cards] } };
-  let wins = 0;
-  let losses = 0;
-  let games = 0;
-  let weightedRounds = 0;
-  const health = { healthy: 0, watch: 0, critical: 0 };
-  const rows: Result["matchups"] = [];
-
-  for (const matchup of matchups) {
-    const parts: SimulationSummary[] = [];
-    for (let stratum = 0; stratum < STRATA; stratum += 1) {
-      parts.push(runBalanceSimulation(matchup.leftId, matchup.rightId, GAMES, vanillaBalanceSeed(matchup, stratum), overrides));
-    }
-    const targetIsA = matchup.leftId === TARGET_ID;
-    const mw = parts.reduce((sum, row) => sum + (targetIsA ? row.winsA : row.winsB), 0);
-    const ml = parts.reduce((sum, row) => sum + (targetIsA ? row.winsB : row.winsA), 0);
-    const mg = parts.reduce((sum, row) => sum + row.completedGames, 0);
-    const rate = pct(mw, mw + ml);
-    const status = evaluateMatchup(rate).status;
-    health[status] += 1;
-    wins += mw;
-    losses += ml;
-    games += mg;
-    weightedRounds += parts.reduce((sum, row) => sum + row.avgRounds * row.completedGames, 0);
-    rows.push({ opponent: targetIsA ? matchup.rightId : matchup.leftId, games: mg, winRate: rate, status });
+for (const matchup of matchups) {
+  const parts: SimulationSummary[] = [];
+  for (let stratum = 0; stratum < STRATA; stratum += 1) {
+    parts.push(runBalanceSimulation(matchup.leftId, matchup.rightId, GAMES, vanillaBalanceSeed(matchup, stratum), overrides));
   }
+  const completed = parts.reduce((sum, row) => sum + row.completedGames, 0);
+  const winsA = parts.reduce((sum, row) => sum + row.winsA, 0);
+  const winsB = parts.reduce((sum, row) => sum + row.winsB, 0);
+  const matchupDraws = parts.reduce((sum, row) => sum + row.draws, 0);
+  const rateA = pct(winsA, winsA + winsB);
+  const status = evaluateMatchup(rateA).status;
+  health[status] += 1;
+  const seedRates = parts.map((row) => pct(row.winsA, row.winsA + row.winsB));
+  const seedDeviation = Math.max(...seedRates.map((rate) => Math.abs(rate - rateA)));
+  maxSeedDeviation = Math.max(maxSeedDeviation, seedDeviation);
+  matchupRows.push({ leftId: matchup.leftId, rightId: matchup.rightId, games: completed, winRateA: rateA, status, maxSeedDeviation: round1(seedDeviation) });
 
-  const rates = rows.map((row) => row.winRate);
-  return {
-    name,
-    stats: recipeStats(cards),
-    games,
-    winRate: pct(wins, wins + losses),
-    avgRounds: round1(weightedRounds / Math.max(1, games)),
-    maxWinRate: Math.max(...rates),
-    minWinRate: Math.min(...rates),
-    health,
-    matchups: rows,
-  };
+  decks[matchup.leftId] ??= { wins: 0, losses: 0, draws: 0, games: 0 };
+  decks[matchup.rightId] ??= { wins: 0, losses: 0, draws: 0, games: 0 };
+  decks[matchup.leftId].wins += winsA;
+  decks[matchup.leftId].losses += winsB;
+  decks[matchup.leftId].draws += matchupDraws;
+  decks[matchup.leftId].games += completed;
+  decks[matchup.rightId].wins += winsB;
+  decks[matchup.rightId].losses += winsA;
+  decks[matchup.rightId].draws += matchupDraws;
+  decks[matchup.rightId].games += completed;
+
+  firstWins += parts.reduce((sum, row) => sum + row.firstPlayerWins, 0);
+  decisive += parts.reduce((sum, row) => sum + row.firstPlayerWins + row.secondPlayerWins, 0);
+  draws += matchupDraws;
+  totalGames += completed;
 }
 
-const results = recipes.map((recipe) => runRecipe(recipe.name, recipe.cards));
-const baseline = results[0];
-const candidates = results.slice(1).map((row) => ({ ...row, deltaVsBaseline: round1(row.winRate - baseline.winRate) }));
-const report = {
-  version: "Vanilla 1.5 Vanguard recipe finalist validation",
-  methodology: "No card changes. Baseline and two 32-Unit finalists run Tidecall Vanguard versus all 11 opponents at the full five certified seed strata; Tidecall Ascendant remains untouched.",
-  run: { gamesPerStratum: GAMES, strata: STRATA, gamesPerRecipe: baseline.games, totalGames: results.reduce((sum, row) => sum + row.games, 0) },
-  baseline,
-  candidates,
+const deckWinRates = Object.entries(decks).map(([deckId, row]) => ({
+  deckId,
+  games: row.games,
+  wins: row.wins,
+  losses: row.losses,
+  draws: row.draws,
+  winRate: pct(row.wins, row.wins + row.losses),
+})).sort((a, b) => b.winRate - a.winRate || a.deckId.localeCompare(b.deckId));
+
+const targetCards = TIDECALL_VANGUARD_1_5_RECIPE.map(getCard);
+const targetStats = {
+  units: targetCards.filter((card) => card.type === "Unit").length,
+  spells: targetCards.filter((card) => card.type === "Spell").length,
+  uniqueCards: new Set(TIDECALL_VANGUARD_1_5_RECIPE).size,
+  averageCost: round1(targetCards.reduce((sum, card) => sum + card.cost, 0) / targetCards.length),
+  topEnd7Plus: targetCards.filter((card) => card.cost >= 7).length,
 };
+
+const report = {
+  version: "Vanilla 1.5 Regional Power Outliers — full-meta finalist",
+  methodology: "Only Tidecall Vanguard's deck recipe changes. No CardDef, engine, AI policy, Ascendant recipe or Ranked content is mutated. All 66 experimental matchups run through the real Balance Lab simulator at five certified seed strata.",
+  candidate: { deckId: TARGET_ID, stats: targetStats, cards: TIDECALL_VANGUARD_1_5_RECIPE },
+  certifiedBaseline14: { healthy: 14, watch: 11, critical: 41, tidecallVanguardWinRate: 82.4, tidecallAscendantWinRate: 46.5 },
+  matrix: {
+    matchups: matchupRows.length,
+    gamesPerMatchup: GAMES * STRATA,
+    totalGames,
+    firstPlayerWinRate: pct(firstWins, decisive),
+    drawRate: pct(draws, totalGames),
+    maxSeedDeviation: round1(maxSeedDeviation),
+    health,
+    deltaCriticalVs14: health.critical - 41,
+    releaseGate: health.critical === 0 ? (health.watch === 0 ? "pass" : "review") : "blocked",
+  },
+  deckWinRates,
+  matchups: matchupRows,
+};
+
 if (writePath) {
   fs.mkdirSync(writePath.split("/").slice(0, -1).join("/") || ".", { recursive: true });
   fs.writeFileSync(writePath, `${JSON.stringify(report, null, 2)}\n`);
