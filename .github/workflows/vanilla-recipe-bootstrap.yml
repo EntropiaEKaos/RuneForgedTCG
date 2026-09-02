@@ -19,17 +19,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run typecheck
-      - name: Validate finalized Vanilla recipe structure
-        run: node --import tsx scripts/vanilla-content-audit.ts --write VANILLA_RECIPE_FINAL_1.4.json --enforce
-      - name: Run final utilization matrix
-        run: node --import tsx scripts/vanilla-utilization-audit.ts 20 3 --write VANILLA_UTILIZATION_FINAL_1.4.json --enforce
-      - name: Run final full Balance Lab
-        run: node --import tsx scripts/vanilla-balance-audit.ts 40 5 --write VANILLA_BALANCE_FINAL_1.4.json --enforce
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vanilla-recipe-final-audits-1-4
-          path: |
-            VANILLA_RECIPE_FINAL_1.4.json
-            VANILLA_UTILIZATION_FINAL_1.4.json
-            VANILLA_BALANCE_FINAL_1.4.json
-          if-no-files-found: error
+      - name: Run Vanilla 1.4 behavioral contract
+        run: node --import tsx src/game/vanilla-ascendant-recipes-1-4.test.ts
+      - name: Validate Vanilla content baseline
+        run: node --import tsx scripts/vanilla-content-audit.ts --enforce
