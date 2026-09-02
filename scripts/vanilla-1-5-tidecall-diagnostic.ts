@@ -11,84 +11,110 @@ import {
 import type { CardDef } from "../src/game/types";
 import { runBalanceSimulation, type SimulationSummary } from "../src/lib/balance-simulator";
 
-const TARGET_ID = "vanilla_tide_1";
 const GAMES = Math.max(20, Math.min(80, Number(process.argv[2]) || 40));
 const STRATA = Math.max(3, Math.min(5, Number(process.argv[3]) || 5));
 const writeIndex = process.argv.indexOf("--write");
 const writePath = writeIndex >= 0 ? process.argv[writeIndex + 1] : "";
-const overrides = vanillaExperimentalOverrides();
-const matchups = vanillaBalanceMatchups().filter((row) => row.leftId === TARGET_ID || row.rightId === TARGET_ID);
-if (matchups.length !== 11) throw new Error(`expected 11 Tidecall Vanguard matchups, found ${matchups.length}`);
 if (STRATA > VANILLA_BALANCE_STRATUM_BASES.length) throw new Error("strata outside seed table");
+const overrides = vanillaExperimentalOverrides();
+const matchups = vanillaBalanceMatchups();
 
+const mutations = [
+  { defId: "van_tide_u04", cost: 3 },
+  { defId: "van_tide_u06", cost: 4 },
+  { defId: "van_tide_u09", cost: 5 },
+  { defId: "van_tide_u10", cost: 5 },
+  { defId: "van_tide_u17", cost: 8 },
+  { defId: "van_tide_u18", cost: 9, removeKeywords: ["Lifesteal"] },
+  { defId: "van_tide_u08", removeKeywords: ["Lifesteal"] },
+] as const;
+
+function mutate(spec: (typeof mutations)[number]): CardDef {
+  const base = getCard(spec.defId);
+  const removeKeywords: readonly string[] = "removeKeywords" in spec ? spec.removeKeywords : [];
+  return {
+    ...base,
+    cost: "cost" in spec ? spec.cost : base.cost,
+    keywords: (base.keywords ?? []).filter((keyword) => !removeKeywords.includes(keyword)),
+  };
+}
 function round1(value: number): number { return Math.round(value * 10) / 10; }
 function pct(n: number, d: number): number { return round1((n / Math.max(1, d)) * 100); }
-type Mutation = { defId: string; cost?: number; removeKeywords?: string[] };
-function mutateCard(spec: Mutation): CardDef {
-  const base = getCard(spec.defId);
-  return { ...base, cost: spec.cost ?? base.cost, keywords: (base.keywords ?? []).filter((keyword) => !(spec.removeKeywords ?? []).includes(keyword)) };
-}
-function merge(base: Mutation[], extras: Mutation[]): Mutation[] {
-  const byId = new Map<string, Mutation>();
-  for (const item of [...base, ...extras]) {
-    const previous = byId.get(item.defId);
-    byId.set(item.defId, { ...(previous ?? { defId: item.defId }), ...item, removeKeywords: [...new Set([...(previous?.removeKeywords ?? []), ...(item.removeKeywords ?? [])])] });
-  }
-  return [...byId.values()];
-}
 
-type Result = {
-  name: string; mutations: Mutation[]; games: number; wins: number; losses: number; draws: number; winRate: number; avgRounds: number;
-  maxWinRate: number; minWinRate: number; health: { healthy: number; watch: number; critical: number };
-  matchups: Array<{ opponent: string; games: number; winRate: number; status: string }>;
-};
-function runScenario(name: string, mutations: Mutation[]): Result {
-  const changed = mutations.map(mutateCard);
-  const execute = () => {
-    let wins = 0, losses = 0, draws = 0, games = 0, weightedRounds = 0;
-    const health = { healthy: 0, watch: 0, critical: 0 };
-    const matchupResults: Result["matchups"] = [];
-    for (const matchup of matchups) {
-      const parts: SimulationSummary[] = [];
-      for (let stratum = 0; stratum < STRATA; stratum += 1) {
-        parts.push(runBalanceSimulation(matchup.leftId, matchup.rightId, GAMES, vanillaBalanceSeed(matchup, stratum), overrides));
-      }
-      const targetIsA = matchup.leftId === TARGET_ID;
-      const mw = parts.reduce((sum, row) => sum + (targetIsA ? row.winsA : row.winsB), 0);
-      const ml = parts.reduce((sum, row) => sum + (targetIsA ? row.winsB : row.winsA), 0);
-      const md = parts.reduce((sum, row) => sum + row.draws, 0);
-      const mg = parts.reduce((sum, row) => sum + row.completedGames, 0);
-      const rate = pct(mw, mw + ml);
-      const status = evaluateMatchup(rate).status;
-      health[status] += 1;
-      wins += mw; losses += ml; draws += md; games += mg;
-      weightedRounds += parts.reduce((sum, row) => sum + row.avgRounds * row.completedGames, 0);
-      matchupResults.push({ opponent: targetIsA ? matchup.rightId : matchup.leftId, games: mg, winRate: rate, status });
+type DeckAggregate = { wins: number; losses: number; draws: number; games: number };
+
+const report = withRegisteredCardSnapshot(mutations.map(mutate), () => {
+  const decks: Record<string, DeckAggregate> = {};
+  const matchupRows: Array<{ leftId: string; rightId: string; games: number; winRateA: number; status: string; maxSeedDeviation: number }> = [];
+  let firstWins = 0;
+  let decisive = 0;
+  let draws = 0;
+  let totalGames = 0;
+  let maxSeedDeviation = 0;
+  const health = { healthy: 0, watch: 0, critical: 0 };
+
+  for (const matchup of matchups) {
+    const parts: SimulationSummary[] = [];
+    for (let stratum = 0; stratum < STRATA; stratum += 1) {
+      parts.push(runBalanceSimulation(matchup.leftId, matchup.rightId, GAMES, vanillaBalanceSeed(matchup, stratum), overrides));
     }
-    const rates = matchupResults.map((row) => row.winRate);
-    return { name, mutations, games, wins, losses, draws, winRate: pct(wins, wins + losses), avgRounds: round1(weightedRounds / games), maxWinRate: Math.max(...rates), minWinRate: Math.min(...rates), health, matchups: matchupResults };
-  };
-  return changed.length ? withRegisteredCardSnapshot(changed, execute) : execute();
-}
+    const completed = parts.reduce((sum, row) => sum + row.completedGames, 0);
+    const winsA = parts.reduce((sum, row) => sum + row.winsA, 0);
+    const winsB = parts.reduce((sum, row) => sum + row.winsB, 0);
+    const matchupDraws = parts.reduce((sum, row) => sum + row.draws, 0);
+    const rateA = pct(winsA, winsA + winsB);
+    const status = evaluateMatchup(rateA).status;
+    health[status] += 1;
+    const seedRates = parts.map((row) => pct(row.winsA, row.winsA + row.winsB));
+    const seedDeviation = Math.max(...seedRates.map((rate) => Math.abs(rate - rateA)));
+    maxSeedDeviation = Math.max(maxSeedDeviation, seedDeviation);
+    matchupRows.push({ leftId: matchup.leftId, rightId: matchup.rightId, games: completed, winRateA: rateA, status, maxSeedDeviation: round1(seedDeviation) });
 
-const curve6: Mutation[] = [
-  { defId: "van_tide_u04", cost: 3 }, { defId: "van_tide_u06", cost: 4 }, { defId: "van_tide_u09", cost: 5 },
-  { defId: "van_tide_u10", cost: 5 }, { defId: "van_tide_u17", cost: 8 }, { defId: "van_tide_u18", cost: 9 },
-];
-const scenarios = [
-  { name: "baseline", mutations: [] as Mutation[] },
-  { name: "finalist_mid_legend", mutations: merge(curve6, [{ defId: "van_tide_u08", removeKeywords: ["Lifesteal"] }, { defId: "van_tide_u18", removeKeywords: ["Lifesteal"] }]) },
-  { name: "finalist_early_legend", mutations: merge(curve6, [{ defId: "van_tide_u03", removeKeywords: ["Lifesteal"] }, { defId: "van_tide_u18", removeKeywords: ["Lifesteal"] }]) },
-];
-const results = scenarios.map((scenario) => runScenario(scenario.name, scenario.mutations));
-const baseline = results[0];
-const candidates = results.slice(1).map((row) => ({ ...row, deltaVsBaseline: round1(row.winRate - baseline.winRate) }));
-const report = {
-  version: "Vanilla 1.5 finalist validation",
-  methodology: "Two identity-preserving finalists versus the exact 1.4 baseline; Tidecall Vanguard against all 11 opponents; 5 deterministic seed strata using the real Balance Lab engine; mutations remain in-memory only.",
-  run: { gamesPerStratum: GAMES, strata: STRATA, gamesPerScenario: baseline.games, totalGames: results.reduce((sum, row) => sum + row.games, 0) },
-  baseline, candidates,
-};
+    decks[matchup.leftId] ??= { wins: 0, losses: 0, draws: 0, games: 0 };
+    decks[matchup.rightId] ??= { wins: 0, losses: 0, draws: 0, games: 0 };
+    decks[matchup.leftId].wins += winsA;
+    decks[matchup.leftId].losses += winsB;
+    decks[matchup.leftId].draws += matchupDraws;
+    decks[matchup.leftId].games += completed;
+    decks[matchup.rightId].wins += winsB;
+    decks[matchup.rightId].losses += winsA;
+    decks[matchup.rightId].draws += matchupDraws;
+    decks[matchup.rightId].games += completed;
+
+    firstWins += parts.reduce((sum, row) => sum + row.firstPlayerWins, 0);
+    decisive += parts.reduce((sum, row) => sum + row.firstPlayerWins + row.secondPlayerWins, 0);
+    draws += matchupDraws;
+    totalGames += completed;
+  }
+
+  const deckWinRates = Object.entries(decks).map(([deckId, row]) => ({
+    deckId,
+    games: row.games,
+    wins: row.wins,
+    losses: row.losses,
+    draws: row.draws,
+    winRate: pct(row.wins, row.wins + row.losses),
+  })).sort((a, b) => b.winRate - a.winRate || a.deckId.localeCompare(b.deckId));
+
+  return {
+    version: "Vanilla 1.5 full-meta candidate validation",
+    methodology: "Candidate Tidecall card changes are registered only in-memory; all 66 experimental matchups run through the exact real-engine Balance Lab simulator at the same 40x5 deterministic matrix used by Vanilla 1.4.",
+    candidate: mutations,
+    matrix: {
+      matchups: matchupRows.length,
+      gamesPerMatchup: GAMES * STRATA,
+      totalGames,
+      firstPlayerWinRate: pct(firstWins, decisive),
+      drawRate: pct(draws, totalGames),
+      maxSeedDeviation: round1(maxSeedDeviation),
+      health,
+      releaseGate: health.critical === 0 ? (health.watch === 0 ? "pass" : "review") : "blocked",
+    },
+    deckWinRates,
+    matchups: matchupRows,
+  };
+});
+
 if (writePath) {
   fs.mkdirSync(writePath.split("/").slice(0, -1).join("/") || ".", { recursive: true });
   fs.writeFileSync(writePath, `${JSON.stringify(report, null, 2)}\n`);
