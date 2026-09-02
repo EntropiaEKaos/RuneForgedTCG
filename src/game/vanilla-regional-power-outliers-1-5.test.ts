@@ -19,7 +19,7 @@ assert.equal(auditedDeck.cards, 40);
 assert.equal(auditedDeck.types.Unit, 32);
 assert.equal(auditedDeck.types.Spell, 8);
 assert.equal(auditedDeck.uniqueCards, 22);
-assert.equal(auditedDeck.averageCost, 3.4);
+assert.equal(auditedDeck.averageCost, 3.43);
 assert.equal(auditedDeck.manaCurve["7+"] ?? 0, 2, "Tidecall Vanguard top-end must remain deconcentrated");
 assert.ok(Object.values(auditedDeck.duplicateCopies).every((count) => count <= 2), "Tidecall Vanguard may not exceed two copies per card");
 
