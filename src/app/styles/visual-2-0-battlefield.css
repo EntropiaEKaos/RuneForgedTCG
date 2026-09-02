@@ -1,0 +1,828 @@
+/* ========================================================================== 
+   RuneForge Visual 2.0 — Battlefield Foundation / Arcane War Table
+   Presentation-only layer loaded after the certified Alpha battlefield CSS.
+   The goal is to make the board feel like a physical war altar rather than a
+   dashboard while preserving every gameplay selector, authority boundary and
+   interaction contract already certified by the Alpha browser journeys.
+   ========================================================================== */
+
+:root {
+  --rf-v2-obsidian: #030508;
+  --rf-v2-obsidian-soft: #080c12;
+  --rf-v2-iron: #111821;
+  --rf-v2-iron-hi: #1b2734;
+  --rf-v2-gold: #d6a33e;
+  --rf-v2-gold-hi: #ffe39a;
+  --rf-v2-gold-low: #71430f;
+  --rf-v2-ivory: #f3eee4;
+  --rf-v2-cyan: #76e8f6;
+  --rf-v2-danger: #ff635f;
+  --rf-v2-safe: #6ee7a4;
+  --rf-v2-line: rgba(242, 204, 124, .16);
+  --rf-v2-glass: rgba(7, 11, 17, .78);
+  --rf-v2-shadow: 0 24px 70px rgba(0, 0, 0, .55);
+  --rf-v2-ease: cubic-bezier(.2, .82, .22, 1);
+}
+
+.tcg-arena[data-region="emberhold"] { --rf-v2-region: #fb923c; --rf-v2-region-glow: rgba(251, 146, 60, .2); }
+.tcg-arena[data-region="tidecall"] { --rf-v2-region: #67e8f9; --rf-v2-region-glow: rgba(103, 232, 249, .18); }
+.tcg-arena[data-region="ironwood"] { --rf-v2-region: #5eead4; --rf-v2-region-glow: rgba(94, 234, 212, .16); }
+.tcg-arena[data-region="voidborn"] { --rf-v2-region: #e879f9; --rf-v2-region-glow: rgba(232, 121, 249, .17); }
+.tcg-arena[data-region="florestia"] { --rf-v2-region: #f6c453; --rf-v2-region-glow: rgba(246, 196, 83, .19); }
+.tcg-arena[data-region="tempestade"] { --rf-v2-region: #7aa7ff; --rf-v2-region-glow: rgba(122, 167, 255, .19); }
+.tcg-arena { --rf-v2-region: #d6a33e; --rf-v2-region-glow: rgba(214, 163, 62, .15); }
+
+/* --------------------------------------------------------------------------
+   Arena shell — physical obsidian table, subtle forged grid and deep vignette
+   -------------------------------------------------------------------------- */
+.tcg-arena {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  overflow-x: clip;
+  border: 0;
+  background:
+    radial-gradient(ellipse at 50% 42%, var(--rf-v2-region-glow), transparent 35%),
+    radial-gradient(ellipse at 50% 85%, rgba(214, 163, 62, .08), transparent 38%),
+    linear-gradient(180deg, #090d13 0%, #030508 44%, #07090d 100%);
+  box-shadow: inset 0 0 110px rgba(0, 0, 0, .88);
+}
+
+.tcg-arena::before {
+  content: "";
+  position: absolute;
+  z-index: -3;
+  inset: 0;
+  pointer-events: none;
+  opacity: .48;
+  background-image:
+    linear-gradient(rgba(235, 202, 133, .025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(235, 202, 133, .025) 1px, transparent 1px),
+    repeating-radial-gradient(circle at 50% 50%, transparent 0 52px, rgba(235, 202, 133, .018) 53px 54px);
+  background-size: 72px 72px, 72px 72px, 100% 100%;
+  mask-image: radial-gradient(ellipse at center, #000 15%, transparent 86%);
+}
+
+.tcg-arena::after {
+  content: "";
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 110px rgba(0, 0, 0, .72), inset 0 0 260px rgba(0, 0, 0, .38);
+}
+
+.tcg-arena > .arena-identity { opacity: .72; }
+.tcg-arena .arena-backdrop { filter: saturate(.76) brightness(.43) contrast(1.08); opacity: .28; }
+.tcg-arena .arena-convergence { opacity: .45; mix-blend-mode: screen; }
+.tcg-arena .arena-crest { opacity: .32; filter: saturate(.7); }
+.tcg-arena .arena-motes { opacity: .32; }
+.tcg-arena .arena-scanlines { opacity: .08; }
+
+.tcg-arena > .mx-auto {
+  position: relative;
+  z-index: 4;
+  width: min(1320px, 100%);
+  max-width: 1320px;
+  min-width: 0;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.02), transparent 7%, transparent 93%, rgba(255,255,255,.02)),
+    radial-gradient(ellipse at center, rgba(21, 29, 39, .52), rgba(3, 5, 8, .28) 58%, rgba(0, 0, 0, .58) 100%);
+  border-inline: 1px solid rgba(226, 188, 111, .1);
+  box-shadow: 0 0 95px rgba(0, 0, 0, .46), inset 1px 0 rgba(255, 255, 255, .025), inset -1px 0 rgba(255, 255, 255, .025);
+}
+
+.tcg-arena > .mx-auto::before,
+.tcg-arena > .mx-auto::after {
+  content: "";
+  position: absolute;
+  z-index: 20;
+  top: 54px;
+  bottom: 74px;
+  width: 1px;
+  pointer-events: none;
+  background: linear-gradient(transparent, rgba(232, 193, 116, .22) 12%, rgba(232, 193, 116, .06) 88%, transparent);
+  box-shadow: 0 0 16px rgba(214, 163, 62, .1);
+}
+.tcg-arena > .mx-auto::before { left: 12px; }
+.tcg-arena > .mx-auto::after { right: 12px; }
+
+/* --------------------------------------------------------------------------
+   Match header / command rail — forged control strip, less dashboard chrome
+   -------------------------------------------------------------------------- */
+.tcg-match-header {
+  position: relative;
+  min-height: 48px;
+  padding: 8px 18px;
+  border: 0;
+  border-bottom: 1px solid rgba(241, 207, 139, .16);
+  background:
+    linear-gradient(90deg, rgba(214, 163, 62, .08), transparent 24%, transparent 76%, rgba(214, 163, 62, .06)),
+    linear-gradient(180deg, rgba(13, 18, 25, .97), rgba(4, 7, 11, .9));
+  box-shadow: 0 10px 26px rgba(0,0,0,.26), inset 0 1px rgba(255,255,255,.035);
+}
+
+.tcg-match-header::after {
+  content: "";
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--rf-v2-region), var(--rf-v2-gold), var(--rf-v2-region), transparent);
+  opacity: .28;
+}
+
+.tcg-match-brand {
+  letter-spacing: .14em;
+  text-shadow: 0 1px 18px rgba(0,0,0,.7);
+}
+.tcg-match-brand b { color: var(--rf-v2-gold-hi); }
+.tcg-match-brand small { color: #5f6c7e; letter-spacing: .26em; }
+
+.tcg-match-status,
+.tcg-round-pill {
+  border: 1px solid rgba(231, 199, 133, .14);
+  background: rgba(5, 8, 12, .62);
+  box-shadow: inset 0 1px rgba(255,255,255,.03);
+  backdrop-filter: blur(10px);
+}
+
+.match-command-rail {
+  position: relative;
+  z-index: 6;
+  margin: 7px 16px 4px;
+  border: 1px solid rgba(234, 200, 132, .1);
+  background: linear-gradient(180deg, rgba(13, 18, 25, .7), rgba(4, 7, 11, .55));
+  box-shadow: inset 0 1px rgba(255,255,255,.025);
+  backdrop-filter: blur(10px);
+}
+
+.match-phase-track {
+  gap: 2px;
+}
+
+.match-phase-track span {
+  position: relative;
+  overflow: hidden;
+  border-radius: 3px;
+  color: #617084;
+  background: transparent;
+  transition: color .22s ease, background .22s ease, box-shadow .22s ease;
+}
+
+.match-phase-track span::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 0;
+  height: 1px;
+  background: transparent;
+}
+
+.match-phase-track span.active {
+  color: #f5ead6;
+  background: linear-gradient(180deg, rgba(214,163,62,.09), rgba(214,163,62,.025));
+  box-shadow: inset 0 0 18px rgba(214, 163, 62, .04);
+}
+.match-phase-track span.active b { color: var(--rf-v2-region); text-shadow: 0 0 12px var(--rf-v2-region-glow); }
+.match-phase-track span.active::after { background: linear-gradient(90deg, transparent, var(--rf-v2-gold-hi), transparent); }
+.match-command-rail > p { color: #9da8b7; }
+
+/* --------------------------------------------------------------------------
+   Player plates / mana / hidden opponent hand
+   -------------------------------------------------------------------------- */
+.tcg-playerbar {
+  position: relative;
+  z-index: 7;
+  min-height: 72px;
+  overflow: visible;
+  padding: 9px 18px;
+  border: 0 !important;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.025), transparent 17%, transparent 83%, rgba(255,255,255,.02)),
+    linear-gradient(180deg, rgba(13,18,25,.92), rgba(5,8,12,.82));
+  box-shadow: inset 0 1px rgba(255,255,255,.025), 0 12px 30px rgba(0,0,0,.2);
+}
+
+.tcg-playerbar::before {
+  content: "";
+  position: absolute;
+  inset: 6px 10px;
+  pointer-events: none;
+  border: 1px solid rgba(229, 188, 103, .08);
+  clip-path: polygon(0 0, 86px 0, 96px 8px, calc(100% - 96px) 8px, calc(100% - 86px) 0, 100% 0, 100% 100%, calc(100% - 86px) 100%, calc(100% - 96px) calc(100% - 8px), 96px calc(100% - 8px), 86px 100%, 0 100%);
+}
+
+.tcg-playerbar-top { border-bottom: 1px solid rgba(248, 113, 113, .08) !important; }
+.tcg-playerbar-bottom { border-top: 1px solid rgba(103, 232, 249, .07) !important; }
+.tcg-playerbar-active {
+  background:
+    radial-gradient(ellipse at 12% 50%, var(--rf-v2-region-glow), transparent 24%),
+    linear-gradient(90deg, rgba(214,163,62,.05), transparent 25%, transparent 75%, rgba(214,163,62,.04)),
+    linear-gradient(180deg, rgba(16,22,30,.96), rgba(5,8,12,.86));
+}
+
+.tcg-playerbar-active::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  width: 4px;
+  height: 34px;
+  transform: translateY(-50%);
+  border-radius: 99px;
+  background: var(--rf-v2-region);
+  box-shadow: 0 0 16px var(--rf-v2-region), 0 0 34px var(--rf-v2-region-glow);
+  opacity: .78;
+}
+
+.tcg-avatar {
+  width: 42px;
+  height: 42px;
+  border: 1px solid rgba(241, 206, 137, .2);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255,255,255,.12), transparent 22%),
+    linear-gradient(145deg, #17202b, #06080d 58%, #171108);
+  box-shadow: inset 0 0 0 4px rgba(0,0,0,.2), 0 6px 18px rgba(0,0,0,.3);
+}
+
+.tcg-turn-badge {
+  border: 1px solid color-mix(in srgb, var(--rf-v2-region) 38%, transparent);
+  background: color-mix(in srgb, var(--rf-v2-region) 9%, rgba(4,7,11,.82));
+  color: #efe7d9;
+  box-shadow: 0 0 18px var(--rf-v2-region-glow);
+}
+
+.tcg-token {
+  display: inline-grid;
+  width: 25px;
+  height: 25px;
+  place-items: center;
+  border: 1px solid rgba(255, 222, 145, .45);
+  border-radius: 50%;
+  color: #251605;
+  background: radial-gradient(circle at 35% 30%, #fff2b4, #d9a441 52%, #7c480e 100%);
+  box-shadow: 0 0 18px rgba(217,164,65,.2), inset 0 1px rgba(255,255,255,.55);
+  text-shadow: 0 1px rgba(255,255,255,.25);
+}
+
+.tcg-mana-panel {
+  min-width: 126px;
+  padding: 6px 9px;
+  border: 1px solid rgba(114, 224, 244, .11);
+  border-radius: 9px;
+  background: linear-gradient(180deg, rgba(8, 19, 28, .72), rgba(4, 8, 13, .72));
+  box-shadow: inset 0 0 22px rgba(72, 190, 220, .035);
+}
+.tcg-mana-label { color: #6f7f91; }
+.tcg-mana-label b { color: #d8f7ff; font-family: var(--font-display), serif; }
+.tcg-mana-crystal {
+  transform: rotate(45deg);
+  border-radius: 2px;
+  background: linear-gradient(135deg, #d8fbff, #4fc4e5 55%, #165f86);
+  box-shadow: 0 0 9px rgba(72, 205, 238, .4), inset 0 1px rgba(255,255,255,.62);
+}
+.tcg-mana-crystal.empty { opacity: .22; filter: saturate(.35); box-shadow: none; }
+.tcg-spell-mana { color: #78cce0; }
+
+.tcg-opponent-hand {
+  position: absolute;
+  z-index: 10;
+  left: 50%;
+  top: 5px;
+  display: flex;
+  height: 58px;
+  min-width: 80px;
+  align-items: flex-start;
+  justify-content: center;
+  transform: translateX(-50%);
+  pointer-events: none;
+  perspective: 700px;
+}
+
+.tcg-opponent-card {
+  display: block;
+  width: 34px;
+  height: 49px;
+  margin-left: -13px;
+  border: 1px solid rgba(241, 205, 130, .25);
+  border-radius: 5px;
+  background: #07090d url('/art/ui/runeforge-card-back.svg') center/cover no-repeat;
+  box-shadow: 0 7px 16px rgba(0,0,0,.48), 0 0 9px rgba(214,163,62,.06);
+  transform-origin: 50% 120%;
+}
+.tcg-opponent-card:first-of-type { margin-left: 0; }
+.tcg-opponent-card:nth-of-type(1) { transform: translateY(8px) rotate(-15deg); }
+.tcg-opponent-card:nth-of-type(2) { transform: translateY(5px) rotate(-11deg); }
+.tcg-opponent-card:nth-of-type(3) { transform: translateY(3px) rotate(-7deg); }
+.tcg-opponent-card:nth-of-type(4) { transform: translateY(1px) rotate(-3deg); }
+.tcg-opponent-card:nth-of-type(5) { transform: rotate(0); }
+.tcg-opponent-card:nth-of-type(6) { transform: translateY(1px) rotate(3deg); }
+.tcg-opponent-card:nth-of-type(7) { transform: translateY(3px) rotate(7deg); }
+.tcg-opponent-card:nth-of-type(8) { transform: translateY(5px) rotate(11deg); }
+.tcg-opponent-card:nth-of-type(9),
+.tcg-opponent-card:nth-of-type(10) { transform: translateY(8px) rotate(15deg); }
+.tcg-opponent-hand-more {
+  align-self: center;
+  margin-left: 7px;
+  color: #8d98a8;
+  font-size: 8px;
+  letter-spacing: .08em;
+}
+
+/* --------------------------------------------------------------------------
+   Nexus — a physical core with progressive visual damage states
+   -------------------------------------------------------------------------- */
+.tcg-nexus {
+  position: relative;
+  min-width: 108px;
+  min-height: 54px;
+  padding: 5px 10px 5px 6px;
+  border: 1px solid rgba(238, 198, 116, .14);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(17,23,31,.88), rgba(4,7,11,.94));
+  box-shadow: 0 9px 26px rgba(0,0,0,.35), inset 0 1px rgba(255,255,255,.035);
+}
+
+.tcg-nexus::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  border: 1px solid rgba(241, 209, 144, .06);
+  border-radius: 8px;
+}
+
+.tcg-nexus-gem {
+  position: relative;
+  display: grid;
+  width: 43px;
+  height: 43px;
+  flex: 0 0 43px;
+  place-items: center;
+  border: 1px solid rgba(255, 222, 146, .34);
+  border-radius: 50%;
+  color: #fff0b0;
+  background:
+    radial-gradient(circle at 38% 32%, rgba(255,255,255,.78), transparent 8%),
+    radial-gradient(circle, #e9b94e 0 10%, #8d5818 23%, #15333b 39%, #070a0e 64%);
+  box-shadow: 0 0 17px rgba(222, 174, 72, .24), inset 0 0 13px rgba(255, 220, 141, .13);
+}
+
+.tcg-nexus-gem::before,
+.tcg-nexus-gem::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: 1px solid rgba(255, 223, 149, .24);
+  transform: rotate(45deg);
+}
+.tcg-nexus-gem::after { inset: 11px; border-color: rgba(116, 231, 246, .2); transform: rotate(45deg) scale(.78); }
+.tcg-nexus-gem b { position: relative; z-index: 2; font-size: 14px; filter: drop-shadow(0 0 8px currentColor); }
+
+.tcg-nexus-label { color: #687688; letter-spacing: .16em; }
+.tcg-nexus-value {
+  font-family: var(--font-display), serif;
+  font-size: 21px;
+  line-height: 1;
+  text-shadow: 0 0 16px currentColor;
+}
+
+.tcg-nexus[data-nexus-state="stable"] .tcg-nexus-gem { box-shadow: 0 0 17px rgba(110,231,164,.17), inset 0 0 13px rgba(255,220,141,.13); }
+.tcg-nexus[data-nexus-state="strained"] .tcg-nexus-gem { filter: saturate(1.12); box-shadow: 0 0 20px rgba(245,190,82,.24), inset 0 0 13px rgba(255,220,141,.13); }
+.tcg-nexus[data-nexus-state="cracked"] .tcg-nexus-gem {
+  background:
+    linear-gradient(72deg, transparent 43%, rgba(255,226,164,.78) 44% 45%, transparent 46%),
+    linear-gradient(126deg, transparent 55%, rgba(255,126,96,.45) 56% 57%, transparent 58%),
+    radial-gradient(circle at 38% 32%, rgba(255,255,255,.7), transparent 8%),
+    radial-gradient(circle, #dc9e36 0 10%, #734418 24%, #30171a 45%, #07090d 68%);
+  box-shadow: 0 0 23px rgba(255, 140, 83, .32), inset 0 0 14px rgba(255, 140, 83, .12);
+}
+.tcg-nexus[data-nexus-state="fractured"] .tcg-nexus-gem {
+  animation: rf-v2-critical-nexus 1.25s ease-in-out infinite;
+  background:
+    linear-gradient(58deg, transparent 37%, #ffd89a 38% 39%, transparent 40%),
+    linear-gradient(112deg, transparent 48%, rgba(255,92,82,.8) 49% 51%, transparent 52%),
+    linear-gradient(146deg, transparent 62%, rgba(255,219,147,.72) 63% 64%, transparent 65%),
+    radial-gradient(circle, #e9684e 0 12%, #76231d 25%, #2c1014 46%, #06080c 69%);
+  box-shadow: 0 0 27px rgba(255, 84, 74, .52), 0 0 54px rgba(255, 84, 74, .14), inset 0 0 18px rgba(255, 177, 94, .18);
+}
+
+@keyframes rf-v2-critical-nexus {
+  0%, 100% { transform: scale(1); filter: brightness(.92); }
+  50% { transform: scale(1.045); filter: brightness(1.2); }
+}
+
+/* --------------------------------------------------------------------------
+   Battlefield rows — engraved deployment plates, cards become the focus
+   -------------------------------------------------------------------------- */
+.tcg-divider {
+  position: relative;
+  z-index: 5;
+  height: 8px;
+  min-height: 8px;
+  border: 0;
+  background: linear-gradient(90deg, transparent 4%, rgba(212,170,90,.09) 20%, rgba(238,201,129,.22) 50%, rgba(212,170,90,.09) 80%, transparent 96%);
+  box-shadow: 0 1px rgba(255,255,255,.015), 0 -1px rgba(0,0,0,.55);
+}
+.tcg-divider::after {
+  content: "◆";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(45deg);
+  color: rgba(236, 198, 120, .32);
+  font-size: 8px;
+  text-shadow: 0 0 12px rgba(214,163,62,.2);
+}
+
+.tcg-row {
+  position: relative;
+  z-index: 5;
+  min-height: 138px;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 78px 9px;
+  border: 0;
+  overflow-y: visible;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,.018), transparent 10%, transparent 90%, rgba(255,255,255,.018)),
+    radial-gradient(ellipse at 50% 92%, rgba(214,163,62,.045), transparent 52%);
+}
+
+.tcg-row::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 64px;
+  right: 64px;
+  top: 10px;
+  bottom: 10px;
+  border: 1px solid rgba(232, 196, 124, .055);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 116px, rgba(232,196,124,.025) 117px 118px),
+    linear-gradient(180deg, rgba(255,255,255,.012), rgba(0,0,0,.06));
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px);
+}
+
+.tcg-row[data-bench-side="ai"] { box-shadow: inset 0 -18px 44px rgba(86, 24, 25, .035); }
+.tcg-row[data-bench-side="player"] { box-shadow: inset 0 18px 44px rgba(26, 79, 95, .028); }
+
+.tcg-row-label {
+  left: 16px;
+  top: 50%;
+  max-width: 48px;
+  transform: translateY(-50%);
+  color: #535f6f;
+  font-size: 7px;
+  font-weight: 1000;
+  letter-spacing: .2em;
+  line-height: 1.45;
+  white-space: normal;
+  text-align: center;
+}
+.tcg-row-label::before {
+  content: "◇";
+  display: block;
+  margin-bottom: 5px;
+  color: rgba(231, 192, 113, .34);
+  font-size: 14px;
+  text-shadow: 0 0 12px rgba(214,163,62,.16);
+}
+
+.tcg-arena .tcg-row .card-shell {
+  width: 98px;
+  height: 138px;
+  border-width: 1px;
+  border-radius: 11px;
+  box-shadow: 0 11px 24px rgba(0,0,0,.38), 0 0 0 1px rgba(255,255,255,.025);
+  transition: transform .18s var(--rf-v2-ease), filter .18s ease, box-shadow .18s ease;
+}
+.tcg-arena .tcg-row .card-shell.card-interactive:hover {
+  z-index: 25;
+  transform: translateY(-7px) scale(1.075);
+  box-shadow: 0 18px 36px rgba(0,0,0,.5), 0 0 22px var(--rf-v2-region-glow);
+}
+
+/* --------------------------------------------------------------------------
+   Conflict zone — engraved seal / stack / combat all share a ritual center
+   -------------------------------------------------------------------------- */
+.tcg-row[data-bench-side="ai"] + .relative.flex-1 {
+  position: relative;
+  z-index: 4;
+  flex: 0 1 auto;
+  min-height: 118px;
+  margin: 0 15px;
+  padding: 9px 16px 10px;
+  overflow: hidden;
+  border: 1px solid rgba(231, 193, 116, .085) !important;
+  background:
+    radial-gradient(ellipse at 50% 50%, var(--rf-v2-region-glow), transparent 30%),
+    linear-gradient(180deg, rgba(4,7,11,.52), rgba(1,3,6,.68)) !important;
+  box-shadow: inset 0 0 60px rgba(0,0,0,.36), 0 8px 26px rgba(0,0,0,.18);
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+}
+
+.tcg-row[data-bench-side="ai"] + .relative.flex-1::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  width: 210px;
+  height: 210px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: .34;
+  background: url('/art/ui/runeforge-war-seal.svg') center/contain no-repeat;
+  filter: drop-shadow(0 0 18px var(--rf-v2-region-glow));
+}
+
+.tcg-row[data-bench-side="ai"] + .relative.flex-1::after {
+  content: "⚔";
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(255, 221, 144, .24);
+  border-radius: 50%;
+  color: rgba(255, 228, 165, .62);
+  background: radial-gradient(circle, rgba(214,163,62,.12), rgba(4,7,11,.9) 72%);
+  box-shadow: 0 0 24px rgba(214,163,62,.1), inset 0 0 14px rgba(214,163,62,.06);
+  text-shadow: 0 0 12px rgba(255,220,142,.45);
+}
+
+.tcg-arena[data-match-phase="combat"] .tcg-row[data-bench-side="ai"] + .relative.flex-1::before {
+  opacity: .6;
+  animation: rf-v2-war-seal 8s linear infinite;
+}
+.tcg-arena[data-match-phase="combat"] .tcg-row[data-bench-side="ai"] + .relative.flex-1::after {
+  color: #ffd5b0;
+  border-color: rgba(255, 105, 82, .38);
+  background: radial-gradient(circle, rgba(255,89,69,.24), rgba(24,6,7,.92) 72%);
+  box-shadow: 0 0 28px rgba(255,89,69,.25), inset 0 0 16px rgba(255,89,69,.1);
+}
+.tcg-arena[data-match-phase="response"] .tcg-row[data-bench-side="ai"] + .relative.flex-1::after {
+  content: "↯";
+  color: #c7f8ff;
+  border-color: rgba(110,231,247,.42);
+  background: radial-gradient(circle, rgba(66,202,228,.22), rgba(3,16,23,.94) 72%);
+  box-shadow: 0 0 30px rgba(72,208,237,.25), inset 0 0 16px rgba(72,208,237,.08);
+}
+
+@keyframes rf-v2-war-seal {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.tcg-row[data-bench-side="ai"] + .relative.flex-1 > * { position: relative; z-index: 2; }
+.tcg-row[data-bench-side="ai"] + .relative.flex-1 > .arena-center-glow { z-index: 1; opacity: .3; }
+
+.match-last-action {
+  width: min(660px, 80%);
+  margin-inline: auto;
+  border: 1px solid rgba(235, 197, 122, .08);
+  background: rgba(3, 6, 10, .58);
+  box-shadow: inset 0 1px rgba(255,255,255,.02);
+  backdrop-filter: blur(7px);
+}
+.match-last-action span { color: #75684f; letter-spacing: .18em; }
+.match-last-action p { color: #8793a3; }
+
+/* --------------------------------------------------------------------------
+   Player hand — true 2.5D fan, readable art, hover as intentional inspection
+   -------------------------------------------------------------------------- */
+.player-hand-shell {
+  position: relative;
+  z-index: 9;
+  overflow: visible;
+  border-top: 1px solid rgba(235, 198, 123, .08);
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(214,163,62,.12), transparent 43%),
+    linear-gradient(180deg, rgba(3,6,10,.6), rgba(8,11,16,.94));
+  box-shadow: inset 0 22px 42px rgba(0,0,0,.18);
+}
+
+.player-hand-shell::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  bottom: -90px;
+  width: min(760px, 72vw);
+  height: 190px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  border: 1px solid rgba(227, 188, 110, .07);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(214,163,62,.055), transparent 66%);
+  box-shadow: inset 0 0 42px rgba(214,163,62,.035);
+}
+
+.tcg-arena .tcg-hand {
+  position: relative;
+  z-index: 2;
+  min-height: 218px;
+  align-items: flex-start;
+  gap: 0;
+  overflow: visible;
+  padding: 15px 46px 8px;
+  perspective: 1100px;
+}
+
+.tcg-hand-card {
+  position: relative;
+  flex: 0 0 auto;
+  margin-top: 6px !important;
+  margin-left: -22px;
+  transform: translateY(var(--hand-lift, 0px)) rotate(var(--hand-angle, 0deg));
+  transform-origin: 50% 118%;
+  z-index: var(--hand-z, 1);
+  transition: transform .2s var(--rf-v2-ease), filter .2s ease;
+}
+.tcg-hand-card:first-child { margin-left: 0; }
+.tcg-hand-card:hover,
+.tcg-hand-card:focus-within {
+  z-index: 60;
+  transform: translateY(-22px) rotate(0deg) scale(1.1);
+  filter: drop-shadow(0 20px 26px rgba(0,0,0,.55));
+}
+
+.tcg-arena .tcg-hand .tcg-hand-card .card-shell {
+  width: 132px;
+  height: 188px;
+  border-width: 1px;
+  border-radius: 12px;
+  box-shadow: 0 14px 26px rgba(0,0,0,.44), 0 0 0 1px rgba(255,255,255,.025);
+}
+.tcg-arena .tcg-hand .tcg-hand-card:hover .card-shell,
+.tcg-arena .tcg-hand .tcg-hand-card:focus-within .card-shell {
+  box-shadow: 0 22px 42px rgba(0,0,0,.58), 0 0 28px var(--rf-v2-region-glow);
+}
+
+/* Keep the card itself visually dominant while retaining certified information. */
+.tcg-arena .tcg-hand .card-nameplate { backdrop-filter: blur(4px); }
+.tcg-arena .tcg-hand .card-textbox { background: linear-gradient(180deg, rgba(5,8,12,.72), rgba(3,5,8,.88)); backdrop-filter: blur(5px); }
+.tcg-arena .tcg-hand .card-art { filter: saturate(1.08) contrast(1.035); }
+
+/* --------------------------------------------------------------------------
+   Action bar / logs — forged controls, less administrative weight
+   -------------------------------------------------------------------------- */
+.tcg-actions {
+  position: relative;
+  z-index: 11;
+  min-height: 56px;
+  border-top: 1px solid rgba(235, 199, 126, .09) !important;
+  background:
+    linear-gradient(90deg, transparent, rgba(214,163,62,.035) 30%, rgba(214,163,62,.035) 70%, transparent),
+    rgba(3, 6, 10, .94);
+  box-shadow: 0 -10px 26px rgba(0,0,0,.18);
+}
+
+.tcg-actions .btn-primary,
+.tcg-actions .btn-attack,
+.tcg-actions .btn-ghost {
+  min-height: 39px;
+  border-radius: 3px;
+  letter-spacing: .07em;
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  transition: transform .16s var(--rf-v2-ease), filter .16s ease, box-shadow .16s ease;
+}
+.tcg-actions .btn-primary {
+  color: #211505;
+  background: linear-gradient(135deg, #ffe6a1, #d4a03b 56%, #935a13);
+  box-shadow: inset 0 1px rgba(255,255,255,.5), 0 8px 22px rgba(124,72,10,.2);
+}
+.tcg-actions .btn-attack {
+  border: 1px solid rgba(255,137,112,.46);
+  background: linear-gradient(135deg, #ef735d, #a72e2a 56%, #521315);
+  box-shadow: inset 0 1px rgba(255,255,255,.18), 0 8px 24px rgba(126,25,22,.25);
+}
+.tcg-actions .btn-ghost { border-color: rgba(235, 199, 126, .17); background: rgba(10,14,20,.74); }
+.tcg-actions button:hover { transform: translateY(-2px); filter: brightness(1.08); }
+
+.tcg-log {
+  position: relative;
+  z-index: 8;
+  border-top: 1px solid rgba(235, 199, 126, .06);
+  background: rgba(2,4,7,.92) !important;
+  color: #687587 !important;
+}
+.tcg-log summary { color: #7f8c9d !important; letter-spacing: .06em; }
+
+/* --------------------------------------------------------------------------
+   Combat semantics remain strong and readable above the decorative layer
+   -------------------------------------------------------------------------- */
+.tcg-arena[data-match-phase="combat"] .tcg-row .card-attacking {
+  box-shadow: 0 18px 34px rgba(0,0,0,.5), 0 0 25px rgba(255, 86, 66, .3);
+}
+.tcg-arena[data-match-phase="response"] .card-targetable,
+.tcg-arena[data-match-phase="main"] .card-targetable {
+  box-shadow: 0 18px 34px rgba(0,0,0,.48), 0 0 24px rgba(255, 220, 92, .26);
+}
+
+/* --------------------------------------------------------------------------
+   Desktop density — cinematic without losing the 1440x1000 certified viewport
+   -------------------------------------------------------------------------- */
+@media (min-width: 901px) {
+  .tcg-arena > .mx-auto { min-height: 100svh; }
+
+  .tcg-arena .board-status-strip,
+  .tcg-arena .archetype-tracker {
+    position: relative;
+    z-index: 8;
+  }
+
+  .tcg-arena .player-hand-shell {
+    min-height: 218px;
+    flex: 1 1 218px;
+  }
+
+  .tcg-arena > .mx-auto > .tcg-row + .relative.flex-1 {
+    min-height: 118px;
+  }
+
+  .tcg-arena .tcg-playerbar-top > div:first-child { padding-right: 150px; }
+}
+
+@media (min-width: 1280px) {
+  .tcg-arena > .mx-auto { width: min(1320px, calc(100vw - 24px)); }
+  .tcg-row { padding-inline: 86px; }
+  .tcg-row::before { left: 72px; right: 72px; }
+}
+
+/* --------------------------------------------------------------------------
+   Tablet/mobile — preserve function, flatten fan and keep horizontal scrolling
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .tcg-arena > .mx-auto::before,
+  .tcg-arena > .mx-auto::after { display: none; }
+
+  .tcg-match-header { padding-inline: 11px; }
+  .match-command-rail { margin-inline: 8px; }
+  .tcg-playerbar { min-height: 66px; padding-inline: 10px; }
+  .tcg-opponent-hand { top: 8px; opacity: .72; transform: translateX(-50%) scale(.82); }
+  .tcg-mana-panel { min-width: 104px; }
+  .tcg-nexus { min-width: 92px; }
+  .tcg-nexus-gem { width: 37px; height: 37px; flex-basis: 37px; }
+
+  .tcg-row {
+    min-height: 126px;
+    justify-content: flex-start;
+    padding: 9px 12px 8px 54px;
+    overflow-x: auto;
+  }
+  .tcg-row::before { left: 46px; right: 8px; }
+  .tcg-row-label { left: 6px; max-width: 40px; }
+  .tcg-arena .tcg-row .card-shell { width: 88px; height: 124px; }
+
+  .tcg-row[data-bench-side="ai"] + .relative.flex-1 { margin-inline: 6px; min-height: 105px; }
+  .tcg-row[data-bench-side="ai"] + .relative.flex-1::before { width: 170px; height: 170px; opacity: .25; }
+
+  .player-hand-shell::before { display: none; }
+  .tcg-arena .tcg-hand {
+    min-height: 176px;
+    justify-content: flex-start;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 13px 14px 9px;
+  }
+  .tcg-hand-card,
+  .tcg-hand-card:first-child {
+    margin: 0 !important;
+    transform: none;
+  }
+  .tcg-hand-card:hover,
+  .tcg-hand-card:focus-within { transform: translateY(-7px) scale(1.02); }
+  .tcg-arena .tcg-hand .tcg-hand-card .card-shell { width: 112px; height: 160px; }
+}
+
+@media (max-width: 620px) {
+  .tcg-opponent-hand { display: none; }
+  .tcg-avatar { width: 36px; height: 36px; }
+  .tcg-playerbar { gap: 6px; }
+  .tcg-playerbar > div:last-child { gap: 5px; }
+  .tcg-mana-panel { padding: 5px 6px; }
+  .tcg-nexus { min-width: 80px; padding-right: 7px; }
+  .tcg-nexus-gem { width: 33px; height: 33px; flex-basis: 33px; }
+  .tcg-nexus-value { font-size: 18px; }
+  .tcg-row[data-bench-side="ai"] + .relative.flex-1::after { width: 38px; height: 38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcg-nexus[data-nexus-state="fractured"] .tcg-nexus-gem,
+  .tcg-arena[data-match-phase="combat"] .tcg-row[data-bench-side="ai"] + .relative.flex-1::before {
+    animation: none !important;
+  }
+  .tcg-hand-card,
+  .tcg-arena .tcg-row .card-shell,
+  .tcg-actions button {
+    transition: none !important;
+  }
+}

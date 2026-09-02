@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" aria-hidden="true">
+  <defs>
+    <radialGradient id="halo">
+      <stop offset="0" stop-color="#f2c766" stop-opacity=".16"/>
+      <stop offset=".48" stop-color="#6ee7f7" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="4"/></filter>
+  </defs>
+  <circle cx="300" cy="300" r="286" fill="url(#halo)"/>
+  <g fill="none" stroke="#e5bb5c" stroke-linecap="round">
+    <circle cx="300" cy="300" r="244" stroke-opacity=".13" stroke-width="2"/>
+    <circle cx="300" cy="300" r="211" stroke-opacity=".2"/>
+    <circle cx="300" cy="300" r="164" stroke-opacity=".11" stroke-width="3"/>
+    <circle cx="300" cy="300" r="104" stroke-opacity=".19"/>
+    <path d="M300 56 338 124 415 99 423 176 500 190 463 258 544 300 463 342 500 410 423 424 415 501 338 476 300 544 262 476 185 501 177 424 100 410 137 342 56 300 137 258 100 190 177 176 185 99 262 124Z" stroke-opacity=".14"/>
+    <path d="M300 95 359 198 477 198 418 300 477 402 359 402 300 505 241 402 123 402 182 300 123 198 241 198Z" stroke-opacity=".11"/>
+    <path d="M300 166 394 300 300 434 206 300Z" stroke-opacity=".3" stroke-width="2"/>
+    <path d="M300 202 367 300 300 398 233 300Z" stroke-opacity=".22"/>
+    <path d="M300 232 348 300 300 368 252 300Z" stroke-opacity=".28"/>
+    <path d="M300 56v88M300 456v88M56 300h88M456 300h88" stroke-opacity=".24" stroke-width="2"/>
+    <path d="m128 128 62 62m220 220 62 62M472 128l-62 62M190 410l-62 62" stroke-opacity=".12"/>
+  </g>
+  <g fill="#f0c866" fill-opacity=".35">
+    <path d="m300 42 8 14-8 14-8-14Z"/><path d="m300 530 8 14-8 14-8-14Z"/>
+    <path d="m42 300 14-8 14 8-14 8Z"/><path d="m530 300 14-8 14 8-14 8Z"/>
+  </g>
+  <g fill="#7ee7f4" fill-opacity=".16" filter="url(#soft)">
+    <circle cx="300" cy="300" r="34"/><circle cx="300" cy="300" r="18"/>
+  </g>
+  <path d="M300 257 329 300 300 343 271 300Z" fill="#080b10" stroke="#f0c866" stroke-opacity=".45" stroke-width="2"/>
+  <path d="M300 277 315 300 300 323 285 300Z" fill="#e8bd5d" fill-opacity=".12" stroke="#fff0a6" stroke-opacity=".42"/>
+</svg>

@@ -135,5 +135,6 @@ export const sourceContractTests = [
   "src/lib/studio-reaction-activated-ability-regression.test.ts",
   "src/lib/studio-runtime-integration.test.ts",
   "src/lib/total-control-2.80.test.ts",
-  "src/lib/vanilla-collection-2.92.test.ts"
+  "src/lib/vanilla-collection-2.92.test.ts",
+  "src/lib/visual-2-0-battlefield-regression.test.ts"
 ];

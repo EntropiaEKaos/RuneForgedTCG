@@ -1,0 +1,118 @@
+/* RuneForge Visual 2.0 — certified desktop viewport polish.
+ *
+ * The 1440x1000 browser artifact is an explicit design gate. This layer only
+ * adjusts presentation density for shorter desktop viewports; gameplay state,
+ * hit targets and authoritative rules remain untouched.
+ */
+
+/* ArchetypeTracker is informational only. It must never steal a physical click
+   from transient PvP/dialog controls that can occupy the same visual band. */
+.archetype-tracker {
+  pointer-events: none;
+}
+
+@media (min-width: 901px) and (max-height: 1050px) {
+  /* Short desktop viewports prioritize the playable table. Chrome compresses;
+     the hand remains the hero and the action surface stays fully visible. */
+  .tcg-match-header {
+    min-height: 34px;
+    padding-block: 4px;
+  }
+
+  .match-command-rail {
+    min-height: 36px;
+    margin-top: 3px;
+    margin-bottom: 2px;
+  }
+
+  .tcg-playerbar {
+    min-height: 52px;
+    padding-block: 4px;
+  }
+
+  .tcg-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .tcg-nexus { min-height: 42px; }
+  .tcg-nexus-gem {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+  }
+
+  .tcg-row {
+    min-height: 88px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .tcg-row::before {
+    top: 5px;
+    bottom: 5px;
+  }
+
+  .tcg-arena .tcg-row .card-shell {
+    width: 82px;
+    height: 116px;
+  }
+
+  .tcg-row[data-bench-side="ai"] + .relative.flex-1,
+  .tcg-arena > .mx-auto > .tcg-row + .relative.flex-1 {
+    flex: 0 1 auto !important;
+    min-height: 104px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .tcg-row[data-bench-side="ai"] + .relative.flex-1::before {
+    width: 154px;
+    height: 154px;
+  }
+
+  .tcg-arena .player-hand-shell {
+    min-height: 150px;
+    flex: 0 0 150px;
+  }
+
+  .tcg-arena .tcg-hand {
+    min-height: 150px;
+    height: 150px;
+    padding-top: 3px;
+    padding-bottom: 1px;
+  }
+
+  .tcg-arena .tcg-hand .tcg-hand-card .card-shell {
+    width: 110px;
+    height: 157px;
+  }
+
+  /* The fan deliberately rises into the hand shelf rather than underlapping
+     the action bar. This keeps printed stats and the card frame bottom visible. */
+  .tcg-hand-card {
+    margin-top: -8px !important;
+    margin-left: -16px;
+    transform-origin: 50% 110%;
+  }
+
+  .tcg-hand-card:first-child { margin-left: 0; }
+
+  .tcg-hand-card:hover,
+  .tcg-hand-card:focus-within {
+    transform: translateY(-11px) rotate(0deg) scale(1.07);
+  }
+
+  .tcg-actions {
+    min-height: 44px;
+    padding-top: 4px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .tcg-actions .btn-primary,
+  .tcg-actions .btn-attack,
+  .tcg-actions .btn-ghost {
+    min-height: 34px;
+    padding-block: 5px;
+  }
+}

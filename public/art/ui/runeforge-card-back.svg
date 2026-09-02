@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 340" role="img" aria-labelledby="title desc">
+  <title id="title">RuneForge card back</title>
+  <desc id="desc">Obsidian card back with forged-gold runes and a luminous Nexus core.</desc>
+  <defs>
+    <linearGradient id="obsidian" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111821"/>
+      <stop offset="0.48" stop-color="#04070b"/>
+      <stop offset="1" stop-color="#15100a"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff0b0"/>
+      <stop offset="0.42" stop-color="#e4b24f"/>
+      <stop offset="1" stop-color="#7a4511"/>
+    </linearGradient>
+    <radialGradient id="core">
+      <stop offset="0" stop-color="#fff3bd"/>
+      <stop offset="0.28" stop-color="#efc45d"/>
+      <stop offset="0.62" stop-color="#8b5416" stop-opacity=".7"/>
+      <stop offset="1" stop-color="#0b0d11" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <pattern id="runes" width="34" height="34" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M17 7v20M7 17h20" stroke="#e8bd63" stroke-opacity=".055" stroke-width="1"/>
+      <circle cx="17" cy="17" r="4" fill="none" stroke="#e8bd63" stroke-opacity=".04"/>
+    </pattern>
+  </defs>
+  <rect x="3" y="3" width="234" height="334" rx="22" fill="url(#obsidian)" stroke="#281b0b" stroke-width="6"/>
+  <rect x="11" y="11" width="218" height="318" rx="16" fill="url(#runes)" stroke="url(#gold)" stroke-width="3"/>
+  <rect x="20" y="20" width="200" height="300" rx="12" fill="none" stroke="#f0ce7a" stroke-opacity=".2"/>
+  <path d="M120 42 199 102 181 245 120 298 59 245 41 102Z" fill="none" stroke="#dba74b" stroke-opacity=".24" stroke-width="2"/>
+  <path d="M120 62 180 112 166 230 120 276 74 230 60 112Z" fill="none" stroke="#f1cf79" stroke-opacity=".13"/>
+  <circle cx="120" cy="170" r="74" fill="url(#core)" opacity=".24"/>
+  <g transform="translate(120 170)" filter="url(#glow)">
+    <path d="M0-50 35 0 0 50-35 0Z" fill="#090b0f" stroke="url(#gold)" stroke-width="4"/>
+    <path d="M0-34 22 0 0 34-22 0Z" fill="none" stroke="#f7d77e" stroke-opacity=".78" stroke-width="2"/>
+    <path d="M0-18 12 0 0 18-12 0Z" fill="#dfaa45" fill-opacity=".28" stroke="#fff0ac" stroke-width="1.6"/>
+    <circle r="5" fill="#fff0a9"/>
+  </g>
+  <g fill="#e5b657" opacity=".58">
+    <path d="M120 29l5 9-5 9-5-9Z"/><path d="M120 293l5 9-5 9-5-9Z"/>
+    <path d="M30 170l9-5 9 5-9 5Z"/><path d="M192 170l9-5 9 5-9 5Z"/>
+  </g>
+  <text x="120" y="318" text-anchor="middle" fill="#dfb861" fill-opacity=".68" font-family="Georgia,serif" font-size="11" font-weight="700" letter-spacing="4">RUNE FORGE</text>
+</svg>
