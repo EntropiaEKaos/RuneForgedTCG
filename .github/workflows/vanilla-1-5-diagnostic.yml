@@ -30,8 +30,8 @@ jobs:
       - name: Install dependencies
         run: npm run ci:install
 
-      - name: Tidecall finalist validation
-        run: node --import tsx scripts/vanilla-1-5-tidecall-diagnostic.ts 40 5 --write artifacts/vanilla-1-5/tidecall-diagnostic.json
+      - name: Tidecall Vanguard recipe screen
+        run: node --import tsx scripts/vanilla-1-5-tidecall-diagnostic.ts 16 3 --write artifacts/vanilla-1-5/tidecall-diagnostic.json
 
       - name: Upload diagnostic
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
