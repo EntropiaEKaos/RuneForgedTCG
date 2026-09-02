@@ -27,6 +27,7 @@ import {
   TRIGGER_TIMING_BY_EVENT,
   triggerTiming,
 } from "./trigger-contract";
+import { VANILLA_CODE_AUTHORED_CARD_BASELINE } from "./vanilla-content-audit";
 import type { ActivatedAbility } from "./activated-ability-types";
 import type { CardDef, CardMechanic } from "./types";
 
@@ -163,7 +164,7 @@ assert.equal(modalBlueprint.effect, undefined, "modal blueprint keeps per-mode e
 assert.equal(modalBlueprint.target, undefined, "modal blueprint keeps per-mode targets authoritative instead of inventing a base target");
 
 // Mechanics Studio content is persisted/published dynamically rather than
-// embedded in today's 429 base CardDefs, so certify its adapter independently
+// embedded in today's canonical base CardDefs, so certify its adapter independently
 // instead of pretending the canonical catalog currently contains that origin.
 const mechanic: CardMechanic = {
   key: "ability_system_probe",
@@ -267,7 +268,11 @@ assert.deepEqual(denyBlueprint.features, ["targeted"]);
 assert.equal(blueprintFromReactionSpell(getCard("tide_draw")), null, "ordinary main-phase spells are not mislabeled as reactions");
 
 const cards = baseCardsOnly();
-assert.equal(cards.length, 429, "Ability grammar certification covers the complete canonical 429-card catalog");
+assert.equal(
+  cards.length,
+  VANILLA_CODE_AUTHORED_CARD_BASELINE,
+  `Ability grammar certification covers the complete canonical ${VANILLA_CODE_AUTHORED_CARD_BASELINE}-card catalog`,
+);
 assert.equal(cards.filter((card) => card.aura).length, 0, "existing Round Start buffs remain triggers instead of being silently reinterpreted as continuous Auras");
 
 let blueprintCount = 0;
@@ -338,4 +343,4 @@ assert.ok(cardsWithGrammar > 0);
 assert.ok(keywordBlueprints > 0, "canonical catalog exercises keyword runtime contracts");
 assert.ok(combatTimedTriggers > 0, "canonical catalog contains combat-timed trigger abilities");
 
-console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/429 cards without gameplay mutation · ${keywordBlueprints} keyword contracts · ${combatTimedTriggers} combat-timed triggers · permanent stat Aura contract certified · modal activated runtime slice certified`);
+console.log(`ABILITY SYSTEM 2.0 FOUNDATION: PASS — ${blueprintCount} existing abilities projected across ${cardsWithGrammar}/${VANILLA_CODE_AUTHORED_CARD_BASELINE} cards without gameplay mutation · ${keywordBlueprints} keyword contracts · ${combatTimedTriggers} combat-timed triggers · permanent stat Aura contract certified · modal activated runtime slice certified`);
