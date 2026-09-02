@@ -15,6 +15,10 @@ assert.ok(result.includes('if (state.phase !== "gameover") return null;'), "Resu
 assert.ok(result.includes('const victory = state.winner === "player";'), "Victory presentation must derive from authoritative winner state");
 assert.ok(result.includes("evaluateMatchMastery(state)"), "Mastery must keep using the existing calculator");
 assert.ok(result.includes('data-result-outcome={outcome}'), "Outcome may project to a presentation-only data attribute");
+assert.ok(result.includes("const defeated = victory ? opponent : player;"), "Result copy must inspect the authoritative defeated side");
+assert.ok(result.includes('entry.startsWith("Maximum round limit (")'), "Result copy must preserve max-round decision semantics");
+assert.ok(result.includes('defeated.poisonCounters >= 10') && result.includes('defeated.nexusHealth <= 0'), "Result copy must distinguish poison from Nexus defeat");
+assert.ok(result.includes('"O adversário se rendeu. Vitória confirmada."') && result.includes('"Você se rendeu. Derrota confirmada."'), "Positive-Nexus external gameover must render concession semantics instead of claiming Nexus destruction");
 
 for (const token of ["reward.xpGain", "reward.goldGain", "reward.dustGain", "reward.leveledUp", "reward.newLevel"]) {
   assert.ok(result.includes(token), `Confirmed reward presentation must preserve ${token}`);
