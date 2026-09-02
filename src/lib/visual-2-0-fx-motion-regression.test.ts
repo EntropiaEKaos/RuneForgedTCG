@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const layout = readFileSync("src/app/layout.tsx", "utf8");
 const css = readFileSync("src/app/styles/visual-2-0-fx-motion.css", "utf8");
+const atmosphere = readFileSync("src/app/styles/visual-2-0-fx-atmosphere-polish.css", "utf8");
 const battleView = readFileSync("src/app/play/BattleView.tsx", "utf8");
 const targetingHud = readFileSync("src/components/game/TargetingHud.tsx", "utf8");
 const reactionStack = readFileSync("src/components/game/ReactionStack.tsx", "utf8");
@@ -10,8 +11,8 @@ const alphaBattlefield = readFileSync("src/app/styles/alpha-battlefield.css", "u
 const doc = readFileSync("docs/VISUAL-2-0-FX-JUICE-MOTION.md", "utf8");
 
 assert.ok(
-  layout.includes('import "./styles/visual-2-0-hand-selection-safety.css";\nimport "./styles/visual-2-0-fx-motion.css";'),
-  "FX motion must load after Card Presentation hand geometry safety",
+  layout.includes('import "./styles/visual-2-0-hand-selection-safety.css";\nimport "./styles/visual-2-0-fx-motion.css";\nimport "./styles/visual-2-0-fx-atmosphere-polish.css";'),
+  "FX layers must load after Card Presentation hand geometry safety",
 );
 
 assert.ok(battleView.includes("data-fx-event={event.type}"), "FX must consume the existing authoritative BattleView event hook");
@@ -38,6 +39,10 @@ assert.ok(css.includes(".tcg-arena .tcg-hand .card-shell.card-attacking") && css
 
 assert.match(css, /\.tcg-arena \.stat-health\.damaged\s*\{[\s\S]*?animation:\s*none !important;/, "Persistent damage must not pulse forever");
 assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"), "FX must provide a reduced-motion contract");
+
+assert.ok(atmosphere.includes("radial-gradient") && atmosphere.includes("transparent 73%"), "Arena ambient fields must fade to transparency before their raster edge");
+assert.ok(atmosphere.includes("opacity: .085") && atmosphere.includes("filter: blur(92px)"), "Arena ambient fields must remain subordinate to gameplay surfaces");
+assert.ok(atmosphere.includes("@media (prefers-reduced-motion: reduce)"), "Ambient drift must obey reduced motion");
 
 for (const selector of [".fx-pop", ".combat-feedback", ".combat-screen-flash", ".match-cinematic", ".combat-choreography", ".mechanic-cue"]) {
   assert.ok(alphaBattlefield.includes(selector), `Gameover safety must continue suppressing transient surface ${selector}`);
