@@ -9,9 +9,10 @@ import type { DeckDef } from "./decks";
  * remain untouched.
  *
  * Every Ascendant keeps one copy of all 30 regional `van_*` cards. The ten
- * remaining slots are explicit and evidence-selected. Vanilla 1.7 allows those
- * ten slots to concentrate a card up to the runtime-legal three-copy ceiling,
- * while preserving 30/30 regional coverage and the global 180/180 pool.
+ * remaining slots are explicit and evidence-selected. Vanilla 1.7 introduced
+ * concentration up to the runtime-legal three-copy ceiling; Vanilla 1.8 refines
+ * Florestia's duplicate core while preserving 30/30 regional coverage and the
+ * global 180/180 pool.
  */
 type VanillaPrefix =
   | "van_ember"
@@ -134,8 +135,8 @@ const ASCENDANT_EXTRAS = {
   wood: ["u03", "u03", "u08", "u08", "u11", "u11", "u13", "u13", "u18", "u18"],
   // Vanilla 1.7: same concentration policy was strongest for Voidborn.
   void: ["u03", "u03", "u08", "u08", "u11", "u11", "u13", "u13", "u18", "u18"],
-  // Vanilla 1.7: triple midgame leverage, double four complementary bodies.
-  forest: ["u08", "u08", "u11", "u11", "u13", "u13", "u03", "u05", "u14", "u18"],
+  // Vanilla 1.8: five clean closing bodies at three copies each.
+  forest: ["u11", "u11", "u13", "u13", "u14", "u14", "u16", "u16", "u17", "u17"],
   storm: ["u08", "u03", "u02", "u05", "u04", "u01", "u13", "u11", "u14", "u06"],
 } satisfies Record<string, readonly RegionalSuffix[]>;
 
