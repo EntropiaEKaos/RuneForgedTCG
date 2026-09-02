@@ -1,0 +1,269 @@
+/* ========================================================================== 
+   RuneForge Visual 2.0 — Card Presentation
+
+   In-match only. The battlefield foundation remains the spatial authority;
+   this layer makes cards feel forged, collectible and readable at three
+   information densities: board, hand and intelligence/inspection.
+   ========================================================================== */
+
+.tcg-arena {
+  --rf-card-gold: #d8a84d;
+  --rf-card-gold-hi: #ffe2a0;
+  --rf-card-iron: #252c34;
+  --rf-card-ink: #05080c;
+}
+
+/* Region is a material accent, not a full-frame paint bucket. */
+.tcg-arena [data-card-region="emberhold"] { --rf-card-accent: #f07a3f; --rf-card-glow: rgba(240,122,63,.28); }
+.tcg-arena [data-card-region="tidecall"] { --rf-card-accent: #54d7e8; --rf-card-glow: rgba(84,215,232,.25); }
+.tcg-arena [data-card-region="ironwood"] { --rf-card-accent: #5dc9aa; --rf-card-glow: rgba(93,201,170,.24); }
+.tcg-arena [data-card-region="voidborn"] { --rf-card-accent: #c46ee8; --rf-card-glow: rgba(196,110,232,.27); }
+.tcg-arena [data-card-region="florestia"] { --rf-card-accent: #dfb956; --rf-card-glow: rgba(223,185,86,.25); }
+.tcg-arena [data-card-region="tempestade"] { --rf-card-accent: #74a7ff; --rf-card-glow: rgba(116,167,255,.28); }
+
+.tcg-arena .card-shell {
+  border-color: color-mix(in srgb, var(--rf-card-accent, #b8c1ce) 66%, #111 34%) !important;
+  background: linear-gradient(155deg, #20262d 0%, #070a0e 13%, #030609 80%, #1b2026 100%);
+  box-shadow:
+    0 12px 28px rgba(0,0,0,.55),
+    0 0 0 1px rgba(0,0,0,.8),
+    0 0 13px var(--rf-card-glow, rgba(255,255,255,.08)),
+    inset 0 0 0 1px rgba(255,255,255,.16),
+    inset 0 0 24px rgba(0,0,0,.48);
+}
+
+/* Existing pseudo remains the structural inner bevel; Card Presentation makes
+   it read as forged metal instead of a generic white inset. */
+.tcg-arena .card-shell::before {
+  inset: 1px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.17),
+    inset 0 0 0 3px rgba(0,0,0,.44),
+    inset 0 0 14px rgba(0,0,0,.28);
+}
+
+.tcg-arena .card-frame-ornament {
+  position: absolute;
+  inset: 3px;
+  z-index: 14;
+  pointer-events: none;
+  border: 1px solid color-mix(in srgb, var(--rf-card-accent, #cbd5e1) 42%, transparent);
+  border-radius: 8px;
+  opacity: .8;
+  box-shadow: inset 0 0 18px rgba(0,0,0,.2);
+}
+
+.tcg-arena .card-frame-ornament > i {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  opacity: .85;
+}
+.tcg-arena .card-frame-ornament > i:nth-child(1) { left: -1px; top: -1px; border-left: 2px solid var(--rf-card-accent); border-top: 2px solid var(--rf-card-accent); }
+.tcg-arena .card-frame-ornament > i:nth-child(2) { right: -1px; top: -1px; border-right: 2px solid var(--rf-card-accent); border-top: 2px solid var(--rf-card-accent); }
+.tcg-arena .card-frame-ornament > i:nth-child(3) { left: -1px; bottom: -1px; border-left: 2px solid var(--rf-card-accent); border-bottom: 2px solid var(--rf-card-accent); }
+.tcg-arena .card-frame-ornament > i:nth-child(4) { right: -1px; bottom: -1px; border-right: 2px solid var(--rf-card-accent); border-bottom: 2px solid var(--rf-card-accent); }
+
+/* Rarity lives in the metal/light of the frame. Region remains readable in the
+   accent, while rarity is recognized before the label can be read. */
+.tcg-arena [data-card-rarity="rare"] .card-frame-ornament {
+  border-color: rgba(192,209,229,.58);
+  box-shadow: inset 0 0 16px rgba(145,180,220,.09), 0 0 8px rgba(164,197,235,.08);
+}
+.tcg-arena [data-card-rarity="epic"] .card-frame-ornament {
+  border-color: rgba(199,135,255,.72);
+  box-shadow: inset 0 0 18px rgba(168,85,247,.13), 0 0 11px rgba(168,85,247,.16);
+}
+.tcg-arena [data-card-rarity="legend"] .card-frame-ornament,
+.tcg-arena .card-rarity-champion .card-frame-ornament {
+  border-color: rgba(255,213,116,.82);
+  box-shadow: inset 0 0 20px rgba(251,191,36,.14), 0 0 14px rgba(251,191,36,.2);
+}
+
+.tcg-arena .card-art {
+  filter: saturate(1.08) contrast(1.045) brightness(.96);
+}
+.tcg-arena .card-vignette {
+  background:
+    linear-gradient(180deg, rgba(0,0,0,.18) 0%, rgba(0,0,0,.01) 30%, rgba(1,3,6,.05) 48%, rgba(2,4,8,.96) 100%),
+    linear-gradient(90deg, rgba(0,0,0,.12), transparent 15%, transparent 85%, rgba(0,0,0,.12));
+}
+
+/* Mana becomes a small rune-stone: instantly recognizable but not a floating
+   web badge. */
+.tcg-arena .card-cost {
+  width: 27px;
+  height: 27px;
+  flex-basis: 27px;
+  border: 1px solid rgba(204,237,255,.85);
+  border-radius: 4px;
+  clip-path: polygon(50% 0, 88% 18%, 100% 55%, 72% 100%, 28% 100%, 0 55%, 12% 18%);
+  background: radial-gradient(circle at 38% 28%, #b9edff, #287cb6 43%, #0b3d65 72%, #061929);
+  box-shadow: 0 3px 8px rgba(0,0,0,.72), inset 0 1px 2px rgba(255,255,255,.58);
+  text-shadow: 0 1px 2px rgba(0,0,0,.8);
+}
+.tcg-arena .card-cost-reduced {
+  background: radial-gradient(circle at 38% 28%, #d2ffe6, #20aa73 43%, #075c43 72%, #03291e);
+}
+
+.tcg-arena .card-region {
+  border-color: color-mix(in srgb, var(--rf-card-accent, #fff) 44%, transparent);
+  background: rgba(2,5,8,.72);
+  color: rgba(242,246,251,.9);
+  box-shadow: inset 0 1px rgba(255,255,255,.05);
+}
+
+.tcg-arena .card-nameplate {
+  border-color: color-mix(in srgb, var(--rf-card-accent, #fff) 34%, rgba(255,255,255,.08));
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgba(3,5,8,.94), rgba(20,24,29,.76) 48%, rgba(3,5,8,.94));
+  box-shadow: 0 3px 9px rgba(0,0,0,.42), inset 0 1px rgba(255,255,255,.06);
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 50%, calc(100% - 5px) 100%, 5px 100%, 0 50%);
+}
+.tcg-arena .card-name-gem { color: var(--rf-card-accent); text-shadow: 0 0 8px var(--rf-card-glow); }
+.tcg-arena .card-type { color: rgba(217,224,232,.62); }
+
+.tcg-arena .card-textbox {
+  border-color: rgba(222,228,235,.13);
+  border-radius: 4px;
+  background: linear-gradient(145deg, rgba(4,7,11,.9), rgba(17,21,27,.76));
+  box-shadow: inset 0 1px rgba(255,255,255,.045), 0 3px 9px rgba(0,0,0,.4);
+}
+
+/* Stats are the bottom visual anchors. The asymmetric shield silhouettes make
+   Power and Health scannable even when numbers are changing quickly. */
+.tcg-arena .stat-power,
+.tcg-arena .stat-health {
+  min-width: 27px;
+  width: 27px;
+  height: 27px;
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 3px;
+  box-shadow: 0 3px 8px rgba(0,0,0,.66), inset 0 1px rgba(255,255,255,.4);
+}
+.tcg-arena .stat-power {
+  clip-path: polygon(50% 0, 100% 20%, 88% 78%, 50% 100%, 12% 78%, 0 20%);
+  background: radial-gradient(circle at 38% 28%, #fff0af, #d99a20 55%, #65400a 100%);
+}
+.tcg-arena .stat-health {
+  clip-path: polygon(50% 0, 92% 15%, 100% 55%, 50% 100%, 0 55%, 8% 15%);
+  background: radial-gradient(circle at 38% 28%, #ffd4db, #d54c64 56%, #631728 100%);
+}
+
+.tcg-arena .card-keyword {
+  border-color: color-mix(in srgb, var(--rf-card-accent, #fff) 26%, rgba(255,255,255,.08));
+  border-radius: 3px;
+  background: rgba(2,5,8,.76);
+}
+.tcg-arena .card-keyword b { color: var(--rf-card-gold-hi); }
+.tcg-arena .card-speed {
+  border-color: rgba(170,150,255,.42);
+  background: linear-gradient(135deg, rgba(92,48,170,.88), rgba(34,22,65,.92));
+}
+
+/* --------------------------------------------------------------------------
+   BOARD CARD — art + cost + name + keywords + combat stats. Nothing else.
+   -------------------------------------------------------------------------- */
+.tcg-arena .tcg-row .card-shell {
+  box-shadow:
+    0 10px 22px rgba(0,0,0,.55),
+    0 0 0 1px rgba(0,0,0,.82),
+    0 0 10px var(--rf-card-glow, rgba(255,255,255,.06)),
+    inset 0 0 0 1px rgba(255,255,255,.13);
+}
+.tcg-arena .tcg-row .card-inner { padding: 5px; }
+.tcg-arena .tcg-row .card-topline { min-height: 20px; }
+.tcg-arena .tcg-row .card-cost { width: 23px; height: 23px; flex-basis: 23px; font-size: 11px; }
+.tcg-arena .tcg-row .card-region {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: visible;
+}
+.tcg-arena .tcg-row .card-region-sigil { margin: 0; font-size: 11px; }
+.tcg-arena .tcg-row .card-nameplate { margin-top: 4px; padding: 3px 5px; }
+.tcg-arena .tcg-row .card-name-gem { display: none; }
+.tcg-arena .tcg-row .card-name-line p { font-size: 8px; letter-spacing: .01em; }
+.tcg-arena .tcg-row .card-bottom { min-height: 22px; margin-top: 2px; }
+.tcg-arena .tcg-row .card-keywords { max-width: 50%; gap: 1px; }
+.tcg-arena .tcg-row .card-keyword { min-width: 17px; min-height: 17px; justify-content: center; padding: 1px 2px; }
+.tcg-arena .tcg-row .card-keyword b { font-size: 8px; }
+.tcg-arena .tcg-row .stat-power,
+.tcg-arena .tcg-row .stat-health { min-width: 23px; width: 23px; height: 23px; font-size: 10px; }
+
+/* A selected/targetable card must remain a gameplay signal above rarity glow. */
+.tcg-arena .card-shell[data-card-state="selected"],
+.tcg-arena .card-shell[data-card-state="targetable"] {
+  filter: saturate(1.08) brightness(1.08);
+}
+.tcg-arena .card-shell[data-card-state="targetable"] {
+  box-shadow: 0 14px 30px rgba(0,0,0,.55), 0 0 0 2px #ffe26b, 0 0 28px rgba(255,218,74,.42) !important;
+}
+
+/* --------------------------------------------------------------------------
+   HAND CARD — readable rules, stronger art and collectible frame presence.
+   -------------------------------------------------------------------------- */
+.tcg-arena .tcg-hand .card-shell {
+  border-width: 1px;
+  border-radius: 10px;
+}
+.tcg-arena .tcg-hand .card-art {
+  filter: saturate(1.13) contrast(1.055) brightness(1.01);
+}
+.tcg-arena .tcg-hand .card-nameplate { margin-top: 6px; }
+.tcg-arena .tcg-hand .card-name-line p { text-shadow: 0 2px 5px rgba(0,0,0,.9); }
+.tcg-arena .tcg-hand .card-textbox p { color: rgba(248,250,252,.95); }
+.tcg-arena .tcg-hand .card-shell[data-card-rarity="legend"],
+.tcg-arena .tcg-hand .card-rarity-champion {
+  box-shadow:
+    0 18px 34px rgba(0,0,0,.62),
+    0 0 0 1px rgba(251,191,36,.52),
+    0 0 22px rgba(251,191,36,.18),
+    inset 0 0 0 1px rgba(255,241,190,.18);
+}
+
+/* --------------------------------------------------------------------------
+   INTELLIGENCE / INSPECT — same forged language, information-first.
+   -------------------------------------------------------------------------- */
+[data-card-intelligence-panel="true"] {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(218,168,77,.5) !important;
+  border-radius: 10px !important;
+  background:
+    radial-gradient(circle at 88% 2%, rgba(218,168,77,.08), transparent 23%),
+    linear-gradient(155deg, rgba(22,27,34,.99), rgba(4,7,11,.99) 38%, rgba(2,4,7,.995)) !important;
+  box-shadow: 0 24px 70px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,255,255,.055) !important;
+}
+[data-card-intelligence-panel="true"]::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  pointer-events: none;
+  border: 1px solid rgba(218,168,77,.12);
+  border-radius: 7px;
+}
+[data-card-intelligence-panel="true"] > * { position: relative; z-index: 1; }
+[data-card-intelligence-panel="true"] section {
+  border-top-color: rgba(218,168,77,.12) !important;
+}
+
+/* Preserve accessibility and competitive clarity. */
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena .card-shell,
+  .tcg-arena .card-art,
+  .tcg-arena .card-sheen {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  /* Mobile keeps the certified flat/scroller interaction from Battlefield 2.0.
+     Presentation remains richer, but does not reintroduce fan geometry. */
+  .tcg-arena .tcg-hand .card-nameplate { clip-path: none; }
+  .tcg-arena .tcg-row .card-frame-ornament { opacity: .55; }
+}

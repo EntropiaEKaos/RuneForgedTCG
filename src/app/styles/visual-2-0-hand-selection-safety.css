@@ -1,0 +1,52 @@
+/* RuneForge Visual 2.0 — selected hand-card safety.
+ *
+ * Selection is a gameplay signal, not a layout mutation. The hand fan already
+ * owns elevation, so a selected card must never gain a second upward translate
+ * that can shave the forged crown/cost rune against the hand shelf. */
+
+.tcg-arena .player-hand-shell,
+.tcg-arena .tcg-hand,
+.tcg-arena .tcg-hand-card,
+.tcg-arena .tcg-hand-card > [data-card-tip-def-id] {
+  overflow: visible;
+}
+
+.tcg-arena .tcg-hand-card:has(.card-shell[data-card-state="selected"]) {
+  z-index: 80;
+}
+
+.tcg-arena .tcg-hand .card-shell[data-card-state="selected"] {
+  /* CardView's generic selected utility raises cards by 0.5rem. Inside the
+     physical fan that duplicates the fan lift and can clip the top edge.
+     Keep geometry stable and express selection with light/metal instead. */
+  transform: none !important;
+  filter: saturate(1.12) brightness(1.1);
+  box-shadow:
+    0 18px 38px rgba(0,0,0,.62),
+    0 0 0 2px rgba(255,226,107,.92),
+    0 0 30px rgba(255,205,82,.34),
+    inset 0 0 0 1px rgba(255,245,207,.2) !important;
+}
+
+/* Hover may move the fan wrapper, but the selected card itself remains
+   geometrically stable so its complete top frame stays inspectable. */
+.tcg-arena .tcg-hand-card:hover .card-shell[data-card-state="selected"],
+.tcg-arena .tcg-hand-card:focus-within .card-shell[data-card-state="selected"] {
+  transform: none !important;
+}
+
+@media (min-width: 901px) and (max-height: 1050px) {
+  .tcg-arena .tcg-hand {
+    overflow: visible !important;
+  }
+
+  .tcg-arena .tcg-hand .card-shell[data-card-state="selected"] {
+    transform: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena .tcg-hand .card-shell[data-card-state="selected"] {
+    transition: none !important;
+  }
+}
