@@ -1,0 +1,50 @@
+/* ========================================================================== 
+   RuneForge Visual 2.0 — FX atmosphere polish
+   Prevent legacy solid ambient disks from surfacing as visible circles when
+   browser/GPU rasterization captures a frame before blur settles.
+   ========================================================================== */
+
+.tcg-arena .arena-ambient {
+  width: 30rem;
+  height: 30rem;
+  opacity: .085;
+  filter: blur(92px);
+  mix-blend-mode: screen;
+  animation: rf-v2-ambient-drift 13s ease-in-out infinite;
+}
+
+.tcg-arena .arena-ambient-a {
+  left: -10rem;
+  top: 22%;
+  background: radial-gradient(
+    circle,
+    rgba(14,165,233,.5) 0%,
+    rgba(14,165,233,.22) 34%,
+    rgba(14,165,233,.07) 54%,
+    transparent 73%
+  );
+}
+
+.tcg-arena .arena-ambient-b {
+  right: -10rem;
+  bottom: 13%;
+  background: radial-gradient(
+    circle,
+    rgba(139,92,246,.46) 0%,
+    rgba(139,92,246,.2) 34%,
+    rgba(139,92,246,.065) 54%,
+    transparent 73%
+  );
+  animation-delay: -6s;
+}
+
+@keyframes rf-v2-ambient-drift {
+  0%, 100% { transform: translate3d(0,0,0) scale(1); }
+  50% { transform: translate3d(12px,-9px,0) scale(1.025); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena .arena-ambient {
+    animation: none !important;
+  }
+}
