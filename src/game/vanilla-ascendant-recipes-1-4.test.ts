@@ -18,11 +18,13 @@ assert.equal(report.experimentalUniqueCards, 180);
 assert.deepEqual(report.uncoveredExperimentalCardIds, []);
 
 const vanguards = report.decks.filter((deck) => deck.id.endsWith("_1"));
+const historicalVanguards = vanguards.filter((deck) => deck.id !== "vanilla_tide_1");
 const ascendants = report.decks.filter((deck) => deck.id.endsWith("_2"));
 assert.equal(vanguards.length, 6);
+assert.equal(historicalVanguards.length, 5, "Vanilla 1.4 historical Vanguard contract must own exactly five decks after the 1.5 Tidecall exception");
 assert.equal(ascendants.length, 6);
 
-for (const deck of vanguards) {
+for (const deck of historicalVanguards) {
   assert.equal(deck.cards, 40, `${deck.name}: Vanguard size drifted`);
   assert.equal(deck.uniqueCards, 20, `${deck.name}: Vanguard unique-card contract drifted`);
   assert.equal(deck.types.Unit, 36, `${deck.name}: Vanguard Unit count drifted`);
