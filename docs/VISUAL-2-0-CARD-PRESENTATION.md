@@ -76,6 +76,8 @@ Adds:
 
 The existing Visual 2.0 fan geometry remains authoritative for layout.
 
+A **selected** card in hand must keep its complete top frame, mana rune and upper ornaments visible. Selection is expressed through light, metal and stacking order; it must not add a second upward translate on top of the fan geometry. The hand shelf and its immediate wrappers therefore preserve visible overflow while selected state is active.
+
 ### Intelligence / inspect
 
 The intelligence panel keeps all existing runtime and authoring detail. Visual 2.0 only changes its material hierarchy: dark forged surface, subtle gold inner frame and clearer section separation.
@@ -99,6 +101,7 @@ The standard CI remains authoritative for behavior. Visual approval additionally
 
 - `05-battlefield.png` — board + hand composition;
 - `05b-card-intelligence-tooltip.png` — intelligence hierarchy;
+- selected hand-card state — complete top frame/cost rune with no clipping;
 - `19-pvp-host-battlefield.png` and `20-pvp-guest-battlefield.png` — competitive readability;
 - `21-pvp-reconnected-guest.png` — controls must remain hit-testable and unobstructed.
 
