@@ -1,9 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import CardView, { REGION_STYLE } from "@/components/CardView";
+import CardTip from "@/components/CardTip";
+import { REGION_STYLE } from "@/components/CardView";
 import type { CardCollectionIdentity } from "@/game/card-collections";
 import { cardRegions, identityForRegions } from "@/game/region-identity";
+import {
+  CERTIFIED_SEMANTIC_CARD_TYPES,
+  certifiedSemanticCardType,
+  semanticCardTypeLabel,
+  type CertifiedSemanticCardTypeKey,
+} from "@/game/semantic-card-types";
 import type { CardDef, CardType, Rarity, Region } from "@/game/types";
 
 export type CodexEntry = {
@@ -13,7 +20,7 @@ export type CodexEntry = {
 
 type AvailabilityFilter = "all" | "collectible" | "generated";
 type RegionFilter = "all" | Region;
-type TypeFilter = "all" | CardType;
+type TypeFilter = "all" | CardType | CertifiedSemanticCardTypeKey;
 type RarityFilter = "all" | Rarity;
 
 const REGIONS = Object.keys(REGION_STYLE) as Region[];
@@ -29,6 +36,14 @@ const TYPE_LABEL: Record<CardType, string> = {
   Sentinela: "Sentinela",
 };
 
+const TYPE_OPTIONS: { value: Exclude<TypeFilter, "all">; label: string }[] = [
+  ...TYPES.map((value) => ({ value, label: TYPE_LABEL[value] })),
+  ...CERTIFIED_SEMANTIC_CARD_TYPES.map((contract) => ({
+    value: contract.key,
+    label: `${contract.icon} ${contract.name}`,
+  })),
+];
+
 const RARITY_LABEL: Record<Rarity, string> = {
   Common: "Comum",
   Rare: "Rara",
@@ -36,14 +51,40 @@ const RARITY_LABEL: Record<Rarity, string> = {
   Legend: "Lendária",
 };
 
+const TIMING_LABEL = {
+  battlefield: "Permanente de campo",
+  "main-only": "Somente fase principal",
+  "reaction-only": "Somente reação",
+} as const;
+
+const MANA_LABEL = {
+  regular: "Mana regular",
+  spell: "Mana de feitiço",
+} as const;
+
+function visibleTypeKey(card: CardDef): Exclude<TypeFilter, "all"> {
+  return certifiedSemanticCardType(card)?.key ?? card.type;
+}
+
+function visibleTypeLabel(card: CardDef): string {
+  const semantic = certifiedSemanticCardType(card);
+  return semantic ? `${semantic.icon} ${semanticCardTypeLabel(card)}` : TYPE_LABEL[card.type];
+}
+
 function searchableText(entry: CodexEntry) {
   const card = entry.card;
+  const semantic = certifiedSemanticCardType(card);
   return [
     card.name,
     card.defId,
     card.description,
     card.flavor,
     card.type,
+    card.archetypeName,
+    semantic?.name,
+    semantic?.description,
+    semantic?.timing,
+    semantic?.mana,
     card.rarity,
     card.race,
     ...(card.secondaryRaces ?? []),
@@ -82,7 +123,7 @@ export default function CodexExplorer({ entries }: { entries: CodexEntry[] }) {
       const card = entry.card;
       if (needle && !searchableText(entry).includes(needle)) return false;
       if (region !== "all" && !cardRegions(card).includes(region)) return false;
-      if (type !== "all" && card.type !== type) return false;
+      if (type !== "all" && visibleTypeKey(card) !== type) return false;
       if (rarity !== "all" && card.rarity !== rarity) return false;
       if (collection !== "all" && entry.collection?.code !== collection) return false;
       if (availability === "collectible" && card.collectible === false) return false;
@@ -130,6 +171,7 @@ export default function CodexExplorer({ entries }: { entries: CodexEntry[] }) {
           <div>
             <p className="rf-eyebrow"><span /> EXPLORADOR</p>
             <h2 className="mt-1 text-xl font-black text-white">Encontre qualquer carta publicada</h2>
+            <p className="mt-1 text-xs text-slate-500">Passe o mouse em uma carta — ou toque e segure — para abrir a inteligência completa.</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">{filtered.length} resultado(s)</span>
@@ -147,7 +189,7 @@ export default function CodexExplorer({ entries }: { entries: CodexEntry[] }) {
               placeholder="Nome, habilidade, raça, classe ou coleção…"
             />
           </label>
-          <FilterSelect label="Tipo" value={type} onChange={(value) => setType(value as TypeFilter)} options={TYPES.map((value) => ({ value, label: TYPE_LABEL[value] }))} />
+          <FilterSelect label="Tipo" value={type} onChange={(value) => setType(value as TypeFilter)} options={TYPE_OPTIONS} />
           <FilterSelect label="Raridade" value={rarity} onChange={(value) => setRarity(value as RarityFilter)} options={RARITIES.map((value) => ({ value, label: RARITY_LABEL[value] }))} />
           <FilterSelect label="Coleção" value={collection} onChange={setCollection} options={collections.map((item) => ({ value: item.code, label: `${item.code} · ${item.name}` }))} />
           <FilterSelect label="Disponibilidade" value={availability} onChange={(value) => setAvailability(value as AvailabilityFilter)} options={[{ value: "collectible", label: "Colecionáveis" }, { value: "generated", label: "Tokens / formas" }]} />
@@ -186,7 +228,7 @@ export default function CodexExplorer({ entries }: { entries: CodexEntry[] }) {
                 return (
                   <article key={card.defId} className={`rounded-2xl border p-3 transition ${isSelected ? "border-cyan-300/45 bg-cyan-300/[0.07]" : "border-white/10 bg-white/[0.02] hover:border-white/20"}`}>
                     <div className="flex justify-center">
-                      <CardView
+                      <CardTip
                         defId={card.defId}
                         definition={card}
                         collection={entry.collection}
@@ -197,7 +239,7 @@ export default function CodexExplorer({ entries }: { entries: CodexEntry[] }) {
                     </div>
                     <button type="button" className="mt-3 w-full text-left" onClick={() => setSelectedDefId(card.defId)}>
                       <p className="truncate text-xs font-black text-white">{card.name}</p>
-                      <p className="mt-1 truncate text-[10px] text-slate-500">{entry.collection?.code || "—"} · {identity.name}</p>
+                      <p className="mt-1 truncate text-[10px] text-slate-500">{visibleTypeLabel(card)} · {entry.collection?.code || "—"} · {identity.name}</p>
                     </button>
                   </article>
                 );
@@ -251,6 +293,7 @@ function CardInspector({ entry }: { entry: CodexEntry }) {
   const card = entry.card;
   const regions = cardRegions(card);
   const identity = identityForRegions(regions);
+  const semanticType = certifiedSemanticCardType(card);
   return (
     <aside className="h-fit rounded-3xl border border-white/10 bg-slate-950/70 p-5 xl:sticky xl:top-24">
       <div className="flex items-start justify-between gap-3">
@@ -262,10 +305,23 @@ function CardInspector({ entry }: { entry: CodexEntry }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold">
-        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-slate-300">{TYPE_LABEL[card.type]}</span>
+        <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-slate-300">{visibleTypeLabel(card)}</span>
         <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-slate-300">{RARITY_LABEL[card.rarity]}</span>
         <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-slate-300">{card.collectible === false ? "Gerada" : "Colecionável"}</span>
       </div>
+
+      {semanticType && (
+        <div className="mt-5 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-4">
+          <p className="text-[10px] font-black uppercase tracking-wider text-cyan-300/70">Contrato de gameplay</p>
+          <p className="mt-2 font-black text-white">{semanticType.icon} {semanticType.name}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-400">{semanticType.description}</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-[9px] font-bold text-slate-300">
+            <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1">{TIMING_LABEL[semanticType.timing]}</span>
+            <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1">{MANA_LABEL[semanticType.mana]}</span>
+            <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1">Base técnica: {TYPE_LABEL[semanticType.baseType]}</span>
+          </div>
+        </div>
+      )}
 
       <div className="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4">
         <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Identidade regional</p>
