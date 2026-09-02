@@ -148,6 +148,20 @@ See `docs/VANILLA-1-4-ASCENDANT-RECIPES.md`.
 
 See `docs/VANILLA-1-5-REGIONAL-POWER-OUTLIERS.md`.
 
+### Vanilla 1.6 — Tempestade Vanguard Ceiling
+
+- The post-1.5 upper outlier was **Tempestade Vanguard at 67.5% global win rate**.
+- Ten deterministic recipe candidates were screened twice — first across **5,280 games**, then **22,000 games** at full five-strata depth — before any product change.
+- The accepted `evasion32` recipe changes **only Tempestade Vanguard** to **32 Units + 8 Spells**, 22 unique cards and canonical average cost **3.83**.
+- `u03`, `u05`, `u08` and `u11` become singletons to reduce repeated Elusive/Flying/draw pressure; all other regional Units remain at two copies; `s01`, `s02`, `s05` and `s06` are the exact two-copy control package.
+- A 13,200-game candidate matrix and the subsequent official 13,200-game **product** Balance Lab reproduced the same result: Tempestade Vanguard moves **67.5% → 57.1%**, with **5 healthy / 1 watch / 5 critical** direct matchups.
+- Its five remaining critical wins are all against other regions' structurally weak Ascendant decks; Emberhold, Ironwood, Voidborn and Florestia Vanguard plus Tempestade Ascendant are healthy, while Tidecall Vanguard sits on watch at 41.0%.
+- Global meta health improves from **18 healthy / 13 watch / 35 critical** to **21 healthy / 13 watch / 32 critical**. Statistical quality remains **PASS**: 66/66 stable, first-player **50.3%**, 0% draws and max seed deviation **16.0 pp**.
+- No CardDef, engine rule, AI policy, Ascendant recipe, Studio behavior or Ranked content changes in Vanilla 1.6. The recipe contract is the **83rd behavioral target**, and the dedicated product certification passed **83/83** before its temporary workflow was retired.
+- The new upper ceiling is **Emberhold Vanguard — 63.2%**; the persistent floor is concentrated in Voidborn, Florestia and Ironwood Ascendants. The next balance slice should compare Emberhold concentration against that Ascendant floor before considering CardDefs.
+
+See `docs/VANILLA-1-6-TEMPESTADE-VANGUARD-CEILING.md`.
+
 ## Ranked 2.97 architecture
 
 Season Zero Ranked accepts exactly four certified 40-card preconstructed decks:
@@ -194,7 +208,7 @@ RuneForge does not mix source-text checks with behavioral evidence:
 - `npm run audit:test-taxonomy` — prevents source-reading tests from being counted as behavioral.
 - `npm run test:e2e:alpha-journey` — real HTTP/PostgreSQL certification of the core Alpha player loop against a running production build.
 
-Current behavioral certification after Vanilla 1.5 contains **82 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
+Current behavioral certification after Vanilla 1.6 contains **83 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
 
 Historical 2.97 local evidence retained for provenance:
 
