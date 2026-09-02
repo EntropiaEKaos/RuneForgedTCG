@@ -3,7 +3,9 @@ import type { DeckDef } from "./decks";
 /**
  * Vanilla experimental recipe helpers.
  *
- * Vanguard intentionally preserves the historical 36 Unit + 4 Spell intake.
+ * Five Vanguards intentionally preserve the historical 36 Unit + 4 Spell intake.
+ * Tidecall Vanguard owns an evidence-driven Vanilla 1.5 exception that reduces
+ * duplicated top-end and adds regional control tools without changing CardDefs.
  * Ascendant keeps one copy of every regional `van_*` card and adds exactly ten
  * explicit duplicates selected by deterministic Balance Lab evidence. This
  * makes the recipe contract auditable while preserving 180/180 pool coverage.
@@ -57,6 +59,23 @@ function vanguardRecipe(prefix: VanillaPrefix): string[] {
   ];
 }
 
+/** Vanilla 1.5: 32 Units + 8 Spells, with only one copy of u15-u18. */
+function tidecallVanguardRecipe(): string[] {
+  const units = unitIds("van_tide");
+  return [
+    ...units.slice(0, 14).flatMap((defId) => [defId, defId]),
+    ...units.slice(14),
+    cardId("van_tide", "s01"),
+    cardId("van_tide", "s01"),
+    cardId("van_tide", "s02"),
+    cardId("van_tide", "s02"),
+    cardId("van_tide", "s05"),
+    cardId("van_tide", "s05"),
+    cardId("van_tide", "s06"),
+    cardId("van_tide", "s06"),
+  ];
+}
+
 function ascendantRecipe(prefix: VanillaPrefix, duplicateSuffixes: readonly RegionalSuffix[]): string[] {
   if (duplicateSuffixes.length !== 10 || new Set(duplicateSuffixes).size !== 10) {
     throw new Error(`${prefix}: Ascendant recipe requires exactly ten unique duplicate slots`);
@@ -99,7 +118,7 @@ export const VANILLA_EXPERIMENTAL_DECKS: DeckDef[] = [
     regions: ["Tidecall"],
     description: "Experimental Vanilla archetype for Tidecall. Kept outside ranked until Balance Lab certification.",
     emoji: "🌊",
-    cards: vanguardRecipe("van_tide"),
+    cards: tidecallVanguardRecipe(),
   },
   {
     id: "vanilla_tide_2",
