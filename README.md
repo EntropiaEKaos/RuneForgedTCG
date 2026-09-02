@@ -134,6 +134,20 @@ See `docs/VANILLA-1-3-TACTICAL-PLAYABILITY.md`.
 
 See `docs/VANILLA-1-4-ASCENDANT-RECIPES.md`.
 
+### Vanilla 1.5 — Regional Power Outliers
+
+- The first regional outlier was Tidecall Vanguard at **82.4% global win rate with 11/11 critical matchups**.
+- Card-level nerfs were explicitly rejected after a full 13,200-game control matrix: they reduced Tidecall Vanguard but collapsed Tidecall Ascendant to **27.9%** and worsened global health to **12 healthy / 11 watch / 43 critical**.
+- The accepted fix changes **only Tidecall Vanguard's experimental recipe**: **32 Units + 8 Spells**, 22 unique cards, average cost **3.4**, and only 2 cards at cost 7+.
+- `u01`–`u14` remain two-copy core Units; `u15`–`u18` become singletons; `s01`, `s02`, `s05` and `s06` are two-copy regional control tools.
+- The true finalist matrix ran **6,600 games**. Tidecall Vanguard moved **82.4% → 58.6%**, with direct healthy matchups against Emberhold Vanguard (51.0%), Tidecall Ascendant (55.0%), Florestia Vanguard (52.0%) and Tempestade Vanguard (50.5%).
+- The final full **13,200-game Balance Lab** retained statistical quality: first-player **50.3%**, **0% draws**, max seed deviation **16.0 pp**.
+- Meta health improves again from **14 healthy / 11 watch / 41 critical** to **18 healthy / 13 watch / 35 critical**, eliminating six critical matchups without changing a single CardDef.
+- Tidecall Ascendant remains structurally untouched and finishes the final matrix at **49.2%**. The global gate correctly remains **BLOCKED** because 35 critical matchups still exist.
+- No CardDef, authoritative engine rule, activated ability, AI policy, Ascendant recipe or Ranked content changes in Vanilla 1.5. Its executable recipe regression is the **82nd behavioral target**.
+
+See `docs/VANILLA-1-5-REGIONAL-POWER-OUTLIERS.md`.
+
 ## Ranked 2.97 architecture
 
 Season Zero Ranked accepts exactly four certified 40-card preconstructed decks:
@@ -180,7 +194,7 @@ RuneForge does not mix source-text checks with behavioral evidence:
 - `npm run audit:test-taxonomy` — prevents source-reading tests from being counted as behavioral.
 - `npm run test:e2e:alpha-journey` — real HTTP/PostgreSQL certification of the core Alpha player loop against a running production build.
 
-Current behavioral certification after Vanilla 1.4 contains **81 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
+Current behavioral certification after Vanilla 1.5 contains **82 behavioral targets**. Source-contract, schema, database, build and browser E2E evidence remain separate gates in the full CI pipeline.
 
 Historical 2.97 local evidence retained for provenance:
 
