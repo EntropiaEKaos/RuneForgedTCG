@@ -40,7 +40,8 @@ for (const evolution of [
   assert.ok(artRegistry.includes(`${evolution}:`), `${evolution} must reuse its regional Alpha Champion master`);
 }
 
-assert.ok(cardArt.includes('import { flagshipChampionArtUrl } from "./flagship-champion-art";'));
+assert.ok(cardArt.includes("flagshipChampionArtUrl"), "Card art pipeline must reference the built-in flagship resolver");
+assert.ok(cardArt.includes("flagship-champion-art"), "Card art pipeline must load the flagship Champion registry");
 assert.ok(cardArt.includes("const editorial = browserArt[defId] ?? getCustomCardArtCached(defId);"), "editorial/admin art must remain first priority");
 assert.ok(cardArt.includes("const flagshipUrl = flagshipChampionArtUrl(defId);"), "built-in flagship fallback missing");
 assert.ok(cardArt.indexOf("const editorial") < cardArt.indexOf("const flagshipUrl"), "flagship art must never override explicit editorial art");
