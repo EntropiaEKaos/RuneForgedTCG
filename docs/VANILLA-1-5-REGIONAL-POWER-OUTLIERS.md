@@ -29,7 +29,7 @@ A solução preserva todas as cartas e reduz apenas a concentração do Vanguard
 - `s01`, `s02`, `s05`, `s06`: 2 cópias cada;
 - 40 cartas;
 - 22 cartas únicas;
-- custo médio **3,4**;
+- custo médio autoritativo **3,43**;
 - apenas 2 cartas de custo 7+;
 - máximo de 2 cópias por carta.
 
@@ -93,7 +93,7 @@ O gate global de balance continua corretamente **BLOCKED**: ainda existem 35 mat
 - Tidecall Vanguard em 40 cartas;
 - exatamente 32 Units / 8 Spells;
 - exatamente 22 cartas únicas;
-- custo médio 3,4;
+- custo médio autoritativo 3,43;
 - exatamente 2 slots de custo 7+;
 - `u01`–`u14` em 2 cópias;
 - `u15`–`u18` em 1 cópia;
