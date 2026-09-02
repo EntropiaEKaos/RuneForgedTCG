@@ -25,9 +25,10 @@ assert.ok(css.includes("--rf-v2-obsidian") && css.includes("--rf-v2-gold-hi"), "
 assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"), "Visual 2.0 must preserve reduced-motion accessibility");
 assert.ok(polish.includes("1440x1000") && polish.includes("min-height: 166px") && polish.includes("min-height: 48px"), "Screenshot-driven polish must keep hand and primary action surface inside the certified desktop composition");
 assert.ok(polish.includes("brightness(.62)") && polish.includes("inset 0 0 70px"), "Screenshot-driven polish must preserve the corrected battlefield luminance envelope");
-assert.ok(viewportPolish.includes("max-height: 1050px") && viewportPolish.includes("width: 116px") && viewportPolish.includes("height: 166px"), "Short desktop viewports must render complete hand cards instead of clipping their lower edge");
-assert.ok(viewportPolish.includes("min-height: 48px") && viewportPolish.includes("min-height: 36px"), "Certified desktop viewport must retain the primary action surface below the complete hand");
-assert.ok(viewportPolish.includes("flex: 0 1 auto !important") && viewportPolish.includes("min-height: 128px"), "Certified desktop viewport must reserve height for the player controls instead of letting the ritual center consume it");
+assert.ok(viewportPolish.includes("max-height: 1050px") && viewportPolish.includes("width: 110px") && viewportPolish.includes("height: 157px"), "Short desktop viewports must render complete hand cards instead of clipping their lower edge");
+assert.ok(viewportPolish.includes("min-height: 44px") && viewportPolish.includes("min-height: 34px"), "Certified desktop viewport must retain the primary action surface below the complete hand");
+assert.ok(viewportPolish.includes("flex: 0 1 auto !important") && viewportPolish.includes("min-height: 104px"), "Certified desktop viewport must reserve height for the player controls instead of letting the ritual center consume it");
+assert.ok(viewportPolish.includes("min-height: 88px") && viewportPolish.includes("min-height: 52px"), "Short desktop chrome and deployment rows must compact before the player's cards do");
 assert.ok(cardBack.includes("RuneForge card back") && cardBack.includes("RUNE FORGE"), "Official card-back asset must carry RuneForge identity");
 assert.ok(warSeal.includes('viewBox="0 0 600 600"'), "War seal must remain a scalable SVG asset");
 assert.ok(artBible.includes("Arcane War Table") && artBible.includes("Engineering boundary"), "Art Bible must preserve the visual direction and engineering boundary");
