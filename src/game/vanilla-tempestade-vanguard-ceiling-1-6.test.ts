@@ -15,7 +15,7 @@ assert.equal(audited.cards, 40);
 assert.equal(audited.types.Unit, 32);
 assert.equal(audited.types.Spell, 8);
 assert.equal(audited.uniqueCards, 22);
-assert.equal(audited.averageCost, 3.8);
+assert.equal(audited.averageCost, 3.83);
 assert.equal(audited.manaCurve["7+"], 4);
 assert.ok(Object.values(audited.duplicateCopies).every((count) => count <= 2));
 
