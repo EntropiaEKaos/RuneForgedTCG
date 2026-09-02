@@ -1,0 +1,282 @@
+/* ========================================================================== 
+   RuneForge Visual 2.0 — Meta UI
+   Shared route-aware chrome for player-facing application surfaces.
+   No player/game state is inferred here: the current URL is the only signal.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Primary chrome — stronger information scent, same forged identity
+   -------------------------------------------------------------------------- */
+.rf-chrome {
+  --rf-meta-accent: var(--rf-gold-bright);
+  box-shadow: 0 16px 46px rgba(0,0,0,.4), inset 0 -1px rgba(255,255,255,.015);
+}
+.rf-chrome-primary {
+  min-height: 60px;
+}
+
+.rf-nav-link {
+  position: relative;
+  isolation: isolate;
+  transition: color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.rf-nav-link::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 4px 2px;
+  opacity: 0;
+  border: 1px solid rgba(255,215,120,.12);
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(255,219,128,.07), rgba(217,164,65,.015));
+  transition: opacity .18s ease;
+}
+.rf-nav-link[data-active="true"] {
+  color: #f6f0e4;
+  text-shadow: 0 0 18px rgba(217,164,65,.12);
+}
+.rf-nav-link[data-active="true"]::before { opacity: 1; }
+.rf-nav-link[data-active="true"]::after {
+  height: 1px;
+  opacity: 1;
+  box-shadow: 0 0 10px rgba(255,215,120,.5);
+}
+.rf-nav-link[data-active="true"] i {
+  color: var(--rf-gold-bright);
+  filter: drop-shadow(0 0 6px rgba(255,215,120,.35));
+}
+
+/* Utility actions are deliberately subordinate to the five product sections.
+   They remain discoverable without competing with the play hierarchy. */
+.rf-meta-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.rf-meta-action {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #738095;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+.rf-meta-action i {
+  color: #667286;
+  font-family: serif;
+  font-size: 9px;
+  font-style: normal;
+}
+.rf-meta-action:hover {
+  border-color: rgba(255,255,255,.07);
+  color: #dbe1ea;
+  background: rgba(255,255,255,.025);
+}
+.rf-meta-action[data-active="true"] {
+  border-color: rgba(255,215,120,.19);
+  color: #f1dfba;
+  background: rgba(217,164,65,.055);
+}
+.rf-meta-action[data-active="true"] i { color: var(--rf-gold-bright); }
+
+/* --------------------------------------------------------------------------
+   Context rail — exposes the real product graph without a drawer/menu detour
+   -------------------------------------------------------------------------- */
+.rf-context-rail {
+  position: relative;
+  border-top: 1px solid rgba(255,255,255,.035);
+  border-bottom: 1px solid rgba(217,164,65,.075);
+  background:
+    linear-gradient(90deg, rgba(217,164,65,.025), transparent 25%, transparent 75%, rgba(110,231,247,.018)),
+    rgba(2,4,7,.76);
+}
+.rf-context-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .32;
+  background: linear-gradient(90deg, transparent 7%, rgba(255,255,255,.025) 50%, transparent 93%);
+}
+.rf-context-inner {
+  position: relative;
+  display: flex;
+  min-height: 31px;
+  align-items: center;
+  gap: 18px;
+}
+.rf-context-label {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  color: #6f7b8e;
+  font-size: 6.5px;
+  font-weight: 1000;
+  letter-spacing: .19em;
+  white-space: nowrap;
+}
+.rf-context-label i {
+  display: block;
+  width: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,215,120,.72));
+  box-shadow: 0 0 7px rgba(217,164,65,.26);
+}
+.rf-context-links {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: stretch;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.rf-context-links::-webkit-scrollbar { display: none; }
+.rf-context-link {
+  position: relative;
+  display: inline-flex;
+  min-height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 0 9px;
+  color: #626f82;
+  font-size: 7px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  white-space: nowrap;
+  transition: color .18s ease, background .18s ease;
+}
+.rf-context-link:hover {
+  color: #d9e0e9;
+  background: rgba(255,255,255,.022);
+}
+.rf-context-link[data-active="true"] {
+  color: #ebd29d;
+  background: linear-gradient(180deg, rgba(217,164,65,.045), transparent);
+}
+.rf-context-link[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  right: 9px;
+  bottom: 0;
+  left: 9px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--rf-gold-bright), transparent);
+  box-shadow: 0 0 8px rgba(255,215,120,.38);
+}
+.rf-context-sigil {
+  flex: 0 0 auto;
+  color: rgba(255,215,120,.32);
+  font-family: serif;
+  font-size: 9px;
+}
+
+/* Section-dependent micro-accent. It never replaces the gold brand language;
+   it only lets a player recognize a route family at a glance. */
+.rf-chrome[data-meta-section="play"] { --rf-meta-accent: #ffcb68; }
+.rf-chrome[data-meta-section="modes"] { --rf-meta-accent: #8ee8ff; }
+.rf-chrome[data-meta-section="collection"] { --rf-meta-accent: #8cd9ff; }
+.rf-chrome[data-meta-section="forge"] { --rf-meta-accent: #ffbc65; }
+.rf-chrome[data-meta-section="community"] { --rf-meta-accent: #b9a4ff; }
+.rf-chrome[data-meta-section="system"] { --rf-meta-accent: #a9d9c3; }
+.rf-chrome[data-meta-section] .rf-context-label i {
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rf-meta-accent) 78%, transparent));
+}
+.rf-chrome[data-meta-section] .rf-context-link[data-active="true"] {
+  color: color-mix(in srgb, var(--rf-meta-accent) 76%, #f5f1e8);
+}
+.rf-chrome[data-meta-section] .rf-context-link[data-active="true"]::after {
+  background: linear-gradient(90deg, transparent, var(--rf-meta-accent), transparent);
+}
+
+/* Shared application headings gain a quiet visual anchor so every meta screen
+   reads as part of one product, while keeping page-owned actions untouched. */
+.rf-app-page .rf-app-heading {
+  position: relative;
+  padding-bottom: 19px;
+}
+.rf-app-page .rf-app-heading::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(217,164,65,.28), rgba(255,255,255,.055) 34%, transparent 82%);
+}
+.rf-app-page .rf-app-heading h1 {
+  text-wrap: balance;
+}
+.rf-app-page .rf-app-heading > div > p:not(.rf-eyebrow) {
+  max-width: 720px;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive behavior — preserve access, never collapse into mystery icons
+   -------------------------------------------------------------------------- */
+@media (max-width: 1180px) {
+  .rf-chrome-primary { gap: 12px !important; }
+  .rf-nav { gap: 0; }
+  .rf-nav-link { padding-inline: 8px; }
+  .rf-meta-action span { display: none; }
+  .rf-meta-action { width: 30px; padding-inline: 0; }
+  .rf-meta-action i { font-size: 10px; }
+}
+
+@media (max-width: 920px) {
+  .rf-chrome-primary {
+    flex-wrap: wrap;
+    row-gap: 5px !important;
+    padding-bottom: 7px !important;
+  }
+  .rf-brand { order: 1; }
+  .rf-meta-actions { order: 2; margin-left: auto; }
+  .rf-nav {
+    order: 3;
+    width: 100%;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-top: 3px;
+    scrollbar-width: none;
+  }
+  .rf-nav::-webkit-scrollbar { display: none; }
+  .rf-nav-link { flex: 0 0 auto; }
+  .rf-context-inner { gap: 9px; }
+  .rf-context-label { display: none; }
+  .rf-context-sigil { display: none; }
+}
+
+@media (max-width: 640px) {
+  .rf-brand small { display: none; }
+  .rf-brand-mark { width: 30px; height: 30px; }
+  .rf-brand { font-size: 12px; }
+  .rf-chrome-primary { min-height: auto; padding-inline: 12px !important; }
+  .rf-nav-link { padding: 8px 7px; font-size: 8px; }
+  .rf-meta-actions { gap: 3px; }
+  .rf-meta-action { width: 29px; min-height: 29px; }
+  .rf-nav-cta { min-height: 32px; padding-inline: 10px; }
+  .rf-nav-cta span { display: none; }
+  .rf-nav-cta b { font-size: 12px; }
+  .rf-context-inner { padding-inline: 10px !important; }
+  .rf-context-link { padding-inline: 8px; font-size: 6.5px; }
+  .rf-app-page .rf-app-heading { padding-bottom: 15px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-nav-link,
+  .rf-meta-action,
+  .rf-context-link {
+    transition: none !important;
+  }
+}
