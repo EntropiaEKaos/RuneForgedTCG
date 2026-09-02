@@ -14,9 +14,15 @@ export function MatchResult({ state, reward, onReplay, onChangeDeck }: { state: 
   const victory = state.winner === "player";
   const outcome = victory ? "victory" : "defeat";
   const mastery = evaluateMatchMastery(state);
-  const resultMessage = victory
-    ? opponent.poisonCounters >= 10 ? "O oponente sucumbiu ao veneno." : "O Nexus inimigo foi quebrado."
-    : player.poisonCounters >= 10 ? "Você sucumbiu ao veneno." : "Seu Nexus caiu. A batalha terminou.";
+  const defeated = victory ? opponent : player;
+  const maxRoundDecision = state.log.some((entry) => entry.startsWith("Maximum round limit ("));
+  const resultMessage = defeated.poisonCounters >= 10
+    ? victory ? "O oponente sucumbiu ao veneno." : "Você sucumbiu ao veneno."
+    : defeated.nexusHealth <= 0
+      ? victory ? "O Nexus inimigo foi quebrado." : "Seu Nexus caiu. A batalha terminou."
+      : maxRoundDecision
+        ? victory ? "Vitória por decisão no limite de rodadas." : "Derrota por decisão no limite de rodadas."
+        : victory ? "O adversário se rendeu. Vitória confirmada." : "Você se rendeu. Derrota confirmada.";
 
   const share = async () => {
     const text = `${victory ? "Vitória" : "Batalha"} no Runeforge · Nota ${mastery.grade} · ${player.stats.nexusDamageDealt} de dano · ${state.round} rodadas.`;
