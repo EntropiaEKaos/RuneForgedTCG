@@ -18,10 +18,10 @@ assert.equal(report.experimentalUniqueCards, 180);
 assert.deepEqual(report.uncoveredExperimentalCardIds, []);
 
 const vanguards = report.decks.filter((deck) => deck.id.endsWith("_1"));
-const historicalVanguards = vanguards.filter((deck) => deck.id !== "vanilla_tide_1");
+const historicalVanguards = vanguards.filter((deck) => !["vanilla_tide_1", "vanilla_storm_1"].includes(deck.id));
 const ascendants = report.decks.filter((deck) => deck.id.endsWith("_2"));
 assert.equal(vanguards.length, 6);
-assert.equal(historicalVanguards.length, 5, "Vanilla 1.4 historical Vanguard contract must own exactly five decks after the 1.5 Tidecall exception");
+assert.equal(historicalVanguards.length, 4, "Vanilla 1.4 historical Vanguard contract must own exactly four decks after the 1.5 Tidecall and 1.6 Tempestade exceptions");
 assert.equal(ascendants.length, 6);
 
 for (const deck of historicalVanguards) {
