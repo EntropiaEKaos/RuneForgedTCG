@@ -7,6 +7,7 @@ import { TIDECALL_CARDS } from "./cards/base/tidecall";
 import { VOIDBORN_CARDS } from "./cards/base/voidborn";
 import { VANILLA_ADDITIONAL_CARDS } from "./cards/vanilla";
 import { RELEASE_296_CARDS } from "./cards/release-2.96";
+import { SEMANTIC_ALPHA_CARDS } from "./cards/semantic-alpha";
 
 export const CARDS: Record<string, CardDef> = {
   ...EMBERHOLD_CARDS,
@@ -17,6 +18,7 @@ export const CARDS: Record<string, CardDef> = {
   ...VOIDBORN_CARDS,
   ...VANILLA_ADDITIONAL_CARDS,
   ...RELEASE_296_CARDS,
+  ...SEMANTIC_ALPHA_CARDS,
 };
 
 import { getCustomCard, getCustomCardsMap } from "./catalog";
