@@ -32,12 +32,25 @@
     inset 0 1px rgba(255,255,255,.38);
 }
 
+/* Stun and leveled are durable states. Their state remains explicit, but the
+   old perpetual orbit/glow no longer pretends a fresh event is firing. */
+.tcg-arena .card-state-stun span {
+  animation: none !important;
+  transform: translate(-50%, 0);
+  filter: drop-shadow(0 0 7px rgba(250,204,21,.48));
+}
+.tcg-arena .card-shell.card-leveled {
+  animation: none !important;
+  box-shadow: 0 14px 30px rgba(0,0,0,.5), 0 0 0 1px rgba(255,214,107,.38), 0 0 18px rgba(255,190,63,.12);
+}
+
 /* Targetability is actionable and may pulse, but it must never move the card.
-   This deliberately replaces the legacy global animation with light only. */
+   This deliberately replaces the legacy global animation with light only.
+   There is intentionally no transform declaration on the shell: hand fan or
+   any other layout transform remains authoritative. */
 .tcg-arena .card-shell.card-targetable,
 .tcg-arena .card-shell[data-card-state="targetable"] {
   animation: rf-v2-target-signal 1.15s ease-in-out infinite !important;
-  transform: none;
   filter: saturate(1.07) brightness(1.045);
 }
 
