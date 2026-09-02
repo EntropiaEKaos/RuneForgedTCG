@@ -10,6 +10,7 @@ import "./styles/arena-regions.css";
 import "./styles/gameplay-extensions.css";
 import "./styles/runeforge-brand.css";
 import "./styles/alpha-battlefield.css";
+import "./styles/visual-2-0-battlefield.css";
 
 // A strict nonce-based CSP requires request-time rendering so Next.js can
 // attach the request nonce to framework and page scripts.
