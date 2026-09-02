@@ -21,6 +21,7 @@ import "./styles/visual-2-0-meta-ui.css";
 import "./styles/visual-2-0-result-polish.css";
 import "./styles/visual-3-0-battlefield-cinematic.css";
 import "./styles/visual-3-1-card-presentation.css";
+import "./styles/visual-3-2-meta-world.css";
 
 // A strict nonce-based CSP requires request-time rendering so Next.js can
 // attach the request nonce to framework and page scripts.

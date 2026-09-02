@@ -145,5 +145,6 @@ export const sourceContractTests = [
   "src/lib/visual-2-0-meta-ui-regression.test.ts",
   "src/lib/visual-2-0-result-polish-regression.test.ts",
   "src/lib/visual-3-0-battlefield-cinematic-regression.test.ts",
-  "src/lib/visual-3-1-card-presentation-regression.test.ts"
+  "src/lib/visual-3-1-card-presentation-regression.test.ts",
+  "src/lib/visual-3-2-meta-world-regression.test.ts"
 ];
