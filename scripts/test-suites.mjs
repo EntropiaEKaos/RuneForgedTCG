@@ -137,5 +137,6 @@ export const sourceContractTests = [
   "src/lib/total-control-2.80.test.ts",
   "src/lib/vanilla-collection-2.92.test.ts",
   "src/lib/visual-2-0-battlefield-regression.test.ts",
-  "src/lib/visual-2-0-card-presentation-regression.test.ts"
+  "src/lib/visual-2-0-card-presentation-regression.test.ts",
+  "src/lib/visual-2-0-fx-motion-regression.test.ts"
 ];
