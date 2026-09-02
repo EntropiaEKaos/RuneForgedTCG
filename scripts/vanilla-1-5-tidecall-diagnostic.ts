@@ -8,7 +8,7 @@ import {
   vanillaBalanceSeed,
   vanillaExperimentalOverrides,
 } from "../src/game/vanilla-balance-lab";
-import type { CardDef } from "../src/game/types";
+import type { CardDef, CardEffect } from "../src/game/types";
 import { runBalanceSimulation, type SimulationSummary } from "../src/lib/balance-simulator";
 
 const TARGET_ID = "vanilla_tide_1";
@@ -32,21 +32,37 @@ function pct(n: number, d: number): number {
 type Mutation = {
   defId: string;
   cost?: number;
-  power?: number;
-  health?: number;
   removeKeywords?: string[];
-  removeTrigger?: boolean;
+  disableActivatedAbilities?: boolean;
+  abilityMana?: number;
+  abilityExhaustSelf?: boolean;
+  abilityEffect?: "drawOnly";
 };
 
 function mutateCard(spec: Mutation): CardDef {
   const base = getCard(spec.defId);
+  const abilityMutation = spec.disableActivatedAbilities || spec.abilityMana !== undefined || spec.abilityExhaustSelf !== undefined || spec.abilityEffect;
+  const activatedAbilities = abilityMutation
+    ? spec.disableActivatedAbilities
+      ? []
+      : (base.activatedAbilities ?? []).map((ability, index) => {
+          if (index !== 0) return ability;
+          let effect: CardEffect | undefined = ability.effect;
+          if (spec.abilityEffect === "drawOnly") effect = { kind: "draw", amount: 1, target: "none" };
+          const cost = {
+            ...(ability.cost ?? {}),
+            ...(spec.abilityMana !== undefined ? { mana: spec.abilityMana } : {}),
+            ...(spec.abilityExhaustSelf !== undefined ? { exhaustSelf: spec.abilityExhaustSelf } : {}),
+          };
+          if (spec.abilityExhaustSelf === false) delete cost.exhaustSelf;
+          return { ...ability, cost, effect };
+        })
+    : base.activatedAbilities;
   return {
     ...base,
     cost: spec.cost ?? base.cost,
-    power: spec.power ?? base.power,
-    health: spec.health ?? base.health,
     keywords: (base.keywords ?? []).filter((keyword) => !(spec.removeKeywords ?? []).includes(keyword)),
-    trigger: spec.removeTrigger ? undefined : base.trigger,
+    activatedAbilities,
   };
 }
 
@@ -127,126 +143,61 @@ function runScenario(name: string, mutations: Mutation[]): ScenarioResult {
 
 const scenarios: Array<{ name: string; mutations: Mutation[] }> = [
   { name: "baseline", mutations: [] },
+  { name: "disable_u15_ability", mutations: [{ defId: "van_tide_u15", disableActivatedAbilities: true }] },
+  { name: "disable_u16_ability", mutations: [{ defId: "van_tide_u16", disableActivatedAbilities: true }] },
+  { name: "disable_u17_ability", mutations: [{ defId: "van_tide_u17", disableActivatedAbilities: true }] },
+  { name: "disable_u18_ability", mutations: [{ defId: "van_tide_u18", disableActivatedAbilities: true }] },
   {
-    name: "lifesteal_all_removed",
+    name: "disable_u17_u18_abilities",
     mutations: [
-      { defId: "van_tide_u03", removeKeywords: ["Lifesteal"] },
-      { defId: "van_tide_u08", removeKeywords: ["Lifesteal"] },
+      { defId: "van_tide_u17", disableActivatedAbilities: true },
+      { defId: "van_tide_u18", disableActivatedAbilities: true },
+    ],
+  },
+  { name: "u16_exhaust", mutations: [{ defId: "van_tide_u16", abilityExhaustSelf: true }] },
+  { name: "u17_mana_4", mutations: [{ defId: "van_tide_u17", abilityMana: 4 }] },
+  { name: "u18_exhaust", mutations: [{ defId: "van_tide_u18", abilityExhaustSelf: true }] },
+  { name: "u18_mana_3", mutations: [{ defId: "van_tide_u18", abilityMana: 3 }] },
+  { name: "u18_mana_3_exhaust", mutations: [{ defId: "van_tide_u18", abilityMana: 3, abilityExhaustSelf: true }] },
+  { name: "u18_draw_only", mutations: [{ defId: "van_tide_u18", abilityEffect: "drawOnly" }] },
+  {
+    name: "activated_soft_package",
+    mutations: [
+      { defId: "van_tide_u16", abilityExhaustSelf: true },
+      { defId: "van_tide_u17", abilityMana: 4 },
+      { defId: "van_tide_u18", abilityExhaustSelf: true },
+    ],
+  },
+  {
+    name: "activated_cost_package",
+    mutations: [
+      { defId: "van_tide_u15", abilityMana: 3 },
+      { defId: "van_tide_u16", abilityMana: 3 },
+      { defId: "van_tide_u17", abilityMana: 4 },
+      { defId: "van_tide_u18", abilityMana: 3 },
+    ],
+  },
+  {
+    name: "u18_exhaust_plus_lifesteal_trim",
+    mutations: [
+      { defId: "van_tide_u18", abilityExhaustSelf: true, removeKeywords: ["Lifesteal"] },
       { defId: "van_tide_u13", removeKeywords: ["Lifesteal"] },
-      { defId: "van_tide_u18", removeKeywords: ["Lifesteal"] },
     ],
   },
   {
-    name: "lifesteal_top_removed",
+    name: "u18_exhaust_plus_minimal_curve",
     mutations: [
-      { defId: "van_tide_u13", removeKeywords: ["Lifesteal"] },
-      { defId: "van_tide_u18", removeKeywords: ["Lifesteal"] },
-    ],
-  },
-  {
-    name: "barrier_removed",
-    mutations: [
-      { defId: "van_tide_u02", removeKeywords: ["Barrier"] },
-      { defId: "van_tide_u17", removeKeywords: ["Barrier"] },
-    ],
-  },
-  {
-    name: "sustain_all_removed",
-    mutations: [
-      { defId: "van_tide_u03", removeKeywords: ["Lifesteal", "Regeneration"] },
-      { defId: "van_tide_u05", removeKeywords: ["Regeneration"] },
-      { defId: "van_tide_u08", removeKeywords: ["Lifesteal"], removeTrigger: true },
-      { defId: "van_tide_u13", removeKeywords: ["Lifesteal", "Regeneration"] },
-      { defId: "van_tide_u18", removeKeywords: ["Lifesteal", "Regeneration"] },
-    ],
-  },
-  {
-    name: "minimal_cost_package",
-    mutations: [
+      { defId: "van_tide_u18", abilityExhaustSelf: true, cost: 9 },
       { defId: "van_tide_u04", cost: 3 },
       { defId: "van_tide_u09", cost: 5 },
-      { defId: "van_tide_u18", cost: 9 },
-    ],
-  },
-  {
-    name: "top_end_cost_package",
-    mutations: [
-      { defId: "van_tide_u09", cost: 5 },
-      { defId: "van_tide_u10", cost: 5 },
-      { defId: "van_tide_u17", cost: 8 },
-      { defId: "van_tide_u18", cost: 9 },
-    ],
-  },
-  {
-    name: "curve_cost_package",
-    mutations: [
-      { defId: "van_tide_u04", cost: 3 },
-      { defId: "van_tide_u06", cost: 4 },
-      { defId: "van_tide_u09", cost: 5 },
-      { defId: "van_tide_u10", cost: 5 },
-      { defId: "van_tide_u17", cost: 8 },
-      { defId: "van_tide_u18", cost: 9 },
-    ],
-  },
-  {
-    name: "draw_plus_top_cost_package",
-    mutations: [
-      { defId: "van_tide_u04", removeTrigger: true },
-      { defId: "van_tide_u09", cost: 5 },
-      { defId: "van_tide_u17", cost: 8 },
-      { defId: "van_tide_u18", cost: 9 },
-    ],
-  },
-  {
-    name: "stats_only_package",
-    mutations: [
-      { defId: "van_tide_u06", power: 3, health: 2 },
-      { defId: "van_tide_u09", power: 4, health: 3 },
-      { defId: "van_tide_u10", power: 3, health: 4 },
-      { defId: "van_tide_u17", power: 6, health: 6 },
-      { defId: "van_tide_u18", power: 7, health: 8 },
-    ],
-  },
-  {
-    name: "identity_preserving_hybrid",
-    mutations: [
-      { defId: "van_tide_u04", cost: 3 },
-      { defId: "van_tide_u09", power: 4, health: 3 },
-      { defId: "van_tide_u10", power: 3, health: 4 },
-      { defId: "van_tide_u17", power: 6, health: 6 },
-      { defId: "van_tide_u18", power: 7, health: 8 },
-    ],
-  },
-  {
-    name: "lifesteal_draw_hybrid",
-    mutations: [
-      { defId: "van_tide_u04", cost: 3 },
-      { defId: "van_tide_u13", removeKeywords: ["Lifesteal"] },
-      { defId: "van_tide_u18", removeKeywords: ["Lifesteal"] },
-      { defId: "van_tide_u18", cost: 9 },
     ],
   },
 ];
 
-// Coalesce accidental duplicate specs for the same card inside a scenario.
-function coalesce(mutations: Mutation[]): Mutation[] {
-  const byId = new Map<string, Mutation>();
-  for (const mutation of mutations) {
-    const current = byId.get(mutation.defId) ?? { defId: mutation.defId };
-    byId.set(mutation.defId, {
-      ...current,
-      ...mutation,
-      removeKeywords: [...new Set([...(current.removeKeywords ?? []), ...(mutation.removeKeywords ?? [])])],
-      removeTrigger: Boolean(current.removeTrigger || mutation.removeTrigger),
-    });
-  }
-  return [...byId.values()];
-}
-
-const results = scenarios.map((scenario) => runScenario(scenario.name, coalesce(scenario.mutations)));
-const baseline = results.find((result) => result.name === "baseline")!;
+const results = scenarios.map((scenario) => runScenario(scenario.name, scenario.mutations));
+const baseline = results[0];
 const ranked = results
-  .filter((result) => result.name !== "baseline")
+  .slice(1)
   .map((result) => ({
     ...result,
     deltaVsBaseline: round1(result.winRate - baseline.winRate),
@@ -255,8 +206,8 @@ const ranked = results
   .sort((a, b) => a.distanceFromTargetBand - b.distanceFromTargetBand || b.health.healthy - a.health.healthy || a.winRate - b.winRate);
 
 const report = {
-  version: "Vanilla 1.5 package sweep",
-  methodology: "Tidecall Vanguard only; 11 opponents; exact real-engine Balance Lab simulator; paired deterministic seed strata; in-memory card snapshots only; candidate packages preserve product sources",
+  version: "Vanilla 1.5 activated-identity sweep",
+  methodology: "Tidecall Vanguard only; 11 opponents; exact real-engine Balance Lab simulator; paired deterministic seed strata; in-memory CardDef snapshots only; isolates late-game activated identities and conservative cost/exhaustion changes",
   screen: {
     gamesPerStratum: SCREEN_GAMES,
     strata: SCREEN_STRATA,
