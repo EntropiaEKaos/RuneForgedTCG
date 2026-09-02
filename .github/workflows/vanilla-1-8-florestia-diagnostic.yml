@@ -1,0 +1,37 @@
+name: Vanilla 1.8 Florestia Diagnostic
+
+on:
+  push:
+    branches:
+      - feat/vanilla-1-8-florestia-ascendant-floor
+    paths:
+      - '.github/workflows/vanilla-1-8-florestia-diagnostic.yml'
+      - 'scripts/vanilla-utilization-audit.ts'
+      - 'src/game/vanilla-experimental-decks.ts'
+      - 'src/game/vanilla-balance-lab.ts'
+      - 'src/lib/balance-simulator.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+      - run: npm run ci:install
+      - name: Florestia utilization matrix
+        run: node --import tsx scripts/vanilla-utilization-audit.ts 40 5 --write VANILLA_UTILIZATION_AUDIT_1.8.json --enforce --print-full
+      - name: Upload diagnostic report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: vanilla-1-8-florestia-diagnostic
+          path: VANILLA_UTILIZATION_AUDIT_1.8.json
+          if-no-files-found: error
+          retention-days: 7
