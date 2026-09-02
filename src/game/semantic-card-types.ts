@@ -1,4 +1,4 @@
-import type { CardDef, CardType } from "./types";
+import type { CardDef, CardEffect, CardType } from "./types";
 
 export type CertifiedSemanticCardTypeKey = "structure" | "ritual" | "trap";
 
@@ -36,7 +36,7 @@ export const CERTIFIED_SEMANTIC_CARD_TYPES = [
     icon: "🜂",
     timing: "main-only",
     mana: "spell",
-    description: "Efeito único deliberado. Só pode ser iniciado na fase principal e nunca é uma resposta.",
+    description: "Carta de mana deliberada. Só pode ser iniciada na fase principal, nunca é uma resposta e toda versão coletável deve manipular mana.",
   },
   {
     key: "trap",
@@ -97,6 +97,18 @@ export function semanticReactionAllowed(card: Pick<CardDef, "archetypeKey">): bo
   return !isRitualCard(card);
 }
 
+/**
+ * Alpha Ritual identity: mana interaction is mandatory for collectible Rituals.
+ * `manaRefund` is the first certified opcode in this family. The recursive walk
+ * intentionally supports a mana effect chained through `also`, so each region
+ * may express its own secondary payoff without weakening the shared identity.
+ */
+export function ritualHasManaInteraction(card: Pick<CardDef, "spell">): boolean {
+  const includesManaEffect = (effect: CardEffect | undefined): boolean =>
+    Boolean(effect && (effect.kind === "manaRefund" || includesManaEffect(effect.also)));
+  return includesManaEffect(card.spell);
+}
+
 export type SemanticCardValidationResult =
   | { ok: true; card: CardDef }
   | { ok: false; error: string };
@@ -133,6 +145,9 @@ export function validateCertifiedSemanticCardType(card: CardDef): SemanticCardVa
   if (contract.key === "ritual") {
     if (card.speed !== undefined) {
       return { ok: false, error: "Ritual cannot have Fast/Burst speed; it is main-phase only" };
+    }
+    if (card.collectible !== false && !ritualHasManaInteraction(card)) {
+      return { ok: false, error: "Collectible Ritual must manipulate mana through a certified mana effect" };
     }
     return { ok: true, card: { ...card, archetypeName: contract.name, speed: undefined } };
   }

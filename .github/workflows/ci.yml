@@ -148,6 +148,7 @@ jobs:
           npm run test:e2e:http
           node scripts/alpha-pvp-lobby-preflight.mjs
           node scripts/alpha-visual-journey.mjs
+          node scripts/alpha-semantic-codex-browser-cert.mjs
           node scripts/alpha-runtime-tooltip-cert.mjs
           node scripts/alpha-activated-ability-browser-cert.mjs
           node scripts/alpha-casual-pvp-journey.mjs
