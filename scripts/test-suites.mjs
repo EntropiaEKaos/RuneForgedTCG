@@ -95,6 +95,7 @@ export const sourceContractTests = [
   "src/lib/card-studio-4.1-2.75.test.ts",
   "src/lib/certification-2.90.test.ts",
   "src/lib/client-experience-2.42.test.ts",
+  "src/lib/codex-card-intelligence-regression.test.ts",
   "src/lib/concurrency-regression.test.ts",
   "src/lib/consolidation-2.89.test.ts",
   "src/lib/content-dependency-pipeline-regression.test.ts",
