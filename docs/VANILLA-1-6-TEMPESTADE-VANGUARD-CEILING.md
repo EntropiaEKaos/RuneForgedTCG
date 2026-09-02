@@ -2,7 +2,7 @@
 
 ## Status
 
-**Candidate recipe selected and certified for product integration.**
+**Product recipe integrated and certified.**
 
 Vanilla 1.6 continues the evidence-first regional outlier work started in Vanilla 1.5. The target is the post-1.5 meta ceiling, **Tempestade Vanguard**, which entered this slice at **67.5% global win rate** in the certified 13,200-game matrix.
 
@@ -88,7 +88,7 @@ The resulting deck has:
 - **40 cards**;
 - **32 Units / 8 Spells**;
 - **22 unique cards**;
-- **3.8 average mana cost**;
+- **3.83 average mana cost**;
 - **4 cards at cost 7+**;
 - **maximum 2 copies** of any card;
 - all cards mono-Tempestade;
@@ -98,7 +98,7 @@ Tempestade Ascendant remains the independent 40-card / 30-unique recipe certifie
 
 ## Full 66-matchup certification
 
-The accepted `evasion32` candidate was then injected in-memory as the **only** changed deck and run through the complete official Balance Lab topology:
+The accepted `evasion32` candidate was first injected in-memory as the **only** changed deck and run through the complete official Balance Lab topology. After product integration, the official product audit was rerun with no diagnostic override and reproduced the same result exactly.
 
 - **66/66 pairwise matchups**;
 - **200 games per matchup**;
@@ -173,7 +173,7 @@ The global release gate remains correctly **BLOCKED** because 32 critical matchu
 - 40-card size;
 - 32 Unit / 8 Spell composition;
 - 22 unique cards;
-- 3.8 average cost;
+- 3.83 average cost;
 - four 7+ cost cards;
 - singleton `u03/u05/u08/u11` contract;
 - exact two-copy `s01/s02/s05/s06` package;
@@ -182,7 +182,7 @@ The global release gate remains correctly **BLOCKED** because 32 critical matchu
 - Unit/Spell-only intake;
 - independent Tempestade Ascendant recipe.
 
-It is registered as the **83rd behavioral target**.
+It is registered as the **83rd behavioral target**. The dedicated product certification run also passed `tsc --noEmit`, **83/83 behavioral targets** and the official 13,200-game product Balance Lab before its temporary workflow was retired from the branch.
 
 ## Scope guarantee
 
