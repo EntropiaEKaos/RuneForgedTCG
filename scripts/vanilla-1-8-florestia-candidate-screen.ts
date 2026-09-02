@@ -4,22 +4,17 @@ import { vanillaBalanceMatchups, vanillaBalanceSeed, vanillaExperimentalOverride
 import { runBalanceSimulationWithTelemetry, type SimulationSummary } from "../src/lib/balance-simulator";
 
 const targetId = "vanilla_forest_2";
-const hardOpponents = new Set(["vanilla_storm_1", "vanilla_void_1", "vanilla_forest_1"]);
 const baseline = VANILLA_EXPERIMENTAL_DECKS.find((deck) => deck.id === targetId);
 if (!baseline) throw new Error("Florestia Ascendant baseline missing");
 const unique = [...new Set(baseline.cards)];
 if (unique.length !== 30) throw new Error(`Expected 30 unique regional cards, found ${unique.length}`);
 
-const clean = ["u13","u13","u14","u14","u15","u15","u16","u16","u17","u17"];
-const candidates: Record<string,string[]> = { clean_finishers: clean };
-for (const outgoing of ["u13","u14","u15","u16","u17"]) {
-  for (const incoming of ["u08","u11","u18"]) {
-    const next=[...clean];
-    for (let n=0;n<2;n++) next.splice(next.indexOf(outgoing),1);
-    next.push(incoming,incoming);
-    candidates[`swap_${outgoing}_${incoming}`]=next;
-  }
-}
+const candidates: Record<string,string[]> = {
+  baseline_1_7: ["u03","u05","u08","u08","u11","u11","u13","u13","u14","u18"],
+  clean_finishers: ["u13","u13","u14","u14","u15","u15","u16","u16","u17","u17"],
+  finisher_u11: ["u11","u11","u13","u13","u14","u14","u16","u16","u17","u17"],
+  finisher_u18: ["u13","u13","u14","u14","u16","u16","u17","u17","u18","u18"],
+};
 
 function id(short:string){ return `van_forest_${short}`; }
 function build(extra:string[]){
@@ -37,10 +32,8 @@ function aggregate(parts:SimulationSummary[]){
   return {winsA,winsB,draws,completedGames:parts.reduce((s,r)=>s+r.completedGames,0)};
 }
 
-const matchups=vanillaBalanceMatchups().filter((m)=>
-  (m.leftId===targetId&&hardOpponents.has(m.rightId))||(m.rightId===targetId&&hardOpponents.has(m.leftId))
-);
-const strata=5,gamesPerStratum=20;
+const matchups=vanillaBalanceMatchups().filter((m)=>m.leftId===targetId||m.rightId===targetId);
+const strata=5,gamesPerStratum=40;
 const rows=[];
 for(const [name,extra] of Object.entries(candidates)){
   const overrides=vanillaExperimentalOverrides();
@@ -58,6 +51,6 @@ for(const [name,extra] of Object.entries(candidates)){
   rows.push({name,extra:extra.map(id),games:wins+losses+draws,wins,losses,draws,winRate:pct(wins,wins+losses),opponents});
 }
 rows.sort((a,b)=>b.winRate-a.winRate);
-const report={methodology:"Florestia 1.8 finisher-core refinement against the three hardest 1.7 opponents; all 30 regional cards preserved; deterministic certified seed strata",strata,gamesPerStratum,candidates:rows};
+const report={methodology:"Florestia 1.8 finalist certification; all 30 regional cards preserved; 11 opponents; 5 certified seed strata x 40 games = 200 games/opponent/candidate",strata,gamesPerStratum,candidates:rows};
 fs.writeFileSync("VANILLA_1_8_FLORESTIA_CANDIDATES.json",JSON.stringify(report,null,2)+"\n");
 console.log(JSON.stringify(report,null,2));
