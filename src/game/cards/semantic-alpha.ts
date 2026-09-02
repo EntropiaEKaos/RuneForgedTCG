@@ -7,6 +7,9 @@ import type { CardDef } from "../types";
  * before the public Alpha. These cards intentionally use only already-certified
  * engine contracts; this file introduces content, never new rules.
  *
+ * Ritual product identity is deliberate: every collectible Ritual manipulates
+ * mana and then expresses its region through a secondary payoff.
+ *
  * The wave is not injected into the 12 historical Balance Lab intake decks.
  * Players can discover the cards through Collection/Codex/Forge/custom decks,
  * while the established Vanilla 1.8 matrix remains comparable.
@@ -38,12 +41,15 @@ export const SEMANTIC_ALPHA_CARDS: Record<string, CardDef> = {
     archetypeKey: "ritual",
     archetypeName: "Ritual",
     cost: 3,
-    spell: { kind: "damageNexus", amount: 3, target: "none" },
-    description: "Ritual — somente na fase principal. Cause 3 de dano ao Nexus inimigo.",
-    flavor: "O juramento termina quando a última brasa encontra um nome.",
+    spell: {
+      kind: "manaRefund", amount: 1, target: "none",
+      also: { kind: "damageNexus", amount: 2, target: "none" },
+    },
+    description: "Ritual de Mana — somente na fase principal. Recupere 1 de mana e cause 2 de dano ao Nexus inimigo.",
+    flavor: "Em Emberhold, mana guardada é fogo que ainda não encontrou alvo.",
     rarity: "Common",
     emoji: "🜂",
-    strategicRole: "finisher",
+    strategicRole: "tempo",
     doctrineAffinities: ["ember_aggro"],
   },
   rfalpha_ember_trap_ash_snare: {
@@ -90,9 +96,12 @@ export const SEMANTIC_ALPHA_CARDS: Record<string, CardDef> = {
     archetypeKey: "ritual",
     archetypeName: "Ritual",
     cost: 3,
-    spell: { kind: "draw", amount: 2, target: "none" },
-    description: "Ritual — somente na fase principal. Compre 2 cartas.",
-    flavor: "Toda lembrança retorna, cedo ou tarde, à mesma costa.",
+    spell: {
+      kind: "manaRefund", amount: 1, target: "none",
+      also: { kind: "draw", amount: 1, target: "none" },
+    },
+    description: "Ritual de Mana — somente na fase principal. Recupere 1 de mana e compre 1 carta.",
+    flavor: "A maré devolve recursos e lembranças com a mesma naturalidade.",
     rarity: "Common",
     emoji: "🜂",
     strategicRole: "engine",
@@ -142,9 +151,12 @@ export const SEMANTIC_ALPHA_CARDS: Record<string, CardDef> = {
     archetypeKey: "ritual",
     archetypeName: "Ritual",
     cost: 4,
-    spell: { kind: "buffAllies", amount: 0, buffPower: 1, buffHealth: 1, target: "none" },
-    description: "Ritual — somente na fase principal. Unidades aliadas recebem +1/+1.",
-    flavor: "Força antiga não se invoca; desperta.",
+    spell: {
+      kind: "manaRefund", amount: 2, target: "none",
+      also: { kind: "buffAllies", amount: 0, buffPower: 0, buffHealth: 1, target: "none" },
+    },
+    description: "Ritual de Mana — somente na fase principal. Recupere 2 de mana e unidades aliadas recebem +0/+1.",
+    flavor: "Ironwood investe fundo para que cada raiz devolva mais do que recebeu.",
     rarity: "Common",
     emoji: "🜂",
     strategicRole: "engine",
@@ -194,9 +206,12 @@ export const SEMANTIC_ALPHA_CARDS: Record<string, CardDef> = {
     archetypeKey: "ritual",
     archetypeName: "Ritual",
     cost: 3,
-    spell: { kind: "mill", amount: 4, target: "none" },
-    description: "Ritual — somente na fase principal. Descarte 4 cartas do topo do deck inimigo.",
-    flavor: "Quatro nomes são ditos. Nenhum deles permanece.",
+    spell: {
+      kind: "manaRefund", amount: 1, target: "none",
+      also: { kind: "mill", amount: 3, target: "none" },
+    },
+    description: "Ritual de Mana — somente na fase principal. Recupere 1 de mana e descarte 3 cartas do topo do deck inimigo.",
+    flavor: "O Vazio devolve uma centelha apenas para cobrar memória em troca.",
     rarity: "Common",
     emoji: "🜂",
     strategicRole: "engine",
@@ -246,9 +261,12 @@ export const SEMANTIC_ALPHA_CARDS: Record<string, CardDef> = {
     archetypeKey: "ritual",
     archetypeName: "Ritual",
     cost: 3,
-    spell: { kind: "buffRace", amount: 0, buffPower: 1, buffHealth: 1, race: "Besta", target: "none" },
-    description: "Ritual — somente na fase principal. Bestas aliadas recebem +1/+1.",
-    flavor: "Uma lua. Um uivo. Cem gargantas respondem.",
+    spell: {
+      kind: "manaRefund", amount: 1, target: "none",
+      also: { kind: "buffRace", amount: 0, buffPower: 1, buffHealth: 1, race: "Besta", target: "none" },
+    },
+    description: "Ritual de Mana — somente na fase principal. Recupere 1 de mana e Bestas aliadas recebem +1/+1.",
+    flavor: "A matilha converte presença em força e força novamente em movimento.",
     rarity: "Common",
     emoji: "🜂",
     strategicRole: "engine",
@@ -298,9 +316,12 @@ export const SEMANTIC_ALPHA_CARDS: Record<string, CardDef> = {
     archetypeKey: "ritual",
     archetypeName: "Ritual",
     cost: 3,
-    spell: { kind: "stun", amount: 0, target: "enemyUnit", also: { kind: "draw", amount: 1, target: "none" } },
-    description: "Ritual — somente na fase principal. Atordoe uma unidade inimiga e compre 1 carta.",
-    flavor: "No centro do caos existe um instante perfeito para agir.",
+    spell: {
+      kind: "manaRefund", amount: 2, target: "none",
+      also: { kind: "stun", amount: 0, target: "enemyUnit" },
+    },
+    description: "Ritual de Mana — somente na fase principal. Recupere 2 de mana e atordoe uma unidade inimiga.",
+    flavor: "Tempestade não economiza energia; concentra tudo no mesmo instante.",
     rarity: "Common",
     emoji: "🜂",
     strategicRole: "tempo",
@@ -317,7 +338,7 @@ export const SEMANTIC_ALPHA_CARDS: Record<string, CardDef> = {
     speed: "Fast",
     spell: { kind: "stun", amount: 0, target: "enemyUnit" },
     description: "Armadilha — somente como reação. Atordoe uma unidade inimiga.",
-    flavor: "O golpe não errou. O mundo mudou de direção.",
+    flavor: "O vento muda antes que o ataque perceba que começou.",
     rarity: "Rare",
     emoji: "🪤",
     strategicRole: "tempo",
