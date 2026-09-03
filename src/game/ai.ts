@@ -23,6 +23,7 @@ import {
   isGraveyardTargetKind,
   isValidGraveyardTarget,
 } from "./graveyard-effects";
+import { canReactWithResponse } from "./reaction-contract";
 import { engineRulesFor } from "./match-rules";
 import type { BoardEntity, CardEffect, GameState, PlayerId, UnitInstance } from "./types";
 
@@ -56,6 +57,17 @@ const HOSTILE_TARGETED_EFFECTS = new Set<CardEffect["kind"]>([
   "stun",
   "recall",
   "killUnit",
+]);
+
+/**
+ * High-impact spell effects that the historical reaction heuristic did not
+ * understand because they were introduced after its original danger list.
+ * Keep this deliberately small: the core reaction chooser still owns all
+ * historical burn/removal/counter decisions, while this facade closes proven
+ * semantic coverage gaps without changing ordinary reaction priorities.
+ */
+const CRITICAL_COUNTER_FALLBACK_EFFECTS = new Set<CardEffect["kind"]>([
+  "reanimateUnit",
 ]);
 
 function boardEntityId(entity: BoardEntity): string {
@@ -189,6 +201,33 @@ function chooseTacticalMainPhaseFallback(state: GameState, playerId: PlayerId): 
   return null;
 }
 
+function chooseCriticalCounterFallback(
+  state: GameState,
+  action: CardAction,
+  playerId: PlayerId,
+): AiAction | null {
+  if (action.kind !== "spell") return null;
+  const pending = getCard(action.defId);
+  if (!pending.spell || !CRITICAL_COUNTER_FALLBACK_EFFECTS.has(pending.spell.kind)) return null;
+
+  const counters = state.players[playerId].hand
+    .map((card) => ({ card, def: getCard(card.defId) }))
+    .filter(({ def }) => def.type === "Spell" && def.spell?.kind === "negateSpell")
+    .sort((a, b) => a.def.cost - b.def.cost || a.def.defId.localeCompare(b.def.defId) || a.card.instanceId.localeCompare(b.card.instanceId));
+
+  for (const { card } of counters) {
+    const response: CardAction = {
+      kind: "spell",
+      player: playerId,
+      instanceId: card.instanceId,
+      defId: card.defId,
+      targetInstanceId: action.instanceId,
+    };
+    if (canReactWithResponse(state, playerId, response, action)) return response;
+  }
+  return null;
+}
+
 /**
  * Public main-phase chooser. The certified historical policy remains first;
  * Vanilla 1.3 only fills proven tactical coverage gaps after that policy has
@@ -227,9 +266,9 @@ export function applyAiAction(
 }
 
 /**
- * Prefer a legal battlefield reaction when one exists, then fall back to the
- * historical hand-card reaction policy. Both candidates are revalidated by the
- * authoritative stack contract before insertion.
+ * Prefer a legal battlefield reaction when one exists, then the historical
+ * hand-card policy, then a narrow semantic fallback for high-impact effects
+ * introduced after the original danger table (currently Reanimation).
  */
 export function aiChooseReaction(
   state: GameState,
@@ -237,5 +276,6 @@ export function aiChooseReaction(
   playerId: PlayerId = "ai",
 ): AiAction | null {
   return aiChooseReactionActivatedAbilityAction(state, action, playerId) ??
-    aiChooseCardReaction(state, action, playerId);
+    aiChooseCardReaction(state, action, playerId) ??
+    chooseCriticalCounterFallback(state, action, playerId);
 }
