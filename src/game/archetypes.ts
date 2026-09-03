@@ -63,6 +63,14 @@ export const ARCHETYPES: Record<string, ArchetypeProfile> = {
     weakness: "Defesas com Alcance, Barreira e remoção eficiente.",
     signatures: ["storm_static_adept", "storm_tempered_winds", "storm_champion"], meterLabel: "CARGA DA TEMPESTADE",
   },
+  ecos_do_abismo: {
+    deckId: "ecos_do_abismo", name: "Ecos do Abismo", region: "Voidborn", icon: "🌊☠",
+    fantasy: "Transforme mão e Cemitério em duas metades do mesmo recurso e faça ameaças impossíveis voltarem cedo demais.",
+    plan: ["Prepare o Cemitério", "Proteja a recursão", "Reanime antes da curva"],
+    victory: "Trocar tempo e seleção por uma ameaça de custo alto antecipada, então reciclar valor caso ela seja respondida.",
+    weakness: "Banish de Cemitério, negação da recursão e pressão que não concede uma rodada de preparação.",
+    signatures: ["rfalpha_reanimator_memory_smuggler", "rfalpha_reanimator_second_pulse", "rfalpha_reanimator_hollow_rift_colossus"], meterLabel: "ECOS DESPERTOS",
+  },
   convergence_dual: {
     deckId: "convergence_dual", name: "Aliança da Forja do Trovão", region: "Emberhold", icon: "🔥⚡",
     fantasy: "Comprometa-se com duas regiões e converta identidade exata em eficiência de Maestria.",
@@ -137,6 +145,20 @@ export function archetypeMomentum(state: GameState, deckId: string): { value: nu
       raw = me.stats.nexusDamageDealt * 3 + me.bench.filter((unit) => unit.keywords.includes("Flying") || unit.keywords.includes("Haste") || unit.keywords.includes("QuickAttack")).length * 12;
       detail = `${me.stats.nexusDamageDealt} de dano · pressão aérea`;
       break;
+    case "ecos_do_abismo": {
+      const premiumGraveyardUnits = me.graveyard.filter((entry) => {
+        try {
+          const card = getCard(entry.defId);
+          return card.type === "Unit" && card.cost >= 6;
+        } catch {
+          return false;
+        }
+      }).length;
+      const revivedThreats = me.bench.filter((unit) => getCard(unit.defId).cost >= 6).length;
+      raw = premiumGraveyardUnits * 18 + revivedThreats * 24 + me.stats.spellsCast * 3;
+      detail = `${premiumGraveyardUnits} alvo(s) no Cemitério · ${revivedThreats} ameaça(s) grande(s) em campo`;
+      break;
+    }
     default:
       raw = me.bench.length * 10 + me.stats.nexusDamageDealt * 3;
   }
@@ -155,6 +177,12 @@ export function mulliganPlan(hand: string[], deckId: string): { keep: string[]; 
     if (deckId === "void_shadow") recommended = card.cost <= 3 || ["damageUnit", "poison"].includes(card.spell?.kind ?? "");
     if (deckId === "florestia_tribal") recommended = card.type === "Unit" && card.cost <= 3;
     if (deckId === "tempestade_rush") recommended = card.cost <= 3 && (card.type === "Unit" || (card.keywords ?? []).some((keyword) => ["Haste", "Flying", "QuickAttack"].includes(keyword)));
+    if (deckId === "ecos_do_abismo") {
+      const discardOutlet = card.activatedAbilities?.some((ability) => (ability.cost?.discardFromHand ?? 0) > 0) ?? false;
+      const setupSpell = ["returnGraveyardToHand", "damageUnit", "stun", "recall"].includes(card.spell?.kind ?? "");
+      const baselineReanimation = card.spell?.kind === "reanimateUnit" && card.cost <= 5;
+      recommended = discardOutlet || baselineReanimation || (card.cost <= 3 && (card.type === "Unit" || setupSpell));
+    }
     (recommended ? keep : replace).push(defId);
   }
   return {
