@@ -3,6 +3,7 @@ import {
   activatedAbilitiesForInstance,
   activatedAbilityChoices,
   canBeginActivateAbility,
+  canPlayCard,
   isValidTarget,
   other,
   validateActivatedAbilityActivation,
@@ -180,6 +181,31 @@ function chooseDiscardCostIds(state: GameState, playerId: PlayerId, ability: Act
     .map((card) => card.instanceId);
 }
 
+/**
+ * Discard-to-draw outlets are setup/dig tools, not unconditional tempo plays.
+ * The historical scorer ran activated abilities before all hand plays, which
+ * meant a repeatable looter could spend mana and chew through the deck before
+ * the AI even considered a legal card in hand. Preserve the one important
+ * exception: if the chosen discard is a premium Unit and a reanimation spell
+ * is already available, pitching that Unit is deliberate archetype setup.
+ */
+function shouldDeferDiscardDrawActivation(
+  state: GameState,
+  playerId: PlayerId,
+  ability: ActivatedAbility,
+  effect: CardEffect,
+  selectedDiscardIds: readonly string[],
+): boolean {
+  if (effect.kind !== "draw" || (ability.cost?.discardFromHand ?? 0) <= 0) return false;
+
+  const selected = new Set(selectedDiscardIds);
+  const deliberateReanimationSetup = hasReadyReanimation(state, playerId) &&
+    state.players[playerId].hand.some((card) => selected.has(card.instanceId) && isPremiumReanimationTarget(getCard(card.defId)));
+  if (deliberateReanimationSetup) return false;
+
+  return state.players[playerId].hand.some((card) => canPlayCard(state, playerId, card.instanceId));
+}
+
 function chooseTarget(
   state: GameState,
   playerId: PlayerId,
@@ -327,6 +353,8 @@ function scoreActivation(
 
   const costDiscardInstanceIds = chooseDiscardCostIds(state, playerId, ability);
   if (costDiscardInstanceIds === null) return null;
+  if (shouldDeferDiscardDrawActivation(state, playerId, ability, choice.effect, costDiscardInstanceIds)) return null;
+
   const target = chooseTarget(
     state,
     playerId,
@@ -364,7 +392,9 @@ function scoreActivation(
  * ability/mode/target candidates. Selection-dependent discard costs remain
  * deterministic: normally the cheapest cards are paid first, but when a
  * reanimation Spell is already available the AI deliberately pitches premium
- * 6+ cost Units and protects its recursion pieces.
+ * 6+ cost Units and protects its recursion pieces. Discard-to-draw outlets are
+ * deferred behind legal hand plays unless that discard is deliberate premium
+ * reanimation setup.
  */
 export function aiChooseActivatedAbilityAction(
   state: GameState,
