@@ -7,7 +7,7 @@ async function main(): Promise<void> {
 
   function removeOne(defId: string): void {
     const index = cards.indexOf(defId);
-    if (index < 0) throw new Error(`Recipe v17 expected ${defId} in Ecos do Abismo v1.`);
+    if (index < 0) throw new Error(`Recipe v18 expected ${defId} in Ecos do Abismo v1.`);
     cards.splice(index, 1);
   }
 
@@ -41,32 +41,21 @@ async function main(): Promise<void> {
 
   const colossusId = "rfalpha_reanimator_hollow_rift_colossus";
   const colossus = CARDS[colossusId];
-  if (!colossus) throw new Error("Recipe v17 expected Hollow Rift Colossus in the canonical catalog.");
+  if (!colossus) throw new Error("Recipe v18 expected Hollow Rift Colossus in the canonical catalog.");
   CARDS[colossusId] = {
     ...colossus,
-    keywords: (colossus.keywords ?? []).filter((keyword) => keyword !== "Overwhelm"),
+    keywords: (colossus.keywords ?? []).filter((keyword) => keyword !== "Overwhelm" && keyword !== "Fearsome"),
   };
 
-  const vigilId = "rfalpha_reanimator_last_vigil";
-  const vigil = CARDS[vigilId];
-  if (!vigil?.spell) throw new Error("Recipe v17 expected Last Vigil spell in the canonical catalog.");
-  CARDS[vigilId] = {
-    ...vigil,
-    spell: {
-      ...vigil.spell,
-      also: { kind: "healNexus", amount: 1, target: "none" },
-    },
-  };
-
-  if (cards.length !== 40) throw new Error(`Recipe v17 must remain exactly 40 cards; got ${cards.length}.`);
+  if (cards.length !== 40) throw new Error(`Recipe v18 must remain exactly 40 cards; got ${cards.length}.`);
   const validation = validateDeck(cards);
-  if (!validation.ok) throw new Error(`Recipe v17 is illegal: ${validation.errors.join(" | ")}`);
+  if (!validation.ok) throw new Error(`Recipe v18 is illegal: ${validation.errors.join(" | ")}`);
   if (validation.regions.length !== 2 || !validation.regions.includes("Tidecall") || !validation.regions.includes("Voidborn")) {
-    throw new Error(`Recipe v17 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
+    throw new Error(`Recipe v18 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
   }
 
   deck.cards.splice(0, deck.cards.length, ...cards);
-  console.log("ECOS RECIPE V17 CANDIDATE: v6 recipe · Colossus without Overwhelm · Last Vigil heal simulated at 1");
+  console.log("ECOS RECIPE V18 CANDIDATE: v6 recipe · Hollow Rift Colossus simulated without Overwhelm/Fearsome");
 
   await import("./ecos-do-abismo-balance-audit");
 }
