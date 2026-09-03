@@ -119,6 +119,7 @@ export const sourceContractTests = [
   "src/lib/gameplay-visual-2.48.test.ts",
   "src/lib/gameplay-visual-2.65.test.ts",
   "src/lib/gameplay-visual-regression.test.ts",
+  "src/lib/graveyard-effects-ui-regression.test.ts",
   "src/lib/growth-commerce-2.93.test.ts",
   "src/lib/hardening-2.17-regression.test.ts",
   "src/lib/mechanics-studio-regression.test.ts",
