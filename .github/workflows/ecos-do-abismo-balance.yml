@@ -35,11 +35,21 @@ permissions:
 
 jobs:
   evidence:
-    name: 1,280-game deterministic matrix
+    name: 1,280 games · ${{ matrix.variant }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - reaper_for_freeze
+          - sprite_for_freeze
+          - draw_for_freeze
+          - thread_for_freeze
+          - heal_for_freeze
     env:
       ECOS_GAMES_PER_STRATUM: "32"
+      ECOS_RECIPE_VARIANT: ${{ matrix.variant }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -66,7 +76,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ecos-do-abismo-balance-${{ github.sha }}
+          name: ecos-do-abismo-balance-${{ matrix.variant }}-${{ github.sha }}
           path: artifacts/ecos-do-abismo-balance/report.json
           if-no-files-found: error
           retention-days: 30
