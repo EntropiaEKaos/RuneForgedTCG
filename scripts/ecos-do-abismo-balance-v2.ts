@@ -7,7 +7,7 @@ async function main(): Promise<void> {
 
   function removeOne(defId: string): void {
     const index = cards.indexOf(defId);
-    if (index < 0) throw new Error(`Recipe v19 expected ${defId} in Ecos do Abismo v1.`);
+    if (index < 0) throw new Error(`Recipe v20 expected ${defId} in Ecos do Abismo v1.`);
     cards.splice(index, 1);
   }
 
@@ -33,37 +33,30 @@ async function main(): Promise<void> {
     "tide_heal", "tide_heal", "tide_heal",
     "tide_sprite", "tide_sprite",
     "tide_guard",
-    "tide_glacial", "tide_glacial",
+    "tide_glacial",
     "void_reaper",
     "tide_freeze", "tide_freeze", "tide_freeze",
     "void_hexer", "void_hexer", "void_hexer",
+    "rfalpha_reanimator_drowned_mirror_lady",
   );
 
   const colossusId = "rfalpha_reanimator_hollow_rift_colossus";
   const colossus = CARDS[colossusId];
-  if (!colossus) throw new Error("Recipe v19 expected Hollow Rift Colossus in the canonical catalog.");
+  if (!colossus) throw new Error("Recipe v20 expected Hollow Rift Colossus in the canonical catalog.");
   CARDS[colossusId] = {
     ...colossus,
     keywords: (colossus.keywords ?? []).filter((keyword) => keyword !== "Overwhelm"),
   };
 
-  const devourerId = "rfalpha_reanimator_dead_tide_devourer";
-  const devourer = CARDS[devourerId];
-  if (!devourer) throw new Error("Recipe v19 expected Dead Tide Devourer in the canonical catalog.");
-  CARDS[devourerId] = {
-    ...devourer,
-    keywords: (devourer.keywords ?? []).filter((keyword) => keyword !== "Lifesteal"),
-  };
-
-  if (cards.length !== 40) throw new Error(`Recipe v19 must remain exactly 40 cards; got ${cards.length}.`);
+  if (cards.length !== 40) throw new Error(`Recipe v20 must remain exactly 40 cards; got ${cards.length}.`);
   const validation = validateDeck(cards);
-  if (!validation.ok) throw new Error(`Recipe v19 is illegal: ${validation.errors.join(" | ")}`);
+  if (!validation.ok) throw new Error(`Recipe v20 is illegal: ${validation.errors.join(" | ")}`);
   if (validation.regions.length !== 2 || !validation.regions.includes("Tidecall") || !validation.regions.includes("Voidborn")) {
-    throw new Error(`Recipe v19 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
+    throw new Error(`Recipe v20 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
   }
 
   deck.cards.splice(0, deck.cards.length, ...cards);
-  console.log("ECOS RECIPE V19 CANDIDATE: v6 recipe · Colossus without Overwhelm · Devourer without Lifesteal");
+  console.log("ECOS RECIPE V20 CANDIDATE: v6 recipe · Colossus without Overwhelm · -1 Glacial Tomb +1 Drowned Mirror Lady");
 
   await import("./ecos-do-abismo-balance-audit");
 }
