@@ -1,5 +1,6 @@
 import { getCard } from "../cards";
 import { unitsWithEquipmentCapacity } from "../equipment-link-contract";
+import { findGraveyardEntry, isGraveyardTargetKind, isValidGraveyardTarget } from "../graveyard-effects";
 import { nextRng } from "../rng";
 import { regionalCostDiscount } from "../region-identity";
 import type { BoardEntity, CardDef, GameState, PermanentInstance, PlayerId, PlayerState, TargetKind, UnitInstance } from "../types";
@@ -89,7 +90,11 @@ export function spellNeedsTarget(defId: string): TargetKind | null {
     t === "spellOnStack" ||
     t === "enemySentinela" ||
     t === "allySentinela" ||
-    t === "anySentinela"
+    t === "anySentinela" ||
+    t === "allyGraveyardCard" ||
+    t === "enemyGraveyardCard" ||
+    t === "anyGraveyardCard" ||
+    t === "allyGraveyardUnit"
   ) {
     return t;
   }
@@ -271,13 +276,18 @@ export function castSpell(
 
   const needsTarget = spellNeedsTarget(def.defId);
   const isCounter = def.spell.kind === "negateSpell" || needsTarget === "spellOnStack";
-  let ent: BoardEntity | undefined;
   if (needsTarget && needsTarget !== "none" && needsTarget !== "self" && !isCounter) {
     if (!targetInstanceId) return state;
-    const found = findAnyBoardEntity(s, targetInstanceId);
-    if (!found) return state;
-    if (!isValidTarget(s, playerId, needsTarget, found)) return state;
-    ent = found;
+    if (isGraveyardTargetKind(needsTarget)) {
+      const found = findGraveyardEntry(s, targetInstanceId);
+      if (!found || !isValidGraveyardTarget(s, playerId, needsTarget, found.entry)) return state;
+      if (def.spell.kind === "reanimateUnit" && p.bench.length >= engineRulesFor(s).benchCap) return state;
+      if (def.spell.kind === "returnGraveyardToHand" && p.hand.length >= engineRulesFor(s).handCap) return state;
+    } else {
+      const found = findAnyBoardEntity(s, targetInstanceId);
+      if (!found) return state;
+      if (!isValidTarget(s, playerId, needsTarget, found)) return state;
+    }
   }
 
   payCost(p, cost, true);
@@ -638,7 +648,6 @@ export function skipMulligan(state: GameState, playerId: PlayerId): GameState {
   s.log.push(`${s.players[playerId].name} keeps their hand.`);
   return s;
 }
-
 
 export function endTurn(state: GameState, playerId: PlayerId): GameState {
   if (state.phase !== "main" || state.activePlayer !== playerId) return state;
