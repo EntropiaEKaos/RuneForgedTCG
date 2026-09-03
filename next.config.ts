@@ -8,6 +8,7 @@ import type { NextConfig } from "next";
 for (const script of [
   "scripts/generate-flagship-structure-art.mjs",
   "scripts/generate-flagship-ritual-art.mjs",
+  "scripts/generate-flagship-trap-art.mjs",
 ]) {
   execFileSync(process.execPath, [script], {
     cwd: process.cwd(),
