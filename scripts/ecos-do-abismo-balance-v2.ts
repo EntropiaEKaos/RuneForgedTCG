@@ -34,4 +34,4 @@ if (validation.regions.length !== 2 || !validation.regions.includes("Tidecall") 
 deck.cards.splice(0, deck.cards.length, ...cards);
 console.log("ECOS RECIPE V2 CANDIDATE: 40 cards · -2 deny -2 draw -1 hate -1 late champion · +3 heal +2 sprite +1 guard");
 
-await import("./ecos-do-abismo-balance-audit.ts");
+await import("./ecos-do-abismo-balance-audit");
