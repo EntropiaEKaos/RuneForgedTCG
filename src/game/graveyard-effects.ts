@@ -1,5 +1,5 @@
 import { getCard } from "./cards";
-import { graveyardEntries, graveyardOf, type GraveyardEntry } from "./graveyard";
+import { graveyardEntries, graveyardOf, putInGraveyard, type GraveyardEntry } from "./graveyard";
 import type { GameState, PlayerId, TargetKind } from "./types";
 
 export type GraveyardTargetKind =
@@ -68,4 +68,28 @@ export function consumeGraveyardEntry(
 export function graveyardTargetScore(entry: GraveyardEntry): number {
   const def = getCard(entry.defId);
   return def.cost * 20 + (def.power ?? 0) * 6 + (def.health ?? def.maxHealth ?? 0) * 3;
+}
+
+/**
+ * Studio sandbox helper. Seed one real collectible Unit for the player and one
+ * real collectible card for the opponent by MOVING them from their deck into
+ * the graveyard. No synthetic duplicate is created, so zone invariants remain
+ * representative of an actual match.
+ */
+export function seedStudioSandboxGraveyards(state: GameState): GameState {
+  const seedOne = (owner: PlayerId, requireUnit: boolean) => {
+    const deck = state.players[owner].deck;
+    const index = deck.findIndex((defId) => {
+      const def = getCard(defId);
+      return def.collectible !== false && (!requireUnit || def.type === "Unit");
+    });
+    if (index < 0) return;
+    const [defId] = deck.splice(index, 1);
+    if (defId) putInGraveyard(state, owner, defId, "discard", "studio-sandbox-seed");
+  };
+
+  seedOne("player", true);
+  seedOne("ai", false);
+  state.log.push("🧪 Studio Sandbox — graveyards seeded with physical deck cards for recursion testing.");
+  return state;
 }
