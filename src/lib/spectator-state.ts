@@ -1,3 +1,4 @@
+import type { GraveyardEntry } from "@/game/graveyard";
 import type { GameState, PlayerId, UnitInstance, PermanentInstance, SentinelaInstance, Region } from "@/game/types";
 
 export interface SpectatorPlayerState {
@@ -9,6 +10,7 @@ export interface SpectatorPlayerState {
   spellMana: number;
   handCount: number;
   deckCount: number;
+  graveyard: GraveyardEntry[];
   bench: UnitInstance[];
   permanents: PermanentInstance[];
   sentinelas: SentinelaInstance[];
@@ -35,6 +37,7 @@ export function toSpectatorGameState(state: GameState): SpectatorGameState {
     return {
       id: p.id, name: p.name, nexusHealth: p.nexusHealth, mana: p.mana, maxMana: p.maxMana,
       spellMana: p.spellMana, handCount: p.hand.length, deckCount: p.deck.length,
+      graveyard: structuredClone(p.graveyard ?? []),
       bench: structuredClone(p.bench), permanents: structuredClone(p.permanents), sentinelas: structuredClone(p.sentinelas),
       deckName: p.deckName, deckRegions: p.deckRegions, poisonCounters: p.poisonCounters,
     };
