@@ -16,6 +16,15 @@ const chains = {
   storm_champion: ["storm_champion", "storm_champion_2"],
 } as const;
 
+const signatureIdentity = {
+  ember_ashguard: { race: "Warrior", keywords: ["Tough"] },
+  tide_cloudpiercer: { race: "Elemental", keywords: ["Reach"] },
+  wood_canopy_bastion: { race: "Beast", keywords: ["Reach"] },
+  void_gloom_warden: { race: "Spirit", keywords: ["Fearsome", "Hexproof"] },
+  forest_dawn_alpha: { race: "Besta", keywords: ["Challenger"] },
+  storm_static_adept: { race: "Tempesteiro", keywords: ["Reach"] },
+} as const;
+
 assert.equal(Object.keys(FLAGSHIP_CHAMPION_BASE_ART).length, 6, "Batch A must keep exactly six Champion masters");
 for (const [baseId, chain] of Object.entries(chains)) {
   const base = getCard(baseId);
@@ -66,7 +75,11 @@ for (const [defId, expected] of Object.entries(FLAGSHIP_TRAP_ART)) {
 assert.equal(Object.keys(FLAGSHIP_SIGNATURE_ART).length, 6, "Batch E must contain exactly six starter signature masters");
 for (const [defId, expected] of Object.entries(FLAGSHIP_SIGNATURE_ART)) {
   const card = getCard(defId);
+  const identity = signatureIdentity[defId as keyof typeof signatureIdentity];
+  assert.ok(identity, `${defId} must have a locked starter-signature identity contract`);
   assert.equal(card.type, "Unit", `${defId} starter signature must remain a Unit`);
+  assert.equal(card.race, identity.race, `${defId} starter signature race must remain ${identity.race}`);
+  assert.deepEqual(card.keywords ?? [], identity.keywords, `${defId} starter signature keywords must remain ${identity.keywords.join(" + ")}`);
   assert.ok(expected.endsWith(`/${defId}.webp`), `${defId} must use its region-local WebP master`);
   assert.equal(getCardArt(defId)?.url, expected, `${defId} must resolve the Batch E built-in master`);
   assert.equal(card.art, expected, `${defId} must receive Batch E art through the catalog overlay`);
