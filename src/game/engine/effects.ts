@@ -446,6 +446,18 @@ export function applyEffect(
         }
         break;
       }
+      case "selfMill": {
+        const player = state.players[playerId];
+        const count = Math.max(1, eff.amount);
+        const milled = millDeckToGraveyard(state, playerId, count, self?.instanceId);
+        if (milled.length > 0) {
+          const names = milled.map((id) => getCard(id).name).join(", ");
+          state.log.push(`${player.name} self-mills ${milled.length} card(s) to the graveyard: ${names}.`);
+        } else {
+          state.log.push(`${player.name} has no cards left to self-mill.`);
+        }
+        break;
+      }
     }
     cursor = eff.also;
   }
