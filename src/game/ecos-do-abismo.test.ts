@@ -3,7 +3,7 @@ import { validateAuthorableCardWithActivatedAbilities } from "./activated-abilit
 import { aiChooseActivatedAbilityAction } from "./ai-activated-abilities";
 import { aiChooseReaction, applyAiAction } from "./ai";
 import { archetypeForDeck, mulliganPlan } from "./archetypes";
-import { validateAuthorableCard } from "./card-authoring";
+import { normalizeCardForRoundTrip, validateAuthorableCard } from "./card-authoring";
 import { ECOS_DO_ABISMO_CARDS } from "./cards/ecos-do-abismo";
 import { getDeck, validateDeck } from "./decks";
 import { activateAbility, applyStackedActionWithAi, castSpell, createCustomGame, makeUnit } from "./engine";
@@ -85,6 +85,14 @@ for (const defId of [IDS.smuggler, IDS.sepulcher]) {
   const result = validateAuthorableCardWithActivatedAbilities(ECOS_DO_ABISMO_CARDS[defId]! as typeof ECOS_DO_ABISMO_CARDS[string] & Record<string, unknown>);
   assert.equal(result.ok, true, `${defId} selected-discard outlet must be authorable`);
 }
+
+const smugglerRoundTrip = normalizeCardForRoundTrip(ECOS_DO_ABISMO_CARDS[IDS.smuggler]!);
+assert.deepEqual(smugglerRoundTrip.doctrineAffinities, ["ecos_do_abismo"], "Studio round-trip must preserve the Ecos doctrine");
+assert.equal(smugglerRoundTrip.activatedAbilities?.[0]?.cost?.discardFromHand, 1, "Studio round-trip must preserve selected discard cost");
+
+const sepulcherRoundTrip = normalizeCardForRoundTrip(ECOS_DO_ABISMO_CARDS[IDS.sepulcher]!);
+assert.equal(sepulcherRoundTrip.activatedAbilities?.[0]?.cost?.mana, 1, "Sepulcher round-trip preserves mana cost");
+assert.equal(sepulcherRoundTrip.activatedAbilities?.[0]?.cost?.discardFromHand, 1, "Sepulcher round-trip preserves selected discard cost");
 
 // Archetype profile, doctrine resolution and mulligan preserve setup pieces while shipping fatties back.
 const profile = archetypeForDeck("ecos_do_abismo");
