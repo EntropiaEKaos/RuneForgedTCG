@@ -7,7 +7,7 @@ async function main(): Promise<void> {
 
   function removeOne(defId: string): void {
     const index = cards.indexOf(defId);
-    if (index < 0) throw new Error(`Recipe v21 expected ${defId} in Ecos do Abismo v1.`);
+    if (index < 0) throw new Error(`Recipe v22 expected ${defId} in Ecos do Abismo v1.`);
     cards.splice(index, 1);
   }
 
@@ -34,29 +34,28 @@ async function main(): Promise<void> {
     "tide_sprite", "tide_sprite",
     "tide_guard",
     "tide_glacial", "tide_glacial",
-    "void_reaper",
-    "tide_freeze", "tide_freeze",
+    "tide_freeze", "tide_freeze", "tide_freeze",
     "void_hexer", "void_hexer", "void_hexer",
-    "tide_draw",
+    "tide_stun",
   );
 
   const colossusId = "rfalpha_reanimator_hollow_rift_colossus";
   const colossus = CARDS[colossusId];
-  if (!colossus) throw new Error("Recipe v21 expected Hollow Rift Colossus in the canonical catalog.");
+  if (!colossus) throw new Error("Recipe v22 expected Hollow Rift Colossus in the canonical catalog.");
   CARDS[colossusId] = {
     ...colossus,
     keywords: (colossus.keywords ?? []).filter((keyword) => keyword !== "Overwhelm"),
   };
 
-  if (cards.length !== 40) throw new Error(`Recipe v21 must remain exactly 40 cards; got ${cards.length}.`);
+  if (cards.length !== 40) throw new Error(`Recipe v22 must remain exactly 40 cards; got ${cards.length}.`);
   const validation = validateDeck(cards);
-  if (!validation.ok) throw new Error(`Recipe v21 is illegal: ${validation.errors.join(" | ")}`);
+  if (!validation.ok) throw new Error(`Recipe v22 is illegal: ${validation.errors.join(" | ")}`);
   if (validation.regions.length !== 2 || !validation.regions.includes("Tidecall") || !validation.regions.includes("Voidborn")) {
-    throw new Error(`Recipe v21 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
+    throw new Error(`Recipe v22 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
   }
 
   deck.cards.splice(0, deck.cards.length, ...cards);
-  console.log("ECOS RECIPE V21 CANDIDATE: v15 foundation · -1 Riptide +1 Foresight · reanimation density preserved");
+  console.log("ECOS RECIPE V22 CANDIDATE: v15 foundation · -1 Soul Reaper +1 Undertow · reanimation density preserved");
 
   await import("./ecos-do-abismo-balance-audit");
 }
