@@ -42,11 +42,10 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - reaper_for_freeze
-          - sprite_for_freeze
-          - draw_for_freeze
-          - thread_for_freeze
-          - heal_for_freeze
+          - reaper_thread_for_heal
+          - reaper_draw_for_heal
+          - reaper_sprite_for_heal
+          - reaper_unmake_for_heal
     env:
       ECOS_GAMES_PER_STRATUM: "32"
       ECOS_RECIPE_VARIANT: ${{ matrix.variant }}
