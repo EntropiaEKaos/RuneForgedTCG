@@ -37,6 +37,7 @@ check(CARD_RACES.includes("Anjo"), "Anjo missing from canonical authoring catalo
 check(CARD_KEYWORDS.includes("Flying"), "Flying missing from canonical authoring catalog");
 check(same(CARD_KEYWORDS, CANONICAL_KEYWORDS), "Card Studio keyword vocabulary drifted from canonical Keyword Contract");
 check(CARD_EFFECT_KINDS.includes("mill"), "mill missing from canonical authoring catalog");
+check(CARD_EFFECT_KINDS.includes("selfMill"), "selfMill missing from canonical authoring catalog");
 for (const keyword of CANONICAL_KEYWORDS) {
   const contract = KEYWORD_INFO[keyword];
   check(contract.support === "supported", `${keyword} is not certified as runtime-supported`);
