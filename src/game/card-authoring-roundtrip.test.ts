@@ -139,6 +139,7 @@ const effectSamples: Partial<Record<(typeof CARD_EFFECT_KINDS)[number], Partial<
   summonToken: { target: "none", tokenDefId: "ember_whelp" }, attachEquipment: { target: "allyUnit", equipmentDefId: "ember_soulblade" },
   destroyPermanent: { target: "enemyPermanent" }, damagePermanent: { target: "enemyPermanent" }, negateSpell: { target: "spellOnStack" },
   frostbite: { target: "enemyUnit" }, stun: { target: "enemyUnit" }, recall: { target: "enemyUnit" }, killUnit: { target: "enemyUnit" },
+  returnGraveyardToHand: { target: "allyGraveyardCard" }, reanimateUnit: { target: "allyGraveyardUnit" }, banishGraveyardCard: { target: "enemyGraveyardCard" },
 };
 for (const kind of CARD_EFFECT_KINDS) {
   const sample = { kind, amount: 1, target: "none", ...(effectSamples[kind] || {}) };
