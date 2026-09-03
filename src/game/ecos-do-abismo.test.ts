@@ -59,7 +59,8 @@ assert.equal(preset.cards.filter((defId) => defId === IDS.thread).length, 1, "ce
 assert.equal(preset.cards.filter((defId) => defId === "tide_freeze").length, 2, "certified recipe keeps exactly two Riptides");
 assert.equal(preset.cards.filter((defId) => defId === "void_nightmare").length, 1, "certified recipe promotes Living Nightmare as the no-Lifesteal midgame slot");
 assert.equal(preset.cards.filter((defId) => defId === "tide_guard").length, 2, "certified recipe keeps exactly two Tidal Wardens after Tempestade refinement");
-assert.equal(preset.cards.filter((defId) => defId === "void_gloom_warden").length, 1, "certified recipe promotes one Gloom Warden as the balanced midgame refinement");
+assert.equal(preset.cards.filter((defId) => defId === "void_deathmark").length, 1, "certified recipe promotes one Death Mark as the 4k-validated late interaction slot");
+assert.equal(preset.cards.includes("void_gloom_warden"), false, "certified recipe must not retain the superseded Gloom Warden refinement");
 assert.equal(preset.cards.includes("void_reaper"), false, "certified recipe must not use Soul Reaper after balance isolation");
 assert.deepEqual(ECOS_DO_ABISMO_CARDS[IDS.colossus]?.keywords ?? [], [], "certified Hollow Rift Colossus is fully blockable");
 
