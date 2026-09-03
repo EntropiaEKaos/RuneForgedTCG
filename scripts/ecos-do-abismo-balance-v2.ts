@@ -7,7 +7,7 @@ async function main(): Promise<void> {
 
   function removeOne(defId: string): void {
     const index = cards.indexOf(defId);
-    if (index < 0) throw new Error(`Recipe v24 expected ${defId} in Ecos do Abismo v1.`);
+    if (index < 0) throw new Error(`Recipe v25 expected ${defId} in Ecos do Abismo v1.`);
     cards.splice(index, 1);
   }
 
@@ -27,6 +27,7 @@ async function main(): Promise<void> {
     "rfalpha_reanimator_second_pulse",
     "rfalpha_reanimator_drowned_mirror_lady",
     "rfalpha_reanimator_drowned_mirror_lady",
+    "void_stalker",
   ]) removeOne(defId);
 
   cards.push(
@@ -37,25 +38,26 @@ async function main(): Promise<void> {
     "tide_freeze", "tide_freeze", "tide_freeze",
     "void_hexer", "void_hexer", "void_hexer",
     "void_unmake",
+    "tide_frostbite",
   );
 
   const colossusId = "rfalpha_reanimator_hollow_rift_colossus";
   const colossus = CARDS[colossusId];
-  if (!colossus) throw new Error("Recipe v24 expected Hollow Rift Colossus in the canonical catalog.");
+  if (!colossus) throw new Error("Recipe v25 expected Hollow Rift Colossus in the canonical catalog.");
   CARDS[colossusId] = {
     ...colossus,
     keywords: (colossus.keywords ?? []).filter((keyword) => keyword !== "Overwhelm"),
   };
 
-  if (cards.length !== 40) throw new Error(`Recipe v24 must remain exactly 40 cards; got ${cards.length}.`);
+  if (cards.length !== 40) throw new Error(`Recipe v25 must remain exactly 40 cards; got ${cards.length}.`);
   const validation = validateDeck(cards);
-  if (!validation.ok) throw new Error(`Recipe v24 is illegal: ${validation.errors.join(" | ")}`);
+  if (!validation.ok) throw new Error(`Recipe v25 is illegal: ${validation.errors.join(" | ")}`);
   if (validation.regions.length !== 2 || !validation.regions.includes("Tidecall") || !validation.regions.includes("Voidborn")) {
-    throw new Error(`Recipe v24 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
+    throw new Error(`Recipe v25 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
   }
 
   deck.cards.splice(0, deck.cards.length, ...cards);
-  console.log("ECOS RECIPE V24 CANDIDATE: v15 foundation · -1 Soul Reaper +1 Unmake · Colossus without Overwhelm");
+  console.log("ECOS RECIPE V25 CANDIDATE: v24 · -1 Void Stalker +1 Flash Freeze · preserve tribal defense, soften slow pressure");
 
   await import("./ecos-do-abismo-balance-audit");
 }
