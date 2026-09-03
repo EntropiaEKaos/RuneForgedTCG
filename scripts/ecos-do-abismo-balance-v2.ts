@@ -7,7 +7,7 @@ async function main(): Promise<void> {
 
   function removeOne(defId: string): void {
     const index = cards.indexOf(defId);
-    if (index < 0) throw new Error(`Recipe v13 expected ${defId} in Ecos do Abismo v1.`);
+    if (index < 0) throw new Error(`Recipe v14 expected ${defId} in Ecos do Abismo v1.`);
     cards.splice(index, 1);
   }
 
@@ -39,20 +39,26 @@ async function main(): Promise<void> {
     "void_hexer", "void_hexer", "void_hexer",
   );
 
-  const devourerId = "rfalpha_reanimator_dead_tide_devourer";
-  const devourer = CARDS[devourerId];
-  if (!devourer) throw new Error("Recipe v13 expected Dead Tide Devourer in the canonical catalog.");
-  CARDS[devourerId] = { ...devourer, power: 5 };
+  const colossusId = "rfalpha_reanimator_hollow_rift_colossus";
+  const colossus = CARDS[colossusId];
+  if (!colossus) throw new Error("Recipe v14 expected Hollow Rift Colossus in the canonical catalog.");
+  CARDS[colossusId] = {
+    ...colossus,
+    trigger: {
+      when: "onSummon",
+      effect: { kind: "damageNexus", amount: 1, target: "none" },
+    },
+  };
 
-  if (cards.length !== 40) throw new Error(`Recipe v13 must remain exactly 40 cards; got ${cards.length}.`);
+  if (cards.length !== 40) throw new Error(`Recipe v14 must remain exactly 40 cards; got ${cards.length}.`);
   const validation = validateDeck(cards);
-  if (!validation.ok) throw new Error(`Recipe v13 is illegal: ${validation.errors.join(" | ")}`);
+  if (!validation.ok) throw new Error(`Recipe v14 is illegal: ${validation.errors.join(" | ")}`);
   if (validation.regions.length !== 2 || !validation.regions.includes("Tidecall") || !validation.regions.includes("Voidborn")) {
-    throw new Error(`Recipe v13 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
+    throw new Error(`Recipe v14 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
   }
 
   deck.cards.splice(0, deck.cards.length, ...cards);
-  console.log("ECOS RECIPE V13 CANDIDATE: v6 recipe · Dead Tide Devourer simulated at 5/8");
+  console.log("ECOS RECIPE V14 CANDIDATE: v6 recipe · Hollow Rift Colossus onSummon damage simulated at 1");
 
   await import("./ecos-do-abismo-balance-audit");
 }
