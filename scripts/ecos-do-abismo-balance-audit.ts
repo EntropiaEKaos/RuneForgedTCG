@@ -56,6 +56,7 @@ interface MatchResult {
   sealUses: number;
   sealPlayableSamples: number;
   strandedFinishers: number;
+  ecosActionCounts: Record<string, number>;
 }
 
 interface AppliedAction {
@@ -147,6 +148,7 @@ function playMatch(opponentId: string, seed: number, gameIndex: number): MatchRe
   let recoveries = 0;
   let sealUses = 0;
   let sealPlayableSamples = 0;
+  const ecosActionCounts: Record<string, number> = {};
   let guard = 0;
 
   while (state.phase !== "gameover" && guard++ < MAX_STEPS) {
@@ -193,6 +195,7 @@ function playMatch(opponentId: string, seed: number, gameIndex: number): MatchRe
     }
 
     if (side === ecosSide) {
+      ecosActionCounts[action.defId] = (ecosActionCounts[action.defId] ?? 0) + 1;
       if (action.kind === "sentinela" && OUTLETS.has(action.defId)) outletActivations += 1;
 
       if (def.spell?.kind === "reanimateUnit") {
@@ -250,6 +253,7 @@ function playMatch(opponentId: string, seed: number, gameIndex: number): MatchRe
     sealUses,
     sealPlayableSamples,
     strandedFinishers,
+    ecosActionCounts,
   };
 }
 
@@ -268,6 +272,26 @@ function wilson95(wins: number, total: number): { low: number; high: number } {
     low: Math.round(Math.max(0, center - margin) * 1000) / 10,
     high: Math.round(Math.min(1, center + margin) * 1000) / 10,
   };
+}
+
+function cardUsageForGames(games: readonly MatchResult[]) {
+  const defIds = [...new Set(games.flatMap((game) => Object.keys(game.ecosActionCounts)))];
+  return defIds
+    .map((defId) => {
+      const used = games.filter((game) => (game.ecosActionCounts[defId] ?? 0) > 0);
+      const wins = used.filter((game) => game.ecosWon).length;
+      const losses = used.filter((game) => game.ecosLost).length;
+      const uses = used.reduce((sum, game) => sum + (game.ecosActionCounts[defId] ?? 0), 0);
+      return {
+        defId,
+        uses,
+        gamesUsed: used.length,
+        gameRate: pct(used.length, games.length),
+        avgUsesWhenUsed: used.length ? Math.round((uses / used.length) * 10) / 10 : 0,
+        winRateWhenUsed: pct(wins, wins + losses),
+      };
+    })
+    .sort((a, b) => b.gamesUsed - a.gamesUsed || b.uses - a.uses || a.defId.localeCompare(b.defId));
 }
 
 const results: MatchResult[] = [];
@@ -298,6 +322,7 @@ const rows = OPPONENTS.map((opponent) => {
     reactions: games.reduce((sum, game) => sum + game.reactionUses, 0),
     reanimationAttempts: games.reduce((sum, game) => sum + game.reanimationAttempts, 0),
     reanimationDisruptions: games.reduce((sum, game) => sum + game.reanimationDisruptions, 0),
+    cardUsage: cardUsageForGames(games),
     health: evaluateMatchup(winRate),
   };
 });
@@ -340,7 +365,7 @@ const report = {
     gamesPerStratum: GAMES_PER_STRATUM,
     totalGames,
     maxSteps: MAX_STEPS,
-    policy: "ai-core-vs-ai-core+authoritative-reaction-stack",
+    policy: "ai-core-vs-ai-core+authoritative-reaction-stack+card-utilization",
   },
   qualityGate,
   releaseGate,
@@ -367,6 +392,7 @@ const report = {
     sealPlayableSamples: results.reduce((sum, row) => sum + row.sealPlayableSamples, 0),
     strandedFinishersAtGameEnd: results.reduce((sum, row) => sum + row.strandedFinishers, 0),
     earlyReanimation: early,
+    cardUsage: cardUsageForGames(results),
   },
   matchups: rows,
   outliers: rows.filter((row) => row.health.status !== "healthy"),
