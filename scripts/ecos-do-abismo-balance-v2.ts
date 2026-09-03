@@ -6,7 +6,7 @@ async function main(): Promise<void> {
 
   function removeOne(defId: string): void {
     const index = cards.indexOf(defId);
-    if (index < 0) throw new Error(`Recipe v7 expected ${defId} in Ecos do Abismo v1.`);
+    if (index < 0) throw new Error(`Recipe v6 expected ${defId} in Ecos do Abismo v1.`);
     cards.splice(index, 1);
   }
 
@@ -26,7 +26,6 @@ async function main(): Promise<void> {
     "rfalpha_reanimator_second_pulse",
     "rfalpha_reanimator_drowned_mirror_lady",
     "rfalpha_reanimator_drowned_mirror_lady",
-    "rfalpha_reanimator_drowned_sepulcher",
   ]) removeOne(defId);
 
   cards.push(
@@ -37,18 +36,17 @@ async function main(): Promise<void> {
     "void_reaper",
     "tide_freeze", "tide_freeze", "tide_freeze",
     "void_hexer", "void_hexer", "void_hexer",
-    "tide_stun",
   );
 
-  if (cards.length !== 40) throw new Error(`Recipe v7 must remain exactly 40 cards; got ${cards.length}.`);
+  if (cards.length !== 40) throw new Error(`Recipe v6 must remain exactly 40 cards; got ${cards.length}.`);
   const validation = validateDeck(cards);
-  if (!validation.ok) throw new Error(`Recipe v7 is illegal: ${validation.errors.join(" | ")}`);
+  if (!validation.ok) throw new Error(`Recipe v6 is illegal: ${validation.errors.join(" | ")}`);
   if (validation.regions.length !== 2 || !validation.regions.includes("Tidecall") || !validation.regions.includes("Voidborn")) {
-    throw new Error(`Recipe v7 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
+    throw new Error(`Recipe v6 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
   }
 
   deck.cards.splice(0, deck.cards.length, ...cards);
-  console.log("ECOS RECIPE V7 CANDIDATE: v6 -1 Drowned Sepulcher · +1 Stun");
+  console.log("ECOS RECIPE V6 CANDIDATE: restored baseline for post-AI-policy comparison");
 
   await import("./ecos-do-abismo-balance-audit");
 }
