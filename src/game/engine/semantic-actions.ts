@@ -1,4 +1,5 @@
 import { getCard } from "../cards";
+import { putInGraveyard } from "../graveyard";
 import { engineRulesFor } from "../match-rules";
 import { isRitualCard, isStructureCard, isTrapCard } from "../semantic-card-types";
 import type { GameState, PlayerId } from "../types";
@@ -9,13 +10,34 @@ import { checkWin, clone, makePermanent, recomputeContinuousAuras } from "./stat
 export const effectiveCost = base.effectiveCost;
 export const spellNeedsTarget = base.spellNeedsTarget;
 export const isValidTarget = base.isValidTarget;
-export const castSpell = base.castSpell;
 export const isReadyToAttack = base.isReadyToAttack;
 export const canDeclareAttack = base.canDeclareAttack;
 export const canBlock = base.canBlock;
 export const resolveCombat = base.resolveCombat;
 export const mulligan = base.mulligan;
 export const skipMulligan = base.skipMulligan;
+
+/**
+ * Canonical spell resolution wrapper. The physical card remains committed to
+ * the stack during resolution and enters its owner's graveyard only after the
+ * underlying spell action resolves successfully.
+ */
+export function castSpell(
+  state: GameState,
+  playerId: PlayerId,
+  instanceId: string,
+  targetInstanceId?: string,
+): GameState {
+  const instance = state.players[playerId].hand.find((card) => card.instanceId === instanceId);
+  if (!instance) return state;
+  const def = getCard(instance.defId);
+  const next = base.castSpell(state, playerId, instanceId, targetInstanceId);
+  if (next === state) return state;
+  if (def.type === "Spell" && !next.players[playerId].hand.some((card) => card.instanceId === instanceId)) {
+    putInGraveyard(next, playerId, def.defId, "spell", instanceId);
+  }
+  return next;
+}
 
 /**
  * Aura 2.5 must not add a blanket stat recomputation to legacy actions.

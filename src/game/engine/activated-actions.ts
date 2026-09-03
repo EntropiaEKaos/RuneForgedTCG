@@ -1,4 +1,5 @@
 import { getCard } from "../cards";
+import { discardHandInstancesToGraveyard } from "../graveyard";
 import type {
   ActivatedAbility,
   ActivatedAbilityMode,
@@ -447,8 +448,13 @@ function paySourceCosts(
   player.spellMana -= ability.cost?.spellMana ?? 0;
   player.nexusHealth -= ability.cost?.nexusHealth ?? 0;
   if ((ability.cost?.discardFromHand ?? 0) > 0 && costDiscardInstanceIds) {
-    const selected = new Set(costDiscardInstanceIds);
-    player.hand = player.hand.filter((card) => !selected.has(card.instanceId));
+    discardHandInstancesToGraveyard(
+      state,
+      source.owner,
+      costDiscardInstanceIds,
+      "discard",
+      sourceInstance(source).instanceId,
+    );
   }
 
   if (ability.cost?.loyaltyDelta !== undefined && source.kind === "sentinela") {

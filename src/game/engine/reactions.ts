@@ -1,4 +1,5 @@
 import { getCard } from "../cards";
+import { discardHandInstancesToGraveyard } from "../graveyard";
 import { canCounterPendingAction, canReactWithResponse, hasReactionOpportunity } from "../reaction-contract";
 import { resolveReactionActivatedAbility, type ReactionActivatedAbilityAction } from "../reaction-activated-abilities";
 import { isStructureCard } from "../semantic-card-types";
@@ -43,9 +44,8 @@ function canRespondTo(state: GameState, playerId: PlayerId, action: CardAction):
 
 /**
  * A counter prevents resolution; it does not rewind the fact that the target
- * card was committed to the stack. RuneForge has no graveyard zone yet, so the
- * authoritative equivalent is to consume the card from hand and pay its cast
- * cost without applying any summon/play/spell effects.
+ * card was committed to the stack. The paid physical card therefore moves
+ * from hand into its owner's public graveyard with reason `counter`.
  */
 function consumeNegatedCard(state: GameState, item: StackFrame): void {
   // Battlefield abilities are not hand cards and therefore have nothing to
@@ -67,7 +67,7 @@ function consumeNegatedCard(state: GameState, item: StackFrame): void {
   } else {
     player.mana = Math.max(0, player.mana - cost);
   }
-  player.hand = player.hand.filter((card) => card.instanceId !== item.instanceId);
+  discardHandInstancesToGraveyard(state, item.player, [item.instanceId], "counter", item.instanceId);
   checkLevelUps(state);
   recomputeContinuousAuras(state);
 }

@@ -1,5 +1,6 @@
 import { getCard } from "../cards";
 import { canAttachEquipment, unitsWithEquipmentCapacity } from "../equipment-link-contract";
+import { millDeckToGraveyard, putInGraveyard } from "../graveyard";
 import { grantDurableKeyword } from "../permanent-aura-contract";
 import type { CardEffect, GameState, PermanentInstance, PlayerId, Race, SentinelaInstance, TriggerWhen, UnitInstance } from "../types";
 import { engineRulesFor } from "../match-rules";
@@ -32,8 +33,10 @@ export function cleanupDeadUnit(state: GameState, pid: PlayerId, unit: UnitInsta
   }
 
   for (const eq of unit.equipment) {
+    putInGraveyard(state, pid, eq.defId, "destroy", eq.instanceId);
     state.log.push(`${getCard(eq.defId).name} falls with ${getCard(unit.defId).name}.`);
   }
+  putInGraveyard(state, pid, unit.defId, "death", unit.instanceId);
   p.bench = p.bench.filter((u) => u.instanceId !== unit.instanceId);
   return true;
 }
@@ -51,6 +54,7 @@ export function cleanupDead(state: GameState): void {
       }
       const permDead = p.permanents.filter((perm) => perm.health <= 0);
       for (const d of permDead) {
+        putInGraveyard(state, pid, d.defId, "destroy", d.instanceId);
         state.log.push(`${getCard(d.defId).name} is destroyed.`);
       }
       p.permanents = p.permanents.filter((perm) => perm.health > 0);
@@ -367,7 +371,8 @@ export function applyEffect(
             p.hand.push({ instanceId: uid(state, "c"), defId: t.defId });
             state.log.push(`${getCard(t.defId).name} is recalled to hand.`);
           } else {
-            state.log.push(`${getCard(t.defId).name} is recalled but hand is full — lost.`);
+            putInGraveyard(state, t.owner, t.defId, "overflow", t.instanceId);
+            state.log.push(`${getCard(t.defId).name} is recalled but hand is full — moved to the graveyard.`);
           }
         }
         break;
@@ -390,20 +395,13 @@ export function applyEffect(
         break;
       }
       case "mill": {
-        // Descarta N cartas do topo do baralho inimigo — ferramenta de
-        // verdade pra um arquétipo de controle perseguir a vitória por
-        // fadiga em vez de só se beneficiar dela passivamente quando o
-        // jogo se arrasta. drawCards() já causa 1 de dano ao Nexus por
-        // compra com baralho vazio; mill acelera chegar lá.
-        const opp = state.players[other(playerId)];
+        const oppId = other(playerId);
+        const opp = state.players[oppId];
         const count = Math.max(1, eff.amount);
-        const milled: string[] = [];
-        for (let i = 0; i < count && opp.deck.length > 0; i++) {
-          milled.push(opp.deck.shift()!);
-        }
+        const milled = millDeckToGraveyard(state, oppId, count, self?.instanceId);
         if (milled.length > 0) {
           const names = milled.map((id) => getCard(id).name).join(", ");
-          state.log.push(`${opp.name} mills ${milled.length} card(s): ${names}.`);
+          state.log.push(`${opp.name} mills ${milled.length} card(s) to the graveyard: ${names}.`);
         } else {
           state.log.push(`${opp.name} has no cards left to mill.`);
         }

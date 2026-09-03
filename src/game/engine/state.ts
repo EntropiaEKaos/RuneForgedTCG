@@ -1,4 +1,5 @@
 import { getCard } from "../cards";
+import { putInGraveyard } from "../graveyard";
 import { nextRng, normalizeSeed, seededShuffle } from "../rng";
 import { deckRegions, getDeck } from "../decks";
 import { permanentAuraBonusForUnit } from "../permanent-aura-contract";
@@ -194,6 +195,7 @@ export function makePlayer(id: PlayerId, name: string, deck: DeckInput, rules: E
     bench: [],
     permanents: [],
     sentinelas: [],
+    graveyard: [],
     deckName: deck.name,
     deckId: deck.id,
     deckRegions: deckRegions(cards.length >= 1 ? cards : fallback),
@@ -224,7 +226,8 @@ export function drawCards(state: GameState, playerId: PlayerId, n: number): void
     }
     const defId = p.deck.shift()!;
     if (p.hand.length >= engineRulesFor(state).handCap) {
-      state.log.push(`${p.name}'s hand is full — ${getCard(defId).name} is discarded.`);
+      putInGraveyard(state, playerId, defId, "overflow");
+      state.log.push(`${p.name}'s hand is full — ${getCard(defId).name} is discarded to the graveyard.`);
       continue;
     }
     const inst: CardInstance = { instanceId: uid(state, "c"), defId };
