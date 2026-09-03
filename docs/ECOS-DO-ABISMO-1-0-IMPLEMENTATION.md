@@ -148,6 +148,7 @@ O design original prevê self-mill como expansão natural de Tidecall. Ele **nã
 - nenhum card Reanimator infiltrado nos seis starters;
 - nenhum card/preset Reanimator infiltrado em Ranked;
 - authoring via Card Studio para discard outlets e graveyard effects;
+- round-trip do Card Studio preservando `ecos_do_abismo`, `mana` e `discardFromHand` nos outlets;
 - doutrina e mulligan;
 - loop real: descartar Colosso → Cemitério autoritativo → Rito do Segundo Pulso → nova Unidade → onSummon → entrada consumida;
 - summon sickness e contagem de spell corretas;
