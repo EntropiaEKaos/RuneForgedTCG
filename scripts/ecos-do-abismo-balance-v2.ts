@@ -6,13 +6,14 @@ async function main(): Promise<void> {
 
   function removeOne(defId: string): void {
     const index = cards.indexOf(defId);
-    if (index < 0) throw new Error(`Recipe v10 expected ${defId} in Ecos do Abismo v1.`);
+    if (index < 0) throw new Error(`Recipe v11 expected ${defId} in Ecos do Abismo v1.`);
     cards.splice(index, 1);
   }
 
   for (const defId of [
     "tide_deny",
     "tide_deny",
+    "tide_draw",
     "tide_draw",
     "rfalpha_reanimator_seal_nothing",
     "rfalpha_reanimator_seal_nothing",
@@ -23,7 +24,6 @@ async function main(): Promise<void> {
     "void_unmake",
     "rfalpha_reanimator_dead_memory_thread",
     "rfalpha_reanimator_second_pulse",
-    "rfalpha_reanimator_second_pulse",
     "rfalpha_reanimator_drowned_mirror_lady",
     "rfalpha_reanimator_drowned_mirror_lady",
   ]) removeOne(defId);
@@ -33,20 +33,20 @@ async function main(): Promise<void> {
     "tide_sprite", "tide_sprite",
     "tide_guard",
     "tide_glacial", "tide_glacial",
-    "void_reaper",
+    "void_harvester",
     "tide_freeze", "tide_freeze", "tide_freeze",
     "void_hexer", "void_hexer", "void_hexer",
   );
 
-  if (cards.length !== 40) throw new Error(`Recipe v10 must remain exactly 40 cards; got ${cards.length}.`);
+  if (cards.length !== 40) throw new Error(`Recipe v11 must remain exactly 40 cards; got ${cards.length}.`);
   const validation = validateDeck(cards);
-  if (!validation.ok) throw new Error(`Recipe v10 is illegal: ${validation.errors.join(" | ")}`);
+  if (!validation.ok) throw new Error(`Recipe v11 is illegal: ${validation.errors.join(" | ")}`);
   if (validation.regions.length !== 2 || !validation.regions.includes("Tidecall") || !validation.regions.includes("Voidborn")) {
-    throw new Error(`Recipe v10 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
+    throw new Error(`Recipe v11 must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
   }
 
   deck.cards.splice(0, deck.cards.length, ...cards);
-  console.log("ECOS RECIPE V10 CANDIDATE: v6 -1 Second Pulse · +1 Foresight");
+  console.log("ECOS RECIPE V11 CANDIDATE: v6 -1 Soul Reaper · +1 Void Harvester");
 
   await import("./ecos-do-abismo-balance-audit");
 }
