@@ -226,7 +226,7 @@ export const DECKS: DeckDef[] = [
       "void_unmake",
       "void_wither",
       "void_nightmare",
-      "void_gloom_warden",
+      "void_deathmark",
     ],
   },
   {
