@@ -11,7 +11,12 @@ type RecipeVariant =
   | "reaper_thread_for_heal"
   | "reaper_draw_for_heal"
   | "reaper_sprite_for_heal"
-  | "reaper_unmake_for_heal";
+  | "reaper_unmake_for_heal"
+  | "assassin_for_freeze"
+  | "deathmark_for_freeze"
+  | "nightmare_for_freeze"
+  | "gloom_warden_for_freeze"
+  | "mystic_for_freeze";
 
 const variant = (process.env.ECOS_RECIPE_VARIANT ?? "v26") as RecipeVariant;
 const allowedVariants = new Set<RecipeVariant>([
@@ -25,6 +30,11 @@ const allowedVariants = new Set<RecipeVariant>([
   "reaper_draw_for_heal",
   "reaper_sprite_for_heal",
   "reaper_unmake_for_heal",
+  "assassin_for_freeze",
+  "deathmark_for_freeze",
+  "nightmare_for_freeze",
+  "gloom_warden_for_freeze",
+  "mystic_for_freeze",
 ]);
 
 async function main(): Promise<void> {
@@ -83,6 +93,14 @@ async function main(): Promise<void> {
     reaper_unmake_for_heal: "void_unmake",
   };
 
+  const noLifestealMidgameSwaps: Partial<Record<RecipeVariant, string>> = {
+    assassin_for_freeze: "void_assassin",
+    deathmark_for_freeze: "void_deathmark",
+    nightmare_for_freeze: "void_nightmare",
+    gloom_warden_for_freeze: "void_gloom_warden",
+    mystic_for_freeze: "tide_mystic",
+  };
+
   const firstGridReplacement = firstGridSwaps[variant];
   if (firstGridReplacement) {
     removeOne("tide_freeze");
@@ -95,6 +113,12 @@ async function main(): Promise<void> {
     cards.push("void_reaper");
     removeOne("tide_heal");
     cards.push(reaperRefinement);
+  }
+
+  const noLifestealReplacement = noLifestealMidgameSwaps[variant];
+  if (noLifestealReplacement) {
+    removeOne("tide_freeze");
+    cards.push(noLifestealReplacement);
   }
 
   const colossusId = "rfalpha_reanimator_hollow_rift_colossus";
