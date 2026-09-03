@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MatchReward } from "@/components/game/MatchResult";
 import { ActivatedDiscardPicker } from "@/components/game/ActivatedDiscardPicker";
+import { GraveyardTray } from "@/components/game/GraveyardTray";
 import { allCards, getCard } from "@/game/cards";
 import { registerCustomCards } from "@/game/custom-registry";
 import { DECKS, type DeckDef } from "@/game/decks";
 import { aiChooseReaction } from "@/game/ai";
+import { isValidGraveyardTarget } from "@/game/graveyard-effects";
+import type { GraveyardEntry } from "@/game/graveyard";
 import {
   activatedAbilitiesForInstance,
   applyStackedActionWithAi,
@@ -278,6 +281,20 @@ export default function GameClient() {
     [state, toastAI, recordAction, isPvp, sendPvpAction, reactionMs],
   );
 
+  const handleGraveyardClick = useCallback((entry: GraveyardEntry) => {
+    if (!state || !pendingSpell) return;
+    if (!isValidGraveyardTarget(state, "player", pendingSpell.targetType, entry)) return;
+    const pendingDef = getCard(pendingSpell.defId);
+    if (pendingDef.type !== "Spell") return;
+    setState(applyWithAiReaction({
+      kind: "spell",
+      instanceId: pendingSpell.instanceId,
+      defId: pendingSpell.defId,
+      targetInstanceId: entry.instanceId,
+    }));
+    setPendingSpell(null);
+  }, [state, pendingSpell, applyWithAiReaction]);
+
   const handleHandClick = useCallback(
     (instanceId: string, defId: string) => {
       if (!state) return;
@@ -492,6 +509,10 @@ export default function GameClient() {
         setPendingReaction={setPendingReaction} setPendingSentinelaAbility={setPendingSentinelaAbility} setSelectedBlocker={setSelectedBlocker}
         setChallenges={setChallenges} setSentinelaTargets={setSentinelaTargets}
       />
+      <div data-graveyard-overlay="true" className="pointer-events-none fixed inset-x-2 bottom-24 z-40 mx-auto grid max-w-5xl gap-2 md:grid-cols-2">
+        <div className="pointer-events-auto"><GraveyardTray state={state} owner="player" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
+        <div className="pointer-events-auto"><GraveyardTray state={state} owner="ai" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
+      </div>
       {pendingActivatedDiscard && <ActivatedDiscardPicker state={state} pending={pendingActivatedDiscard} onToggle={toggleActivatedDiscard} onConfirm={confirmActivatedDiscard} onCancel={cancelActivatedDiscard} />}
     </>
   );
