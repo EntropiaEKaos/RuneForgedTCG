@@ -5,6 +5,7 @@ import { cleanupSentinelas } from "./engine/sentinela-state";
 import { checkWin, clone, findAnyBoardEntity } from "./engine/state";
 import { getCard } from "./cards";
 import { cannotBeCountered, type ReactionActionKind } from "./counter-rules";
+import { discardHandInstancesToGraveyard } from "./graveyard";
 import type { ReactionActivatedAbility, ActivatedAbilityUsage } from "./activated-ability-types";
 import type { BoardEntity, CardEffect, GameState, PermanentInstance, PlayerId, SentinelaInstance, TargetKind, UnitInstance } from "./types";
 
@@ -326,8 +327,13 @@ function payCosts(
   player.spellMana -= ability.cost?.spellMana ?? 0;
   player.nexusHealth -= ability.cost?.nexusHealth ?? 0;
   if ((ability.cost?.discardFromHand ?? 0) > 0 && costDiscardInstanceIds) {
-    const selected = new Set(costDiscardInstanceIds);
-    player.hand = player.hand.filter((card) => !selected.has(card.instanceId));
+    discardHandInstancesToGraveyard(
+      state,
+      source.owner,
+      costDiscardInstanceIds,
+      "discard",
+      sourceInstance(source).instanceId,
+    );
   }
   if (ability.cost?.loyaltyDelta !== undefined && source.kind === "sentinela") source.sen.loyalty += ability.cost.loyaltyDelta;
   if (ability.cost?.exhaustSelf) {
