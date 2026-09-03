@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { getCard } from "./cards";
 import { getCardArt, replaceRegisteredCardArt } from "./card-art";
 import { FLAGSHIP_CHAMPION_ART, FLAGSHIP_CHAMPION_BASE_ART } from "./flagship-champion-art";
+import { FLAGSHIP_STRUCTURE_ART } from "./flagship-structure-art";
 
 const chains = {
   ember_champion: ["ember_champion", "ember_champion_2", "ember_champion_3"],
@@ -30,13 +31,34 @@ for (const [baseId, chain] of Object.entries(chains)) {
   }
 }
 
+assert.equal(Object.keys(FLAGSHIP_STRUCTURE_ART).length, 6, "Batch B must contain exactly six Structure masters");
+for (const [defId, expected] of Object.entries(FLAGSHIP_STRUCTURE_ART)) {
+  const card = getCard(defId);
+  assert.equal(card.archetypeKey, "structure", `${defId} must remain a Structure`);
+  assert.equal(card.type, "Artifact", `${defId} Structure must retain Artifact technical base`);
+  assert.ok(expected.endsWith(`/${defId}.webp`), `${defId} must use its region-local WebP master`);
+  assert.equal(getCardArt(defId)?.url, expected, `${defId} must resolve the Batch B built-in master`);
+  assert.equal(card.art, expected, `${defId} must receive Batch B art through the catalog overlay`);
+}
+
 replaceRegisteredCardArt([{ defId: "ember_champion", url: "/uploads/editorial/pyra-approved.webp" }]);
 assert.equal(
   getCardArt("ember_champion")?.url,
   "/uploads/editorial/pyra-approved.webp",
-  "Admin/editorial art must remain higher priority than the built-in flagship fallback",
+  "Admin/editorial art must remain higher priority than the built-in Champion fallback",
+);
+replaceRegisteredCardArt([{ defId: "rfalpha_ember_structure_forge_bastion", url: "/uploads/editorial/bastion-approved.webp" }]);
+assert.equal(
+  getCardArt("rfalpha_ember_structure_forge_bastion")?.url,
+  "/uploads/editorial/bastion-approved.webp",
+  "Admin/editorial art must remain higher priority than the built-in Structure fallback",
 );
 replaceRegisteredCardArt([]);
-assert.equal(getCardArt("ember_champion")?.url, FLAGSHIP_CHAMPION_BASE_ART.ember_champion, "clearing editorial art must restore the built-in master");
+assert.equal(getCardArt("ember_champion")?.url, FLAGSHIP_CHAMPION_BASE_ART.ember_champion, "clearing editorial art must restore the Champion master");
+assert.equal(
+  getCardArt("rfalpha_ember_structure_forge_bastion")?.url,
+  FLAGSHIP_STRUCTURE_ART.rfalpha_ember_structure_forge_bastion,
+  "clearing editorial art must restore the Structure master",
+);
 
-console.log("FLAGSHIP ART BATCH A — CHAMPION RUNTIME CONTRACT: PASS");
+console.log("FLAGSHIP ART BATCHES A+B — CHAMPION + STRUCTURE RUNTIME CONTRACT: PASS");
