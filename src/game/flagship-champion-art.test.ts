@@ -5,6 +5,7 @@ import { FLAGSHIP_CHAMPION_ART, FLAGSHIP_CHAMPION_BASE_ART } from "./flagship-ch
 import { FLAGSHIP_STRUCTURE_ART } from "./flagship-structure-art";
 import { FLAGSHIP_RITUAL_ART } from "./flagship-ritual-art";
 import { FLAGSHIP_TRAP_ART } from "./flagship-trap-art";
+import { FLAGSHIP_SIGNATURE_ART } from "./flagship-signature-art";
 
 const chains = {
   ember_champion: ["ember_champion", "ember_champion_2", "ember_champion_3"],
@@ -16,14 +17,12 @@ const chains = {
 } as const;
 
 assert.equal(Object.keys(FLAGSHIP_CHAMPION_BASE_ART).length, 6, "Batch A must keep exactly six Champion masters");
-
 for (const [baseId, chain] of Object.entries(chains)) {
   const base = getCard(baseId);
   assert.equal(base.isChampion, true, `${baseId} must remain a Champion`);
   const expected = FLAGSHIP_CHAMPION_BASE_ART[baseId as keyof typeof FLAGSHIP_CHAMPION_BASE_ART];
   assert.ok(expected.endsWith(`/${baseId}.webp`), `${baseId} must use its region-local WebP master`);
   assert.equal(expected.includes("/images/champs/"), false, `${baseId} must not use the legacy missing Champion path`);
-
   for (const defId of chain) {
     const card = getCard(defId);
     assert.equal(card.isChampion, true, `${defId} must remain a Champion evolution`);
@@ -64,46 +63,28 @@ for (const [defId, expected] of Object.entries(FLAGSHIP_TRAP_ART)) {
   assert.equal(card.art, expected, `${defId} must receive Batch D art through the catalog overlay`);
 }
 
-replaceRegisteredCardArt([{ defId: "ember_champion", url: "/uploads/editorial/pyra-approved.webp" }]);
-assert.equal(
-  getCardArt("ember_champion")?.url,
-  "/uploads/editorial/pyra-approved.webp",
-  "Admin/editorial art must remain higher priority than the built-in Champion fallback",
-);
-replaceRegisteredCardArt([{ defId: "rfalpha_ember_structure_forge_bastion", url: "/uploads/editorial/bastion-approved.webp" }]);
-assert.equal(
-  getCardArt("rfalpha_ember_structure_forge_bastion")?.url,
-  "/uploads/editorial/bastion-approved.webp",
-  "Admin/editorial art must remain higher priority than the built-in Structure fallback",
-);
-replaceRegisteredCardArt([{ defId: "rfalpha_ember_ritual_red_rite", url: "/uploads/editorial/red-rite-approved.webp" }]);
-assert.equal(
-  getCardArt("rfalpha_ember_ritual_red_rite")?.url,
-  "/uploads/editorial/red-rite-approved.webp",
-  "Admin/editorial art must remain higher priority than the built-in Ritual fallback",
-);
-replaceRegisteredCardArt([{ defId: "rfalpha_ember_trap_ash_snare", url: "/uploads/editorial/ash-snare-approved.webp" }]);
-assert.equal(
-  getCardArt("rfalpha_ember_trap_ash_snare")?.url,
-  "/uploads/editorial/ash-snare-approved.webp",
-  "Admin/editorial art must remain higher priority than the built-in Trap fallback",
-);
-replaceRegisteredCardArt([]);
-assert.equal(getCardArt("ember_champion")?.url, FLAGSHIP_CHAMPION_BASE_ART.ember_champion, "clearing editorial art must restore the Champion master");
-assert.equal(
-  getCardArt("rfalpha_ember_structure_forge_bastion")?.url,
-  FLAGSHIP_STRUCTURE_ART.rfalpha_ember_structure_forge_bastion,
-  "clearing editorial art must restore the Structure master",
-);
-assert.equal(
-  getCardArt("rfalpha_ember_ritual_red_rite")?.url,
-  FLAGSHIP_RITUAL_ART.rfalpha_ember_ritual_red_rite,
-  "clearing editorial art must restore the Ritual master",
-);
-assert.equal(
-  getCardArt("rfalpha_ember_trap_ash_snare")?.url,
-  FLAGSHIP_TRAP_ART.rfalpha_ember_trap_ash_snare,
-  "clearing editorial art must restore the Trap master",
-);
+assert.equal(Object.keys(FLAGSHIP_SIGNATURE_ART).length, 6, "Batch E must contain exactly six starter signature masters");
+for (const [defId, expected] of Object.entries(FLAGSHIP_SIGNATURE_ART)) {
+  const card = getCard(defId);
+  assert.equal(card.type, "Unit", `${defId} starter signature must remain a Unit`);
+  assert.ok(expected.endsWith(`/${defId}.webp`), `${defId} must use its region-local WebP master`);
+  assert.equal(getCardArt(defId)?.url, expected, `${defId} must resolve the Batch E built-in master`);
+  assert.equal(card.art, expected, `${defId} must receive Batch E art through the catalog overlay`);
+}
 
-console.log("FLAGSHIP ART BATCHES A+B+C+D — CHAMPION + STRUCTURE + MANA RITUAL + TRAP RUNTIME CONTRACT: PASS");
+const editorialChecks = [
+  ["ember_champion", "/uploads/editorial/pyra-approved.webp", FLAGSHIP_CHAMPION_BASE_ART.ember_champion, "Champion"],
+  ["rfalpha_ember_structure_forge_bastion", "/uploads/editorial/bastion-approved.webp", FLAGSHIP_STRUCTURE_ART.rfalpha_ember_structure_forge_bastion, "Structure"],
+  ["rfalpha_ember_ritual_red_rite", "/uploads/editorial/red-rite-approved.webp", FLAGSHIP_RITUAL_ART.rfalpha_ember_ritual_red_rite, "Ritual"],
+  ["rfalpha_ember_trap_ash_snare", "/uploads/editorial/ash-snare-approved.webp", FLAGSHIP_TRAP_ART.rfalpha_ember_trap_ash_snare, "Trap"],
+  ["ember_ashguard", "/uploads/editorial/ashguard-approved.webp", FLAGSHIP_SIGNATURE_ART.ember_ashguard, "starter signature"],
+] as const;
+
+for (const [defId, editorialUrl, builtInUrl, label] of editorialChecks) {
+  replaceRegisteredCardArt([{ defId, url: editorialUrl }]);
+  assert.equal(getCardArt(defId)?.url, editorialUrl, `Admin/editorial art must remain higher priority than built-in ${label} art`);
+  replaceRegisteredCardArt([]);
+  assert.equal(getCardArt(defId)?.url, builtInUrl, `clearing editorial art must restore the built-in ${label} master`);
+}
+
+console.log("FLAGSHIP ART BATCHES A+B+C+D+E — 30/30 MASTER RUNTIME CONTRACT: PASS");
