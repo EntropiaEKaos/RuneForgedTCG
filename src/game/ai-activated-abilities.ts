@@ -1,4 +1,5 @@
 import { getCard } from "./cards";
+import { selfMillAiValue } from "./ai-graveyard-plan";
 import {
   activatedAbilitiesForInstance,
   activatedAbilityChoices,
@@ -61,6 +62,7 @@ const FRIENDLY_EFFECTS = new Set<CardEffect["kind"]>([
   "attachEquipment",
   "manaRefund",
   "drawOnSummon",
+  "selfMill",
 ]);
 
 function sourceId(source: AiAbilitySource): string {
@@ -279,6 +281,7 @@ function effectScore(state: GameState, playerId: PlayerId, effect: CardEffect, t
   if (effect.kind === "summonToken") return me.bench.length < 6 ? 30 : -1000;
   if (effect.kind === "manaRefund") return 20 + effect.amount * 4;
   if (effect.kind === "mill") return 22 + effect.amount * 3;
+  if (effect.kind === "selfMill") return selfMillAiValue(state, playerId, effect.amount);
   if (effect.kind === "damagePermanent" || effect.kind === "destroyPermanent") return targetId ? 55 : -1000;
   if (effect.kind === "damageUnit" || effect.kind === "killUnit" || effect.kind === "frostbite" || effect.kind === "stun" || effect.kind === "recall" || effect.kind === "poison") {
     return targetId ? 45 : -1000;

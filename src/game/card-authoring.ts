@@ -36,7 +36,7 @@ export const CARD_EFFECT_KINDS = [
   "damageUnit", "damageNexus", "healUnit", "healNexus", "buffUnit", "buffSelf",
   "buffAllies", "buffRace", "buffClass", "aoeEnemy", "draw", "grantBarrier", "grantKeyword",
   "summonToken", "attachEquipment", "manaRefund", "drawOnSummon", "destroyPermanent",
-  "damagePermanent", "negateSpell", "frostbite", "stun", "recall", "killUnit", "poison", "mill",
+  "damagePermanent", "negateSpell", "frostbite", "stun", "recall", "killUnit", "poison", "mill", "selfMill",
   "returnGraveyardToHand", "reanimateUnit", "banishGraveyardCard",
 ] as const satisfies readonly EffectKind[];
 export const CARD_TARGETS = [
@@ -86,6 +86,7 @@ export const CARD_EFFECT_CONTRACTS = {
   killUnit: { targets: UNIT_TARGETS, amount: "any" },
   poison: { targets: ["none"], amount: "positive" },
   mill: { targets: ["none"], amount: "positive" },
+  selfMill: { targets: ["none"], amount: "positive" },
   returnGraveyardToHand: { targets: ["allyGraveyardCard"], amount: "any" },
   reanimateUnit: { targets: ["allyGraveyardUnit"], amount: "any" },
   banishGraveyardCard: { targets: ["allyGraveyardCard", "enemyGraveyardCard", "anyGraveyardCard"], amount: "any" },

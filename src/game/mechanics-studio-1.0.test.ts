@@ -39,6 +39,9 @@ ok("archetype changes semantic card type through audited baseType", !!applied &&
 const mill=compileRuleDsl({sourceType:"any",sourceKey:"",event:"onPlay",targetType:"enemy",targetKey:"",effectKind:"mill",amount:3,buffPower:0,buffHealth:0,target:"none"});
 ok("Rule Graph consumes canonical mill effect", mill.ok && mill.effect.kind === "mill");
 ok("all native EffectKinds remain exposed", CARD_EFFECT_KINDS.length >= 26 && CARD_EFFECT_KINDS.includes("mill"));
+const selfMill=compileRuleDsl({sourceType:"any",sourceKey:"",event:"onPlay",targetType:"self",targetKey:"",effectKind:"selfMill",amount:2,buffPower:0,buffHealth:0,target:"none"});
+ok("Rule Graph consumes canonical selfMill effect", selfMill.ok && selfMill.effect.kind === "selfMill");
+ok("selfMill remains exposed through native EffectKinds", CARD_EFFECT_KINDS.includes("selfMill"));
 
 console.log(`MECHANICS STUDIO 1.0: ${pass} passed, ${fail} failed`);
 if(fail) process.exit(1);

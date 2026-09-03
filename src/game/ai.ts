@@ -25,6 +25,7 @@ import {
 } from "./graveyard-effects";
 import { canReactWithResponse } from "./reaction-contract";
 import { engineRulesFor } from "./match-rules";
+import { selfMillAiValue } from "./ai-graveyard-plan";
 import type { BoardEntity, CardEffect, GameState, PlayerId, UnitInstance } from "./types";
 
 /**
@@ -41,6 +42,7 @@ const TACTICAL_FALLBACK_EFFECTS = new Set<CardEffect["kind"]>([
   "killUnit",
   "poison",
   "mill",
+  "selfMill",
   "buffAllies",
   "buffRace",
   "grantKeyword",
@@ -121,6 +123,7 @@ function fallbackEffectUseful(state: GameState, playerId: PlayerId, effect: Card
   if (effect.kind === "damageNexus") return enemy.nexusHealth > 0 && effect.amount > 0;
   if (effect.kind === "poison") return enemy.poisonCounters < 10 && effect.amount > 0;
   if (effect.kind === "mill") return enemy.deck.length > 0 && effect.amount > 0;
+  if (effect.kind === "selfMill") return selfMillAiValue(state, playerId, effect.amount) > 0;
   if (effect.kind === "buffAllies") return me.bench.length > 0 && Boolean((effect.buffPower ?? 0) || (effect.buffHealth ?? 0));
   if (effect.kind === "buffRace") {
     return Boolean((effect.buffPower ?? 0) || (effect.buffHealth ?? 0)) && me.bench.some((unit) => unitMatchesRaceEffect(unit, effect));
