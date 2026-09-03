@@ -1,4 +1,5 @@
 import { getCard } from "../cards";
+import { putInGraveyard } from "../graveyard";
 import { nextRng, normalizeSeed, seededShuffle } from "../rng";
 import { deckRegions, getDeck } from "../decks";
 import { permanentAuraBonusForUnit } from "../permanent-aura-contract";
@@ -194,6 +195,7 @@ export function makePlayer(id: PlayerId, name: string, deck: DeckInput, rules: E
     bench: [],
     permanents: [],
     sentinelas: [],
+    graveyard: [],
     deckName: deck.name,
     deckId: deck.id,
     deckRegions: deckRegions(cards.length >= 1 ? cards : fallback),
@@ -224,7 +226,8 @@ export function drawCards(state: GameState, playerId: PlayerId, n: number): void
     }
     const defId = p.deck.shift()!;
     if (p.hand.length >= engineRulesFor(state).handCap) {
-      state.log.push(`${p.name}'s hand is full — ${getCard(defId).name} is discarded.`);
+      putInGraveyard(state, playerId, defId, "overflow");
+      state.log.push(`${p.name}'s hand is full — ${getCard(defId).name} is discarded to the graveyard.`);
       continue;
     }
     const inst: CardInstance = { instanceId: uid(state, "c"), defId };
@@ -358,181 +361,3 @@ export function addCardsToHand(state: GameState, playerId: PlayerId, defIds: str
   }
   return s;
 }
-
-export function checkWin(state: GameState): void {
-  const runtime = engineRulesFor(state);
-  if (runtime.runtimeOverridesEnabled && state.round >= runtime.maxRounds && state.phase !== "gameover") {
-    const playerScore = state.players.player.nexusHealth + state.players.player.bench.reduce((sum, unit) => sum + Math.max(0, unit.health), 0);
-    const aiScore = state.players.ai.nexusHealth + state.players.ai.bench.reduce((sum, unit) => sum + Math.max(0, unit.health), 0);
-    state.winner = playerScore === aiScore ? other(state.attackToken) : playerScore > aiScore ? "player" : "ai";
-    state.phase = "gameover";
-    state.log.push(`Maximum round limit (${runtime.maxRounds}) reached.`);
-    return;
-  }
-  const playerDead = state.players.player.nexusHealth <= 0 || state.players.player.poisonCounters >= POISON_LETHAL;
-  const aiDead = state.players.ai.nexusHealth <= 0 || state.players.ai.poisonCounters >= POISON_LETHAL;
-  if (playerDead && aiDead) {
-    state.winner = other(state.attackToken);
-    state.phase = "gameover";
-  } else if (aiDead) {
-    state.winner = "player";
-    state.phase = "gameover";
-  } else if (playerDead) {
-    state.winner = "ai";
-    state.phase = "gameover";
-  }
-}
-
-export function damageNexus(state: GameState, targetId: PlayerId, amount: number, sourceOwner: PlayerId): void {
-  if (amount <= 0) return;
-  state.players[targetId].nexusHealth = Math.max(0, state.players[targetId].nexusHealth - amount);
-  state.players[sourceOwner].stats.nexusDamageDealt += amount;
-}
-
-export function healNexus(state: GameState, playerId: PlayerId, amount: number): void {
-  if (amount <= 0) return;
-  const p = state.players[playerId];
-  p.nexusHealth = Math.min(engineRulesFor(state).nexusStart, p.nexusHealth + amount);
-}
-
-export function applyDamageToUnit(unit: UnitInstance, amount: number, source?: UnitInstance | null): number {
-  let dmg = amount;
-  if (unit.barrier) {
-    unit.barrier = false;
-    return 0;
-  }
-  if (unit.keywords.includes("Tough")) dmg = Math.max(0, dmg - 1);
-  // Deathtouch: any damage this source deals to a unit destroys it.
-  if (source && source.keywords.includes("Deathtouch") && dmg > 0) {
-    unit.health = 0;
-    unit.killedBy = source.instanceId;
-    return dmg;
-  }
-  unit.health -= dmg;
-  // Wither: damage permanently reduces the target's max health too.
-  // This must NOT use healthBuffs, because healthBuffs are temporary and
-  // are cleared at end of round. Wither is a permanent max-health reduction.
-  if (source && source.keywords.includes("Wither") && dmg > 0) {
-    unit.permanentHealthModifier -= dmg;
-    recomputeHealth(unit);
-  }
-  // Record who dealt the killing blow (for onKill triggers). Spell damage has no source.
-  if (unit.health <= 0) {
-    unit.killedBy = source ? source.instanceId : null;
-  }
-  return dmg;
-}
-
-export function applyDamageToPermanent(perm: PermanentInstance, amount: number): void {
-  perm.health -= amount;
-}
-
-export function applyDamageToSentinela(state: GameState, targetId: string, amount: number): void {
-  const found = findSentinela(state, targetId);
-  if (found) {
-    found.sen.loyalty -= amount;
-    state.log.push(`${getCard(found.sen.defId).name} perde ${amount} de Lealdade.`);
-    if (found.sen.loyalty <= 0) {
-      state.log.push(`A Sentinela ${getCard(found.sen.defId).name} foi destruída (Lealdade 0).`);
-    }
-  }
-}
-
-export function findUnit(state: GameState, instanceId: string): { unit: UnitInstance; owner: PlayerId } | null {
-  for (const pid of ["player", "ai"] as PlayerId[]) {
-    const u = state.players[pid].bench.find((x) => x.instanceId === instanceId);
-    if (u) return { unit: u, owner: pid };
-  }
-  return null;
-}
-
-export function findSentinela(
-  state: GameState,
-  instanceId: string,
-): { sen: SentinelaInstance; owner: PlayerId } | null {
-  for (const pid of ["player", "ai"] as PlayerId[]) {
-    const s = state.players[pid].sentinelas.find((x) => x.instanceId === instanceId);
-    if (s) return { sen: s, owner: pid };
-  }
-  return null;
-}
-
-export function findAnyBoardEntity(
-  state: GameState,
-  instanceId: string,
-): BoardEntity | null {
-  const unit = findUnit(state, instanceId);
-  if (unit) return { kind: "unit", ...unit };
-  const perm = findPermanent(state, instanceId);
-  if (perm) return { kind: "permanent", ...perm };
-  const sen = findSentinela(state, instanceId);
-  if (sen) return { kind: "sentinela", ...sen };
-  return null;
-}
-
-export function findPermanent(
-  state: GameState,
-  instanceId: string,
-): { perm: PermanentInstance; owner: PlayerId } | null {
-  for (const pid of ["player", "ai"] as PlayerId[]) {
-    const p = state.players[pid].permanents.find((x) => x.instanceId === instanceId);
-    if (p) return { perm: p, owner: pid };
-  }
-  return null;
-}
-
-
-
-export function autoTarget(
-  state: GameState,
-  playerId: PlayerId,
-  target: TargetKind,
-  self?: UnitInstance,
-  raceFilter?: Race | Race[],
-): UnitInstance | PermanentInstance | SentinelaInstance | undefined {
-  if (target === "self") return self;
-  if (target === "none") return undefined;
-
-  const allyUnits = state.players[playerId].bench.filter((u) => hasRace(u, raceFilter));
-  const enemyUnits = state.players[other(playerId)].bench.filter((u) => hasRace(u, raceFilter));
-  const allyPerms = state.players[playerId].permanents;
-  const enemyPerms = state.players[other(playerId)].permanents;
-  const allySen = state.players[playerId].sentinelas;
-  const enemySen = state.players[other(playerId)].sentinelas;
-
-  if (target === "allyUnit") {
-    return [...allyUnits].sort((a, b) => b.power - a.power)[0];
-  }
-  if (target === "enemyUnit") {
-    return [...enemyUnits].sort((a, b) => b.power - a.power)[0];
-  }
-  if (target === "anyUnit") {
-    return [...enemyUnits, ...allyUnits].sort((a, b) => b.power - a.power)[0];
-  }
-  if (target === "allyPermanent") {
-    return [...allyPerms].sort((a, b) => b.health - a.health)[0];
-  }
-  if (target === "enemyPermanent") {
-    return [...enemyPerms].sort((a, b) => b.health - a.health)[0];
-  }
-  if (target === "anyPermanent") {
-    return [...enemyPerms, ...allyPerms].sort((a, b) => b.health - a.health)[0];
-  }
-  if (target === "enemySentinela") {
-    return [...enemySen].sort((a, b) => a.loyalty - b.loyalty)[0];
-  }
-  if (target === "allySentinela") {
-    return [...allySen].sort((a, b) => a.loyalty - b.loyalty)[0];
-  }
-  if (target === "anySentinela") {
-    return [...enemySen, ...allySen].sort((a, b) => a.loyalty - b.loyalty)[0];
-  }
-  if (target === "anyBoard") {
-    const allUnits = [...enemyUnits, ...allyUnits].sort((a, b) => b.power - a.power)[0];
-    const allPerms = [...enemyPerms, ...allyPerms].sort((a, b) => b.health - a.health)[0];
-    return allUnits ?? allPerms;
-  }
-  return undefined;
-}
-
-/** Returns true if the unit died from the damage. */
