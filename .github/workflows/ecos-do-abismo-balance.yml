@@ -35,21 +35,11 @@ permissions:
 
 jobs:
   evidence:
-    name: 1,280 games · ${{ matrix.variant }}
+    name: 1,280-game canonical matrix
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        variant:
-          - assassin_for_freeze
-          - deathmark_for_freeze
-          - nightmare_for_freeze
-          - gloom_warden_for_freeze
-          - mystic_for_freeze
     env:
       ECOS_GAMES_PER_STRATUM: "32"
-      ECOS_RECIPE_VARIANT: ${{ matrix.variant }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -69,14 +59,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run Ecos do Abismo balance evidence
+      - name: Run canonical Ecos do Abismo balance evidence
         run: node --import tsx scripts/ecos-do-abismo-balance-v2.ts --enforce
 
       - name: Upload balance report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ecos-do-abismo-balance-${{ matrix.variant }}-${{ github.sha }}
+          name: ecos-do-abismo-balance-canonical-${{ github.sha }}
           path: artifacts/ecos-do-abismo-balance/report.json
           if-no-files-found: error
           retention-days: 30
