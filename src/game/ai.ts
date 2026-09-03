@@ -17,6 +17,13 @@ import {
   spellNeedsTarget,
   type CardAction,
 } from "./engine";
+import { graveyardEntries } from "./graveyard";
+import {
+  graveyardTargetScore,
+  isGraveyardTargetKind,
+  isValidGraveyardTarget,
+} from "./graveyard-effects";
+import { engineRulesFor } from "./match-rules";
 import type { BoardEntity, CardEffect, GameState, PlayerId, UnitInstance } from "./types";
 
 /**
@@ -36,6 +43,9 @@ const TACTICAL_FALLBACK_EFFECTS = new Set<CardEffect["kind"]>([
   "buffAllies",
   "buffRace",
   "grantKeyword",
+  "returnGraveyardToHand",
+  "reanimateUnit",
+  "banishGraveyardCard",
 ]);
 
 const HOSTILE_TARGETED_EFFECTS = new Set<CardEffect["kind"]>([
@@ -103,6 +113,17 @@ function fallbackEffectUseful(state: GameState, playerId: PlayerId, effect: Card
   if (effect.kind === "buffRace") {
     return Boolean((effect.buffPower ?? 0) || (effect.buffHealth ?? 0)) && me.bench.some((unit) => unitMatchesRaceEffect(unit, effect));
   }
+  if (effect.kind === "reanimateUnit") {
+    return me.bench.length < engineRulesFor(state).benchCap &&
+      graveyardEntries(state, playerId).some((entry) => getCard(entry.defId).type === "Unit");
+  }
+  if (effect.kind === "returnGraveyardToHand") {
+    return me.hand.length < engineRulesFor(state).handCap && graveyardEntries(state, playerId).length > 0;
+  }
+  if (effect.kind === "banishGraveyardCard") {
+    if (effect.target === "enemyGraveyardCard") return graveyardEntries(state, other(playerId)).length > 0;
+    return graveyardEntries(state, playerId).length + graveyardEntries(state, other(playerId)).length > 0;
+  }
   return true;
 }
 
@@ -114,6 +135,15 @@ function chooseFallbackTarget(
   const targetKind = effect.target;
   if (targetKind === "none" || targetKind === "self") return undefined;
   if (targetKind === "spellOnStack") return null;
+
+  if (isGraveyardTargetKind(targetKind)) {
+    const candidates = (["player", "ai"] as PlayerId[])
+      .flatMap((owner) => graveyardEntries(state, owner))
+      .filter((entry) => isValidGraveyardTarget(state, playerId, targetKind, entry))
+      .map((entry) => ({ entry, score: graveyardTargetScore(entry) }))
+      .sort((a, b) => b.score - a.score || a.entry.instanceId.localeCompare(b.entry.instanceId));
+    return candidates[0]?.entry.instanceId ?? null;
+  }
 
   const hostile = HOSTILE_TARGETED_EFFECTS.has(effect.kind);
   const enemyId = other(playerId);
