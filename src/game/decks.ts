@@ -214,7 +214,7 @@ export const DECKS: DeckDef[] = [
       "rfalpha_reanimator_dead_tide_devourer", "rfalpha_reanimator_dead_tide_devourer",
       "rfalpha_reanimator_hollow_rift_colossus", "rfalpha_reanimator_hollow_rift_colossus",
       "tide_oracle", "tide_oracle", "tide_oracle",
-      "tide_guard", "tide_guard", "tide_guard",
+      "tide_guard", "tide_guard",
       "tide_sprite", "tide_sprite",
       "tide_heal", "tide_heal",
       "tide_glacial", "tide_glacial",
@@ -226,6 +226,7 @@ export const DECKS: DeckDef[] = [
       "void_unmake",
       "void_wither",
       "void_nightmare",
+      "void_gloom_warden",
     ],
   },
   {
