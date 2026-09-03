@@ -69,7 +69,7 @@ const cards: CardDef[] = [
     rarity: "Common",
     description: "Counter fixture.",
     emoji: "🚫",
-    speed: "Fast",
+    speed: "Burst",
     spell: { kind: "negateSpell", amount: 0, target: "spellOnStack" },
   },
   {
