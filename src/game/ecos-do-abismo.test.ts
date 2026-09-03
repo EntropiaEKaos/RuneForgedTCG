@@ -54,6 +54,12 @@ assert.deepEqual(preset.regions, ["Tidecall", "Voidborn"]);
 const validation = validateDeck(preset.cards);
 assert.equal(validation.ok, true, `Ecos preset must be legal: ${validation.errors.join("; ")}`);
 assert.deepEqual(new Set(validation.regions), new Set(["Tidecall", "Voidborn"]));
+assert.equal(preset.cards.filter((defId) => defId === IDS.pulse).length, 2, "certified recipe keeps exactly two baseline reanimation spells");
+assert.equal(preset.cards.filter((defId) => defId === IDS.thread).length, 1, "certified recipe keeps one graveyard-to-hand recursion spell");
+assert.equal(preset.cards.filter((defId) => defId === "tide_freeze").length, 2, "certified recipe keeps exactly two Riptides");
+assert.equal(preset.cards.filter((defId) => defId === "void_nightmare").length, 1, "certified recipe promotes Living Nightmare as the no-Lifesteal midgame slot");
+assert.equal(preset.cards.includes("void_reaper"), false, "certified recipe must not use Soul Reaper after balance isolation");
+assert.deepEqual(ECOS_DO_ABISMO_CARDS[IDS.colossus]?.keywords ?? [], [], "certified Hollow Rift Colossus is fully blockable");
 
 // No Alpha starter or Ranked recipe is changed by the new archetype.
 for (const starterId of STARTER_IDS) {
