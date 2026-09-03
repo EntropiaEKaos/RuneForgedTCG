@@ -1,4 +1,14 @@
+import { execFileSync } from "node:child_process";
 import type { NextConfig } from "next";
+
+// Flagship editorial assets are generated before Next resolves /public.
+// Champion masters are already created by predev/prebuild; Batch B Structures
+// are generated here as an additive release asset pipeline without changing
+// the frozen gameplay/card presentation surfaces.
+execFileSync(process.execPath, ["scripts/generate-flagship-structure-art.mjs"], {
+  cwd: process.cwd(),
+  stdio: "inherit",
+});
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
