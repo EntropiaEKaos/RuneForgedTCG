@@ -37,21 +37,11 @@ permissions:
 
 jobs:
   evidence:
-    name: 4,000 games · ${{ matrix.variant }}
+    name: 4,000-game canonical matrix
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        variant:
-          - gloom_to_thread
-          - gloom_to_assassin
-          - gloom_to_deathmark
-          - gloom_to_voidmage
-          - gloom_to_draw
     env:
       ECOS_GAMES_PER_STRATUM: "100"
-      ECOS_RECIPE_VARIANT: ${{ matrix.variant }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -71,14 +61,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run 4k Triad refinement
+      - name: Run canonical Ecos do Abismo balance evidence
         run: node --import tsx scripts/ecos-do-abismo-balance-v2.ts --enforce
 
       - name: Upload balance report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ecos-do-abismo-balance-${{ matrix.variant }}-${{ github.sha }}
+          name: ecos-do-abismo-balance-canonical-${{ github.sha }}
           path: artifacts/ecos-do-abismo-balance/report.json
           if-no-files-found: error
           retention-days: 30
