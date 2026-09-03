@@ -33,8 +33,8 @@ export function toPvpParticipantReactionState(
  * The guest is re-oriented to the local `player` slot, then both future deck
  * orders and the opponent hand are redacted. Graveyards are public, but their
  * owner seat ids are re-oriented with every other public board-zone owner.
- * RNG/instance counters stay server-only so a browser cannot predict future
- * authoritative transitions.
+ * RNG/instance/graveyard counters stay server-only so a browser cannot predict
+ * future authoritative transitions.
  */
 export function toPvpParticipantGameState(state: GameState, viewerIsGuest: boolean): GameState {
   const source = structuredClone(state);
@@ -76,5 +76,6 @@ export function toPvpParticipantGameState(state: GameState, viewerIsGuest: boole
   publicState.seed = 0;
   publicState.rngState = 0;
   publicState.idCounter = 0;
+  publicState.graveyardSequence = 0;
   return publicState;
 }
