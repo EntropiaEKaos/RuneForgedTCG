@@ -174,6 +174,7 @@ export type EffectKind =
   | "killUnit"
   | "poison"
   | "mill"
+  | "selfMill"
   | "returnGraveyardToHand"
   | "reanimateUnit"
   | "banishGraveyardCard";
