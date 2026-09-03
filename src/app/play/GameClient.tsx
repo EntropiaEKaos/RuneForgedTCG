@@ -8,7 +8,7 @@ import { allCards, getCard } from "@/game/cards";
 import { registerCustomCards } from "@/game/custom-registry";
 import { DECKS, type DeckDef } from "@/game/decks";
 import { aiChooseReaction } from "@/game/ai";
-import { isValidGraveyardTarget } from "@/game/graveyard-effects";
+import { isGraveyardTargetKind, isValidGraveyardTarget } from "@/game/graveyard-effects";
 import type { GraveyardEntry } from "@/game/graveyard";
 import {
   activatedAbilitiesForInstance,
@@ -493,6 +493,11 @@ export default function GameClient() {
     }} />;
   }
 
+  const graveyardTargeting = Boolean(pendingSpell && isGraveyardTargetKind(pendingSpell.targetType));
+  const graveyardOverlayVisible = graveyardTargeting ||
+    (state.players.player.graveyard?.length ?? 0) > 0 ||
+    (state.players.ai.graveyard?.length ?? 0) > 0;
+
   return (
     <>
       <BattleView
@@ -509,10 +514,16 @@ export default function GameClient() {
         setPendingReaction={setPendingReaction} setPendingSentinelaAbility={setPendingSentinelaAbility} setSelectedBlocker={setSelectedBlocker}
         setChallenges={setChallenges} setSentinelaTargets={setSentinelaTargets}
       />
-      <div data-graveyard-overlay="true" className="pointer-events-none fixed inset-x-2 bottom-24 z-40 mx-auto grid max-w-5xl gap-2 md:grid-cols-2">
-        <div className="pointer-events-auto"><GraveyardTray state={state} owner="player" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
-        <div className="pointer-events-auto"><GraveyardTray state={state} owner="ai" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
-      </div>
+      {graveyardOverlayVisible && (
+        <div
+          data-graveyard-overlay="true"
+          data-graveyard-targeting={graveyardTargeting ? "true" : "false"}
+          className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} fixed inset-x-2 bottom-24 z-40 mx-auto grid max-w-5xl gap-2 md:grid-cols-2`}
+        >
+          <div className={graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"}><GraveyardTray state={state} owner="player" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
+          <div className={graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"}><GraveyardTray state={state} owner="ai" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
+        </div>
+      )}
       {pendingActivatedDiscard && <ActivatedDiscardPicker state={state} pending={pendingActivatedDiscard} onToggle={toggleActivatedDiscard} onConfirm={confirmActivatedDiscard} onCancel={cancelActivatedDiscard} />}
     </>
   );
