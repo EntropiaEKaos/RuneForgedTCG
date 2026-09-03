@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { aiChooseAction, aiChooseBlocks, applyAiAction, aiResolveTurnEnd } from "../src/game/ai";
+import { aiChooseAction, aiChooseBlocks, aiChooseReaction, applyAiAction, aiResolveTurnEnd } from "../src/game/ai";
 import { evaluateMatchup } from "../src/game/balance-health";
 import { getCard } from "../src/game/cards";
 import { getDeck } from "../src/game/decks";
-import { createCustomGame, resolveCombat } from "../src/game/engine";
+import { applyStackedActionWithAi, createCustomGame, resolveCombat, type CardAction } from "../src/game/engine";
 import { graveyardEntries } from "../src/game/graveyard";
 import type { DeckInput, GameState, PlayerId } from "../src/game/types";
 import { ENGINE_VERSION, RULESET_VERSION } from "../src/game/version";
@@ -48,11 +48,19 @@ interface MatchResult {
   completed: boolean;
   firstReanimationRound: number | null;
   reanimationEvents: number;
+  reanimationAttempts: number;
+  reanimationDisruptions: number;
+  reactionUses: number;
   outletActivations: number;
   recoveries: number;
   sealUses: number;
   sealPlayableSamples: number;
   strandedFinishers: number;
+}
+
+interface AppliedAction {
+  next: GameState;
+  reactionUsed: boolean;
 }
 
 function asDeck(id: string): DeckInput {
@@ -62,6 +70,58 @@ function asDeck(id: string): DeckInput {
 
 function other(playerId: PlayerId): PlayerId {
   return playerId === "player" ? "ai" : "player";
+}
+
+/**
+ * Resolve one AI-selected main-phase action with the same reaction-stack API
+ * used by the live PvE path. Main-phase activated abilities remain direct,
+ * matching reducer-core's certified `sentinela` transition; hand cards pass
+ * through the stack so Deny, Traps and reaction abilities are represented.
+ */
+function applySymmetricAiAction(state: GameState, action: CardAction, side: PlayerId): AppliedAction {
+  if (action.kind === "sentinela") {
+    return { next: applyAiAction(state, action, side), reactionUsed: false };
+  }
+
+  const pending: CardAction = { ...action, player: side };
+  const respondingSide = other(side);
+
+  if (respondingSide === "player") {
+    const response = aiChooseReaction(state, pending, "player");
+    const result = applyStackedActionWithAi(
+      state,
+      pending,
+      response ? "react" : "skip",
+      response,
+      (current, pendingAction) => aiChooseReaction(current, pendingAction, "ai"),
+    );
+    return { next: result.next, reactionUsed: Boolean(response) };
+  }
+
+  let chosenAiResponse: CardAction | null = null;
+  const result = applyStackedActionWithAi(
+    state,
+    pending,
+    "skip",
+    null,
+    (current, pendingAction) => {
+      chosenAiResponse = aiChooseReaction(current, pendingAction, "ai");
+      return chosenAiResponse;
+    },
+  );
+  return { next: result.next, reactionUsed: Boolean(chosenAiResponse) };
+}
+
+function graveyardEntry(state: GameState, owner: PlayerId, instanceId: string | undefined) {
+  return instanceId ? graveyardEntries(state, owner).find((entry) => entry.instanceId === instanceId) : undefined;
+}
+
+function countBenchDef(state: GameState, owner: PlayerId, defId: string): number {
+  return state.players[owner].bench.filter((unit) => unit.defId === defId).length;
+}
+
+function countHandDef(state: GameState, owner: PlayerId, defId: string): number {
+  return state.players[owner].hand.filter((card) => card.defId === defId).length;
 }
 
 function playMatch(opponentId: string, seed: number, gameIndex: number): MatchResult {
@@ -80,6 +140,9 @@ function playMatch(opponentId: string, seed: number, gameIndex: number): MatchRe
 
   let firstReanimationRound: number | null = null;
   let reanimationEvents = 0;
+  let reanimationAttempts = 0;
+  let reanimationDisruptions = 0;
+  let reactionUses = 0;
   let outletActivations = 0;
   let recoveries = 0;
   let sealUses = 0;
@@ -113,21 +176,46 @@ function playMatch(opponentId: string, seed: number, gameIndex: number): MatchRe
     }
 
     const before = state;
-    const next = applyAiAction(state, action, side);
+    const def = getCard(action.defId);
+    const targetOwner = def.spell?.target === "enemyGraveyardCard" ? other(side) : side;
+    const targetedGraveyard = graveyardEntry(before, targetOwner, action.targetInstanceId);
+    const beforeTargetBenchCount = targetedGraveyard ? countBenchDef(before, side, targetedGraveyard.defId) : 0;
+    const beforeTargetHandCount = targetedGraveyard ? countHandDef(before, side, targetedGraveyard.defId) : 0;
+
+    if (side === ecosSide && def.spell?.kind === "reanimateUnit") reanimationAttempts += 1;
+
+    const applied = applySymmetricAiAction(state, action, side);
+    const next = applied.next;
+    if (applied.reactionUsed) reactionUses += 1;
     if (next === before) {
       state = aiResolveTurnEnd(state, side);
       continue;
     }
 
     if (side === ecosSide) {
-      const def = getCard(action.defId);
       if (action.kind === "sentinela" && OUTLETS.has(action.defId)) outletActivations += 1;
+
       if (def.spell?.kind === "reanimateUnit") {
-        reanimationEvents += 1;
-        if (firstReanimationRound == null) firstReanimationRound = before.round;
+        const targetConsumed = Boolean(targetedGraveyard) && !graveyardEntry(next, targetOwner, targetedGraveyard?.instanceId);
+        const targetEnteredBench = Boolean(targetedGraveyard) &&
+          countBenchDef(next, side, targetedGraveyard!.defId) > beforeTargetBenchCount;
+        if (targetConsumed && targetEnteredBench) {
+          reanimationEvents += 1;
+          if (firstReanimationRound == null) firstReanimationRound = before.round;
+        } else if (applied.reactionUsed) {
+          reanimationDisruptions += 1;
+        }
       }
-      if (def.spell?.kind === "returnGraveyardToHand") recoveries += 1;
-      if (action.defId === SEAL_ID && def.spell?.kind === "banishGraveyardCard") sealUses += 1;
+
+      if (def.spell?.kind === "returnGraveyardToHand" && targetedGraveyard) {
+        const targetConsumed = !graveyardEntry(next, targetOwner, targetedGraveyard.instanceId);
+        const targetEnteredHand = countHandDef(next, side, targetedGraveyard.defId) > beforeTargetHandCount;
+        if (targetConsumed && targetEnteredHand) recoveries += 1;
+      }
+
+      if (action.defId === SEAL_ID && def.spell?.kind === "banishGraveyardCard" && targetedGraveyard) {
+        if (!graveyardEntry(next, targetOwner, targetedGraveyard.instanceId)) sealUses += 1;
+      }
     }
     state = next;
   }
@@ -154,6 +242,9 @@ function playMatch(opponentId: string, seed: number, gameIndex: number): MatchRe
     completed,
     firstReanimationRound,
     reanimationEvents,
+    reanimationAttempts,
+    reanimationDisruptions,
+    reactionUses,
     outletActivations,
     recoveries,
     sealUses,
@@ -204,6 +295,9 @@ const rows = OPPONENTS.map((opponent) => {
     winRate,
     winRate95: wilson95(wins, decisive),
     avgRounds: Math.round(games.reduce((sum, game) => sum + game.rounds, 0) / Math.max(games.length, 1) * 10) / 10,
+    reactions: games.reduce((sum, game) => sum + game.reactionUses, 0),
+    reanimationAttempts: games.reduce((sum, game) => sum + game.reanimationAttempts, 0),
+    reanimationDisruptions: games.reduce((sum, game) => sum + game.reanimationDisruptions, 0),
     health: evaluateMatchup(winRate),
   };
 });
@@ -246,7 +340,7 @@ const report = {
     gamesPerStratum: GAMES_PER_STRATUM,
     totalGames,
     maxSteps: MAX_STEPS,
-    policy: "ai-core-vs-ai-core",
+    policy: "ai-core-vs-ai-core+authoritative-reaction-stack",
   },
   qualityGate,
   releaseGate,
@@ -258,12 +352,15 @@ const report = {
     winRate: pct(wins, decisive),
     drawRate: pct(draws, totalGames),
     firstPlayerWinRate: pct(firstPlayerWins, firstPlayerDecisive.length),
+    reactionUses: results.reduce((sum, row) => sum + row.reactionUses, 0),
     gamesWithReanimation: reanimatedGames.length,
     reanimationGameRate: pct(reanimatedGames.length, totalGames),
     averageFirstReanimationRound: reanimatedGames.length
       ? Math.round((firstReanimationRoundTotal / reanimatedGames.length) * 10) / 10
       : null,
     reanimationEvents: results.reduce((sum, row) => sum + row.reanimationEvents, 0),
+    reanimationAttempts: results.reduce((sum, row) => sum + row.reanimationAttempts, 0),
+    reanimationDisruptions: results.reduce((sum, row) => sum + row.reanimationDisruptions, 0),
     outletActivations: results.reduce((sum, row) => sum + row.outletActivations, 0),
     recoveries: results.reduce((sum, row) => sum + row.recoveries, 0),
     sealUses: results.reduce((sum, row) => sum + row.sealUses, 0),
