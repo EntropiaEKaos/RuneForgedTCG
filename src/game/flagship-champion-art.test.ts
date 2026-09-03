@@ -3,6 +3,7 @@ import { getCard } from "./cards";
 import { getCardArt, replaceRegisteredCardArt } from "./card-art";
 import { FLAGSHIP_CHAMPION_ART, FLAGSHIP_CHAMPION_BASE_ART } from "./flagship-champion-art";
 import { FLAGSHIP_STRUCTURE_ART } from "./flagship-structure-art";
+import { FLAGSHIP_RITUAL_ART } from "./flagship-ritual-art";
 
 const chains = {
   ember_champion: ["ember_champion", "ember_champion_2", "ember_champion_3"],
@@ -41,6 +42,17 @@ for (const [defId, expected] of Object.entries(FLAGSHIP_STRUCTURE_ART)) {
   assert.equal(card.art, expected, `${defId} must receive Batch B art through the catalog overlay`);
 }
 
+assert.equal(Object.keys(FLAGSHIP_RITUAL_ART).length, 6, "Batch C must contain exactly six Mana Ritual masters");
+for (const [defId, expected] of Object.entries(FLAGSHIP_RITUAL_ART)) {
+  const card = getCard(defId);
+  assert.equal(card.archetypeKey, "ritual", `${defId} must remain a Ritual`);
+  assert.equal(card.type, "Spell", `${defId} Ritual must retain Spell technical base`);
+  assert.equal(card.spell?.kind, "manaRefund", `${defId} must remain a Mana Ritual`);
+  assert.ok(expected.endsWith(`/${defId}.webp`), `${defId} must use its region-local WebP master`);
+  assert.equal(getCardArt(defId)?.url, expected, `${defId} must resolve the Batch C built-in master`);
+  assert.equal(card.art, expected, `${defId} must receive Batch C art through the catalog overlay`);
+}
+
 replaceRegisteredCardArt([{ defId: "ember_champion", url: "/uploads/editorial/pyra-approved.webp" }]);
 assert.equal(
   getCardArt("ember_champion")?.url,
@@ -53,6 +65,12 @@ assert.equal(
   "/uploads/editorial/bastion-approved.webp",
   "Admin/editorial art must remain higher priority than the built-in Structure fallback",
 );
+replaceRegisteredCardArt([{ defId: "rfalpha_ember_ritual_red_rite", url: "/uploads/editorial/red-rite-approved.webp" }]);
+assert.equal(
+  getCardArt("rfalpha_ember_ritual_red_rite")?.url,
+  "/uploads/editorial/red-rite-approved.webp",
+  "Admin/editorial art must remain higher priority than the built-in Ritual fallback",
+);
 replaceRegisteredCardArt([]);
 assert.equal(getCardArt("ember_champion")?.url, FLAGSHIP_CHAMPION_BASE_ART.ember_champion, "clearing editorial art must restore the Champion master");
 assert.equal(
@@ -60,5 +78,10 @@ assert.equal(
   FLAGSHIP_STRUCTURE_ART.rfalpha_ember_structure_forge_bastion,
   "clearing editorial art must restore the Structure master",
 );
+assert.equal(
+  getCardArt("rfalpha_ember_ritual_red_rite")?.url,
+  FLAGSHIP_RITUAL_ART.rfalpha_ember_ritual_red_rite,
+  "clearing editorial art must restore the Ritual master",
+);
 
-console.log("FLAGSHIP ART BATCHES A+B — CHAMPION + STRUCTURE RUNTIME CONTRACT: PASS");
+console.log("FLAGSHIP ART BATCHES A+B+C — CHAMPION + STRUCTURE + MANA RITUAL RUNTIME CONTRACT: PASS");
