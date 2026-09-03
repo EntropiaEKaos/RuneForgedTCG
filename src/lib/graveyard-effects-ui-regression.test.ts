@@ -15,7 +15,8 @@ for (const target of ["allyGraveyardCard", "enemyGraveyardCard", "anyGraveyardCa
 assert.ok(authoring.includes("Graveyard-targeted Spells are main-phase only"), "Studio validation must fail closed for unsupported reaction-speed graveyard Spells");
 assert.ok(gameClient.includes("<GraveyardTray") && gameClient.includes("handleGraveyardClick"), "gameplay must expose public graveyards and route selected entry ids through the normal action path");
 assert.ok(gameClient.includes("targetInstanceId: entry.instanceId"), "graveyard targeting must send the authoritative zone instance id");
+assert.ok(gameClient.includes("graveyardOverlayVisible") && gameClient.includes('graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"'), "idle/empty graveyard UI must not intercept normal battlefield or hand interaction");
 assert.ok(tray.includes("data-graveyard-entry") && tray.includes("isValidGraveyardTarget"), "graveyard tray must expose targetable authoritative entries");
 assert.ok(launcher.includes("seedStudioSandboxGraveyards"), "Studio sandbox must seed physical graveyard cards for live mechanic testing");
 
-console.log("GRAVEYARD EFFECTS 1.0 UI CONTRACT: PASS (Studio vocabulary + fail-closed speed + public tray + authoritative click target + seeded sandbox)");
+console.log("GRAVEYARD EFFECTS 1.0 UI CONTRACT: PASS (Studio vocabulary + fail-closed speed + public non-blocking tray + authoritative click target + seeded sandbox)");
