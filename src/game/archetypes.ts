@@ -146,7 +146,7 @@ export function archetypeMomentum(state: GameState, deckId: string): { value: nu
       detail = `${me.stats.nexusDamageDealt} de dano · pressão aérea`;
       break;
     case "ecos_do_abismo": {
-      const premiumGraveyardUnits = me.graveyard.filter((entry) => {
+      const premiumGraveyardUnits = (me.graveyard ?? []).filter((entry) => {
         try {
           const card = getCard(entry.defId);
           return card.type === "Unit" && card.cost >= 6;
