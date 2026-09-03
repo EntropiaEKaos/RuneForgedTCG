@@ -141,7 +141,11 @@ export type TargetKind =
   | "anyBoard"
   | "enemySentinela"
   | "allySentinela"
-  | "anySentinela";
+  | "anySentinela"
+  | "allyGraveyardCard"
+  | "enemyGraveyardCard"
+  | "anyGraveyardCard"
+  | "allyGraveyardUnit";
 
 export type EffectKind =
   | "damageUnit"
@@ -169,7 +173,10 @@ export type EffectKind =
   | "recall"
   | "killUnit"
   | "poison"
-  | "mill";
+  | "mill"
+  | "returnGraveyardToHand"
+  | "reanimateUnit"
+  | "banishGraveyardCard";
 
 export type TriggerWhen =
   | "onSummon"

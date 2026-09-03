@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { DECKS, type DeckDef } from "@/game/decks";
 import { createCustomGame, createGame } from "@/game/engine";
+import { seedStudioSandboxGraveyards } from "@/game/graveyard-effects";
 import { AI_DIFFICULTIES } from "@/game/ai-personality";
 import { buildModeMission, setActiveModeMission } from "@/game/client/mode-mission";
 import type { AiDifficulty, DeckInput, GameState } from "@/game/types";
@@ -101,8 +102,9 @@ export function useMatchLauncher({
       const opponent = presetDecks[0] ?? DECKS[0];
       const entropy = new Uint32Array(1); crypto.getRandomValues(entropy); const seed = 930000 + Number(entropy[0] % 9999);
       seedRef.current = seed; modePlayerFirstRef.current = true; setMatchToken(null); modeAttemptTokenRef.current = null;
-      setState(createCustomGame(playerName, playerDeck, opponent, { aiName: "Sandbox AI", playerGoesFirst: true, seed, logPrefix: "🧪 Studio Sandbox — " }));
-      setFirstInfo("🧪 Sandbox local do Studio · sem rewards, MMR ou persistência de resultado.");
+      const sandboxState = createCustomGame(playerName, playerDeck, opponent, { aiName: "Sandbox AI", playerGoesFirst: true, seed, logPrefix: "🧪 Studio Sandbox — " });
+      setState(seedStudioSandboxGraveyards(sandboxState));
+      setFirstInfo("🧪 Sandbox local do Studio · cemitérios semeados para testar recursão · sem rewards, MMR ou persistência de resultado.");
       setScreen("game"); return;
     }
 
