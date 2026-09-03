@@ -30,17 +30,31 @@ export interface GraveyardEntry {
 
 /**
  * Backwards-compatible state augmentation. Historical authoritative replays do
- * not contain this property; all access must therefore go through graveyardOf.
+ * not contain these properties; access therefore always has a deterministic
+ * fallback. Equipment provenance is optional so generated attachments remain
+ * distinguishable from physical cards that were played from hand.
  */
 declare module "./types" {
+  interface GameState {
+    graveyardSequence?: number;
+  }
   interface PlayerState {
     graveyard?: GraveyardEntry[];
   }
+  interface EquipmentSlot {
+    graveyardSourceInstanceId?: string;
+  }
 }
 
+/**
+ * Graveyard ids deliberately use their own sequence. Graveyard bookkeeping
+ * must not perturb the engine's normal `idCounter`, because changing future
+ * Unit/Card instance ids could otherwise alter deterministic replay behavior.
+ */
 function nextGraveyardId(state: GameState): string {
-  state.idCounter += 1;
-  return `gy_${state.idCounter}`;
+  const next = (state.graveyardSequence ?? 0) + 1;
+  state.graveyardSequence = next;
+  return `gy_${next}`;
 }
 
 /** Treat missing historical zones as empty and materialize them on first use. */
@@ -98,6 +112,7 @@ export function discardHandInstancesToGraveyard(
 ): number {
   if (instanceIds.length === 0) return 0;
   const selected = new Set(instanceIds);
+  if (selected.size !== instanceIds.length) return 0;
   const player = state.players[playerId];
   const moving = player.hand.filter((card) => selected.has(card.instanceId));
   if (moving.length !== selected.size) return 0;
