@@ -107,6 +107,7 @@ export const CARD_DOCTRINES = [
   { id: "tempestade_rush", name: "Céu em Ruptura", region: "Tempestade", icon: "⚡" },
   { id: "convergence_dual", name: "Aliança da Forja do Trovão", region: "Emberhold", icon: "🔥⚡" },
   { id: "convergence_triad", name: "Memória do Abismo Vivo", region: "Tidecall", icon: "🌊🌿☠" },
+  { id: "ecos_do_abismo", name: "Ecos do Abismo", region: "Voidborn", icon: "🌊☠️" },
 ] as const;
 
 /**
@@ -327,13 +328,25 @@ function sanitizeActivatedAbilityCost(raw: unknown): ActivatedAbilityCost | null
   if (mana === null) return null;
   if (mana !== undefined) cost.mana = mana;
 
+  const spellMana = nonNegativeInteger(value.spellMana);
+  if (spellMana === null || (spellMana !== undefined && spellMana > 20)) return null;
+  if (spellMana !== undefined) cost.spellMana = spellMana;
+
   const nexusHealth = nonNegativeInteger(value.nexusHealth);
   if (nexusHealth === null) return null;
   if (nexusHealth !== undefined) cost.nexusHealth = nexusHealth;
 
+  const discardFromHand = nonNegativeInteger(value.discardFromHand);
+  if (discardFromHand === null || (discardFromHand !== undefined && discardFromHand > 10)) return null;
+  if (discardFromHand !== undefined) cost.discardFromHand = discardFromHand;
+
   if (value.exhaustSelf !== undefined) {
     if (typeof value.exhaustSelf !== "boolean") return null;
     if (value.exhaustSelf) cost.exhaustSelf = true;
+  }
+  if (value.consumeBarrier !== undefined) {
+    if (typeof value.consumeBarrier !== "boolean") return null;
+    if (value.consumeBarrier) cost.consumeBarrier = true;
   }
   if (value.sacrificeSelf !== undefined) {
     if (typeof value.sacrificeSelf !== "boolean") return null;
@@ -375,8 +388,11 @@ export function sanitizeActivatedAbility(raw: unknown): ActivatedAbility | null 
   if (maxUsesPerRound === null) {
     const consumes = Boolean(
       (cost?.mana ?? 0) > 0 ||
+      (cost?.spellMana ?? 0) > 0 ||
       (cost?.nexusHealth ?? 0) > 0 ||
+      (cost?.discardFromHand ?? 0) > 0 ||
       cost?.exhaustSelf ||
+      cost?.consumeBarrier ||
       cost?.sacrificeSelf ||
       (cost?.loyaltyDelta ?? 0) < 0,
     );
