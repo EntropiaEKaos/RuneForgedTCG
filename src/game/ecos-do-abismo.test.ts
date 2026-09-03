@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { validateAuthorableCardWithActivatedAbilities } from "./activated-ability-authoring";
 import { aiChooseActivatedAbilityAction } from "./ai-activated-abilities";
-import { applyAiAction } from "./ai";
+import { aiChooseReaction, applyAiAction } from "./ai";
 import { archetypeForDeck, mulliganPlan } from "./archetypes";
 import { validateAuthorableCard } from "./card-authoring";
 import { ECOS_DO_ABISMO_CARDS } from "./cards/ecos-do-abismo";
 import { getDeck, validateDeck } from "./decks";
-import { activateAbility, castSpell, createCustomGame, makeUnit } from "./engine";
-import { graveyardEntries } from "./graveyard";
+import { activateAbility, applyStackedActionWithAi, castSpell, createCustomGame, makeUnit } from "./engine";
+import { graveyardEntries, putInGraveyard } from "./graveyard";
 import { RANKED_PRECONS } from "./ranked-decks";
 import type { DeckInput, GameState } from "./types";
 
@@ -136,4 +136,59 @@ assert.deepEqual(mulligan.replace, [IDS.colossus, IDS.vigil]);
   assert.ok(next.players.ai.hand.some((card) => card.instanceId === "ai-pulse"), "AI protects the recursion spell instead of discarding it");
 }
 
-console.log("ECOS DO ABISMO 1.0: PASS — 9 cards + legal 40-card preset + starter/Ranked isolation + Studio + discard/reanimate loop + reanimator-aware AI");
+// Counterplay AI: a legal Counterspell recognizes reanimation as a high-impact stack threat.
+{
+  const state = game();
+  state.activePlayer = "player";
+  state.phase = "main";
+  state.players.player.hand = [{ instanceId: "pending-pulse", defId: IDS.pulse }];
+  state.players.ai.hand = [{ instanceId: "ai-deny", defId: "tide_deny" }];
+  state.players.ai.mana = 10;
+  state.players.ai.spellMana = 3;
+  const target = putInGraveyard(state, "player", IDS.colossus, "discard", "counterplay-fatty");
+  assert.ok(target);
+
+  const pending = {
+    kind: "spell" as const,
+    player: "player" as const,
+    instanceId: "pending-pulse",
+    defId: IDS.pulse,
+    targetInstanceId: target!.instanceId,
+  };
+  const response = aiChooseReaction(state, pending, "ai");
+  assert.equal(response?.defId, "tide_deny", "Tide AI should spend a legal Counterspell on a reanimation spell");
+
+  const resolved = applyStackedActionWithAi(
+    state,
+    pending,
+    "skip",
+    null,
+    (current, action) => aiChooseReaction(current, action, "ai"),
+  ).next;
+  assert.equal(resolved.players.player.bench.some((unit) => unit.defId === IDS.colossus), false, "countered reanimation must not create the premium Unit");
+  assert.equal(graveyardEntries(resolved, "player").some((entry) => entry.instanceId === target!.instanceId), true, "countered reanimation leaves its target in the graveyard");
+  assert.equal(graveyardEntries(resolved, "player").some((entry) => entry.defId === IDS.pulse && entry.reason === "counter"), true, "the negated recursion spell is committed to the graveyard");
+
+  const noMana = game();
+  noMana.activePlayer = "player";
+  noMana.phase = "main";
+  noMana.players.player.hand = [{ instanceId: "pending-pulse-empty", defId: IDS.pulse }];
+  noMana.players.ai.hand = [{ instanceId: "ai-deny-empty", defId: "tide_deny" }];
+  noMana.players.ai.mana = 0;
+  noMana.players.ai.spellMana = 0;
+  const noManaTarget = putInGraveyard(noMana, "player", IDS.colossus, "discard", "counterplay-empty-fatty");
+  assert.ok(noManaTarget);
+  assert.equal(
+    aiChooseReaction(noMana, {
+      kind: "spell",
+      player: "player",
+      instanceId: "pending-pulse-empty",
+      defId: IDS.pulse,
+      targetInstanceId: noManaTarget!.instanceId,
+    }, "ai"),
+    null,
+    "AI must not invent an unaffordable Counterspell",
+  );
+}
+
+console.log("ECOS DO ABISMO 1.0: PASS — 9 cards + legal 40-card preset + starter/Ranked isolation + Studio + discard/reanimate loop + reanimator-aware AI + stack counterplay");
