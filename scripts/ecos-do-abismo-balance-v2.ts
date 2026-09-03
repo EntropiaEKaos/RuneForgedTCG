@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   if (!colossus) throw new Error("Recipe v15 expected Hollow Rift Colossus in the canonical catalog.");
   CARDS[colossusId] = {
     ...colossus,
-    keywords: colossus.keywords.filter((keyword) => keyword !== "Overwhelm"),
+    keywords: (colossus.keywords ?? []).filter((keyword) => keyword !== "Overwhelm"),
   };
 
   if (cards.length !== 40) throw new Error(`Recipe v15 must remain exactly 40 cards; got ${cards.length}.`);
