@@ -23,6 +23,7 @@ export const behavioralTests = [
   "src/game/expanded-activated-ability-costs.test.ts",
   "src/game/selected-discard-activated-cost.test.ts",
   "src/game/graveyard-zone.test.ts",
+  "src/game/graveyard-effects.test.ts",
   "src/game/activated-ability-authoring.test.ts",
   "src/game/reaction-activated-ability-authoring.test.ts",
   "src/game/activated-ability-presentation.test.ts",
