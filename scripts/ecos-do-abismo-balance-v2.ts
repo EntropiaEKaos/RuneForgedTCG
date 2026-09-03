@@ -7,7 +7,11 @@ type RecipeVariant =
   | "sprite_for_freeze"
   | "draw_for_freeze"
   | "thread_for_freeze"
-  | "heal_for_freeze";
+  | "heal_for_freeze"
+  | "reaper_thread_for_heal"
+  | "reaper_draw_for_heal"
+  | "reaper_sprite_for_heal"
+  | "reaper_unmake_for_heal";
 
 const variant = (process.env.ECOS_RECIPE_VARIANT ?? "v26") as RecipeVariant;
 const allowedVariants = new Set<RecipeVariant>([
@@ -17,6 +21,10 @@ const allowedVariants = new Set<RecipeVariant>([
   "draw_for_freeze",
   "thread_for_freeze",
   "heal_for_freeze",
+  "reaper_thread_for_heal",
+  "reaper_draw_for_heal",
+  "reaper_sprite_for_heal",
+  "reaper_unmake_for_heal",
 ]);
 
 async function main(): Promise<void> {
@@ -60,17 +68,33 @@ async function main(): Promise<void> {
     "void_wither",
   );
 
-  const swaps: Partial<Record<RecipeVariant, string>> = {
+  const firstGridSwaps: Partial<Record<RecipeVariant, string>> = {
     reaper_for_freeze: "void_reaper",
     sprite_for_freeze: "tide_sprite",
     draw_for_freeze: "tide_draw",
     thread_for_freeze: "rfalpha_reanimator_dead_memory_thread",
     heal_for_freeze: "tide_heal",
   };
-  const replacement = swaps[variant];
-  if (replacement) {
+
+  const reaperRefinements: Partial<Record<RecipeVariant, string>> = {
+    reaper_thread_for_heal: "rfalpha_reanimator_dead_memory_thread",
+    reaper_draw_for_heal: "tide_draw",
+    reaper_sprite_for_heal: "tide_sprite",
+    reaper_unmake_for_heal: "void_unmake",
+  };
+
+  const firstGridReplacement = firstGridSwaps[variant];
+  if (firstGridReplacement) {
     removeOne("tide_freeze");
-    cards.push(replacement);
+    cards.push(firstGridReplacement);
+  }
+
+  const reaperRefinement = reaperRefinements[variant];
+  if (reaperRefinement) {
+    removeOne("tide_freeze");
+    cards.push("void_reaper");
+    removeOne("tide_heal");
+    cards.push(reaperRefinement);
   }
 
   const colossusId = "rfalpha_reanimator_hollow_rift_colossus";
