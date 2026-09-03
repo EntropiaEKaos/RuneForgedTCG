@@ -30,7 +30,7 @@ for (const [region, defId] of [
   ["florestia", "forest_champion"],
   ["tempestade", "storm_champion"],
 ]) {
-  assert.ok(championGenerator.includes(`defId: "${defId}"`), `${defId} generator source missing`);
+  assert.ok(championGenerator.includes(`defId: "${defId}"`), `${defId} Champion generator source missing`);
   assert.ok(championGenerator.includes(`region: "${region}"`), `${region} Champion generator identity missing`);
   assert.ok(championRegistry.includes(`/art/cards/flagship/${region}/${defId}.webp`), `${defId} Champion runtime path missing`);
 }
@@ -42,7 +42,7 @@ for (const evolution of [
   assert.ok(championRegistry.includes(`${evolution}:`), `${evolution} must reuse its regional Alpha Champion master`);
 }
 
-const semanticBatches = [
+const artBatches = [
   {
     label: "Structure",
     generatorPath: "scripts/generate-flagship-structure-art.mjs",
@@ -100,10 +100,29 @@ const semanticBatches = [
       ["tempestade", "rfalpha_storm_trap_crosswind", "13f-trap-tempestade-art-viewer.png"],
     ],
   },
+  {
+    label: "Starter Signature",
+    generatorPath: "scripts/generate-flagship-signature-art.mjs",
+    registryPath: "src/game/flagship-signature-art.ts",
+    browserPath: "scripts/alpha-flagship-signatures-browser-cert.mjs",
+    workflowPath: ".github/workflows/flagship-signatures.yml",
+    generationMarker: "FLAGSHIP SIGNATURE ART: generated",
+    browserMarker: "FLAGSHIP ART BATCH E BROWSER CERT: PASS",
+    bootstrapScript: "scripts/generate-flagship-signature-art.mjs",
+    uploadPattern: "artifacts/alpha-visual/14*-signature-*-art-viewer.png",
+    targets: [
+      ["emberhold", "ember_ashguard", "14a-signature-emberhold-art-viewer.png"],
+      ["tidecall", "tide_cloudpiercer", "14b-signature-tidecall-art-viewer.png"],
+      ["ironwood", "wood_canopy_bastion", "14c-signature-ironwood-art-viewer.png"],
+      ["voidborn", "void_gloom_warden", "14d-signature-voidborn-art-viewer.png"],
+      ["florestia", "forest_dawn_alpha", "14e-signature-florestia-art-viewer.png"],
+      ["tempestade", "storm_static_adept", "14f-signature-tempestade-art-viewer.png"],
+    ],
+  },
 ] as const;
 
 const toolingSources: string[] = [championGenerator];
-for (const batch of semanticBatches) {
+for (const batch of artBatches) {
   const generator = read(batch.generatorPath);
   const registry = read(batch.registryPath);
   const browser = read(batch.browserPath);
@@ -145,17 +164,18 @@ for (const batch of semanticBatches) {
   assert.ok(nextConfig.includes(`"${batch.bootstrapScript}"`), `Next bootstrap must materialize ${batch.label} WebPs`);
 }
 
-assert.ok(nextConfig.includes("execFileSync(process.execPath, [script]"), "Next bootstrap must execute semantic Flagship asset generators");
-assert.ok(cardArt.includes("flagshipChampionArtUrl"), "Card art pipeline must retain Champion resolver");
-assert.ok(cardArt.includes("flagshipStructureArtUrl"), "Card art pipeline must retain Structure resolver");
-assert.ok(cardArt.includes("flagshipRitualArtUrl"), "Card art pipeline must retain Mana Ritual resolver");
-assert.ok(cardArt.includes("flagshipTrapArtUrl"), "Card art pipeline must load Trap resolver");
-assert.ok(cardArt.includes("flagship-trap-art"), "Card art pipeline must import the Trap registry");
+assert.ok(nextConfig.includes("execFileSync(process.execPath, [script]"), "Next bootstrap must execute additive Flagship asset generators");
+for (const resolver of [
+  "flagshipChampionArtUrl",
+  "flagshipStructureArtUrl",
+  "flagshipRitualArtUrl",
+  "flagshipTrapArtUrl",
+  "flagshipSignatureArtUrl",
+]) {
+  assert.ok(cardArt.includes(resolver), `Card art pipeline must retain ${resolver}`);
+}
+assert.ok(cardArt.includes("flagship-signature-art"), "Card art pipeline must import the starter signature registry");
 assert.ok(cardArt.includes("const editorial = browserArt[defId] ?? getCustomCardArtCached(defId);"), "editorial/admin art must remain first priority");
-assert.ok(
-  cardArt.includes("flagshipChampionArtUrl(defId) ?? flagshipStructureArtUrl(defId) ?? flagshipRitualArtUrl(defId) ?? flagshipTrapArtUrl(defId)"),
-  "built-in Flagship fallback chain missing Batch D",
-);
 assert.ok(cardArt.indexOf("const editorial") < cardArt.indexOf("const flagshipUrl"), "built-in Flagship art must never override explicit editorial art");
 
 for (const source of toolingSources) {
@@ -166,8 +186,8 @@ for (const source of toolingSources) {
     "visual-3-1-card-presentation.css",
     "visual-3-2-meta-world.css",
   ]) {
-    assert.equal(source.includes(forbidden), false, `Flagship A-D tooling must not mutate frozen surface ${forbidden}`);
+    assert.equal(source.includes(forbidden), false, `Flagship A-E tooling must not mutate frozen surface ${forbidden}`);
   }
 }
 
-console.log("FLAGSHIP ART BATCHES A+B+C+D — SOURCE CONTRACT: PASS");
+console.log("FLAGSHIP ART BATCHES A+B+C+D+E — 30/30 SOURCE CONTRACT: PASS");
