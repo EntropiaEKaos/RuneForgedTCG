@@ -1,5 +1,6 @@
 import { getCard } from "../cards";
 import { canAttachEquipment, unitsWithEquipmentCapacity } from "../equipment-link-contract";
+import { consumeGraveyardEntry, findGraveyardEntry, isValidGraveyardTarget } from "../graveyard-effects";
 import { millDeckToGraveyard, putInGraveyard } from "../graveyard";
 import { grantDurableKeyword } from "../permanent-aura-contract";
 import type { CardEffect, GameState, PermanentInstance, PlayerId, Race, SentinelaInstance, TriggerWhen, UnitInstance } from "../types";
@@ -93,6 +94,7 @@ export function applyEffect(
   while (cursor) {
     const eff: CardEffect = cursor;
     const ent = explicitTargetId ? findAnyBoardEntity(state, explicitTargetId) : null;
+    const graveyardTarget = explicitTargetId ? findGraveyardEntry(state, explicitTargetId) : null;
 
     switch (eff.kind) {
       case "damageUnit": {
@@ -241,6 +243,43 @@ export function applyEffect(
           if (!ok) break;
         }
         drawCards(state, playerId, eff.amount);
+        break;
+      }
+      case "returnGraveyardToHand": {
+        if (!graveyardTarget || !isValidGraveyardTarget(state, playerId, eff.target, graveyardTarget.entry)) break;
+        const player = state.players[playerId];
+        if (player.hand.length >= engineRulesFor(state).handCap) break;
+        const consumed = consumeGraveyardEntry(state, graveyardTarget.owner, graveyardTarget.entry.instanceId);
+        if (!consumed) break;
+        player.hand.push({ instanceId: uid(state, "c"), defId: consumed.defId });
+        state.log.push(`${player.name} returns ${getCard(consumed.defId).name} from the graveyard to hand.`);
+        break;
+      }
+      case "reanimateUnit": {
+        if (!graveyardTarget || !isValidGraveyardTarget(state, playerId, eff.target, graveyardTarget.entry)) break;
+        const player = state.players[playerId];
+        if (player.bench.length >= engineRulesFor(state).benchCap) break;
+        if (getCard(graveyardTarget.entry.defId).type !== "Unit") break;
+        const consumed = consumeGraveyardEntry(state, graveyardTarget.owner, graveyardTarget.entry.instanceId);
+        if (!consumed) break;
+        const unit = makeUnit(state, consumed.defId, playerId);
+        player.bench.push(unit);
+        player.stats.alliesSummoned += 1;
+        state.log.push(`${player.name} reanimates ${getCard(consumed.defId).name} from the graveyard.`);
+        fireTrigger(state, unit, "onSummon");
+        for (const perm of player.permanents) {
+          const permanentDef = getCard(perm.defId);
+          if (permanentDef.trigger?.when === "onPermanentSummon") {
+            applyEffect(state, playerId, permanentDef.trigger.effect, undefined, unit);
+          }
+        }
+        break;
+      }
+      case "banishGraveyardCard": {
+        if (!graveyardTarget || !isValidGraveyardTarget(state, playerId, eff.target, graveyardTarget.entry)) break;
+        const consumed = consumeGraveyardEntry(state, graveyardTarget.owner, graveyardTarget.entry.instanceId);
+        if (!consumed) break;
+        state.log.push(`${getCard(consumed.defId).name} is banished from ${state.players[graveyardTarget.owner].name}'s graveyard.`);
         break;
       }
       case "summonToken": {
