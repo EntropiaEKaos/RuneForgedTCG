@@ -2,13 +2,18 @@ import { execFileSync } from "node:child_process";
 import type { NextConfig } from "next";
 
 // Flagship editorial assets are generated before Next resolves /public.
-// Champion masters are already created by predev/prebuild; Batch B Structures
-// are generated here as an additive release asset pipeline without changing
-// the frozen gameplay/card presentation surfaces.
-execFileSync(process.execPath, ["scripts/generate-flagship-structure-art.mjs"], {
-  cwd: process.cwd(),
-  stdio: "inherit",
-});
+// Champion masters are already created by predev/prebuild; semantic Flagship
+// batches are generated here additively without changing frozen gameplay/card
+// presentation surfaces.
+for (const script of [
+  "scripts/generate-flagship-structure-art.mjs",
+  "scripts/generate-flagship-ritual-art.mjs",
+]) {
+  execFileSync(process.execPath, [script], {
+    cwd: process.cwd(),
+    stdio: "inherit",
+  });
+}
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
