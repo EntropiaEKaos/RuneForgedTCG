@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createCustomGame } from "@/game/engine";
+import { putInGraveyard } from "@/game/graveyard";
 import { RANKED_PRECONS, resolveRankedPrecon } from "@/game/ranked-decks";
 import { toPvpParticipantGameState, toPvpParticipantReactionState } from "@/lib/pvp-public-state";
 import type { PvpReactionPriorityState } from "@/lib/pvp-reaction-priority";
@@ -13,6 +14,8 @@ const state = createCustomGame("Host", hostDeck, guestDeck, {
   playerStartingHand: 4,
   aiStartingHand: 4,
 });
+putInGraveyard(state, "player", hostDeck.cards[0]!, "discard", "host-graveyard-source");
+putInGraveyard(state, "ai", guestDeck.cards[0]!, "mill", "guest-graveyard-source");
 const original = structuredClone(state);
 
 const hostView = toPvpParticipantGameState(state, false);
@@ -21,7 +24,10 @@ assert.equal(hostView.players.ai.hand.length, original.players.ai.hand.length);
 assert.ok(hostView.players.ai.hand.every((card) => "hidden" in (card as unknown as Record<string, unknown>)), "host cannot inspect guest hand");
 for (const pid of ["player", "ai"] as const) {
   assert.ok(hostView.players[pid].deck.every((card) => card === "__hidden__"), `${pid} future deck order is hidden`);
+  assert.ok(hostView.players[pid].graveyard?.every((entry) => entry.owner === pid), `${pid} public graveyard ownership is stable for host view`);
 }
+assert.equal(hostView.players.player.graveyard?.[0]?.reason, "discard");
+assert.equal(hostView.players.ai.graveyard?.[0]?.reason, "mill");
 assert.equal(hostView.seed, 0);
 assert.equal(hostView.rngState, 0);
 assert.equal(hostView.idCounter, 0);
@@ -32,6 +38,9 @@ assert.equal(guestView.players.ai.hand.length, original.players.player.hand.leng
 assert.ok(guestView.players.ai.hand.every((card) => "hidden" in (card as unknown as Record<string, unknown>)), "guest cannot inspect host hand");
 assert.equal(guestView.activePlayer, original.activePlayer === "player" ? "ai" : "player");
 assert.equal(guestView.attackToken, original.attackToken === "player" ? "ai" : "player");
+assert.equal(guestView.players.player.graveyard?.[0]?.defId, original.players.ai.graveyard?.[0]?.defId, "guest sees its own authoritative graveyard in the local player seat");
+assert.equal(guestView.players.player.graveyard?.[0]?.owner, "player", "guest graveyard owner is re-oriented to local player");
+assert.equal(guestView.players.ai.graveyard?.[0]?.owner, "ai", "host graveyard owner is re-oriented to local opponent");
 
 const reaction: PvpReactionPriorityState = {
   protocolVersion: 1,
@@ -63,4 +72,4 @@ assert.deepEqual(reaction, {
 }, "reaction projection never mutates authoritative priority state");
 
 assert.deepEqual(state, original, "public projection never mutates authoritative state");
-console.log("PVP PUBLIC STATE 2.97 BEHAVIOR: PASS (orientation + hidden hands/decks/RNG + reaction priority projection + no server-state mutation)");
+console.log("PVP PUBLIC STATE 2.97 BEHAVIOR: PASS (orientation + public graveyards + hidden hands/decks/RNG + reaction priority projection + no server-state mutation)");
