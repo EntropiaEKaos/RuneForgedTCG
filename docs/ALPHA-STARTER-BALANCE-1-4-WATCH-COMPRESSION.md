@@ -98,3 +98,65 @@ A finalist is promotion-eligible only if:
 
 No canonical recipe is changed during exploration. If no candidate qualifies,
 Round 1 is rejected without forcing a balance change.
+
+
+## Round 1 result — rejected
+
+Round 1 completed **21,750 games** with quality PASS.
+
+Artifact:
+- workflow: Alpha Starter Balance 1.4 Watch Compression Grid #1;
+- ZIP SHA-256: `04077a98cc93f3fd2768e74e7881979d5d2dc69a68bb03c2c9c7572d8cde3c07`.
+
+No finalist was promotion-eligible.
+
+Best finalist:
+`ember_soulblade_to_pyromancer__tide_heal_to_frostbite`
+
+Result:
+- health: 90;
+- watch: 4;
+- critical: 1;
+- first-player: 51.2%.
+
+The apparent global compression was invalid because it recreated:
+- Ember × Tempestade: **38/62 critical**.
+
+Useful movement:
+- Ember × Tide: 46/54;
+- Ember × Ironwood: 55/45.
+
+Conclusion: removing Ember scaling is the wrong lever. It compresses several
+pairs but makes Tempestade too dominant. No Round-1 recipe is promoted.
+
+## Round 2 — Tempestade/Tide redistribution
+
+Round 2 leaves Emberhold untouched.
+
+### Tempestade candidates
+
+Tempestade currently beats Ember 60/40 but loses to Ironwood 42.5/57.5.
+
+The new candidates replace one cheap burn slot that is especially efficient
+against Ember's fragile units with either:
+
+- Gale — higher-cost bounce that scales better into large Ironwood units; or
+- Thunder Angel — a slower Flying/Lifesteal threat for longer games.
+
+The tested sources are one Ember Bolt or one Chain Bolt.
+
+### Tide candidates
+
+Round 1 showed that removing a heal by itself does not repair Tide's Wood or
+Florestia matchups.
+
+Round 2 therefore changes two slots together:
+
+- remove one Soothing Tide to avoid increasing Tide's anti-aggro edge;
+- remove one highly stranded Disenchant Tide;
+- add two large-board tools selected from Recall, Flash Freeze, Glacial Tomb
+  and Frost Guard.
+
+The grid size remains 21,750 games and promotion still requires zero criticals,
+fewer than 7 watches, health above 89, directional improvement on the target
+pairs and first-player within ±2pp.
