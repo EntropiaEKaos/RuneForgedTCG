@@ -66,9 +66,7 @@ function aggregate(parts: SimulationSummary[], deckA: string, deckB: string): Si
     winsA,
     winsB,
     draws,
-    avgRounds: Math.round(
-      parts.reduce((sum, row) => sum + row.avgRounds * row.completedGames, 0) / Math.max(1, completedGames),
-    ),
+    avgRounds: Math.round(parts.reduce((sum, row) => sum + row.avgRounds * row.completedGames, 0) / Math.max(1, completedGames)),
     winRateA: pooled,
     winRateB: round1((winsB / decisive) * 100),
     firstPlayerWins,
@@ -170,9 +168,10 @@ function runMatrix(
   };
 
   const boundaryPenalty =
-    Math.max(0, 41 - tracked.emberTempestade.left) * 10_000 +
-    Math.max(0, 41 - tracked.tideWood.left) * 10_000 +
+    Math.max(0, 41 - tracked.emberTempestade.left) * 15_000 +
+    Math.max(0, tracked.woodTempestade.left - 57.5) * 10_000 +
     Math.max(0, 43 - tracked.emberTide.left) * 5_000 +
+    Math.max(0, 40.5 - tracked.tideWood.left) * 10_000 +
     Math.max(0, 42.5 - tracked.tideFlorestia.left) * 5_000;
 
   const score =
@@ -216,7 +215,7 @@ function ranked(results: MatrixResult[]): MatrixResult[] {
 
 const candidateErrors = validateBalance14CandidateSet();
 if (candidateErrors.length) {
-  throw new Error(`Alpha starter 1.4 candidate set is invalid: ${candidateErrors.join(" | ")}`);
+  throw new Error(`Alpha starter 1.4 Round 2 candidate set is invalid: ${candidateErrors.join(" | ")}`);
 }
 
 const screenBaseline = runMatrix("baseline_screen", "Certified 1.3 baseline screen", [], SCREEN_GAMES_PER_STRATUM);
@@ -224,8 +223,8 @@ const screening = BALANCE_1_4_CANDIDATES.map((candidate) =>
   runMatrix(candidate.id, candidate.label, [candidate], SCREEN_GAMES_PER_STRATUM, screenBaseline.criticalPairs),
 );
 
-const topEmberIds = new Set(
-  ranked(screening.filter((result) => familyCandidates("ember").some((candidate) => candidate.id === result.id)))
+const topStormIds = new Set(
+  ranked(screening.filter((result) => familyCandidates("storm").some((candidate) => candidate.id === result.id)))
     .slice(0, 2)
     .map((result) => result.id),
 );
@@ -235,18 +234,18 @@ const topTideIds = new Set(
     .map((result) => result.id),
 );
 
-const topEmber = familyCandidates("ember").filter((candidate) => topEmberIds.has(candidate.id));
+const topStorm = familyCandidates("storm").filter((candidate) => topStormIds.has(candidate.id));
 const topTide = familyCandidates("tide").filter((candidate) => topTideIds.has(candidate.id));
 
 const fullBaseline = runMatrix("baseline_full", "Certified 1.3 baseline control", [], FINAL_GAMES_PER_STRATUM);
 const fullFinalists: MatrixResult[] = [];
-for (const ember of topEmber) {
+for (const storm of topStorm) {
   for (const tide of topTide) {
     fullFinalists.push(
       runMatrix(
-        `${ember.id}__${tide.id}`,
-        `${ember.label} + ${tide.label}`,
-        [ember, tide],
+        `${storm.id}__${tide.id}`,
+        `${storm.label} + ${tide.label}`,
+        [storm, tide],
         FINAL_GAMES_PER_STRATUM,
         fullBaseline.criticalPairs,
       ),
@@ -269,6 +268,7 @@ const eligible = finalistRanking.filter((result) =>
   result.health.watchMatchups < fullBaseline.health.watchMatchups &&
   result.health.healthScore > fullBaseline.health.healthScore &&
   result.tracked.emberTempestade.left >= fullBaseline.tracked.emberTempestade.left &&
+  result.tracked.woodTempestade.left <= fullBaseline.tracked.woodTempestade.left &&
   result.tracked.emberTide.left >= fullBaseline.tracked.emberTide.left &&
   result.tracked.tideWood.left >= fullBaseline.tracked.tideWood.left &&
   result.tracked.tideFlorestia.left >= fullBaseline.tracked.tideFlorestia.left &&
@@ -276,9 +276,9 @@ const eligible = finalistRanking.filter((result) =>
 );
 
 const report = {
-  version: "1.4-round1",
+  version: "1.4-round2",
   methodology:
-    "zero-critical 1.3 baseline; four one-slot Ember redistribution candidates plus four one-slot Tide redistribution candidates; full six-starter matrix; top two per family cross-combined; four 3,000-game finalists; strict watch-compression and no-regression promotion rules",
+    "zero-critical 1.3 baseline; rejected Ember/Tide Round 1 archived in docs; four one-slot Tempestade redistribution candidates plus four two-slot Tide packages; full six-starter matrix; top two per family cross-combined; four 3,000-game finalists; strict zero-critical watch-compression guardrails",
   screeningGamesPerStratum: SCREEN_GAMES_PER_STRATUM,
   finalistGamesPerStratum: FINAL_GAMES_PER_STRATUM,
   strata: STRATA,
@@ -292,7 +292,7 @@ const report = {
     newCriticalPairs: result.newCriticalPairs,
     tracked: result.tracked,
   })),
-  selectedEmber: topEmber.map((candidate) => ({
+  selectedStorm: topStorm.map((candidate) => ({
     id: candidate.id,
     label: candidate.label,
     rationale: candidate.rationale,
@@ -340,7 +340,7 @@ console.log(JSON.stringify({
     criticalPairs: fullBaseline.criticalPairs,
     tracked: fullBaseline.tracked,
   },
-  selectedEmber: report.selectedEmber,
+  selectedStorm: report.selectedStorm,
   selectedTide: report.selectedTide,
   finalistRanking: report.finalistRanking,
   eligible: report.eligible,
@@ -358,10 +358,10 @@ console.log(JSON.stringify({
 }, null, 2));
 
 if (enforceQuality && qualityErrors.length) {
-  console.error(`ALPHA STARTER BALANCE 1.4 GRID: BLOCKED QUALITY — ${qualityErrors.join(" | ")}`);
+  console.error(`ALPHA STARTER BALANCE 1.4 ROUND 2: BLOCKED QUALITY — ${qualityErrors.join(" | ")}`);
   process.exitCode = 1;
 } else {
   console.log(
-    `ALPHA STARTER BALANCE 1.4 GRID: COMPLETE — ${report.quality.totalSimulatedGames} games · eligible=${eligible.length} · best=${best?.id ?? "none"} · critical=${best?.health.criticalMatchups ?? "n/a"} · watch=${best?.health.watchMatchups ?? "n/a"} · health=${best?.health.healthScore ?? "n/a"}`,
+    `ALPHA STARTER BALANCE 1.4 ROUND 2: COMPLETE — ${report.quality.totalSimulatedGames} games · eligible=${eligible.length} · best=${best?.id ?? "none"} · critical=${best?.health.criticalMatchups ?? "n/a"} · watch=${best?.health.watchMatchups ?? "n/a"} · health=${best?.health.healthScore ?? "n/a"}`,
   );
 }
