@@ -12,13 +12,13 @@ import {
 assert.equal(ALPHA_STARTER_BALANCE_RECIPE_VERSION, "1.1");
 assert.deepEqual(validateRecipeCandidateSet(), [], "every recipe-screen candidate must be legal");
 
-const wood = ALPHA_RECIPE_CANDIDATES.filter((candidate) => candidate.family === "wood");
-const tide = ALPHA_RECIPE_CANDIDATES.filter((candidate) => candidate.family === "tide");
-assert.equal(wood.length, 6, "screening must contain six Wood candidates");
-assert.equal(tide.length, 6, "screening must contain six Tide candidates");
+const florestia = ALPHA_RECIPE_CANDIDATES.filter((candidate) => candidate.family === "florestia");
+const ember = ALPHA_RECIPE_CANDIDATES.filter((candidate) => candidate.family === "ember");
+assert.equal(florestia.length, 6, "screening must contain six Florestia candidates");
+assert.equal(ember.length, 6, "screening must contain six Ember candidates");
 
-const baseWood = [...getDeck("wood_midrange").cards];
-const baseTide = [...getDeck("tide_control").cards];
+const baseFlorestia = [...getDeck("florestia_tribal").cards];
+const baseEmber = [...getDeck("ember_aggro").cards];
 
 for (const candidate of ALPHA_RECIPE_CANDIDATES) {
   const recipe = recipeForCandidate(candidate);
@@ -42,18 +42,18 @@ for (const candidate of ALPHA_RECIPE_CANDIDATES) {
   );
 }
 
-assert.deepEqual(getDeck("wood_midrange").cards, baseWood, "candidate construction must not mutate canonical Wood recipe");
-assert.deepEqual(getDeck("tide_control").cards, baseTide, "candidate construction must not mutate canonical Tide recipe");
+assert.deepEqual(getDeck("florestia_tribal").cards, baseFlorestia, "candidate construction must not mutate canonical Florestia recipe");
+assert.deepEqual(getDeck("ember_aggro").cards, baseEmber, "candidate construction must not mutate canonical Ember recipe");
 
 const combined = recipeOverridesForCandidates([
-  wood[0]!,
-  tide[0]!,
+  florestia[0]!,
+  ember[0]!,
 ]);
-assert.equal(validateDeck(combined.wood_midrange!.cards).ok, true);
-assert.equal(validateDeck(combined.tide_control!.cards).ok, true);
-assert.deepEqual(getDeck("wood_midrange").cards, baseWood, "combined overrides must remain read-only");
-assert.deepEqual(getDeck("tide_control").cards, baseTide, "combined overrides must remain read-only");
+assert.equal(validateDeck(combined.florestia_tribal!.cards).ok, true);
+assert.equal(validateDeck(combined.ember_aggro!.cards).ok, true);
+assert.deepEqual(getDeck("florestia_tribal").cards, baseFlorestia, "combined overrides must remain read-only");
+assert.deepEqual(getDeck("ember_aggro").cards, baseEmber, "combined overrides must remain read-only");
 
 console.log(
-  "ALPHA STARTER BALANCE 1.1 CANDIDATES: PASS — 6 Wood + 6 Tide · slot-local replacements · 40-card legality · semantic teaching cards preserved",
+  "ALPHA STARTER BALANCE 1.1 CANDIDATES: PASS — 6 Florestia + 6 Ember · slot-local replacements · 40-card legality · semantic teaching cards preserved",
 );
