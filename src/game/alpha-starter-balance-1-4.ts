@@ -5,7 +5,7 @@ import type { AlphaStarterId } from "./alpha-starter-balance";
 
 export const ALPHA_STARTER_BALANCE_1_4_VERSION = "1.4";
 
-export type Balance14Family = "ember" | "tide";
+export type Balance14Family = "storm" | "tide";
 
 export interface Balance14Replacement {
   from: string;
@@ -18,87 +18,98 @@ export interface Balance14Candidate {
   deckId: AlphaStarterId;
   label: string;
   rationale: string;
-  replacement: Balance14Replacement;
+  replacements: readonly Balance14Replacement[];
 }
 
 /**
- * Balance 1.4 starts from the certified zero-critical 1.3 recipes.
+ * Round 2 follows a rejected Round 1.
  *
- * The goal is watch compression, not raw power:
+ * Round 1 proved that removing Ember scaling could compress watches globally,
+ * but it recreated Ember × Tempestade as a critical. Round 2 therefore leaves
+ * Emberhold untouched and redistributes power on Tempestade's winning side.
  *
- * - Emberhold is 40/60 into Tempestade but 58/42 into Ironwood. Its candidates
- *   replace one large-body/scaling pressure card with small-board interaction.
- * - Tidecall is 40.5/59.5 into Ironwood and 42.5/57.5 into Florestia while
- *   already 57/43 into Emberhold. Its candidates replace one pure anti-aggro
- *   Nexus heal with interaction that scales better against large boards.
- *
- * All candidates are one-slot read-only simulator overrides.
+ * Tidecall also pivots from one-slot heal removal to two-slot packages:
+ * one anti-aggro heal plus one highly stranded Dispel become large-board
+ * interaction. This aims to help Tide into Wood/Florestia without making its
+ * Ember matchup stronger.
  */
 export const BALANCE_1_4_CANDIDATES: readonly Balance14Candidate[] = [
   {
-    id: "ember_soulblade_to_cinder",
-    family: "ember",
-    deckId: "ember_aggro",
-    label: "Ember: Soulbrand -> Cinder Snap",
-    rationale: "Trade premium scaling equipment for cheap 2-damage interaction that is stronger into Tempestade-sized bodies and weaker into Ironwood.",
-    replacement: { from: "ember_soulblade", to: "ember_cinder" },
+    id: "storm_emberbolt_to_gale",
+    family: "storm",
+    deckId: "tempestade_rush",
+    label: "Tempestade: Ember Bolt -> Gale",
+    rationale: "Trade cheap 3-damage removal that punishes fragile Ember units for bounce that scales better into large Ironwood bodies.",
+    replacements: [{ from: "ember_bolt", to: "storm_gale" }],
   },
   {
-    id: "ember_soulblade_to_pyromancer",
-    family: "ember",
-    deckId: "ember_aggro",
-    label: "Ember: Soulbrand -> Senior Pyromancer",
-    rationale: "Trade premium scaling equipment for a 4-cost body with 1-damage enemy AoE, concentrating value on small-board matchups.",
-    replacement: { from: "ember_soulblade", to: "ember_pyromancer" },
+    id: "storm_chainbolt_to_gale",
+    family: "storm",
+    deckId: "tempestade_rush",
+    label: "Tempestade: Chain Bolt -> Gale",
+    rationale: "Trade cheap damage plus Nexus chip for higher-cost bounce, softening small-unit pressure while improving large-body tempo.",
+    replacements: [{ from: "storm_chain_bolt", to: "storm_gale" }],
   },
   {
-    id: "ember_wyrm_to_cinder",
-    family: "ember",
-    deckId: "ember_aggro",
-    label: "Ember: Steamscale Wyrm -> Cinder Snap",
-    rationale: "Remove the remaining Tough tribal amplifier that is efficient into Ironwood and replace it with cheap anti-small-body interaction.",
-    replacement: { from: "ember_tide_wyrm", to: "ember_cinder" },
+    id: "storm_emberbolt_to_thunderangel",
+    family: "storm",
+    deckId: "tempestade_rush",
+    label: "Tempestade: Ember Bolt -> Thunder Angel",
+    rationale: "Reduce cheap removal density and add a five-mana Flying/Lifesteal threat that should scale better in slower Ironwood games.",
+    replacements: [{ from: "ember_bolt", to: "storm_thunder_angel" }],
   },
   {
-    id: "ember_wyrm_to_pyromancer",
-    family: "ember",
-    deckId: "ember_aggro",
-    label: "Ember: Steamscale Wyrm -> Senior Pyromancer",
-    rationale: "Keep the four-mana slot but exchange a resilient tribal amplifier for an anti-swarm summon effect.",
-    replacement: { from: "ember_tide_wyrm", to: "ember_pyromancer" },
+    id: "storm_chainbolt_to_thunderangel",
+    family: "storm",
+    deckId: "tempestade_rush",
+    label: "Tempestade: Chain Bolt -> Thunder Angel",
+    rationale: "Remove small-unit burn plus Nexus chip and add a slower resilient aerial threat.",
+    replacements: [{ from: "storm_chain_bolt", to: "storm_thunder_angel" }],
   },
 
   {
-    id: "tide_heal_to_recall",
+    id: "tide_heal_dispel_to_recall_frostbite",
     family: "tide",
     deckId: "tide_control",
-    label: "Tide: Soothing Tide -> Recall",
-    rationale: "Reduce pure anti-aggro sustain while adding high-value tempo against large Ironwood and Florestia units.",
-    replacement: { from: "tide_heal", to: "tide_recall" },
+    label: "Tide: Heal+Dispel -> Recall+Freeze",
+    rationale: "Remove one anti-aggro heal and one stranded permanent answer; add two large-body tempo tools.",
+    replacements: [
+      { from: "tide_heal", to: "tide_recall" },
+      { from: "tide_dispel", to: "tide_frostbite" },
+    ],
   },
   {
-    id: "tide_heal_to_frostbite",
+    id: "tide_heal_dispel_to_recall_glacial",
     family: "tide",
     deckId: "tide_control",
-    label: "Tide: Soothing Tide -> Flash Freeze",
-    rationale: "Trade Nexus healing for Burst power suppression that scales with large attackers.",
-    replacement: { from: "tide_heal", to: "tide_frostbite" },
+    label: "Tide: Heal+Dispel -> Recall+Glacial",
+    rationale: "Convert anti-aggro sustain plus stranded permanent interaction into single-target bounce and board-wide attack suppression.",
+    replacements: [
+      { from: "tide_heal", to: "tide_recall" },
+      { from: "tide_dispel", to: "tide_glacial" },
+    ],
   },
   {
-    id: "tide_heal_to_glacial",
+    id: "tide_heal_dispel_to_frostbite_glacial",
     family: "tide",
     deckId: "tide_control",
-    label: "Tide: Soothing Tide -> Glacial Tomb",
-    rationale: "Trade anti-aggro sustain for a board-wide large-attack suppressor aimed at Wood and Florestia boards.",
-    replacement: { from: "tide_heal", to: "tide_glacial" },
+    label: "Tide: Heal+Dispel -> Freeze+Glacial",
+    rationale: "Trade sustain and target-starved permanent removal for one single-target and one board-wide Frostbite effect.",
+    replacements: [
+      { from: "tide_heal", to: "tide_frostbite" },
+      { from: "tide_dispel", to: "tide_glacial" },
+    ],
   },
   {
-    id: "tide_heal_to_frostguard",
+    id: "tide_heal_dispel_to_recall_frostguard",
     family: "tide",
     deckId: "tide_control",
-    label: "Tide: Soothing Tide -> Frost Guard",
-    rationale: "Exchange pure Nexus healing for a resilient blocker that Frostbites attackers on block.",
-    replacement: { from: "tide_heal", to: "tide_frostguard" },
+    label: "Tide: Heal+Dispel -> Recall+Frost Guard",
+    rationale: "Move from pure sustain plus stranded interaction to large-unit tempo and a resilient blocker that Frostbites attackers.",
+    replacements: [
+      { from: "tide_heal", to: "tide_recall" },
+      { from: "tide_dispel", to: "tide_frostguard" },
+    ],
   },
 ] as const;
 
@@ -111,7 +122,9 @@ function replaceFirst(cards: string[], from: string, to: string): void {
 export function recipeForBalance14Candidate(candidate: Balance14Candidate): DeckInput {
   const base = getDeck(candidate.deckId);
   const cards = [...base.cards];
-  replaceFirst(cards, candidate.replacement.from, candidate.replacement.to);
+  for (const replacement of candidate.replacements) {
+    replaceFirst(cards, replacement.from, replacement.to);
+  }
   return { id: base.id, name: base.name, cards };
 }
 
@@ -130,7 +143,9 @@ export function overridesForBalance14Candidates(
     const base = getDeck(deckId);
     const cards = [...base.cards];
     for (const candidate of deckCandidates) {
-      replaceFirst(cards, candidate.replacement.from, candidate.replacement.to);
+      for (const replacement of candidate.replacements) {
+        replaceFirst(cards, replacement.from, replacement.to);
+      }
     }
     overrides[deckId] = { id: base.id, name: base.name, cards };
   }
@@ -146,11 +161,16 @@ export function validateBalance14Candidate(candidate: Balance14Candidate): strin
     return [`${candidate.id}: ${error instanceof Error ? error.message : String(error)}`];
   }
 
-  if (candidate.family === "ember" && candidate.deckId !== "ember_aggro") {
-    errors.push(`${candidate.id}: Ember family must target ember_aggro`);
+  if (candidate.family === "storm" && candidate.deckId !== "tempestade_rush") {
+    errors.push(`${candidate.id}: Storm family must target tempestade_rush`);
   }
   if (candidate.family === "tide" && candidate.deckId !== "tide_control") {
     errors.push(`${candidate.id}: Tide family must target tide_control`);
+  }
+
+  const expectedChanges = candidate.family === "storm" ? 1 : 2;
+  if (candidate.replacements.length !== expectedChanges) {
+    errors.push(`${candidate.id}: expected exactly ${expectedChanges} replacements`);
   }
 
   if (deck.cards.length !== 40) errors.push(`${candidate.id}: expected 40 cards, found ${deck.cards.length}`);
@@ -167,8 +187,8 @@ export function validateBalance14Candidate(candidate: Balance14Candidate): strin
     (indexes, defId, index) => (defId === base[index] ? indexes : [...indexes, index]),
     [],
   );
-  if (changed.length !== 1) {
-    errors.push(`${candidate.id}: expected exactly 1 changed recipe slot, found ${changed.length}`);
+  if (changed.length !== expectedChanges) {
+    errors.push(`${candidate.id}: expected exactly ${expectedChanges} changed recipe slots, found ${changed.length}`);
   }
 
   return errors;
@@ -186,8 +206,8 @@ export function validateBalance14CandidateSet(): string[] {
     errors.push(...validateBalance14Candidate(candidate));
   }
 
-  if (familyCounts.get("ember") !== 4) errors.push("Balance 1.4 must define exactly four Ember candidates");
-  if (familyCounts.get("tide") !== 4) errors.push("Balance 1.4 must define exactly four Tide candidates");
+  if (familyCounts.get("storm") !== 4) errors.push("Balance 1.4 Round 2 must define exactly four Tempestade candidates");
+  if (familyCounts.get("tide") !== 4) errors.push("Balance 1.4 Round 2 must define exactly four Tide candidates");
 
   return errors;
 }
