@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
+import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
 
 const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 const playerName = `PVP Preflight ${Date.now().toString(36).slice(-7)}`;
@@ -49,33 +50,6 @@ function stderrTail(stderr) {
 
 function chromeExitSummary(chrome, stderr) {
   return `exitCode=${chrome.exitCode ?? "null"} signal=${chrome.signalCode ?? "null"} stderr=${stderrTail(stderr)}`;
-}
-
-async function waitForDevToolsPort(profileDir, chrome, getStderr, timeoutMs = 30_000) {
-  const activePortPath = join(profileDir, "DevToolsActivePort");
-  const deadline = Date.now() + timeoutMs;
-  let lastError;
-
-  while (Date.now() < deadline) {
-    if (chrome.exitCode != null || chrome.signalCode != null) {
-      throw new Error(`Chrome exited before DevToolsActivePort was ready: ${chromeExitSummary(chrome, getStderr())}`);
-    }
-
-    try {
-      const [portLine] = (await readFile(activePortPath, "utf8")).trim().split(/\r?\n/);
-      const port = Number(portLine);
-      if (Number.isInteger(port) && port > 0 && port <= 65_535) return port;
-      lastError = new Error(`invalid DevToolsActivePort value: ${JSON.stringify(portLine)}`);
-    } catch (error) {
-      lastError = error;
-    }
-
-    await sleep(100);
-  }
-
-  throw new Error(
-    `Chrome DevToolsActivePort did not become ready within ${timeoutMs}ms${lastError instanceof Error ? `: ${lastError.message}` : ""}; ${chromeExitSummary(chrome, getStderr())}`,
-  );
 }
 
 async function connect(port, chrome, getStderr) {
@@ -135,13 +109,13 @@ async function main() {
   const profileDir = await mkdtemp(join(tmpdir(), "runeforge-pvp-preflight-"));
   const chrome = spawn(findChrome(), [
     "--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage", "--mute-audio",
-    "--remote-debugging-port=0", `--user-data-dir=${profileDir}`, "--window-size=1440,1000", "about:blank",
+    CHROME_REMOTE_DEBUGGING_FLAG, `--user-data-dir=${profileDir}`, "--window-size=1440,1000", "about:blank",
   ], { stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   chrome.stderr.on("data", (chunk) => { stderr += String(chunk); });
   let cdp;
   try {
-    const port = await waitForDevToolsPort(profileDir, chrome, () => stderr);
+    const port = await waitForChromeDevToolsPort({ profileDir, chrome, getStderr: () => stderr });
     cdp = await connect(port, chrome, () => stderr);
     await cdp.call("Page.enable");
     await cdp.call("Runtime.enable");
