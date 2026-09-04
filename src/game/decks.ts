@@ -151,7 +151,7 @@ export const DECKS: DeckDef[] = [
       "forest_cub", "forest_cub", "forest_cub",
       "forest_canopy_warden", "forest_packrunner", "forest_packrunner",
       "forest_stalker", "forest_stalker",
-      "forest_thornfang", "forest_thornfang",
+      "forest_spirit_guide", "forest_thornfang",
       "wood_webweaver", "forest_alpha",
       "forest_champion", "forest_champion",
       "forest_pack_howl", "rfalpha_forest_ritual_green_moon",
@@ -167,7 +167,7 @@ export const DECKS: DeckDef[] = [
       "forest_pack_shelter",
       "forest_pack_shelter", "forest_moon_snare",
       "wood_webweaver", "forest_predator_pounce",
-      "forest_primal_recall", "forest_primal_recall",
+      "forest_canopy_warden", "forest_primal_recall",
     ],
   },
   {
