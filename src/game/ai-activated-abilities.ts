@@ -1,8 +1,10 @@
 import { getCard } from "./cards";
+import { selfMillAiValue } from "./ai-graveyard-plan";
 import {
   activatedAbilitiesForInstance,
   activatedAbilityChoices,
   canBeginActivateAbility,
+  canPlayCard,
   isValidTarget,
   other,
   validateActivatedAbilityActivation,
@@ -60,6 +62,7 @@ const FRIENDLY_EFFECTS = new Set<CardEffect["kind"]>([
   "attachEquipment",
   "manaRefund",
   "drawOnSummon",
+  "selfMill",
 ]);
 
 function sourceId(source: AiAbilitySource): string {
@@ -136,19 +139,73 @@ function targetValue(effect: CardEffect, entity: BoardEntity, playerId: PlayerId
   return score + Math.max(0, 8 - entity.sen.loyalty) * 2;
 }
 
+function hasReadyReanimation(state: GameState, playerId: PlayerId): boolean {
+  return state.players[playerId].hand.some((card) => getCard(card.defId).spell?.kind === "reanimateUnit");
+}
+
+function isPremiumReanimationTarget(def: CardDef): boolean {
+  return def.type === "Unit" && def.collectible !== false && def.cost >= 6;
+}
+
+function isRecursionCard(def: CardDef): boolean {
+  const kind = def.spell?.kind;
+  return kind === "reanimateUnit" || kind === "returnGraveyardToHand";
+}
+
 function chooseDiscardCostIds(state: GameState, playerId: PlayerId, ability: ActivatedAbility): string[] | null {
   const count = ability.cost?.discardFromHand ?? 0;
   if (count <= 0) return [];
   const hand = state.players[playerId].hand;
   if (hand.length < count) return null;
+  const recursionReady = hasReadyReanimation(state, playerId);
+
   return [...hand]
     .sort((a, b) => {
       const aDef = getCard(a.defId);
       const bDef = getCard(b.defId);
+
+      if (recursionReady) {
+        const aTarget = isPremiumReanimationTarget(aDef);
+        const bTarget = isPremiumReanimationTarget(bDef);
+        if (aTarget !== bTarget) return aTarget ? -1 : 1;
+        if (aTarget && bTarget) {
+          return bDef.cost - aDef.cost || a.defId.localeCompare(b.defId) || a.instanceId.localeCompare(b.instanceId);
+        }
+
+        const aRecursion = isRecursionCard(aDef);
+        const bRecursion = isRecursionCard(bDef);
+        if (aRecursion !== bRecursion) return aRecursion ? 1 : -1;
+      }
+
       return aDef.cost - bDef.cost || a.defId.localeCompare(b.defId) || a.instanceId.localeCompare(b.instanceId);
     })
     .slice(0, count)
     .map((card) => card.instanceId);
+}
+
+/**
+ * Discard-to-draw outlets are setup/dig tools, not unconditional tempo plays.
+ * The historical scorer ran activated abilities before all hand plays, which
+ * meant a repeatable looter could spend mana and chew through the deck before
+ * the AI even considered a legal card in hand. Preserve the one important
+ * exception: if the chosen discard is a premium Unit and a reanimation spell
+ * is already available, pitching that Unit is deliberate archetype setup.
+ */
+function shouldDeferDiscardDrawActivation(
+  state: GameState,
+  playerId: PlayerId,
+  ability: ActivatedAbility,
+  effect: CardEffect,
+  selectedDiscardIds: readonly string[],
+): boolean {
+  if (effect.kind !== "draw" || (ability.cost?.discardFromHand ?? 0) <= 0) return false;
+
+  const selected = new Set(selectedDiscardIds);
+  const deliberateReanimationSetup = hasReadyReanimation(state, playerId) &&
+    state.players[playerId].hand.some((card) => selected.has(card.instanceId) && isPremiumReanimationTarget(getCard(card.defId)));
+  if (deliberateReanimationSetup) return false;
+
+  return state.players[playerId].hand.some((card) => canPlayCard(state, playerId, card.instanceId));
 }
 
 function chooseTarget(
@@ -224,6 +281,7 @@ function effectScore(state: GameState, playerId: PlayerId, effect: CardEffect, t
   if (effect.kind === "summonToken") return me.bench.length < 6 ? 30 : -1000;
   if (effect.kind === "manaRefund") return 20 + effect.amount * 4;
   if (effect.kind === "mill") return 22 + effect.amount * 3;
+  if (effect.kind === "selfMill") return selfMillAiValue(state, playerId, effect.amount);
   if (effect.kind === "damagePermanent" || effect.kind === "destroyPermanent") return targetId ? 55 : -1000;
   if (effect.kind === "damageUnit" || effect.kind === "killUnit" || effect.kind === "frostbite" || effect.kind === "stun" || effect.kind === "recall" || effect.kind === "poison") {
     return targetId ? 45 : -1000;
@@ -245,9 +303,14 @@ function sourceSacrificeValue(source: AiAbilitySource): number {
 function discardSelectionValue(state: GameState, playerId: PlayerId, selectedIds: readonly string[]): number {
   if (!selectedIds.length) return 0;
   const selected = new Set(selectedIds);
+  const recursionReady = hasReadyReanimation(state, playerId);
   return state.players[playerId].hand
     .filter((card) => selected.has(card.instanceId))
-    .reduce((sum, card) => sum + 6 + getCard(card.defId).cost * 4, 0);
+    .reduce((sum, card) => {
+      const def = getCard(card.defId);
+      if (recursionReady && isPremiumReanimationTarget(def)) return sum + 2;
+      return sum + 6 + def.cost * 4;
+    }, 0);
 }
 
 function costPenalty(
@@ -293,6 +356,8 @@ function scoreActivation(
 
   const costDiscardInstanceIds = chooseDiscardCostIds(state, playerId, ability);
   if (costDiscardInstanceIds === null) return null;
+  if (shouldDeferDiscardDrawActivation(state, playerId, ability, choice.effect, costDiscardInstanceIds)) return null;
+
   const target = chooseTarget(
     state,
     playerId,
@@ -327,9 +392,12 @@ function scoreActivation(
 /**
  * Chooses one legal, useful activated ability across Units, Artifacts,
  * Enchantments and Sentinelas. Modal abilities are expanded into stable
- * ability/mode/target candidates. Selection-dependent discard costs choose the
- * lowest-cost hand cards deterministically, while authoritative validation
- * still owns exact ownership/count legality.
+ * ability/mode/target candidates. Selection-dependent discard costs remain
+ * deterministic: normally the cheapest cards are paid first, but when a
+ * reanimation Spell is already available the AI deliberately pitches premium
+ * 6+ cost Units and protects its recursion pieces. Discard-to-draw outlets are
+ * deferred behind legal hand plays unless that discard is deliberate premium
+ * reanimation setup.
  */
 export function aiChooseActivatedAbilityAction(
   state: GameState,

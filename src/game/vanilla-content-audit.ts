@@ -4,7 +4,7 @@ import type { CardDef, Region } from "./types";
 import { VANILLA_EXPERIMENTAL_DECKS } from "./vanilla-experimental-decks";
 
 export const VANILLA_CONTENT_BASELINE_VERSION = "1.0";
-export const VANILLA_CODE_AUTHORED_CARD_BASELINE = 447;
+export const VANILLA_CODE_AUTHORED_CARD_BASELINE = 457;
 export const VANILLA_EXPERIMENTAL_WAVE_BASELINE = 180;
 export const VANILLA_EXPERIMENTAL_DECK_BASELINE = 12;
 export const VANILLA_EXPERIMENTAL_DECK_SIZE = 40;

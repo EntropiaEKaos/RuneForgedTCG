@@ -8,6 +8,7 @@ import { VOIDBORN_CARDS } from "./cards/base/voidborn";
 import { VANILLA_ADDITIONAL_CARDS } from "./cards/vanilla";
 import { RELEASE_296_CARDS } from "./cards/release-2.96";
 import { SEMANTIC_ALPHA_CARDS } from "./cards/semantic-alpha";
+import { ECOS_DO_ABISMO_CARDS } from "./cards/ecos-do-abismo";
 
 export const CARDS: Record<string, CardDef> = {
   ...EMBERHOLD_CARDS,
@@ -19,6 +20,7 @@ export const CARDS: Record<string, CardDef> = {
   ...VANILLA_ADDITIONAL_CARDS,
   ...RELEASE_296_CARDS,
   ...SEMANTIC_ALPHA_CARDS,
+  ...ECOS_DO_ABISMO_CARDS,
 };
 
 import { getCustomCard, getCustomCardsMap } from "./catalog";

@@ -36,11 +36,13 @@ export const CARD_EFFECT_KINDS = [
   "damageUnit", "damageNexus", "healUnit", "healNexus", "buffUnit", "buffSelf",
   "buffAllies", "buffRace", "buffClass", "aoeEnemy", "draw", "grantBarrier", "grantKeyword",
   "summonToken", "attachEquipment", "manaRefund", "drawOnSummon", "destroyPermanent",
-  "damagePermanent", "negateSpell", "frostbite", "stun", "recall", "killUnit", "poison", "mill",
+  "damagePermanent", "negateSpell", "frostbite", "stun", "recall", "killUnit", "poison", "mill", "selfMill",
+  "returnGraveyardToHand", "reanimateUnit", "banishGraveyardCard",
 ] as const satisfies readonly EffectKind[];
 export const CARD_TARGETS = [
   "enemyUnit", "allyUnit", "anyUnit", "enemyPermanent", "allyPermanent", "anyPermanent",
   "self", "none", "spellOnStack", "anyBoard", "enemySentinela", "allySentinela", "anySentinela",
+  "allyGraveyardCard", "enemyGraveyardCard", "anyGraveyardCard", "allyGraveyardUnit",
 ] as const satisfies readonly TargetKind[];
 export interface CardEffectContract {
   targets: readonly TargetKind[];
@@ -50,6 +52,7 @@ export interface CardEffectContract {
 
 const UNIT_TARGETS = ["enemyUnit", "allyUnit", "anyUnit", "self"] as const satisfies readonly TargetKind[];
 const PERMANENT_TARGETS = ["enemyPermanent", "allyPermanent", "anyPermanent"] as const satisfies readonly TargetKind[];
+const GRAVEYARD_TARGETS = ["allyGraveyardCard", "enemyGraveyardCard", "anyGraveyardCard", "allyGraveyardUnit"] as const satisfies readonly TargetKind[];
 
 /**
  * Canonical semantic contract shared by authoring validation and Studio UI.
@@ -83,6 +86,10 @@ export const CARD_EFFECT_CONTRACTS = {
   killUnit: { targets: UNIT_TARGETS, amount: "any" },
   poison: { targets: ["none"], amount: "positive" },
   mill: { targets: ["none"], amount: "positive" },
+  selfMill: { targets: ["none"], amount: "positive" },
+  returnGraveyardToHand: { targets: ["allyGraveyardCard"], amount: "any" },
+  reanimateUnit: { targets: ["allyGraveyardUnit"], amount: "any" },
+  banishGraveyardCard: { targets: ["allyGraveyardCard", "enemyGraveyardCard", "anyGraveyardCard"], amount: "any" },
 } as const satisfies Record<EffectKind, CardEffectContract>;
 
 export const CARD_TRIGGERS = [
@@ -101,6 +108,7 @@ export const CARD_DOCTRINES = [
   { id: "tempestade_rush", name: "Céu em Ruptura", region: "Tempestade", icon: "⚡" },
   { id: "convergence_dual", name: "Aliança da Forja do Trovão", region: "Emberhold", icon: "🔥⚡" },
   { id: "convergence_triad", name: "Memória do Abismo Vivo", region: "Tidecall", icon: "🌊🌿☠" },
+  { id: "ecos_do_abismo", name: "Ecos do Abismo", region: "Voidborn", icon: "🌊☠️" },
 ] as const;
 
 /**
@@ -263,6 +271,15 @@ function effectContractSatisfied(effect: CardEffect): boolean {
   return true;
 }
 
+export function cardEffectUsesGraveyardTarget(effect: CardEffect | undefined): boolean {
+  let cursor = effect;
+  while (cursor) {
+    if ((GRAVEYARD_TARGETS as readonly TargetKind[]).includes(cursor.target)) return true;
+    cursor = cursor.also;
+  }
+  return false;
+}
+
 export function sanitizeCardEffect(raw: unknown, depth = 0): CardEffect | null {
   if (!raw || typeof raw !== "object" || depth > EFFECT_CHAIN_MAX_SUPPORTED_DEPTH) return null;
   const e = raw as Record<string, unknown>;
@@ -312,13 +329,25 @@ function sanitizeActivatedAbilityCost(raw: unknown): ActivatedAbilityCost | null
   if (mana === null) return null;
   if (mana !== undefined) cost.mana = mana;
 
+  const spellMana = nonNegativeInteger(value.spellMana);
+  if (spellMana === null || (spellMana !== undefined && spellMana > 20)) return null;
+  if (spellMana !== undefined) cost.spellMana = spellMana;
+
   const nexusHealth = nonNegativeInteger(value.nexusHealth);
   if (nexusHealth === null) return null;
   if (nexusHealth !== undefined) cost.nexusHealth = nexusHealth;
 
+  const discardFromHand = nonNegativeInteger(value.discardFromHand);
+  if (discardFromHand === null || (discardFromHand !== undefined && discardFromHand > 10)) return null;
+  if (discardFromHand !== undefined) cost.discardFromHand = discardFromHand;
+
   if (value.exhaustSelf !== undefined) {
     if (typeof value.exhaustSelf !== "boolean") return null;
     if (value.exhaustSelf) cost.exhaustSelf = true;
+  }
+  if (value.consumeBarrier !== undefined) {
+    if (typeof value.consumeBarrier !== "boolean") return null;
+    if (value.consumeBarrier) cost.consumeBarrier = true;
   }
   if (value.sacrificeSelf !== undefined) {
     if (typeof value.sacrificeSelf !== "boolean") return null;
@@ -340,7 +369,7 @@ export function sanitizeActivatedAbility(raw: unknown): ActivatedAbility | null 
   if (!description) return null;
 
   const effect = sanitizeCardEffect(value.effect);
-  if (!effect) return null;
+  if (!effect || cardEffectUsesGraveyardTarget(effect)) return null;
 
   const cost = sanitizeActivatedAbilityCost(value.cost);
   if (cost === null) return null;
@@ -360,8 +389,11 @@ export function sanitizeActivatedAbility(raw: unknown): ActivatedAbility | null 
   if (maxUsesPerRound === null) {
     const consumes = Boolean(
       (cost?.mana ?? 0) > 0 ||
+      (cost?.spellMana ?? 0) > 0 ||
       (cost?.nexusHealth ?? 0) > 0 ||
+      (cost?.discardFromHand ?? 0) > 0 ||
       cost?.exhaustSelf ||
+      cost?.consumeBarrier ||
       cost?.sacrificeSelf ||
       (cost?.loyaltyDelta ?? 0) < 0,
     );
@@ -439,6 +471,7 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
     for (const rawMechanic of raw.mechanics.slice(0,8)) {
       const mechanic = sanitizeCardMechanic(rawMechanic);
       if (!mechanic) return { ok: false, error: "Invalid custom mechanic" };
+      if (cardEffectUsesGraveyardTarget(mechanic.effect)) return { ok: false, error: "Graveyard-targeted effects are main-phase Spell effects in Graveyard Effects 1.0" };
       if (!mechanics.some((m) => m.key === mechanic.key)) mechanics.push(mechanic);
     }
     card.mechanics = mechanics;
@@ -462,6 +495,10 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
   if (raw.spell !== undefined) {
     const spell = sanitizeCardEffect(raw.spell);
     if (!spell) return { ok: false, error: "Invalid spell effect" };
+    if (cardEffectUsesGraveyardTarget(spell)) {
+      if (card.type !== "Spell") return { ok: false, error: "Graveyard-targeted effects require a Spell card" };
+      if (card.speed) return { ok: false, error: "Graveyard-targeted Spells are main-phase only in Graveyard Effects 1.0" };
+    }
     card.spell = spell;
   }
 
@@ -471,6 +508,7 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
     if (triggerError) return { ok: false, error: triggerError };
     const effect = sanitizeCardEffect(raw.trigger.effect);
     if (!effect) return { ok: false, error: "Invalid trigger effect" };
+    if (cardEffectUsesGraveyardTarget(effect)) return { ok: false, error: "Graveyard-targeted trigger effects are not supported in Graveyard Effects 1.0" };
     card.trigger = { when: raw.trigger.when, effect };
   }
 
@@ -530,6 +568,7 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
       if (!ability || typeof ability !== "object") return { ok: false, error: "Invalid Sentinela ability" };
       const effect = sanitizeCardEffect(ability.effect);
       if (!effect) return { ok: false, error: "Invalid Sentinela ability effect" };
+      if (cardEffectUsesGraveyardTarget(effect)) return { ok: false, error: "Graveyard-targeted Sentinela abilities are not supported in Graveyard Effects 1.0" };
       abilities.push({
         cost: Math.trunc(finite(ability.cost)),
         description: String(ability.description || "").slice(0, 200),

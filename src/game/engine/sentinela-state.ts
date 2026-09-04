@@ -1,4 +1,5 @@
 import { getCard } from "../cards";
+import { putInGraveyard } from "../graveyard";
 import type { GameState, PlayerId } from "../types";
 import { recomputeContinuousAuras } from "./state";
 
@@ -10,6 +11,7 @@ export function cleanupSentinelas(state: GameState): void {
     if (dead.length) removedSentinela = true;
     for (const s of dead) {
       const def = getCard(s.defId);
+      putInGraveyard(state, pid, s.defId, "destroy", s.instanceId);
       state.log.push(`A Sentinela ${def.name} foi destruída (Lealdade 0).`);
     }
     p.sentinelas = p.sentinelas.filter((s) => s.loyalty > 0);

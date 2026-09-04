@@ -17,6 +17,15 @@ import {
   spellNeedsTarget,
   type CardAction,
 } from "./engine";
+import { graveyardEntries } from "./graveyard";
+import {
+  graveyardTargetScore,
+  isGraveyardTargetKind,
+  isValidGraveyardTarget,
+} from "./graveyard-effects";
+import { canReactWithResponse } from "./reaction-contract";
+import { engineRulesFor } from "./match-rules";
+import { selfMillAiValue } from "./ai-graveyard-plan";
 import type { BoardEntity, CardEffect, GameState, PlayerId, UnitInstance } from "./types";
 
 /**
@@ -33,9 +42,13 @@ const TACTICAL_FALLBACK_EFFECTS = new Set<CardEffect["kind"]>([
   "killUnit",
   "poison",
   "mill",
+  "selfMill",
   "buffAllies",
   "buffRace",
   "grantKeyword",
+  "returnGraveyardToHand",
+  "reanimateUnit",
+  "banishGraveyardCard",
 ]);
 
 const HOSTILE_TARGETED_EFFECTS = new Set<CardEffect["kind"]>([
@@ -46,6 +59,17 @@ const HOSTILE_TARGETED_EFFECTS = new Set<CardEffect["kind"]>([
   "stun",
   "recall",
   "killUnit",
+]);
+
+/**
+ * High-impact spell effects that the historical reaction heuristic did not
+ * understand because they were introduced after its original danger list.
+ * Keep this deliberately small: the core reaction chooser still owns all
+ * historical burn/removal/counter decisions, while this facade closes proven
+ * semantic coverage gaps without changing ordinary reaction priorities.
+ */
+const CRITICAL_COUNTER_FALLBACK_EFFECTS = new Set<CardEffect["kind"]>([
+  "reanimateUnit",
 ]);
 
 function boardEntityId(entity: BoardEntity): string {
@@ -99,9 +123,21 @@ function fallbackEffectUseful(state: GameState, playerId: PlayerId, effect: Card
   if (effect.kind === "damageNexus") return enemy.nexusHealth > 0 && effect.amount > 0;
   if (effect.kind === "poison") return enemy.poisonCounters < 10 && effect.amount > 0;
   if (effect.kind === "mill") return enemy.deck.length > 0 && effect.amount > 0;
+  if (effect.kind === "selfMill") return selfMillAiValue(state, playerId, effect.amount) > 0;
   if (effect.kind === "buffAllies") return me.bench.length > 0 && Boolean((effect.buffPower ?? 0) || (effect.buffHealth ?? 0));
   if (effect.kind === "buffRace") {
     return Boolean((effect.buffPower ?? 0) || (effect.buffHealth ?? 0)) && me.bench.some((unit) => unitMatchesRaceEffect(unit, effect));
+  }
+  if (effect.kind === "reanimateUnit") {
+    return me.bench.length < engineRulesFor(state).benchCap &&
+      graveyardEntries(state, playerId).some((entry) => getCard(entry.defId).type === "Unit");
+  }
+  if (effect.kind === "returnGraveyardToHand") {
+    return me.hand.length < engineRulesFor(state).handCap && graveyardEntries(state, playerId).length > 0;
+  }
+  if (effect.kind === "banishGraveyardCard") {
+    if (effect.target === "enemyGraveyardCard") return graveyardEntries(state, other(playerId)).length > 0;
+    return graveyardEntries(state, playerId).length + graveyardEntries(state, other(playerId)).length > 0;
   }
   return true;
 }
@@ -114,6 +150,15 @@ function chooseFallbackTarget(
   const targetKind = effect.target;
   if (targetKind === "none" || targetKind === "self") return undefined;
   if (targetKind === "spellOnStack") return null;
+
+  if (isGraveyardTargetKind(targetKind)) {
+    const candidates = (["player", "ai"] as PlayerId[])
+      .flatMap((owner) => graveyardEntries(state, owner))
+      .filter((entry) => isValidGraveyardTarget(state, playerId, targetKind, entry))
+      .map((entry) => ({ entry, score: graveyardTargetScore(entry) }))
+      .sort((a, b) => b.score - a.score || a.entry.instanceId.localeCompare(b.entry.instanceId));
+    return candidates[0]?.entry.instanceId ?? null;
+  }
 
   const hostile = HOSTILE_TARGETED_EFFECTS.has(effect.kind);
   const enemyId = other(playerId);
@@ -159,6 +204,33 @@ function chooseTacticalMainPhaseFallback(state: GameState, playerId: PlayerId): 
   return null;
 }
 
+function chooseCriticalCounterFallback(
+  state: GameState,
+  action: CardAction,
+  playerId: PlayerId,
+): AiAction | null {
+  if (action.kind !== "spell") return null;
+  const pending = getCard(action.defId);
+  if (!pending.spell || !CRITICAL_COUNTER_FALLBACK_EFFECTS.has(pending.spell.kind)) return null;
+
+  const counters = state.players[playerId].hand
+    .map((card) => ({ card, def: getCard(card.defId) }))
+    .filter(({ def }) => def.type === "Spell" && def.spell?.kind === "negateSpell")
+    .sort((a, b) => a.def.cost - b.def.cost || a.def.defId.localeCompare(b.def.defId) || a.card.instanceId.localeCompare(b.card.instanceId));
+
+  for (const { card } of counters) {
+    const response: CardAction = {
+      kind: "spell",
+      player: playerId,
+      instanceId: card.instanceId,
+      defId: card.defId,
+      targetInstanceId: action.instanceId,
+    };
+    if (canReactWithResponse(state, playerId, response, action)) return response;
+  }
+  return null;
+}
+
 /**
  * Public main-phase chooser. The certified historical policy remains first;
  * Vanilla 1.3 only fills proven tactical coverage gaps after that policy has
@@ -197,9 +269,9 @@ export function applyAiAction(
 }
 
 /**
- * Prefer a legal battlefield reaction when one exists, then fall back to the
- * historical hand-card reaction policy. Both candidates are revalidated by the
- * authoritative stack contract before insertion.
+ * Prefer a legal battlefield reaction when one exists, then the historical
+ * hand-card policy, then a narrow semantic fallback for high-impact effects
+ * introduced after the original danger table (currently Reanimation).
  */
 export function aiChooseReaction(
   state: GameState,
@@ -207,5 +279,6 @@ export function aiChooseReaction(
   playerId: PlayerId = "ai",
 ): AiAction | null {
   return aiChooseReactionActivatedAbilityAction(state, action, playerId) ??
-    aiChooseCardReaction(state, action, playerId);
+    aiChooseCardReaction(state, action, playerId) ??
+    chooseCriticalCounterFallback(state, action, playerId);
 }

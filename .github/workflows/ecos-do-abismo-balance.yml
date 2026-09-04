@@ -1,0 +1,78 @@
+name: Ecos do Abismo Balance Evidence
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/game/cards/ecos-do-abismo.ts"
+      - "src/game/cards.ts"
+      - "src/game/decks.ts"
+      - "src/game/archetypes.ts"
+      - "src/game/ai-activated-abilities.ts"
+      - "src/game/ai.ts"
+      - "src/game/engine/**"
+      - "src/game/graveyard*.ts"
+      - "src/game/ecos-do-abismo.test.ts"
+      - "docs/ECOS-DO-ABISMO-1-0-IMPLEMENTATION.md"
+      - "docs/ECOS-DO-ABISMO-1-1-SELF-MILL.md"
+      - "scripts/ecos-do-abismo-balance-audit.ts"
+      - "scripts/ecos-do-abismo-balance-v2.ts"
+      - ".github/workflows/ecos-do-abismo-balance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/game/cards/ecos-do-abismo.ts"
+      - "src/game/cards.ts"
+      - "src/game/decks.ts"
+      - "src/game/archetypes.ts"
+      - "src/game/ai-activated-abilities.ts"
+      - "src/game/ai.ts"
+      - "src/game/engine/**"
+      - "src/game/graveyard*.ts"
+      - "src/game/ecos-do-abismo.test.ts"
+      - "docs/ECOS-DO-ABISMO-1-0-IMPLEMENTATION.md"
+      - "docs/ECOS-DO-ABISMO-1-1-SELF-MILL.md"
+      - "scripts/ecos-do-abismo-balance-audit.ts"
+      - "scripts/ecos-do-abismo-balance-v2.ts"
+      - ".github/workflows/ecos-do-abismo-balance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    name: 4,000-game canonical matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ECOS_GAMES_PER_STRATUM: "100"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+          check-latest: false
+
+      - name: Install dependencies
+        run: npm run ci:install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run canonical Ecos do Abismo 1.1 balance evidence
+        run: node --import tsx scripts/ecos-do-abismo-balance-v2.ts --enforce
+
+      - name: Upload balance report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ecos-do-abismo-balance-canonical-${{ github.sha }}
+          path: artifacts/ecos-do-abismo-balance/report.json
+          if-no-files-found: error
+          retention-days: 30
