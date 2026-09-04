@@ -48,13 +48,10 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - heal_for_stalker
-          - heal_for_guard
-          - heal_for_sprite
+          - current_heal
           - heal_for_oracle
           - heal_for_hexer
           - heal_for_drain
-          - heal_for_freeze
     env:
       ECOS_GAMES_PER_STRATUM: "100"
       ECOS_RECOLLECTION_SLOT_VARIANT: ${{ matrix.variant }}
