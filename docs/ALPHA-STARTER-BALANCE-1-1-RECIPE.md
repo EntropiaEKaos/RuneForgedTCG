@@ -242,8 +242,8 @@ Key matchup movement:
 
 Artifact:
 
-- ZIP SHA-256: `38f90a956143e18dc4a308beb6cd644dc632a61c89748e996a29a2e62bdcb3f4`;
-- JSON SHA-256: `8506f36f36a8bb707534217fc5f65a06d833e456e8c0eb63885ce9b5d56c5651`.
+- ZIP SHA-256: `abaf5401d4c340ad1be7ff8512de73759696ea1b2f37b4e8dda66753738e5a2f`;
+- JSON SHA-256: `4697c7c30bf99bda992a886932dbb02d00f04ec6263b5c3e848ec268d783b62c`.
 
 **Round-3 decision: rejected.** Health improved, but the critical count did not fall below three and the Florestia softening created a new critical against Tempestade.
 
