@@ -16,11 +16,11 @@ export const ECOS_DO_ABISMO_CARDS: Record<string, CardDef> = {
     cost: 2,
     spell: {
       kind: "selfMill",
-      amount: 2,
+      amount: 1,
       target: "none",
       also: { kind: "draw", amount: 1, target: "none" },
     },
-    description: "Envie as 2 cartas do topo do seu deck ao seu Cemitério. Depois compre 1 carta.",
+    description: "Envie a carta do topo do seu deck ao seu Cemitério. Depois compre 1 carta.",
     flavor: "Nas profundezas, lembrar e afundar são o mesmo movimento.",
     rarity: "Common",
     emoji: "🫧",
