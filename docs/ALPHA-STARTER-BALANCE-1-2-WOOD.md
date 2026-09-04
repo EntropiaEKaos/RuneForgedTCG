@@ -211,3 +211,71 @@ This trades anti-Ironwood removal/tempo for Reach bodies that should protect the
 - ~21,750 games.
 
 Promotion requires fewer than 2 criticals, zero replacement criticals and first-player within ±2pp.
+
+
+## Round 3 result — improved but rejected
+
+Round 3 completed another **21,750 games** with quality PASS.
+
+Artifact:
+
+- ZIP SHA-256: `88d617e3b030a778736eca23d66ec9c4be7852f48ba2e111b5717dcc927ca03f`;
+- JSON SHA-256: `0118dbeca7e55d7bd211be1aa05eeed07d31cb9aaf1407aa758486a07e4da76b`.
+
+Best finalist:
+
+`ember_shatter_to_stun__forest_pounce_to_webweaver`
+
+Result:
+
+- health score: **82**;
+- first-player: **51.5%**;
+- healthy: 6;
+- watch: 7;
+- critical: **2**.
+
+The original critical set remained unchanged:
+
+- Ember × Wood: 67.5 / 32.5;
+- Wood × Florestia: 36.5 / 63.5.
+
+Useful guardrail movement:
+
+- Ember × Tempestade: 44 / 56;
+- Tide × Florestia: 42.5 / 57.5;
+- Florestia × Tempestade: 44.5 / 55.5.
+
+**Decision: no promotion.** One-slot redistribution improved global health, but neither original critical crossed the 40/60 floor.
+
+## Round 4 — two-slot matchup packages
+
+Round 4 keeps the same winning-side redistribution principle, but increases intensity to two recipe slots per deck.
+
+The key idea is to soften Ember and Florestia **simultaneously**, so their mutual matchup can stay balanced while both lose matchup-specific power against Ironwood.
+
+### Ember packages
+
+Every Ember candidate removes `ember_shatter` plus one additional pressure piece, then replaces those slots with low-damage tempo/AoE that should be more useful into small Tempestade boards than into Ironwood's larger bodies.
+
+1. Shatter + Soulbrand -> Flame Lash + Emberstorm;
+2. Shatter + one Flamebrand -> Flame Lash + Emberstorm;
+3. Shatter + one Steamscale Wyrm -> Flame Lash + Emberstorm;
+4. Shatter + Meteor Strike -> Flame Lash + Cinder Snap.
+
+### Florestia packages
+
+Every Florestia candidate removes at least one `forest_predator_pounce` plus a second interaction slot, then compensates with Reach and/or Barrier.
+
+1. both Predator Pounce copies -> Webweaver + Canopy Warden;
+2. Pounce + Primal Recall -> Webweaver + Pack Shelter;
+3. Pounce + Moon Snare -> Webweaver + Pack Shelter;
+4. Pounce + Entangle -> Webweaver + Pack Shelter.
+
+This is intentionally not a raw power reduction. It is a **power redistribution** away from anti-Ironwood removal and toward anti-air/combat defense.
+
+Promotion rules remain unchanged:
+
+- fewer than 2 critical matchups;
+- zero replacement critical pairs;
+- first-player within ±2pp of 50%;
+- exact canonical reproduction after promotion.
