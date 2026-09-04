@@ -58,7 +58,8 @@ assert.deepEqual(new Set(validation.regions), new Set(["Tidecall", "Voidborn"]))
 assert.equal(preset.cards.filter((defId) => defId === IDS.pulse).length, 2, "certified recipe keeps exactly two baseline reanimation spells");
 assert.equal(preset.cards.filter((defId) => defId === IDS.thread).length, 1, "certified recipe keeps one graveyard-to-hand recursion spell");
 assert.equal(preset.cards.filter((defId) => defId === IDS.recollection).length, 1, "Ecos 1.1 recipe keeps exactly one self-mill cantrip");
-assert.equal(preset.cards.filter((defId) => defId === "tide_heal").length, 2, "Ecos 1.1 preserves both Soothing Tide copies after the slot refinement");\nassert.equal(preset.cards.filter((defId) => defId === "tide_oracle").length, 2, "Ecos 1.1 trades exactly one Tide Oracle for Recordação Submersa");
+assert.equal(preset.cards.filter((defId) => defId === "tide_heal").length, 2, "Ecos 1.1 preserves both Soothing Tide copies after the slot refinement");
+assert.equal(preset.cards.filter((defId) => defId === "tide_oracle").length, 2, "Ecos 1.1 trades exactly one Tide Oracle for Recordação Submersa");
 assert.equal(preset.cards.filter((defId) => defId === "tide_freeze").length, 2, "certified recipe keeps exactly two Riptides");
 assert.equal(preset.cards.filter((defId) => defId === "void_nightmare").length, 1, "certified recipe promotes Living Nightmare as the no-Lifesteal midgame slot");
 assert.equal(preset.cards.filter((defId) => defId === "tide_guard").length, 2, "certified recipe keeps exactly two Tidal Wardens after Tempestade refinement");
