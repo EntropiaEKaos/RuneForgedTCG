@@ -57,8 +57,8 @@ assert.equal(validation.ok, true, `Ecos preset must be legal: ${validation.error
 assert.deepEqual(new Set(validation.regions), new Set(["Tidecall", "Voidborn"]));
 assert.equal(preset.cards.filter((defId) => defId === IDS.pulse).length, 2, "certified recipe keeps exactly two baseline reanimation spells");
 assert.equal(preset.cards.filter((defId) => defId === IDS.thread).length, 1, "certified recipe keeps one graveyard-to-hand recursion spell");
-assert.equal(preset.cards.filter((defId) => defId === IDS.recollection).length, 2, "Ecos 1.1 recipe keeps exactly two self-mill cantrips");
-assert.equal(preset.cards.filter((defId) => defId === "tide_heal").length, 0, "Ecos 1.1 replaces the two Soothing Tide slots instead of growing the deck");
+assert.equal(preset.cards.filter((defId) => defId === IDS.recollection).length, 1, "Ecos 1.1 recipe keeps exactly one self-mill cantrip");
+assert.equal(preset.cards.filter((defId) => defId === "tide_heal").length, 1, "Ecos 1.1 keeps one Soothing Tide after the 4k refinement");
 assert.equal(preset.cards.filter((defId) => defId === "tide_freeze").length, 2, "certified recipe keeps exactly two Riptides");
 assert.equal(preset.cards.filter((defId) => defId === "void_nightmare").length, 1, "certified recipe promotes Living Nightmare as the no-Lifesteal midgame slot");
 assert.equal(preset.cards.filter((defId) => defId === "tide_guard").length, 2, "certified recipe keeps exactly two Tidal Wardens after Tempestade refinement");
@@ -99,7 +99,7 @@ assert.equal(sepulcherRoundTrip.activatedAbilities?.[0]?.cost?.discardFromHand, 
 
 const recollectionRoundTrip = normalizeCardForRoundTrip(ECOS_DO_ABISMO_CARDS[IDS.recollection]!);
 assert.equal(recollectionRoundTrip.spell?.kind, "selfMill", "Studio round-trip must preserve selfMill");
-assert.equal(recollectionRoundTrip.spell?.amount, 2, "Studio round-trip must preserve selfMill amount");
+assert.equal(recollectionRoundTrip.spell?.amount, 1, "Studio round-trip must preserve selfMill amount");
 assert.equal(recollectionRoundTrip.spell?.also?.kind, "draw", "Studio round-trip must preserve the cantrip draw chain");
 
 // Archetype profile, doctrine resolution and mulligan preserve setup pieces while shipping fatties back.
@@ -110,19 +110,19 @@ const mulligan = mulliganPlan([IDS.smuggler, IDS.pulse, IDS.colossus, IDS.vigil]
 assert.deepEqual(mulligan.keep, [IDS.smuggler, IDS.pulse]);
 assert.deepEqual(mulligan.replace, [IDS.colossus, IDS.vigil]);
 
-// Self-mill loop: top two cards become real mill entries, then the cantrip draws the next card.
+// Self-mill loop: the top card becomes a real mill entry, then the cantrip draws the next card.
 {
   let state = game();
   state.players.player.hand = [{ instanceId: "ecos-recollection", defId: IDS.recollection }];
-  state.players.player.deck = [IDS.colossus, IDS.devourer, "tide_oracle"];
+  state.players.player.deck = [IDS.colossus, "tide_oracle"];
 
   state = castSpell(state, "player", "ecos-recollection");
   const grave = graveyardEntries(state, "player");
   const milled = grave.filter((entry) => entry.reason === "mill");
 
-  assert.deepEqual(milled.map((entry) => entry.defId), [IDS.colossus, IDS.devourer], "Recordação Submersa must mill the exact top two cards in order");
+  assert.deepEqual(milled.map((entry) => entry.defId), [IDS.colossus], "Recordação Submersa must mill the exact top card");
   assert.ok(state.players.player.hand.some((card) => card.defId === "tide_oracle"), "Recordação Submersa draws the next card after self-mill");
-  assert.equal(state.players.player.deck.length, 0, "self-mill 2 plus draw 1 consumes the controlled three-card deck");
+  assert.equal(state.players.player.deck.length, 0, "self-mill 1 plus draw 1 consumes the controlled two-card deck");
   assert.ok(grave.some((entry) => entry.defId === IDS.recollection && entry.reason === "spell"), "resolved self-mill Spell enters the graveyard normally");
 }
 
