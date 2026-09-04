@@ -1,53 +1,69 @@
 import assert from "node:assert/strict";
-import { getDeck } from "./decks";
-import {
-  ALPHA_STARTER_BALANCE_1_4_VERSION,
-  BALANCE_1_4_CANDIDATES,
-  overridesForBalance14Candidate,
-  recipeForBalance14Candidate,
-  validateBalance14CandidateSet,
-} from "./alpha-starter-balance-1-4";
+import { getDeck, validateDeck } from "./decks";
+import { SEMANTIC_ALPHA_CARDS } from "./cards/semantic-alpha";
 
-assert.equal(ALPHA_STARTER_BALANCE_1_4_VERSION, "1.4");
-assert.equal(BALANCE_1_4_CANDIDATES.length, 4, "Balance 1.4 Round 3 must test exactly four Tide candidates");
-assert.deepEqual(validateBalance14CandidateSet(), [], "Balance 1.4 Round 3 candidate set must be structurally valid");
+const expectedTide = [
+  "tide_sprite", "tide_sprite", "tide_sprite",
+  "tide_oracle", "tide_oracle",
+  "tide_guard", "tide_guard",
+  "tide_mystic", "tide_mystic",
+  "tide_bladedancer", "tide_cloudpiercer",
+  "tide_freeze", "tide_freeze",
+  "tide_draw", "rfalpha_tide_ritual_memory_tide",
+  "tide_heal", "tide_heal",
+  "tide_shield", "tide_shield",
+  "tide_caller", "tide_caller",
+  "tide_wood_chorus", "tide_wood_chorus",
+  "tide_anchor", "rfalpha_tide_structure_silent_beacon",
+  "tide_mirror",
+  "tide_recall", "tide_dispel",
+  "tide_tidecaller",
+  "tide_guard",
+  "tide_champion", "tide_champion",
+  "tide_deny", "rfalpha_tide_trap_countercurrent",
+  "tide_frostbite", "tide_frostbite",
+  "tide_stun", "tide_stun",
+  "tide_recall",
+  "tide_hexspirit",
+];
 
-const canonicalTide = [...getDeck("tide_control").cards];
-const canonicalEmber = [...getDeck("ember_aggro").cards];
-const canonicalStorm = [...getDeck("tempestade_rush").cards];
-const canonicalWood = [...getDeck("wood_midrange").cards];
-const canonicalFlorestia = [...getDeck("florestia_tribal").cards];
-const ids = new Set<string>();
+const tide = getDeck("tide_control");
 
-for (const candidate of BALANCE_1_4_CANDIDATES) {
-  assert.equal(ids.has(candidate.id), false, `duplicate Balance 1.4 candidate id: ${candidate.id}`);
-  ids.add(candidate.id);
-  assert.equal(candidate.deckId, "tide_control", `${candidate.id} must remain Tide-only`);
+assert.deepEqual(
+  tide.cards,
+  expectedTide,
+  "Tidecall Control 1.4 must preserve the exact promoted deterministic recipe order",
+);
+assert.equal(tide.cards.length, 40, "Tidecall 1.4 must remain exactly 40 cards");
 
-  const recipe = recipeForBalance14Candidate(candidate);
-  assert.equal(recipe.cards.length, 40, `${candidate.id} must remain a 40-card starter`);
+const legality = validateDeck(tide.cards);
+assert.equal(legality.ok, true, `Tidecall 1.4 must remain legal: ${legality.errors.join(" | ")}`);
 
-  const changed = recipe.cards.reduce<number[]>(
-    (indexes, defId, index) => (defId === canonicalTide[index] ? indexes : [...indexes, index]),
-    [],
-  );
-  assert.equal(
-    changed.length,
-    candidate.replacements.length,
-    `${candidate.id} must change exactly ${candidate.replacements.length} textual recipe slot(s)`,
-  );
+assert.equal(
+  tide.cards.filter((defId) => defId in SEMANTIC_ALPHA_CARDS).length,
+  3,
+  "Tidecall 1.4 must preserve exactly Structure + Ritual + Trap teaching cards",
+);
 
-  const overrides = overridesForBalance14Candidate(candidate);
-  assert.deepEqual(Object.keys(overrides), ["tide_control"], `${candidate.id} must override only Tidecall`);
-  assert.deepEqual(overrides.tide_control.cards, recipe.cards, `${candidate.id} override must reproduce its candidate recipe`);
+assert.equal(tide.cards.filter((id) => id === "tide_dispel").length, 1);
+assert.equal(tide.cards.filter((id) => id === "tide_recall").length, 2);
+assert.equal(tide.cards.filter((id) => id === "tide_heal").length, 2);
+assert.equal(tide.cards.filter((id) => id === "tide_frostbite").length, 2);
+assert.equal(tide.cards.filter((id) => id === "tide_stun").length, 2);
 
-  assert.deepEqual(getDeck("tide_control").cards, canonicalTide, `${candidate.id} must never mutate canonical Tidecall`);
-  assert.deepEqual(getDeck("ember_aggro").cards, canonicalEmber, `${candidate.id} must preserve canonical Emberhold`);
-  assert.deepEqual(getDeck("tempestade_rush").cards, canonicalStorm, `${candidate.id} must preserve canonical Tempestade`);
-  assert.deepEqual(getDeck("wood_midrange").cards, canonicalWood, `${candidate.id} must preserve canonical Ironwood`);
-  assert.deepEqual(getDeck("florestia_tribal").cards, canonicalFlorestia, `${candidate.id} must preserve canonical Florestia`);
+for (const id of [
+  "ember_aggro",
+  "wood_midrange",
+  "void_shadow",
+  "florestia_tribal",
+  "tempestade_rush",
+] as const) {
+  const deck = getDeck(id);
+  assert.equal(deck.cards.length, 40, `${id} must remain a 40-card starter`);
+  const activeLegality = validateDeck(deck.cards);
+  assert.equal(activeLegality.ok, true, `${id} must remain legal after Tide 1.4 promotion`);
 }
 
 console.log(
-  "ALPHA STARTER BALANCE 1.4 ROUND 3 CANDIDATES: PASS — 4 Tide-only overrides · 1-2 textual slots · all non-Tide starters frozen",
+  "ALPHA STARTER BALANCE 1.4 RECIPE: PASS — Tide Dispel->Recall promoted · exact 40-card order · legal · Structure/Ritual/Trap preserved",
 );
