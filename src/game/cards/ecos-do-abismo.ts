@@ -8,6 +8,25 @@ import type { CardDef } from "../types";
  * Alpha starter recipes or Ranked pool.
  */
 export const ECOS_DO_ABISMO_CARDS: Record<string, CardDef> = {
+  rfalpha_reanimator_drowned_recollection: {
+    defId: "rfalpha_reanimator_drowned_recollection",
+    name: "Recordação Submersa",
+    region: "Tidecall",
+    type: "Spell",
+    cost: 2,
+    spell: {
+      kind: "selfMill",
+      amount: 2,
+      target: "none",
+      also: { kind: "draw", amount: 1, target: "none" },
+    },
+    description: "Envie as 2 cartas do topo do seu deck ao seu Cemitério. Depois compre 1 carta.",
+    flavor: "Nas profundezas, lembrar e afundar são o mesmo movimento.",
+    rarity: "Common",
+    emoji: "🫧",
+    strategicRole: "engine",
+    doctrineAffinities: ["ecos_do_abismo"],
+  },
   rfalpha_reanimator_memory_smuggler: {
     defId: "rfalpha_reanimator_memory_smuggler",
     name: "Contrabandista de Memórias",
