@@ -160,3 +160,58 @@ Round 2 therefore changes two slots together:
 The grid size remains 21,750 games and promotion still requires zero criticals,
 fewer than 7 watches, health above 89, directional improvement on the target
 pairs and first-player within ±2pp.
+
+
+## Round 2 result — rejected
+
+Round 2 completed another **21,750 games** with quality PASS.
+
+Artifact:
+- workflow: Alpha Starter Balance 1.4 Watch Compression Grid #5;
+- ZIP SHA-256: `c192a259ad76450f723d156708143a86801d6956b4bc33db74c16451cb87702c`.
+
+No finalist was promotion-eligible.
+
+Best finalist:
+`storm_chainbolt_to_thunderangel__tide_heal_dispel_to_recall_glacial`
+
+Result:
+- health: 89;
+- watch: 5;
+- critical: 1;
+- first-player: 51.1%.
+
+The remaining blocker was:
+- Ember × Tempestade: **39.5/60.5 critical**.
+
+Useful movement:
+- Ember × Tide: 48/52;
+- Tide × Ironwood: 42/58;
+- Wood × Tempestade: 53/47.
+
+Conclusion: the Tide package is promising, but every tested Tempestade change
+crosses the Ember floor. No Round-2 recipe is promoted.
+
+## Round 3 — Tide-only full verification
+
+Round 3 freezes Emberhold, Tempestade, Ironwood and Florestia at their certified
+1.3 recipes.
+
+Four Tide-only candidates are each tested directly at **3,000 games**:
+
+1. Heal + Dispel -> Recall + Glacial;
+2. Heal + Dispel -> Recall + Flash Freeze;
+3. Dispel -> Recall;
+4. Dispel -> Glacial.
+
+There is no reduced screening stage. Including the unchanged 3,000-game
+baseline, Round 3 runs **15,000 games**.
+
+Promotion requires:
+- zero critical matchups;
+- fewer than 7 watches;
+- health above 89;
+- no new critical pair;
+- Ember × Tempestade, Wood × Tempestade and Wood × Florestia unchanged;
+- every Tide tracked matchup remaining at or above the 40% critical floor;
+- first-player within ±2pp.
