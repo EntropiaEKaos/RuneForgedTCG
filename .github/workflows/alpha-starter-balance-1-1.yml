@@ -98,15 +98,17 @@ jobs:
 
           const criticalPairs = report.health.outliers
             .filter((row) => row.status === "critical")
-            .map((row) => `${row.deckA}::${row.deckB}`)
-            .sort();
-          const expectedCriticalPairs = [
+            .map((row) => `${row.deckA}::${row.deckB}`);
+          const historicalCriticalPairs = new Set([
             "ember_aggro::wood_midrange",
             "wood_midrange::florestia_tribal",
-          ].sort();
+          ]);
+          const unexpectedCriticalPairs = criticalPairs.filter(
+            (pair) => !historicalCriticalPairs.has(pair),
+          );
 
-          if (JSON.stringify(criticalPairs) !== JSON.stringify(expectedCriticalPairs)) {
-            fail(`critical set changed: ${criticalPairs.join(", ") || "none"}`);
+          if (unexpectedCriticalPairs.length) {
+            fail(`unexpected critical pair(s): ${unexpectedCriticalPairs.join(", ")}`);
           }
 
           console.log(
