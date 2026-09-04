@@ -22,127 +22,147 @@ export interface AlphaRecipeCandidate {
 }
 
 /**
- * Round 3 tests controlled recipe softening of the two decks that appear in
- * all three certified critical matchups.
+ * Round 4 is a surgical continuation of the only productive Round-3 line.
  *
- * No card is edited. Candidates only redistribute existing recipe slots.
+ * Florestia keeps the softening that fixed Tide while replacing lost generic
+ * sustain with Reach so it does not collapse against Tempestade.
+ *
+ * Ember keeps its aggressive identity but trades part of the raw curve/removal
+ * package for Ashguard + tempo, aiming to move Ember×Wood below critical while
+ * preserving its fragile Tempestade matchup.
  */
 export const ALPHA_RECIPE_CANDIDATES: readonly AlphaRecipeCandidate[] = [
   {
-    id: "forest_packrunner_to_summon",
+    id: "forest_packrunner_champion_to_summon_canopy",
     family: "florestia",
     deckId: "florestia_tribal",
-    label: "Florestia: Packrunner -> Summon Pack",
-    rationale: "Reduce one high-tempo +1/+0 tribal summon while preserving Beast/token identity through a slower 4-mana summon spell.",
-    replacements: [{ from: "forest_packrunner", to: "forest_summon_pack" }],
-  },
-  {
-    id: "forest_alpha_to_summon",
-    family: "florestia",
-    deckId: "florestia_tribal",
-    label: "Florestia: Alpha -> Summon Pack",
-    rationale: "Remove one large +2/+2 tribal swing and replace it with slower token development.",
-    replacements: [{ from: "forest_alpha", to: "forest_summon_pack" }],
-  },
-  {
-    id: "forest_champion_to_summon",
-    family: "florestia",
-    deckId: "florestia_tribal",
-    label: "Florestia: Champion -> Summon Pack",
-    rationale: "Reduce one resilient Challenger finisher while retaining the deck's Beast-count and token plan.",
-    replacements: [{ from: "forest_champion", to: "forest_summon_pack" }],
-  },
-  {
-    id: "forest_packrunner_alpha_to_summon_mend",
-    family: "florestia",
-    deckId: "florestia_tribal",
-    label: "Florestia: Packrunner+Alpha -> Summon+Mend",
-    rationale: "Moderate two-slot softening: one early tribal amplifier and one late board amplifier become slower token/heal utility.",
+    label: "Florestia: Packrunner+Champion -> Summon+Canopy",
+    rationale: "Preserve the Round-3 softening shape, but replace Mending with a 3/4 Reach Beast to recover anti-air defense.",
     replacements: [
       { from: "forest_packrunner", to: "forest_summon_pack" },
-      { from: "forest_alpha", to: "wood_mend" },
+      { from: "forest_champion", to: "forest_canopy_warden" },
     ],
   },
   {
-    id: "forest_packrunner_champion_to_summon_mend",
+    id: "forest_packrunner_champion_to_summon_web",
     family: "florestia",
     deckId: "florestia_tribal",
-    label: "Florestia: Packrunner+Champion -> Summon+Mend",
-    rationale: "Reduce both early snowball and one finisher while preserving tribal teaching identity and legal regions.",
+    label: "Florestia: Packrunner+Champion -> Summon+Webweaver",
+    rationale: "A softer 2/4 Reach replacement than Canopy; targets Tempestade without restoring Champion-level pressure.",
     replacements: [
       { from: "forest_packrunner", to: "forest_summon_pack" },
-      { from: "forest_champion", to: "wood_mend" },
+      { from: "forest_champion", to: "wood_webweaver" },
     ],
   },
   {
-    id: "forest_alpha_champion_to_summon_mend",
+    id: "forest_packrunner_champion_to_canopy_web",
     family: "florestia",
     deckId: "florestia_tribal",
-    label: "Florestia: Alpha+Champion -> Summon+Mend",
-    rationale: "Strongest Florestia softening candidate: reduce two top-end power spikes without changing low-curve tribal identity.",
+    label: "Florestia: Packrunner+Champion -> Canopy+Webweaver",
+    rationale: "Remove one tribal amplifier and one finisher while increasing Reach density instead of token density.",
     replacements: [
-      { from: "forest_alpha", to: "forest_summon_pack" },
-      { from: "forest_champion", to: "wood_mend" },
+      { from: "forest_packrunner", to: "forest_canopy_warden" },
+      { from: "forest_champion", to: "wood_webweaver" },
+    ],
+  },
+  {
+    id: "forest_packrunner_alpha_to_summon_canopy",
+    family: "florestia",
+    deckId: "florestia_tribal",
+    label: "Florestia: Packrunner+Alpha -> Summon+Canopy",
+    rationale: "Reduce early and late tribal amplification while retaining a real Reach body against aerial rush.",
+    replacements: [
+      { from: "forest_packrunner", to: "forest_summon_pack" },
+      { from: "forest_alpha", to: "forest_canopy_warden" },
+    ],
+  },
+  {
+    id: "forest_packrunner_alpha_to_summon_web",
+    family: "florestia",
+    deckId: "florestia_tribal",
+    label: "Florestia: Packrunner+Alpha -> Summon+Webweaver",
+    rationale: "Round-3 Alpha softening with a cheaper Reach compensator instead of generic healing.",
+    replacements: [
+      { from: "forest_packrunner", to: "forest_summon_pack" },
+      { from: "forest_alpha", to: "wood_webweaver" },
+    ],
+  },
+  {
+    id: "forest_packrunner_alpha_to_canopy_web",
+    family: "florestia",
+    deckId: "florestia_tribal",
+    label: "Florestia: Packrunner+Alpha -> Canopy+Webweaver",
+    rationale: "Strong anti-air variant: removes two tribal power spikes but replaces both with durable Reach bodies.",
+    replacements: [
+      { from: "forest_packrunner", to: "forest_canopy_warden" },
+      { from: "forest_alpha", to: "wood_webweaver" },
     ],
   },
 
   {
-    id: "ember_bolt_to_stun",
+    id: "ember_drake_bolt_to_ashguard_stun",
     family: "ember",
     deckId: "ember_aggro",
-    label: "Ember: Bolt -> second Flame Lash",
-    rationale: "Trade one efficient 3-damage removal spell for lower damage plus Stun, preserving tempo while reducing raw pressure into Ironwood.",
-    replacements: [{ from: "ember_bolt", to: "ember_stun" }],
-  },
-  {
-    id: "ember_whelp_to_flare",
-    family: "ember",
-    deckId: "ember_aggro",
-    label: "Ember: Whelp -> second Flare Line",
-    rationale: "Reduce one explosive 1-drop while retaining burn identity through a slower 3-mana damage spell.",
-    replacements: [{ from: "ember_whelp", to: "ember_flare_line" }],
-  },
-  {
-    id: "ember_whelp_bolt_to_stun_flare",
-    family: "ember",
-    deckId: "ember_aggro",
-    label: "Ember: Whelp+Bolt -> Stun+Flare",
-    rationale: "Moderate two-slot softening across both early board and efficient removal while keeping aggressive interaction.",
+    label: "Ember: Drake+Bolt -> Ashguard+Stun",
+    rationale: "Reduce Dragon snowball and raw removal while adding a Tough blocker plus tempo to protect the Tempestade matchup.",
     replacements: [
-      { from: "ember_whelp", to: "ember_stun" },
+      { from: "ember_drake", to: "ember_ashguard" },
+      { from: "ember_bolt", to: "ember_stun" },
+    ],
+  },
+  {
+    id: "ember_drake_bolt_to_ashguard_flare",
+    family: "ember",
+    deckId: "ember_aggro",
+    label: "Ember: Drake+Bolt -> Ashguard+Flare",
+    rationale: "Convert one tribal amplifier and one efficient removal spell into defense plus slower burn.",
+    replacements: [
+      { from: "ember_drake", to: "ember_ashguard" },
       { from: "ember_bolt", to: "ember_flare_line" },
     ],
   },
   {
-    id: "ember_drake_bolt_to_stun_flare",
+    id: "ember_whelp_bolt_to_ashguard_stun",
     family: "ember",
     deckId: "ember_aggro",
-    label: "Ember: Drake+Bolt -> Stun+Flare",
-    rationale: "Reduce one Dragon tribal amplifier and one efficient removal spell without removing cheap pressure entirely.",
+    label: "Ember: Whelp+Bolt -> Ashguard+Stun",
+    rationale: "Reduce one premium 1-drop and one 3-damage answer while preserving interactive tempo and adding Tough defense.",
     replacements: [
-      { from: "ember_drake", to: "ember_stun" },
-      { from: "ember_bolt", to: "ember_flare_line" },
+      { from: "ember_whelp", to: "ember_ashguard" },
+      { from: "ember_bolt", to: "ember_stun" },
     ],
   },
   {
-    id: "ember_whelp_drake_to_stun_flare",
+    id: "ember_whelp_drake_to_ashguard_flare",
     family: "ember",
     deckId: "ember_aggro",
-    label: "Ember: Whelp+Drake -> Stun+Flare",
-    rationale: "Reduce both early curve density and Dragon snowball while preserving interactive aggressive spells.",
+    label: "Ember: Whelp+Drake -> Ashguard+Flare",
+    rationale: "Lower early curve and Dragon amplification while keeping slower direct-damage identity.",
     replacements: [
-      { from: "ember_whelp", to: "ember_stun" },
+      { from: "ember_whelp", to: "ember_ashguard" },
       { from: "ember_drake", to: "ember_flare_line" },
     ],
   },
   {
-    id: "ember_champion_bolt_to_stun_flare",
+    id: "ember_champion_bolt_to_ashguard_stun",
     family: "ember",
     deckId: "ember_aggro",
-    label: "Ember: Champion+Bolt -> Stun+Flare",
-    rationale: "Strongest Ember softening candidate: reduce one top-end finisher and one efficient removal spell while keeping core aggro identity.",
+    label: "Ember: Champion+Bolt -> Ashguard+Stun",
+    rationale: "Reduce one top-end finisher plus efficient removal, compensated by Tough defense and tempo.",
     replacements: [
-      { from: "ember_champion", to: "ember_stun" },
+      { from: "ember_champion", to: "ember_ashguard" },
+      { from: "ember_bolt", to: "ember_stun" },
+    ],
+  },
+  {
+    id: "ember_whelp_drake_bolt_to_ashguard_stun_flare",
+    family: "ember",
+    deckId: "ember_aggro",
+    label: "Ember: Whelp+Drake+Bolt -> Ashguard+Stun+Flare",
+    rationale: "Strongest controlled softening: one early unit, one tribal amplifier and one premium removal become defense plus slower interaction.",
+    replacements: [
+      { from: "ember_whelp", to: "ember_ashguard" },
+      { from: "ember_drake", to: "ember_stun" },
       { from: "ember_bolt", to: "ember_flare_line" },
     ],
   },
