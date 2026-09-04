@@ -103,3 +103,48 @@ If an eligible candidate exists:
 6. merge only after exact recipe reproduction.
 
 If no candidate is eligible, 1.2 will not force a recipe change merely to produce movement.
+
+
+## Round 1 result — rejected
+
+The initial one-slot interaction grid completed **21,750 games** with quality PASS.
+
+Artifact:
+
+- ZIP SHA-256: `53e68467ebe812f2d7818df4a8db6076c8f3cff4391637093fed7fec33c825c3`;
+- JSON SHA-256: `4be73f53f5054b6431f7386a238b4d53d7b2a8a8cfbacdeb48a13ee81adb7f6b`.
+
+No finalist was promotion-eligible.
+
+Best finalist:
+
+`wood_wither_to_root_prison`
+
+Result:
+
+- health 80;
+- first-player 51.3%;
+- 2 critical;
+- Ember × Wood: 69/31;
+- Wood × Florestia: 35.5/64.5;
+- Wood × Tide: 59.5/40.5.
+
+Stun, Heal and Root Prison substitutions therefore do not move the certified criticals enough. No Round-1 recipe is promoted.
+
+## Round 2 — anti-board and resilient defense
+
+Round 2 keeps the same one-slot/full-matrix discipline but changes the hypothesis.
+
+Instead of more single-target tempo, it tests cards whose value should concentrate on creature-heavy Ember and Florestia boards:
+
+1. **Glacial Tomb** — Frostbite all enemy units this round;
+2. **Rootwater Sage** — legal Tidecall/Ironwood 2/4 body, summon: heal Nexus 2;
+3. **Memory Tide** — draw 2 and heal Nexus 2;
+4. **Elder Bear** — 4/6 Tough blocker.
+
+Each tool is tested in both stranded slots:
+
+- `wood_wither -> candidate`;
+- `wood_bark_rupture -> candidate`.
+
+The promotion rules remain unchanged: fewer than 2 criticals, no replacement critical, Wood×Tide <=60%, and first-player within ±2pp.
