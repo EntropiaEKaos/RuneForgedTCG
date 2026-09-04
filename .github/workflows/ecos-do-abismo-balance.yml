@@ -48,11 +48,14 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - cost3
-          - cost4
+          - current_heal
+          - heal_for_deathmark
+          - heal_for_unmake
+          - heal_for_wither
+          - heal_for_glacial
     env:
       ECOS_GAMES_PER_STRATUM: "100"
-      ECOS_RECOLLECTION_COST_VARIANT: ${{ matrix.variant }}
+      ECOS_RECOLLECTION_SLOT_VARIANT: ${{ matrix.variant }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -72,14 +75,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run Recordação cost refinement
+      - name: Run Recordação slot refinement
         run: node --import tsx scripts/ecos-do-abismo-balance-v2.ts --enforce
 
       - name: Upload balance report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ecos-do-abismo-recollection-${{ matrix.variant }}-${{ github.sha }}
+          name: ecos-do-abismo-recollection-slot-${{ matrix.variant }}-${{ github.sha }}
           path: artifacts/ecos-do-abismo-balance/report.json
           if-no-files-found: error
           retention-days: 30
