@@ -22,6 +22,7 @@ const STARTER_IDS = [
 
 const IDS = {
   smuggler: "rfalpha_reanimator_memory_smuggler",
+  recollection: "rfalpha_reanimator_drowned_recollection",
   sepulcher: "rfalpha_reanimator_drowned_sepulcher",
   thread: "rfalpha_reanimator_dead_memory_thread",
   pulse: "rfalpha_reanimator_second_pulse",
@@ -48,7 +49,7 @@ function game(playerGoesFirst = true): GameState {
 }
 
 // Content registration and deck legality.
-assert.equal(Object.keys(ECOS_DO_ABISMO_CARDS).length, 9, "Ecos 1.0 ships exactly nine original cards");
+assert.equal(Object.keys(ECOS_DO_ABISMO_CARDS).length, 10, "Ecos 1.1 ships exactly ten original cards");
 assert.equal(preset.cards.length, 40, "advanced preset must contain exactly 40 cards");
 assert.deepEqual(preset.regions, ["Tidecall", "Voidborn"]);
 const validation = validateDeck(preset.cards);
@@ -56,6 +57,8 @@ assert.equal(validation.ok, true, `Ecos preset must be legal: ${validation.error
 assert.deepEqual(new Set(validation.regions), new Set(["Tidecall", "Voidborn"]));
 assert.equal(preset.cards.filter((defId) => defId === IDS.pulse).length, 2, "certified recipe keeps exactly two baseline reanimation spells");
 assert.equal(preset.cards.filter((defId) => defId === IDS.thread).length, 1, "certified recipe keeps one graveyard-to-hand recursion spell");
+assert.equal(preset.cards.filter((defId) => defId === IDS.recollection).length, 2, "Ecos 1.1 recipe keeps exactly two self-mill cantrips");
+assert.equal(preset.cards.filter((defId) => defId === "tide_heal").length, 0, "Ecos 1.1 replaces the two Soothing Tide slots instead of growing the deck");
 assert.equal(preset.cards.filter((defId) => defId === "tide_freeze").length, 2, "certified recipe keeps exactly two Riptides");
 assert.equal(preset.cards.filter((defId) => defId === "void_nightmare").length, 1, "certified recipe promotes Living Nightmare as the no-Lifesteal midgame slot");
 assert.equal(preset.cards.filter((defId) => defId === "tide_guard").length, 2, "certified recipe keeps exactly two Tidal Wardens after Tempestade refinement");
@@ -77,7 +80,7 @@ assert.equal(
 );
 
 // Studio authoring: generic graveyard spells and selected-discard outlets remain data-driven.
-for (const defId of [IDS.thread, IDS.pulse, IDS.vigil, IDS.seal, IDS.mirror, IDS.devourer, IDS.colossus]) {
+for (const defId of [IDS.recollection, IDS.thread, IDS.pulse, IDS.vigil, IDS.seal, IDS.mirror, IDS.devourer, IDS.colossus]) {
   const result = validateAuthorableCard(ECOS_DO_ABISMO_CARDS[defId]!);
   assert.equal(result.ok, true, `${defId} must be authorable through certified Card Studio vocabulary`);
 }
@@ -94,6 +97,11 @@ const sepulcherRoundTrip = normalizeCardForRoundTrip(ECOS_DO_ABISMO_CARDS[IDS.se
 assert.equal(sepulcherRoundTrip.activatedAbilities?.[0]?.cost?.mana, 1, "Sepulcher round-trip preserves mana cost");
 assert.equal(sepulcherRoundTrip.activatedAbilities?.[0]?.cost?.discardFromHand, 1, "Sepulcher round-trip preserves selected discard cost");
 
+const recollectionRoundTrip = normalizeCardForRoundTrip(ECOS_DO_ABISMO_CARDS[IDS.recollection]!);
+assert.equal(recollectionRoundTrip.spell?.kind, "selfMill", "Studio round-trip must preserve selfMill");
+assert.equal(recollectionRoundTrip.spell?.amount, 2, "Studio round-trip must preserve selfMill amount");
+assert.equal(recollectionRoundTrip.spell?.also?.kind, "draw", "Studio round-trip must preserve the cantrip draw chain");
+
 // Archetype profile, doctrine resolution and mulligan preserve setup pieces while shipping fatties back.
 const profile = archetypeForDeck("ecos_do_abismo");
 assert.equal(profile?.name, "Ecos do Abismo");
@@ -101,6 +109,23 @@ assert.ok(profile?.signatures.includes(IDS.pulse));
 const mulligan = mulliganPlan([IDS.smuggler, IDS.pulse, IDS.colossus, IDS.vigil], "ecos_do_abismo");
 assert.deepEqual(mulligan.keep, [IDS.smuggler, IDS.pulse]);
 assert.deepEqual(mulligan.replace, [IDS.colossus, IDS.vigil]);
+
+// Self-mill loop: top two cards become real mill entries, then the cantrip draws the next card.
+{
+  let state = game();
+  state.players.player.hand = [{ instanceId: "ecos-recollection", defId: IDS.recollection }];
+  state.players.player.deck = [IDS.colossus, IDS.devourer, "tide_oracle"];
+
+  state = castSpell(state, "player", "ecos-recollection");
+  const grave = graveyardEntries(state, "player");
+  const milled = grave.filter((entry) => entry.reason === "mill");
+
+  assert.deepEqual(milled.map((entry) => entry.defId), [IDS.colossus, IDS.devourer], "Recordação Submersa must mill the exact top two cards in order");
+  assert.ok(state.players.player.hand.some((card) => card.defId === "tide_oracle"), "Recordação Submersa draws the next card after self-mill");
+  assert.equal(state.players.player.deck.length, 0, "self-mill 2 plus draw 1 consumes the controlled three-card deck");
+  assert.ok(grave.some((entry) => entry.defId === IDS.recollection && entry.reason === "spell"), "resolved self-mill Spell enters the graveyard normally");
+}
+
 
 // Core human loop: explicitly discard a premium target, then reanimate that exact graveyard entry.
 {
@@ -208,4 +233,4 @@ assert.deepEqual(mulligan.replace, [IDS.colossus, IDS.vigil]);
   );
 }
 
-console.log("ECOS DO ABISMO 1.0: PASS — 9 cards + legal 40-card preset + starter/Ranked isolation + Studio + discard/reanimate loop + reanimator-aware AI + stack counterplay");
+console.log("ECOS DO ABISMO 1.1: PASS — 10 cards + legal 40-card self-mill recipe + Studio round-trip + self-mill/discard/reanimate loops + AI + stack counterplay");
