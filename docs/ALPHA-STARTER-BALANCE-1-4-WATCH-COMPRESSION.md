@@ -1,0 +1,100 @@
+# Alpha Starter Balance 1.4 — Watch Compression
+
+## Certified starting point
+
+Balance 1.3 is certified on `main` at
+`3b6a33839a03b3a9d387dc794b05c6c1448ea7ee`.
+
+Canonical 3,000-game profile:
+
+- health score: **89**;
+- first-player: **51.3%**;
+- healthy: **8**;
+- watch: **7**;
+- critical: **0**.
+
+The seven watch matchups are:
+
+- Emberhold × Tidecall: 43/57;
+- Emberhold × Ironwood: 58/42;
+- Emberhold × Tempestade: 40/60;
+- Tidecall × Ironwood: 40.5/59.5;
+- Tidecall × Florestia: 42.5/57.5;
+- Ironwood × Florestia: 40/60;
+- Ironwood × Tempestade: 57.5/42.5.
+
+Balance 1.4 is not allowed to sacrifice the zero-critical state merely to raise
+the aggregate score.
+
+## Telemetry diagnosis
+
+### Emberhold
+
+Ember is weak into Tempestade (40/60) but already favored into Ironwood
+(58/42).
+
+Candidate direction:
+
+- remove one scaling/resilient pressure slot whose value is higher into large
+  Ironwood bodies;
+- replace it with small-board damage/AoE whose value should concentrate on
+  Tempestade.
+
+The tested sources are Soulbrand and the remaining Steamscale Wyrm. Replacements
+are Cinder Snap or Senior Pyromancer.
+
+### Tidecall
+
+Tide is weak into Ironwood (40.5/59.5) and Florestia (42.5/57.5), while already
+favored into Emberhold (57/43).
+
+The utilization telemetry shows `tide_dispel` as highly stranded overall, but
+1.4 deliberately does not turn that into a generic power increase.
+
+Instead every Tide candidate replaces one `tide_heal`:
+
+- remove pure anti-aggro Nexus sustain that helps preserve Tide's edge over
+  Ember;
+- add a tool that scales better against large attackers/boards.
+
+The four replacements are Recall, Flash Freeze, Glacial Tomb and Frost Guard.
+
+## Round 1 grid
+
+Screening:
+
+- 4 Ember candidates;
+- 4 Tide candidates;
+- full 15-matchup matrix;
+- 5 deterministic seed strata;
+- 10 games per stratum;
+- 750 games per candidate;
+- 750-game baseline screen.
+
+Finalists:
+
+- top 2 Ember candidates;
+- top 2 Tide candidates;
+- four cross-family finalists;
+- 3,000 games per finalist;
+- unchanged 3,000-game 1.3 baseline control.
+
+Expected total: **21,750 games**.
+
+## Promotion guardrails
+
+A finalist is promotion-eligible only if:
+
+1. all games complete;
+2. critical matchup count remains exactly zero;
+3. no new critical pair appears;
+4. watch matchup count drops below 7;
+5. health score rises above 89;
+6. Ember × Tempestade does not regress below its 40% baseline;
+7. Ember × Tide does not regress below its 43% baseline;
+8. Tide × Ironwood does not regress below its 40.5% baseline;
+9. Tide × Florestia does not regress below its 42.5% baseline;
+10. first-player remains within ±2 percentage points of 50%.
+
+No canonical recipe is changed during exploration. If no candidate qualifies,
+Round 1 is rejected without forcing a balance change.
