@@ -10,7 +10,7 @@ import {
 import { SEMANTIC_ALPHA_CARDS } from "./cards/semantic-alpha";
 
 assert.equal(ALPHA_STARTER_BALANCE_1_2_VERSION, "1.2");
-assert.equal(BALANCE_1_2_CANDIDATES.length, 8, "Round 3 must contain four Ember + four Florestia candidates");
+assert.equal(BALANCE_1_2_CANDIDATES.length, 8, "Round 4 must contain four Ember + four Florestia packages");
 assert.deepEqual(validateCandidateSet(), [], "all Balance 1.2 candidates must be legal");
 
 const ember = BALANCE_1_2_CANDIDATES.filter((candidate) => candidate.family === "ember");
@@ -35,7 +35,7 @@ for (const candidate of BALANCE_1_2_CANDIDATES) {
     (indexes, defId, index) => (defId === base[index] ? indexes : [...indexes, index]),
     [],
   );
-  assert.equal(changed.length, 1, `${candidate.id} must change exactly one recipe slot`);
+  assert.equal(\n    changed.length,\n    candidate.replacements.length,\n    `${candidate.id} must change exactly ${candidate.replacements.length} recipe slots`,\n  );
 }
 
 const combined = overridesForCandidates([ember[0]!, florestia[0]!]);
@@ -46,5 +46,5 @@ assert.deepEqual(getDeck("ember_aggro").cards, baseEmber, "screening must not mu
 assert.deepEqual(getDeck("florestia_tribal").cards, baseFlorestia, "screening must not mutate canonical Florestia recipe");
 
 console.log(
-  "ALPHA STARTER BALANCE 1.2 CANDIDATES: PASS — 4 Ember + 4 Florestia · one-slot redistribution · legal 40-card recipes · semantic teaching slots preserved",
+  "ALPHA STARTER BALANCE 1.2 CANDIDATES: PASS — 4 Ember + 4 Florestia · two-slot matchup packages · legal 40-card recipes · semantic teaching slots preserved",
 );
