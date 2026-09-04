@@ -66,7 +66,7 @@ interface AppliedAction {
 
 function asDeck(id: string): DeckInput {
   const deck = getDeck(id);
-  return { id: deck.id, name: deck.name, cards: [...deck.cards] };
+  return { id: deck.id, name: deck.name, cards: [...deck.cards].sort((a, b) => a.localeCompare(b)) };
 }
 
 function other(playerId: PlayerId): PlayerId {
