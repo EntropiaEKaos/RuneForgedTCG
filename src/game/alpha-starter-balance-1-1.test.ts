@@ -1,59 +1,96 @@
 import assert from "node:assert/strict";
 import { getDeck, validateDeck } from "./decks";
 import { SEMANTIC_ALPHA_CARDS } from "./cards/semantic-alpha";
-import {
-  ALPHA_RECIPE_CANDIDATES,
-  ALPHA_STARTER_BALANCE_RECIPE_VERSION,
-  recipeForCandidate,
-  recipeOverridesForCandidates,
-  validateRecipeCandidateSet,
-} from "./alpha-starter-balance-1-1";
 
-assert.equal(ALPHA_STARTER_BALANCE_RECIPE_VERSION, "1.1");
-assert.deepEqual(validateRecipeCandidateSet(), [], "every recipe-screen candidate must be legal");
+const expectedEmber = [
+  "ember_ashguard", "ember_whelp", "ember_whelp",
+  "ember_drake", "ember_drake", "ember_drake",
+  "ember_herald", "ember_herald",
+  "ember_raider", "ember_raider",
+  "ember_duelist", "ember_duelist",
+  "ember_zealot", "ember_zealot",
+  "ember_sire", "ember_ashguard",
+  "ember_tide_wyrm", "ember_tide_wyrm",
+  "ember_stun", "ember_bolt", "ember_bolt",
+  "ember_face", "rfalpha_ember_ritual_red_rite",
+  "ember_blade", "ember_blade",
+  "ember_soulblade",
+  "ember_shatter", "ember_flare_line",
+  "ember_hearth",
+  "rfalpha_ember_structure_forge_bastion",
+  "ember_phantom", "ember_phantom",
+  "ember_lastbreath", "rfalpha_ember_trap_ash_snare",
+  "ember_stun",
+  "ember_sprinter", "ember_sprinter",
+  "ember_swarmlord",
+  "ember_champion", "ember_champion",
+];
 
-const florestia = ALPHA_RECIPE_CANDIDATES.filter((candidate) => candidate.family === "florestia");
-const ember = ALPHA_RECIPE_CANDIDATES.filter((candidate) => candidate.family === "ember");
-assert.equal(florestia.length, 6, "screening must contain six Florestia candidates");
-assert.equal(ember.length, 6, "screening must contain six Ember candidates");
+const expectedFlorestia = [
+  "forest_cub", "forest_cub", "forest_cub",
+  "forest_canopy_warden", "forest_packrunner", "forest_packrunner",
+  "forest_stalker", "forest_stalker",
+  "forest_thornfang", "forest_thornfang",
+  "wood_webweaver", "forest_alpha",
+  "forest_champion", "forest_champion",
+  "forest_pack_howl", "rfalpha_forest_ritual_green_moon",
+  "forest_summon_pack", "forest_summon_pack",
+  "forest_entangle", "forest_entangle", "rfalpha_forest_trap_pack_ambush",
+  "forest_enchantment", "rfalpha_forest_structure_ancestral_den",
+  "wood_growth", "wood_growth",
+  "wood_mend", "wood_mend",
+  "wood_ward", "wood_ward",
+  "forest_ambush",
+  "forest_canopy_warden", "wood_webweaver",
+  "forest_dawn_alpha",
+  "forest_pack_shelter",
+  "forest_moon_snare", "forest_moon_snare",
+  "forest_predator_pounce", "forest_predator_pounce",
+  "forest_primal_recall", "forest_primal_recall",
+];
 
-const baseFlorestia = [...getDeck("florestia_tribal").cards];
-const baseEmber = [...getDeck("ember_aggro").cards];
+const ember = getDeck("ember_aggro");
+const florestia = getDeck("florestia_tribal");
 
-for (const candidate of ALPHA_RECIPE_CANDIDATES) {
-  const recipe = recipeForCandidate(candidate);
-  assert.equal(recipe.cards.length, 40, `${candidate.id} must remain exactly 40 cards`);
-  assert.equal(validateDeck(recipe.cards).ok, true, `${candidate.id} must remain legal`);
+assert.deepEqual(
+  ember.cards,
+  expectedEmber,
+  "Emberhold Blitz 1.1 must preserve the exact Round-4 deterministic recipe order",
+);
+assert.deepEqual(
+  florestia.cards,
+  expectedFlorestia,
+  "Matilha da Florestia 1.1 must preserve the exact Round-4 deterministic recipe order",
+);
+
+for (const deck of [ember, florestia]) {
+  assert.equal(deck.cards.length, 40, `${deck.id} must remain exactly 40 cards`);
+  const legality = validateDeck(deck.cards);
+  assert.equal(legality.ok, true, `${deck.id} must remain legal: ${legality.errors.join(" | ")}`);
   assert.equal(
-    recipe.cards.filter((defId) => defId in SEMANTIC_ALPHA_CARDS).length,
+    deck.cards.filter((defId) => defId in SEMANTIC_ALPHA_CARDS).length,
     3,
-    `${candidate.id} must preserve exactly Structure + Ritual + Trap teaching slots`,
-  );
-
-  const base = getDeck(candidate.deckId).cards;
-  const changedIndexes = recipe.cards.reduce<number[]>(
-    (indexes, defId, index) => (defId === base[index] ? indexes : [...indexes, index]),
-    [],
-  );
-  assert.equal(
-    changedIndexes.length,
-    candidate.replacements.length,
-    `${candidate.id} must change only its declared recipe slots`,
+    `${deck.id} must preserve exactly Structure + Ritual + Trap teaching cards`,
   );
 }
 
-assert.deepEqual(getDeck("florestia_tribal").cards, baseFlorestia, "candidate construction must not mutate canonical Florestia recipe");
-assert.deepEqual(getDeck("ember_aggro").cards, baseEmber, "candidate construction must not mutate canonical Ember recipe");
+assert.equal(ember.cards.filter((id) => id === "ember_whelp").length, 2);
+assert.equal(ember.cards.filter((id) => id === "ember_ashguard").length, 2);
+assert.equal(ember.cards.filter((id) => id === "ember_bolt").length, 2);
+assert.equal(ember.cards.filter((id) => id === "ember_stun").length, 2);
 
-const combined = recipeOverridesForCandidates([
-  florestia[0]!,
-  ember[0]!,
-]);
-assert.equal(validateDeck(combined.florestia_tribal!.cards).ok, true);
-assert.equal(validateDeck(combined.ember_aggro!.cards).ok, true);
-assert.deepEqual(getDeck("florestia_tribal").cards, baseFlorestia, "combined overrides must remain read-only");
-assert.deepEqual(getDeck("ember_aggro").cards, baseEmber, "combined overrides must remain read-only");
+assert.equal(florestia.cards.filter((id) => id === "forest_packrunner").length, 2);
+assert.equal(florestia.cards.filter((id) => id === "forest_canopy_warden").length, 2);
+assert.equal(florestia.cards.filter((id) => id === "forest_alpha").length, 1);
+assert.equal(florestia.cards.filter((id) => id === "wood_webweaver").length, 2);
+assert.equal(florestia.cards.filter((id) => id === "forest_champion").length, 2);
+
+for (const id of ["tide_control", "wood_midrange", "void_shadow", "tempestade_rush"] as const) {
+  const deck = getDeck(id);
+  assert.equal(deck.cards.length, 40, `${id} must remain a 40-card starter`);
+  assert.equal(validateDeck(deck.cards).ok, true, `${id} must remain legal after recipe 1.1 promotion`);
+}
 
 console.log(
-  "ALPHA STARTER BALANCE 1.1 CANDIDATES: PASS — 6 Florestia + 6 Ember · slot-local replacements · 40-card legality · semantic teaching cards preserved",
+  "ALPHA STARTER BALANCE 1.1 RECIPE: PASS — exact Ember/Florestia order · 40 cards · legal regions/copies · Structure/Ritual/Trap preserved",
 );
