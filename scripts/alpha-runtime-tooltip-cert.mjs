@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import net from "node:net";
+import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
 
 const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
@@ -54,18 +54,6 @@ const cheapUnitPriorities = [
 const runtimeBuffPattern = /(Poder\s+[+-][1-9]\d*|Vida máxima\s+[+-][1-9]\d*|Equipamentos\s+[+-][1-9]\d*\/[+-]\d+|Habilidade ganha:|Habilidade perdida:|❄\s*Congelado|✦\s*Atordoado)/i;
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
-async function freePort() {
-  return new Promise((resolvePort, rejectPort) => {
-    const server = net.createServer();
-    server.unref();
-    server.on("error", rejectPort);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : null;
-      server.close(() => port ? resolvePort(port) : rejectPort(new Error("Could not allocate Chrome debugging port")));
-    });
-  });
-}
 
 function findChrome() {
   for (const candidate of [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean)) {
@@ -401,7 +389,7 @@ async function drive(cdp, timeout = 150000) {
 
 async function main() {
   const profile = await mkdtemp(join(tmpdir(), "runeforge-runtime-tooltip-"));
-  const port = await freePort();
+  let port = 0;
   const chrome = spawn(findChrome(), [
     "--headless=new",
     "--disable-gpu",
@@ -409,7 +397,7 @@ async function main() {
     "--disable-dev-shm-usage",
     "--hide-scrollbars",
     "--mute-audio",
-    `--remote-debugging-port=${port}`,
+    CHROME_REMOTE_DEBUGGING_FLAG,
     `--user-data-dir=${profile}`,
     `--window-size=${viewport.width},${viewport.height}`,
     "about:blank",
@@ -417,6 +405,7 @@ async function main() {
 
   let cdp;
   try {
+    port = await waitForChromeDevToolsPort({ profileDir: profile, chrome });
     cdp = await Cdp.connect(await waitForChrome(port));
     await cdp.call("Page.enable");
     await cdp.call("Runtime.enable");

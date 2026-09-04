@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import net from "node:net";
+import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
 
 const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
@@ -14,18 +14,6 @@ const guestName = `PVP Guest ${runId}`;
 
 function sleep(ms) { return new Promise((resolvePromise) => setTimeout(resolvePromise, ms)); }
 
-async function freePort() {
-  return new Promise((resolvePromise, reject) => {
-    const server = net.createServer();
-    server.unref();
-    server.on("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const address = server.address();
-      const port = typeof address === "object" && address ? address.port : null;
-      server.close(() => port ? resolvePromise(port) : reject(new Error("Could not allocate Chrome debugging port")));
-    });
-  });
-}
 
 function findChrome() {
   const candidates = [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean);
@@ -314,7 +302,7 @@ async function capture(browser, filename, stage, manifest) {
 
 async function launchBrowser(label, chromePath) {
   const profileDir = await mkdtemp(join(tmpdir(), `runeforge-pvp-${label}-`));
-  const port = await freePort();
+  let port = 0;
   const chrome = spawn(chromePath, [
     "--headless=new",
     "--disable-gpu",
@@ -322,13 +310,14 @@ async function launchBrowser(label, chromePath) {
     "--disable-dev-shm-usage",
     "--hide-scrollbars",
     "--mute-audio",
-    `--remote-debugging-port=${port}`,
+    CHROME_REMOTE_DEBUGGING_FLAG,
     `--user-data-dir=${profileDir}`,
     `--window-size=${viewport.width},${viewport.height}`,
     "about:blank",
   ], { stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   chrome.stderr.on("data", (chunk) => { stderr += String(chunk); });
+  port = await waitForChromeDevToolsPort({ profileDir, chrome, getStderr: () => stderr });
   const websocketUrl = await waitForChrome(port);
   const cdp = await CdpClient.connect(websocketUrl);
   await cdp.call("Page.enable");
