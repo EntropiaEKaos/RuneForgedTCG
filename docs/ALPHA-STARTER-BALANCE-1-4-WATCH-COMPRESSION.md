@@ -215,3 +215,87 @@ Promotion requires:
 - Ember × Tempestade, Wood × Tempestade and Wood × Florestia unchanged;
 - every Tide tracked matchup remaining at or above the 40% critical floor;
 - first-player within ±2pp.
+
+
+## Round 3 result — promoted candidate
+
+Round 3 completed **15,000 games** with quality PASS:
+
+- unchanged 1.3 baseline: 3,000 games;
+- four Tide-only candidates: 3,000 games each.
+
+Artifact:
+- workflow: Alpha Starter Balance 1.4 Watch Compression Grid #9;
+- ZIP SHA-256: `f086868090bc6b25d1fb8a33397ac8dfa69ed2d00d4214f3b7519a2da37fba93`.
+
+Two candidates were promotion-eligible. The best was:
+
+`tide_dispel_to_recall`
+
+Exact recipe delta:
+
+- first `tide_dispel -> tide_recall`.
+
+This is the smallest possible promotion: one textual recipe slot only.
+
+Full 3,000-game result:
+
+- health score: **90** (baseline 89);
+- first-player: **51.5%**;
+- healthy: **9**;
+- watch: **6** (baseline 7);
+- critical: **0**;
+- new critical pairs: **0**.
+
+Key movement:
+
+- Ember × Tide: **43/57 -> 47/53**, now healthy;
+- Tide × Ironwood: **40.5/59.5 -> 43/57**;
+- Tide × Void: **53/47**, healthy;
+- Tide × Florestia: **42.5/57.5 -> 41/59**, still watch and non-critical;
+- Tide × Tempestade: **53.5/46.5**, healthy.
+
+Frozen guardrails reproduced exactly:
+
+- Ember × Ironwood: **58/42**;
+- Ember × Tempestade: **40/60**;
+- Ironwood × Florestia: **40/60**;
+- Ironwood × Tempestade: **57.5/42.5**.
+
+The remaining six watch matchups are:
+
+- Ember × Ironwood: 58/42;
+- Ember × Tempestade: 40/60;
+- Tide × Ironwood: 43/57;
+- Tide × Florestia: 41/59;
+- Ironwood × Florestia: 40/60;
+- Ironwood × Tempestade: 57.5/42.5.
+
+## Canonical 1.4 certification
+
+After promotion, all exploratory candidate/grid source and the exploratory grid
+workflow are removed from the branch.
+
+The final implementation contains:
+
+- the real one-slot Tide recipe change in `src/game/decks.ts`;
+- `src/game/alpha-starter-balance-1-4.test.ts` locking the exact 40-card Tide
+  order;
+- `.github/workflows/alpha-starter-balance-1-4.yml` running the canonical
+  3,000-game matrix;
+- this complete three-round evidence document.
+
+The canonical gate fails closed unless:
+
+1. all 3,000 games complete;
+2. all 15 matchups complete;
+3. simulation quality passes;
+4. reaction coverage errors remain zero;
+5. critical matchup count remains exactly zero;
+6. watch matchup count is at most 6;
+7. health score remains at least 90;
+8. first-player remains within ±2 percentage points of 50%.
+
+Balance 1.4 is not integrated until the promoted exact head passes CI, historical
+balance compatibility gates, Alpha/Ecos evidence, all visual certs, and the same
+certification again after squash merge on `main`.
