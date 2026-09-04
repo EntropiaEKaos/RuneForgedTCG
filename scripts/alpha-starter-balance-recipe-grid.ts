@@ -174,25 +174,25 @@ const screening = ALPHA_RECIPE_CANDIDATES.map((candidate) =>
   runMatrix(candidate.id, candidate.label, [candidate], SCREEN_GAMES_PER_STRATUM),
 );
 
-const topWoodIds = new Set(ranked(screening.filter((result) =>
-  familyCandidates("wood").some((candidate) => candidate.id === result.id)
+const topFlorestiaIds = new Set(ranked(screening.filter((result) =>
+  familyCandidates("florestia").some((candidate) => candidate.id === result.id)
 )).slice(0, 2).map((result) => result.id));
-const topTideIds = new Set(ranked(screening.filter((result) =>
-  familyCandidates("tide").some((candidate) => candidate.id === result.id)
+const topEmberIds = new Set(ranked(screening.filter((result) =>
+  familyCandidates("ember").some((candidate) => candidate.id === result.id)
 )).slice(0, 2).map((result) => result.id));
 
-const topWood = familyCandidates("wood").filter((candidate) => topWoodIds.has(candidate.id));
-const topTide = familyCandidates("tide").filter((candidate) => topTideIds.has(candidate.id));
+const topFlorestia = familyCandidates("florestia").filter((candidate) => topFlorestiaIds.has(candidate.id));
+const topEmber = familyCandidates("ember").filter((candidate) => topEmberIds.has(candidate.id));
 
 const fullBaseline = runMatrix("baseline_full", "Certified recipe baseline control", [], FINAL_GAMES_PER_STRATUM);
 const finalists: MatrixResult[] = [];
-for (const wood of topWood) {
-  for (const tide of topTide) {
+for (const florestia of topFlorestia) {
+  for (const ember of topEmber) {
     finalists.push(
       runMatrix(
-        `${wood.id}__${tide.id}`,
-        `${wood.label} + ${tide.label}`,
-        [wood, tide],
+        `${florestia.id}__${ember.id}`,
+        `${florestia.label} + ${ember.label}`,
+        [florestia, ember],
         FINAL_GAMES_PER_STRATUM,
       ),
     );
@@ -209,7 +209,7 @@ const qualityErrors = allRuns
 const report = {
   version: ALPHA_STARTER_BALANCE_RECIPE_VERSION,
   methodology:
-    "recipe-only screening; canonical slot-local replacements; stack-aware simulator; same five deterministic strata; full 15-matchup round robin for every candidate; top two Wood and top two Tide candidates cross-combined; finalists and baseline rerun at 200 games/matchup",
+    "recipe-only screening; canonical slot-local replacements; stack-aware simulator; same five deterministic strata; full 15-matchup round robin for every candidate; top two Florestia and top two Ember candidates cross-combined; finalists and baseline rerun at 200 games/matchup",
   screeningGamesPerStratum: SCREEN_GAMES_PER_STRATUM,
   finalistGamesPerStratum: FINAL_GAMES_PER_STRATUM,
   strata: STRATA,
@@ -220,8 +220,8 @@ const report = {
     score: result.score,
     health: result.health,
   })),
-  selectedWood: topWood.map((candidate) => ({ id: candidate.id, label: candidate.label, rationale: candidate.rationale })),
-  selectedTide: topTide.map((candidate) => ({ id: candidate.id, label: candidate.label, rationale: candidate.rationale })),
+  selectedFlorestia: topFlorestia.map((candidate) => ({ id: candidate.id, label: candidate.label, rationale: candidate.rationale })),
+  selectedEmber: topEmber.map((candidate) => ({ id: candidate.id, label: candidate.label, rationale: candidate.rationale })),
   fullBaseline,
   finalistRanking: finalistRanking.map((result) => ({
     id: result.id,
@@ -255,8 +255,8 @@ console.log(JSON.stringify({
     health: fullBaseline.health,
     score: fullBaseline.score,
   },
-  selectedWood: report.selectedWood,
-  selectedTide: report.selectedTide,
+  selectedFlorestia: report.selectedFlorestia,
+  selectedEmber: report.selectedEmber,
   finalistRanking: report.finalistRanking,
   improvement: report.improvement,
   bestFinalist: bestFinalist
