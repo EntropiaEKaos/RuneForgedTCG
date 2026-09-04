@@ -37,6 +37,7 @@ export const behavioralTests = [
   "src/game/semantic-card-types.test.ts",
   "src/game/semantic-alpha-wave.test.ts",
   "src/game/alpha-starter-balance.test.ts",
+  "src/game/alpha-starter-balance-1-1.test.ts",
   "src/game/starter-deck-certification.test.ts",
   "src/game/flagship-art.test.ts",
   "src/game/flagship-champion-art.test.ts",
