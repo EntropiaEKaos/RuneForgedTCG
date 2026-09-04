@@ -7,98 +7,120 @@ export const ALPHA_STARTER_BALANCE_1_2_VERSION = "1.2";
 
 export type Balance12Family = "ember" | "florestia";
 
+export interface Balance12Replacement {
+  from: string;
+  to: string;
+}
+
 export interface Balance12Candidate {
   id: string;
   family: Balance12Family;
   deckId: AlphaStarterId;
   label: string;
   rationale: string;
-  from: string;
-  to: string;
+  replacements: Balance12Replacement[];
 }
 
 /**
- * Round 3 abandons Wood-only power increases. It redistributes power on the
- * two winning sides using matchup-specific replacements:
+ * Round 4 increases the same matchup-specific redistribution tested in Round 3
+ * to two recipe slots per deck.
  *
- * - Ember loses Shatterforge (permanent hate, disproportionately useful into
- *   Ironwood) for small-unit/AoE interaction that better protects Tempestade.
- * - Florestia loses Recall/Pounce interaction into large Ironwood bodies for
- *   Reach bodies that protect its fragile Tempestade matchup.
+ * Ember loses Shatterforge plus one pressure piece whose value is high into
+ * large resilient blockers, receiving low-damage tempo/AoE that is better into
+ * small Tempestade boards.
+ *
+ * Florestia loses Predator Pounce plus a second removal/tempo slot, receiving
+ * Reach + Barrier/defensive bodies so its Tempestade matchup remains protected.
  */
 export const BALANCE_1_2_CANDIDATES: readonly Balance12Candidate[] = [
   {
-    id: "ember_shatter_to_cinder",
+    id: "ember_shatter_soulblade_to_stun_rain",
     family: "ember",
     deckId: "ember_aggro",
-    label: "Ember: Shatter -> Cinder Snap",
-    rationale: "Trade dead/permanent hate for Burst 2 damage: useful into small Tempestade units, weak against Ironwood's larger bodies.",
-    from: "ember_shatter",
-    to: "ember_cinder",
+    label: "Ember: Shatter+Soulbrand -> Lash+Emberstorm",
+    rationale: "Remove permanent hate plus premium +2/+1 Overwhelm equipment; replace with low-damage Stun and anti-swarm AoE.",
+    replacements: [
+      { from: "ember_shatter", to: "ember_stun" },
+      { from: "ember_soulblade", to: "ember_rain" },
+    ],
   },
   {
-    id: "ember_shatter_to_emberstorm",
+    id: "ember_shatter_blade_to_stun_rain",
     family: "ember",
     deckId: "ember_aggro",
-    label: "Ember: Shatter -> Emberstorm",
-    rationale: "Replace permanent hate with 2-damage AoE, explicitly shifting value toward Tempestade/swarm boards and away from Ironwood.",
-    from: "ember_shatter",
-    to: "ember_rain",
+    label: "Ember: Shatter+Flamebrand -> Lash+Emberstorm",
+    rationale: "Remove permanent hate plus one +2/+0 Overwhelm equipment; replace with unit tempo and anti-small-board AoE.",
+    replacements: [
+      { from: "ember_shatter", to: "ember_stun" },
+      { from: "ember_blade", to: "ember_rain" },
+    ],
   },
   {
-    id: "ember_shatter_to_flare",
+    id: "ember_shatter_wyrm_to_stun_rain",
     family: "ember",
     deckId: "ember_aggro",
-    label: "Ember: Shatter -> second Flare Line",
-    rationale: "Replace matchup-specific permanent destruction with slower 2-damage unit interaction plus 1 Nexus damage.",
-    from: "ember_shatter",
-    to: "ember_flare_line",
+    label: "Ember: Shatter+Steamscale -> Lash+Emberstorm",
+    rationale: "Remove permanent hate plus a Tough tribal +1/+1 amplifier; replace with tempo and AoE concentrated on swarm matchups.",
+    replacements: [
+      { from: "ember_shatter", to: "ember_stun" },
+      { from: "ember_tide_wyrm", to: "ember_rain" },
+    ],
   },
   {
-    id: "ember_shatter_to_stun",
+    id: "ember_shatter_face_to_stun_cinder",
     family: "ember",
     deckId: "ember_aggro",
-    label: "Ember: Shatter -> third Flame Lash",
-    rationale: "Replace permanent hate with low-damage tempo, preserving Ember identity while reducing direct answers to Ironwood permanents.",
-    from: "ember_shatter",
-    to: "ember_stun",
+    label: "Ember: Shatter+Meteor -> Lash+Cinder",
+    rationale: "Remove permanent hate and direct Nexus pressure; replace with lower-damage unit interaction that is poor into large Ironwood bodies.",
+    replacements: [
+      { from: "ember_shatter", to: "ember_stun" },
+      { from: "ember_face", to: "ember_cinder" },
+    ],
   },
 
   {
-    id: "forest_recall_to_canopy",
+    id: "forest_double_pounce_to_web_canopy",
     family: "florestia",
     deckId: "florestia_tribal",
-    label: "Florestia: Recall -> third Canopy Warden",
-    rationale: "Remove one 4-mana answer to large Ironwood units and replace it with 3/4 Reach to preserve Tempestade defense.",
-    from: "forest_primal_recall",
-    to: "forest_canopy_warden",
+    label: "Florestia: 2×Pounce -> Webweaver+Canopy",
+    rationale: "Remove both 3-damage unit answers into Ironwood and replace them with two Reach bodies for Tempestade protection.",
+    replacements: [
+      { from: "forest_predator_pounce", to: "wood_webweaver" },
+      { from: "forest_predator_pounce", to: "forest_canopy_warden" },
+    ],
   },
   {
-    id: "forest_recall_to_webweaver",
+    id: "forest_pounce_recall_to_web_shelter",
     family: "florestia",
     deckId: "florestia_tribal",
-    label: "Florestia: Recall -> third Webweaver",
-    rationale: "Trade one high-value answer to large Ironwood units for a lower-power 2/4 Reach body.",
-    from: "forest_primal_recall",
-    to: "wood_webweaver",
+    label: "Florestia: Pounce+Recall -> Webweaver+Shelter",
+    rationale: "Remove damage plus high-value bounce against large Ironwood units; preserve aerial/combat defense with Reach and Barrier.",
+    replacements: [
+      { from: "forest_predator_pounce", to: "wood_webweaver" },
+      { from: "forest_primal_recall", to: "forest_pack_shelter" },
+    ],
   },
   {
-    id: "forest_pounce_to_canopy",
+    id: "forest_pounce_moonsnare_to_web_shelter",
     family: "florestia",
     deckId: "florestia_tribal",
-    label: "Florestia: Pounce -> third Canopy Warden",
-    rationale: "Reduce direct damage interaction into Ironwood while adding anti-air body density.",
-    from: "forest_predator_pounce",
-    to: "forest_canopy_warden",
+    label: "Florestia: Pounce+Moon Snare -> Webweaver+Shelter",
+    rationale: "Remove direct damage plus one Fast Stun while adding Reach and Barrier to keep defensive value against Tempestade.",
+    replacements: [
+      { from: "forest_predator_pounce", to: "wood_webweaver" },
+      { from: "forest_moon_snare", to: "forest_pack_shelter" },
+    ],
   },
   {
-    id: "forest_pounce_to_webweaver",
+    id: "forest_pounce_entangle_to_web_shelter",
     family: "florestia",
     deckId: "florestia_tribal",
-    label: "Florestia: Pounce -> third Webweaver",
-    rationale: "Reduce direct removal into Ironwood and add the lowest-power Reach replacement for Tempestade protection.",
-    from: "forest_predator_pounce",
-    to: "wood_webweaver",
+    label: "Florestia: Pounce+Entangle -> Webweaver+Shelter",
+    rationale: "Reduce two unit-interaction slots into Ironwood, compensating with Reach and Barrier instead of raw tribal power.",
+    replacements: [
+      { from: "forest_predator_pounce", to: "wood_webweaver" },
+      { from: "forest_entangle", to: "forest_pack_shelter" },
+    ],
   },
 ] as const;
 
@@ -111,7 +133,9 @@ function replaceFirst(cards: string[], from: string, to: string): void {
 export function recipeForCandidate(candidate: Balance12Candidate): DeckInput {
   const base = getDeck(candidate.deckId);
   const cards = [...base.cards];
-  replaceFirst(cards, candidate.from, candidate.to);
+  for (const replacement of candidate.replacements) {
+    replaceFirst(cards, replacement.from, replacement.to);
+  }
   return { id: base.id, name: base.name, cards };
 }
 
@@ -129,7 +153,11 @@ export function overridesForCandidates(
   for (const [deckId, deckCandidates] of byDeck) {
     const base = getDeck(deckId);
     const cards = [...base.cards];
-    for (const candidate of deckCandidates) replaceFirst(cards, candidate.from, candidate.to);
+    for (const candidate of deckCandidates) {
+      for (const replacement of candidate.replacements) {
+        replaceFirst(cards, replacement.from, replacement.to);
+      }
+    }
     overrides[deckId] = { id: base.id, name: base.name, cards };
   }
   return overrides;
@@ -158,7 +186,11 @@ export function validateCandidate(candidate: Balance12Candidate): string[] {
     (indexes, defId, index) => (defId === base[index] ? indexes : [...indexes, index]),
     [],
   );
-  if (changed.length !== 1) errors.push(`${candidate.id}: expected exactly one changed recipe slot, found ${changed.length}`);
+  if (changed.length !== candidate.replacements.length) {
+    errors.push(
+      `${candidate.id}: expected exactly ${candidate.replacements.length} changed recipe slots, found ${changed.length}`,
+    );
+  }
 
   return errors;
 }
