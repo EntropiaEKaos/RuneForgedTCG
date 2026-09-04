@@ -41,11 +41,18 @@ permissions:
 
 jobs:
   evidence:
-    name: 4,000-game canonical matrix
+    name: 4,000 games · ${{ matrix.variant }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - cost3
+          - cost4
     env:
       ECOS_GAMES_PER_STRATUM: "100"
+      ECOS_RECOLLECTION_COST_VARIANT: ${{ matrix.variant }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -65,14 +72,14 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run canonical Ecos do Abismo 1.1 balance evidence
+      - name: Run Recordação cost refinement
         run: node --import tsx scripts/ecos-do-abismo-balance-v2.ts --enforce
 
       - name: Upload balance report
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: ecos-do-abismo-balance-canonical-${{ github.sha }}
+          name: ecos-do-abismo-recollection-${{ matrix.variant }}-${{ github.sha }}
           path: artifacts/ecos-do-abismo-balance/report.json
           if-no-files-found: error
           retention-days: 30
