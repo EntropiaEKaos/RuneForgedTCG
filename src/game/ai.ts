@@ -231,6 +231,67 @@ function chooseCriticalCounterFallback(
   return null;
 }
 
+function chooseSemanticTrapFallback(
+  state: GameState,
+  action: CardAction,
+  playerId: PlayerId,
+): AiAction | null {
+  const enemyId = other(playerId);
+  const me = state.players[playerId];
+  const enemy = state.players[enemyId];
+
+  const traps = me.hand
+    .map((card) => ({ card, def: getCard(card.defId) }))
+    .filter(({ def }) => def.type === "Spell" && def.archetypeKey === "trap" && Boolean(def.spell))
+    .sort((a, b) => a.def.cost - b.def.cost || a.def.defId.localeCompare(b.def.defId) || a.card.instanceId.localeCompare(b.card.instanceId));
+
+  for (const { card, def } of traps) {
+    const effect = def.spell!;
+    const targetKind = spellNeedsTarget(def.defId);
+    let targetIds: Array<string | undefined> = [];
+
+    if (!targetKind || targetKind === "none" || targetKind === "self") {
+      targetIds = [undefined];
+    } else if (targetKind === "spellOnStack") {
+      if (action.kind === "spell") targetIds = [action.instanceId];
+    } else if (targetKind === "allyUnit") {
+      targetIds = [...me.bench]
+        .sort((a, b) => Number(a.barrier) - Number(b.barrier) || b.power - a.power || b.health - a.health)
+        .map((unit) => unit.instanceId);
+    } else if (targetKind === "enemyUnit") {
+      targetIds = [...enemy.bench]
+        .filter((unit) => !unit.stunned)
+        .sort((a, b) => b.power - a.power || a.health - b.health)
+        .map((unit) => unit.instanceId);
+    } else {
+      continue;
+    }
+
+    for (const targetInstanceId of targetIds) {
+      const useful =
+        effect.kind === "damageNexus" ? enemy.nexusHealth > 0 :
+        effect.kind === "mill" ? enemy.deck.length > 0 :
+        effect.kind === "buffAllies" ? me.bench.length > 0 :
+        effect.kind === "grantBarrier" ? Boolean(targetInstanceId && me.bench.some((unit) => unit.instanceId === targetInstanceId && !unit.barrier)) :
+        effect.kind === "stun" ? Boolean(targetInstanceId && enemy.bench.some((unit) => unit.instanceId === targetInstanceId && !unit.stunned)) :
+        effect.kind === "negateSpell" ? action.kind === "spell" :
+        false;
+      if (!useful) continue;
+
+      const response: CardAction = {
+        kind: "spell",
+        player: playerId,
+        instanceId: card.instanceId,
+        defId: card.defId,
+        targetInstanceId,
+      };
+      if (canReactWithResponse(state, playerId, response, action)) return response;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Public main-phase chooser. The certified historical policy remains first;
  * Vanilla 1.3 only fills proven tactical coverage gaps after that policy has
@@ -280,5 +341,6 @@ export function aiChooseReaction(
 ): AiAction | null {
   return aiChooseReactionActivatedAbilityAction(state, action, playerId) ??
     aiChooseCardReaction(state, action, playerId) ??
-    chooseCriticalCounterFallback(state, action, playerId);
+    chooseCriticalCounterFallback(state, action, playerId) ??
+    chooseSemanticTrapFallback(state, action, playerId);
 }

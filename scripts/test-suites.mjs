@@ -32,6 +32,7 @@ export const behavioralTests = [
   "src/game/ai-activated-abilities.test.ts",
   "src/game/ai-loot-ordering.test.ts",
   "src/game/authoritative.test.ts",
+  "src/game/balance-simulator-reactions.test.ts",
   "src/game/card-authoring-roundtrip.test.ts",
   "src/game/semantic-card-types.test.ts",
   "src/game/semantic-alpha-wave.test.ts",
