@@ -46,8 +46,8 @@ assert.deepEqual(getDeck("wood_midrange").cards, baseWood, "candidate constructi
 assert.deepEqual(getDeck("tide_control").cards, baseTide, "candidate construction must not mutate canonical Tide recipe");
 
 const combined = recipeOverridesForCandidates([
-  wood.find((candidate) => candidate.id === "wood_split_champion_canopy")!,
-  tide.find((candidate) => candidate.id === "tide_both_dispel_draw_mirror")!,
+  wood[0]!,
+  tide[0]!,
 ]);
 assert.equal(validateDeck(combined.wood_midrange!.cards).ok, true);
 assert.equal(validateDeck(combined.tide_control!.cards).ok, true);
