@@ -5,7 +5,7 @@ import type { AlphaStarterId } from "./alpha-starter-balance";
 
 export const ALPHA_STARTER_BALANCE_RECIPE_VERSION = "1.1";
 
-export type AlphaRecipeFamily = "wood" | "tide";
+export type AlphaRecipeFamily = "florestia" | "ember";
 
 export interface AlphaRecipeReplacement {
   from: string;
@@ -22,110 +22,129 @@ export interface AlphaRecipeCandidate {
 }
 
 /**
- * Round 2 is intentionally matchup-tech oriented.
+ * Round 3 tests controlled recipe softening of the two decks that appear in
+ * all three certified critical matchups.
  *
- * Round 1 replaced target-starved cards with generic proactive power and
- * over-buffed Ironwood globally. These candidates instead preserve the deck's
- * shape while importing defensive/control tools already legal in its certified
- * region identity.
+ * No card is edited. Candidates only redistribute existing recipe slots.
  */
 export const ALPHA_RECIPE_CANDIDATES: readonly AlphaRecipeCandidate[] = [
   {
-    id: "wood_wither_to_tide_guard",
-    family: "wood",
-    deckId: "wood_midrange",
-    label: "Wood: Wither -> Tidal Warden",
-    rationale: "Replace one dead permanent-removal slot with a 2/5 Tough+Reach defender to absorb Ember and Florestia pressure.",
-    replacements: [{ from: "wood_wither", to: "tide_guard" }],
+    id: "forest_packrunner_to_summon",
+    family: "florestia",
+    deckId: "florestia_tribal",
+    label: "Florestia: Packrunner -> Summon Pack",
+    rationale: "Reduce one high-tempo +1/+0 tribal summon while preserving Beast/token identity through a slower 4-mana summon spell.",
+    replacements: [{ from: "forest_packrunner", to: "forest_summon_pack" }],
   },
   {
-    id: "wood_bark_to_tide_guard",
-    family: "wood",
-    deckId: "wood_midrange",
-    label: "Wood: Bark Rupture -> Tidal Warden",
-    rationale: "Keep both cheap Withers but trade one expensive permanent-only answer for a defensive blocker.",
-    replacements: [{ from: "wood_bark_rupture", to: "tide_guard" }],
+    id: "forest_alpha_to_summon",
+    family: "florestia",
+    deckId: "florestia_tribal",
+    label: "Florestia: Alpha -> Summon Pack",
+    rationale: "Remove one large +2/+2 tribal swing and replace it with slower token development.",
+    replacements: [{ from: "forest_alpha", to: "forest_summon_pack" }],
   },
   {
-    id: "wood_wither_to_tide_heal",
-    family: "wood",
-    deckId: "wood_midrange",
-    label: "Wood: Wither -> Soothing Tide",
-    rationale: "Use Tidecall identity to buy four Nexus health against Ember rush without adding generic board power.",
-    replacements: [{ from: "wood_wither", to: "tide_heal" }],
+    id: "forest_champion_to_summon",
+    family: "florestia",
+    deckId: "florestia_tribal",
+    label: "Florestia: Champion -> Summon Pack",
+    rationale: "Reduce one resilient Challenger finisher while retaining the deck's Beast-count and token plan.",
+    replacements: [{ from: "forest_champion", to: "forest_summon_pack" }],
   },
   {
-    id: "wood_wither_to_tide_stun",
-    family: "wood",
-    deckId: "wood_midrange",
-    label: "Wood: Wither -> Riptide Stun",
-    rationale: "Replace target-starved permanent interaction with cheap unit tempo that can answer Florestia and Ember threats.",
-    replacements: [{ from: "wood_wither", to: "tide_stun" }],
+    id: "forest_packrunner_alpha_to_summon_mend",
+    family: "florestia",
+    deckId: "florestia_tribal",
+    label: "Florestia: Packrunner+Alpha -> Summon+Mend",
+    rationale: "Moderate two-slot softening: one early tribal amplifier and one late board amplifier become slower token/heal utility.",
+    replacements: [
+      { from: "forest_packrunner", to: "forest_summon_pack" },
+      { from: "forest_alpha", to: "wood_mend" },
+    ],
   },
   {
-    id: "wood_wither_to_tide_freeze",
-    family: "wood",
-    deckId: "wood_midrange",
-    label: "Wood: Wither -> Riptide",
-    rationale: "Trade dead permanent removal for two damage plus draw, a controlled anti-board tool rather than raw stat density.",
-    replacements: [{ from: "wood_wither", to: "tide_freeze" }],
+    id: "forest_packrunner_champion_to_summon_mend",
+    family: "florestia",
+    deckId: "florestia_tribal",
+    label: "Florestia: Packrunner+Champion -> Summon+Mend",
+    rationale: "Reduce both early snowball and one finisher while preserving tribal teaching identity and legal regions.",
+    replacements: [
+      { from: "forest_packrunner", to: "forest_summon_pack" },
+      { from: "forest_champion", to: "wood_mend" },
+    ],
   },
   {
-    id: "wood_bark_to_tide_stun",
-    family: "wood",
-    deckId: "wood_midrange",
-    label: "Wood: Bark Rupture -> Riptide Stun",
-    rationale: "Preserve both Withers while converting one expensive permanent-only answer into targeted combat tempo.",
-    replacements: [{ from: "wood_bark_rupture", to: "tide_stun" }],
+    id: "forest_alpha_champion_to_summon_mend",
+    family: "florestia",
+    deckId: "florestia_tribal",
+    label: "Florestia: Alpha+Champion -> Summon+Mend",
+    rationale: "Strongest Florestia softening candidate: reduce two top-end power spikes without changing low-curve tribal identity.",
+    replacements: [
+      { from: "forest_alpha", to: "forest_summon_pack" },
+      { from: "forest_champion", to: "wood_mend" },
+    ],
   },
 
   {
-    id: "tide_dispel_to_heal",
-    family: "tide",
-    deckId: "tide_control",
-    label: "Tide: Dispel -> third Soothing Tide",
-    rationale: "Convert one 16.6%-play permanent answer into extra Nexus stabilization against Florestia's board pressure.",
-    replacements: [{ from: "tide_dispel", to: "tide_heal" }],
+    id: "ember_bolt_to_stun",
+    family: "ember",
+    deckId: "ember_aggro",
+    label: "Ember: Bolt -> second Flame Lash",
+    rationale: "Trade one efficient 3-damage removal spell for lower damage plus Stun, preserving tempo while reducing raw pressure into Ironwood.",
+    replacements: [{ from: "ember_bolt", to: "ember_stun" }],
   },
   {
-    id: "tide_dispel_to_freeze",
-    family: "tide",
-    deckId: "tide_control",
-    label: "Tide: Dispel -> third Riptide",
-    rationale: "Add damage plus card flow against creature boards while preserving one Dispel for permanent coverage.",
-    replacements: [{ from: "tide_dispel", to: "tide_freeze" }],
+    id: "ember_whelp_to_flare",
+    family: "ember",
+    deckId: "ember_aggro",
+    label: "Ember: Whelp -> second Flare Line",
+    rationale: "Reduce one explosive 1-drop while retaining burn identity through a slower 3-mana damage spell.",
+    replacements: [{ from: "ember_whelp", to: "ember_flare_line" }],
   },
   {
-    id: "tide_dispel_to_stun",
-    family: "tide",
-    deckId: "tide_control",
-    label: "Tide: Dispel -> third Riptide Stun",
-    rationale: "Add a third cheap stun to interrupt Florestia's high-value attack turns.",
-    replacements: [{ from: "tide_dispel", to: "tide_stun" }],
+    id: "ember_whelp_bolt_to_stun_flare",
+    family: "ember",
+    deckId: "ember_aggro",
+    label: "Ember: Whelp+Bolt -> Stun+Flare",
+    rationale: "Moderate two-slot softening across both early board and efficient removal while keeping aggressive interaction.",
+    replacements: [
+      { from: "ember_whelp", to: "ember_stun" },
+      { from: "ember_bolt", to: "ember_flare_line" },
+    ],
   },
   {
-    id: "tide_dispel_to_frostbite",
-    family: "tide",
-    deckId: "tide_control",
-    label: "Tide: Dispel -> third Flash Freeze",
-    rationale: "Increase Burst combat suppression against large buffed Beasts while retaining one Dispel.",
-    replacements: [{ from: "tide_dispel", to: "tide_frostbite" }],
+    id: "ember_drake_bolt_to_stun_flare",
+    family: "ember",
+    deckId: "ember_aggro",
+    label: "Ember: Drake+Bolt -> Stun+Flare",
+    rationale: "Reduce one Dragon tribal amplifier and one efficient removal spell without removing cheap pressure entirely.",
+    replacements: [
+      { from: "ember_drake", to: "ember_stun" },
+      { from: "ember_bolt", to: "ember_flare_line" },
+    ],
   },
   {
-    id: "tide_dispel_to_recall",
-    family: "tide",
-    deckId: "tide_control",
-    label: "Tide: Dispel -> second Recall",
-    rationale: "Use a broader unit answer that can reset expensive Florestia threats without adding raw stats.",
-    replacements: [{ from: "tide_dispel", to: "tide_recall" }],
+    id: "ember_whelp_drake_to_stun_flare",
+    family: "ember",
+    deckId: "ember_aggro",
+    label: "Ember: Whelp+Drake -> Stun+Flare",
+    rationale: "Reduce both early curve density and Dragon snowball while preserving interactive aggressive spells.",
+    replacements: [
+      { from: "ember_whelp", to: "ember_stun" },
+      { from: "ember_drake", to: "ember_flare_line" },
+    ],
   },
   {
-    id: "tide_dispel_to_shield",
-    family: "tide",
-    deckId: "tide_control",
-    label: "Tide: Dispel -> third Ripcurrent Ward",
-    rationale: "Increase Barrier density to convert more Florestia combat steps into unfavorable trades.",
-    replacements: [{ from: "tide_dispel", to: "tide_shield" }],
+    id: "ember_champion_bolt_to_stun_flare",
+    family: "ember",
+    deckId: "ember_aggro",
+    label: "Ember: Champion+Bolt -> Stun+Flare",
+    rationale: "Strongest Ember softening candidate: reduce one top-end finisher and one efficient removal spell while keeping core aggro identity.",
+    replacements: [
+      { from: "ember_champion", to: "ember_stun" },
+      { from: "ember_bolt", to: "ember_flare_line" },
+    ],
   },
 ] as const;
 
