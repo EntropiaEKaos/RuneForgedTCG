@@ -31,11 +31,16 @@ for (const candidate of BALANCE_1_2_CANDIDATES) {
     3,
     `${candidate.id} must preserve Structure + Ritual + Trap teaching cards`,
   );
+
   const changed = recipe.cards.reduce<number[]>(
     (indexes, defId, index) => (defId === base[index] ? indexes : [...indexes, index]),
     [],
   );
-  assert.equal(\n    changed.length,\n    candidate.replacements.length,\n    `${candidate.id} must change exactly ${candidate.replacements.length} recipe slots`,\n  );
+  assert.equal(
+    changed.length,
+    candidate.replacements.length,
+    `${candidate.id} must change exactly ${candidate.replacements.length} recipe slots`,
+  );
 }
 
 const combined = overridesForCandidates([ember[0]!, florestia[0]!]);
