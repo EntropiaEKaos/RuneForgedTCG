@@ -219,9 +219,77 @@ Ember is present in the remaining critical matchup. Instead of inserting dead ca
 
 The intent is to reduce Ember's 68/32 edge into Ironwood while preserving its already-watch matchup against Tempestade.
 
-### Round-3 promotion requirement
+### Round-3 result
 
-A Florestia/Ember finalist must reduce the number of critical matchups below three. Merely redistributing which decks are critical is not sufficient.
+Round 3 produced the first meaningful global improvement but still failed the promotion rule.
+
+Best finalist:
+`forest_packrunner_champion_to_summon_mend__ember_drake_bolt_to_stun_flare`
+
+Result:
+
+- health 80;
+- first-player 50.9%;
+- 3 critical;
+- 5 watch.
+
+Key matchup movement:
+
+- Tide × Florestia: 37.5/62.5 -> 50.5/49.5;
+- Wood × Florestia: 28/72 -> 37.5/62.5;
+- Ember × Wood: 68/32 -> 66/34;
+- Florestia × Tempestade: became 35.5/64.5.
+
+Artifact:
+
+- ZIP SHA-256: `38f90a956143e18dc4a308beb6cd644dc632a61c89748e996a29a2e62bdcb3f4`;
+- JSON SHA-256: `8506f36f36a8bb707534217fc5f65a06d833e456e8c0eb63885ce9b5d56c5651`.
+
+**Round-3 decision: rejected.** Health improved, but the critical count did not fall below three and the Florestia softening created a new critical against Tempestade.
+
+## Round 4 — preserve anti-air while softening
+
+Round 4 keeps the productive Florestia/Ember direction but compensates precisely for the new weakness.
+
+### Florestia anti-air candidates
+
+Instead of replacing tribal power with generic healing, Florestia now replaces one amplifier/finisher with slower **Reach** bodies already legal in its Ironwood/Florestia identity:
+
+- `forest_canopy_warden` — 3/4 Reach Beast;
+- `wood_webweaver` — 2/4 Reach Beast.
+
+Six candidates combine Packrunner or Alpha softening with Summon Pack, Canopy Warden and Webweaver.
+
+Goal:
+
+- keep Tide × Florestia out of critical;
+- push Wood × Florestia toward 40/60;
+- restore Florestia × Tempestade above the 40% critical floor.
+
+### Ember Ashguard candidates
+
+Round 3's Drake+Bolt -> Stun+Flare only moved Ember × Wood from 68/32 to 66/34.
+
+Round 4 adds `ember_ashguard` (2/3 Tough) as the compensating defensive card. This lowers raw aggro pressure while helping Ember survive Tempestade rather than merely weakening every matchup.
+
+Six candidates remove different combinations of:
+
+- Whelp;
+- Drake;
+- Bolt;
+- Champion;
+
+and replace them with controlled mixtures of:
+
+- Ashguard;
+- Flame Lash;
+- Flare Line.
+
+The strongest candidate changes three slots, but no CardDef, rule or semantic teaching slot is altered.
+
+### Round-4 promotion requirement
+
+Promotion still requires fewer than three critical matchups in the full 3,000-game finalist matrix. Health-score improvement alone is not enough.
 
 ## Files
 
