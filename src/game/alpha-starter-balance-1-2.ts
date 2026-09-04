@@ -9,65 +9,70 @@ export interface WoodRecipeCandidate {
   label: string;
   rationale: string;
   from: "wood_wither" | "wood_bark_rupture";
-  to: "tide_frostbite" | "tide_stun" | "wood_root_prison" | "tide_heal";
+  to: "tide_glacial" | "convergence_rootwater_sage" | "tide_memory_tide" | "wood_elderbear";
 }
 
+/**
+ * Round 2 moves away from single-target tempo that failed to shift the
+ * certified criticals. These candidates test anti-swarm or resilient
+ * defensive cards whose value should be concentrated against Ember/Florestia.
+ */
 export const WOOD_1_2_CANDIDATES: readonly WoodRecipeCandidate[] = [
   {
-    id: "wood_wither_to_frostbite",
-    label: "Wood: Wither -> Flash Freeze",
-    rationale: "Replace one dead permanent-only slot with Burst power suppression aimed at Ember/Florestia attack turns.",
+    id: "wood_wither_to_glacial",
+    label: "Wood: Wither -> Glacial Tomb",
+    rationale: "Replace one dead permanent-only slot with a 5-mana Frostbite-all effect aimed at full Ember/Florestia attack turns.",
     from: "wood_wither",
-    to: "tide_frostbite",
+    to: "tide_glacial",
   },
   {
-    id: "wood_bark_to_frostbite",
-    label: "Wood: Bark Rupture -> Flash Freeze",
-    rationale: "Preserve both cheap Withers while converting one expensive permanent-only answer into Burst combat suppression.",
+    id: "wood_bark_to_glacial",
+    label: "Wood: Bark Rupture -> Glacial Tomb",
+    rationale: "Preserve both cheap Withers while converting one expensive dead answer into anti-swarm Frostbite.",
     from: "wood_bark_rupture",
-    to: "tide_frostbite",
+    to: "tide_glacial",
   },
   {
-    id: "wood_wither_to_stun",
-    label: "Wood: Wither -> Riptide Stun",
-    rationale: "Replace one target-starved permanent answer with cheap unit tempo against aggressive and tribal boards.",
+    id: "wood_wither_to_rootwater_sage",
+    label: "Wood: Wither -> Rootwater Sage",
+    rationale: "Use the exact Tidecall/Ironwood convergence identity for a 2/4 body plus Nexus heal 2.",
     from: "wood_wither",
-    to: "tide_stun",
+    to: "convergence_rootwater_sage",
   },
   {
-    id: "wood_bark_to_stun",
-    label: "Wood: Bark Rupture -> Riptide Stun",
-    rationale: "Keep both Withers and trade one expensive dead slot for a low-cost enemy-unit stun.",
+    id: "wood_bark_to_rootwater_sage",
+    label: "Wood: Bark Rupture -> Rootwater Sage",
+    rationale: "Trade one expensive permanent-only answer for a defensive 2/4 body with summon healing.",
     from: "wood_bark_rupture",
-    to: "tide_stun",
+    to: "convergence_rootwater_sage",
   },
   {
-    id: "wood_wither_to_root_prison",
-    label: "Wood: Wither -> third Root Prison",
-    rationale: "Increase native Ironwood unit-control density without adding generic stats or off-plan power.",
+    id: "wood_wither_to_memory_tide",
+    label: "Wood: Wither -> Memory Tide",
+    rationale: "Replace a stranded slot with draw 2 plus Nexus heal 2, prioritizing stabilization over raw stats.",
     from: "wood_wither",
-    to: "wood_root_prison",
+    to: "tide_memory_tide",
   },
   {
-    id: "wood_bark_to_root_prison",
-    label: "Wood: Bark Rupture -> third Root Prison",
-    rationale: "Retain cheap permanent interaction but turn one expensive permanent-only slot into a third native stun.",
+    id: "wood_bark_to_memory_tide",
+    label: "Wood: Bark Rupture -> Memory Tide",
+    rationale: "Convert one expensive dead answer into card flow plus modest Nexus stabilization.",
     from: "wood_bark_rupture",
-    to: "wood_root_prison",
+    to: "tide_memory_tide",
   },
   {
-    id: "wood_wither_to_heal",
-    label: "Wood: Wither -> Soothing Tide",
-    rationale: "Buy four Nexus health against Ember/Florestia pressure without increasing board stats.",
+    id: "wood_wither_to_elderbear",
+    label: "Wood: Wither -> Elder Bear",
+    rationale: "Replace one dead spell with a durable 4/6 Tough blocker to contest creature-heavy boards.",
     from: "wood_wither",
-    to: "tide_heal",
+    to: "wood_elderbear",
   },
   {
-    id: "wood_bark_to_heal",
-    label: "Wood: Bark Rupture -> Soothing Tide",
-    rationale: "Preserve both cheap Withers while converting one stranded expensive answer into Nexus stabilization.",
+    id: "wood_bark_to_elderbear",
+    label: "Wood: Bark Rupture -> Elder Bear",
+    rationale: "Preserve both cheap Withers while converting one expensive dead answer into a resilient 4/6 Tough unit.",
     from: "wood_bark_rupture",
-    to: "tide_heal",
+    to: "wood_elderbear",
   },
 ] as const;
 
