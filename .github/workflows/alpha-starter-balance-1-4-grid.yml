@@ -1,0 +1,71 @@
+name: Alpha Starter Balance 1.4 Watch Compression Grid
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/game/decks.ts"
+      - "src/game/alpha-starter-balance.ts"
+      - "src/game/alpha-starter-balance-1-4.ts"
+      - "src/game/alpha-starter-balance-1-4.test.ts"
+      - "src/game/ai.ts"
+      - "src/game/engine/**"
+      - "src/game/cards/**"
+      - "src/lib/balance-simulator.ts"
+      - "scripts/alpha-starter-balance-1-4-grid.ts"
+      - "docs/ALPHA-STARTER-BALANCE-1-4-WATCH-COMPRESSION.md"
+      - ".github/workflows/alpha-starter-balance-1-4-grid.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alpha-starter-balance-1-4-grid-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  grid:
+    name: Ember/Tide screening + four full finalists
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      ALPHA_1_4_SCREEN_GAMES: "10"
+      ALPHA_1_4_FINAL_GAMES: "40"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm run ci:install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Certify Balance 1.4 candidate contract
+        run: node --import tsx src/game/alpha-starter-balance-1-4.test.ts
+
+      - name: Run Balance 1.4 watch-compression grid
+        run: |
+          mkdir -p artifacts/alpha-balance-1-4
+          node --import tsx scripts/alpha-starter-balance-1-4-grid.ts \
+            --write artifacts/alpha-balance-1-4/ALPHA_STARTER_BALANCE_1.4_GRID.json \
+            --enforce-quality
+
+      - name: Upload Balance 1.4 grid evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: alpha-starter-balance-1-4-grid-${{ github.sha }}
+          path: artifacts/alpha-balance-1-4/ALPHA_STARTER_BALANCE_1.4_GRID.json
+          if-no-files-found: error
+          retention-days: 14
