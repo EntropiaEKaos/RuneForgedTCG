@@ -298,3 +298,77 @@ Promotion still requires fewer than three critical matchups in the full 3,000-ga
 - `scripts/alpha-starter-balance-recipe-grid.ts` — two-stage deterministic grid;
 - `.github/workflows/alpha-starter-balance-recipe-grid.yml` — grid workflow;
 - this document.
+
+
+## Round 4 result — promoted candidate
+
+Round 4 is the first experiment that satisfies the promotion rule.
+
+Artifact:
+
+- ZIP SHA-256: `0895e55455af224df83837edbe5f4d5a54aa2221b6ab822b34735bd2f49f2da5`;
+- JSON SHA-256: `7b519616d088c07e0806c06ccfc982f84b3395f97a41d6616100e5d870ad07f3`;
+- total simulated games: 24,750;
+- quality: PASS.
+
+Best finalist:
+
+`forest_packrunner_alpha_to_canopy_web__ember_whelp_bolt_to_ashguard_stun`
+
+Full 3,000-game result:
+
+- health score: **80**;
+- first-player: **51.3%**;
+- 5 healthy / 8 watch / **2 critical**.
+
+Criticals remaining:
+
+- Emberhold vs Ironwood: **68.5 / 31.5**;
+- Ironwood vs Florestia: **36 / 64**.
+
+Important repaired matchups:
+
+- Tidecall vs Florestia: **43.5 / 56.5** — no longer critical;
+- Florestia vs Tempestade: **42 / 58** — no longer critical.
+
+The recipe therefore reduces the certified critical count from 3 to 2 without introducing a replacement critical elsewhere.
+
+### Promoted exact recipe delta
+
+Florestia:
+
+- -1 `forest_packrunner`;
+- +1 `forest_canopy_warden`;
+- -1 `forest_alpha`;
+- +1 `wood_webweaver`.
+
+Emberhold:
+
+- -1 `ember_whelp`;
+- +1 `ember_ashguard`;
+- -1 `ember_bolt`;
+- +1 `ember_stun`.
+
+The changes are committed in the exact textual positions produced by the deterministic `replaceFirst` screening harness. This preserves the same seed-to-game population used for the finalist evidence.
+
+## Canonical certification
+
+The exploratory candidate helper and grid workflow are removed after promotion.
+
+The final branch instead contains:
+
+- the real recipe change in `src/game/decks.ts`;
+- `src/game/alpha-starter-balance-1-1.test.ts` locking both exact 40-card arrays and their order;
+- `.github/workflows/alpha-starter-balance-1-1.yml` running the real recipe through 3,000 games.
+
+The canonical gate fails closed unless:
+
+1. 3,000/3,000 games complete;
+2. all 15 matchups complete;
+3. simulation quality and reaction coverage pass;
+4. health score remains at least 80;
+5. critical matchups remain at most 2;
+6. the only allowed critical pairs are Ember×Ironwood and Ironwood×Florestia;
+7. first-player rate remains within ±2 percentage points of 50%.
+
+This does **not** claim Alpha balance is finished. The residual two criticals become the explicit target of the next recipe iteration, after 1.1 is certified and integrated.
