@@ -4,152 +4,188 @@
 
 Reduce the three critical Alpha starter matchups revealed by the certified 1.0 stack-aware baseline **without changing card stats, effects, rules, AI policy, engine behavior, Ranked, economy or visual surfaces**.
 
-This slice is intentionally recipe-first.
-
-## Certified baseline
-
 Starting point: `main` at `91eaf344facd6878ba12dc5e35a7f55c9e91e39f`.
 
-Alpha Starter Balance 1.0:
+Baseline 1.0:
 
-- 3,000/3,000 simulated games;
-- 15/15 pairwise starter matchups;
-- stack-aware reaction resolution;
+- 3,000/3,000 games;
+- 15/15 pairwise matchups;
+- stack-aware reactions;
 - Trap reaction coverage errors: 0;
-- first-player win rate: 50.5%;
+- first-player: 50.5%;
 - health score: 78;
 - 8 healthy / 4 watch / 3 critical.
 
-Remaining critical matchups:
+Critical matchups:
 
 - Ironwood vs Florestia: 28.0 / 72.0;
 - Emberhold vs Ironwood: 68.0 / 32.0;
 - Tidecall vs Florestia: 37.5 / 62.5.
 
-## Evidence-driven targets
+## Evidence discipline
 
-The 1.0 utilization artifact identified especially low-use reactive slots:
+Every experimental recipe:
 
-### Ironwood
-
-- `wood_wither` — Withering Vines: about 17.6% play rate when seen;
-- `wood_bark_rupture` — Ruptura da Casca: about 18.7% play rate when seen.
-
-Both frequently remain target-starved while Ironwood loses badly to Emberhold and Florestia.
-
-### Tidecall
-
-- `tide_dispel` — Disenchant Tide: about 16.6% play rate when seen.
-
-Tidecall is no longer globally weak after stack-aware Trap support, but still sits at 37.5% against Florestia.
-
-## Candidate philosophy
-
-Every candidate:
-
-1. changes only one or two existing recipe slots;
-2. keeps exactly 40 cards;
+1. changes only declared existing recipe slots;
+2. stays at exactly 40 cards;
 3. remains legal under `validateDeck`;
-4. preserves exactly the starter's certified Structure, Ritual and Trap teaching cards;
+4. preserves exactly Structure + Ritual + Trap teaching cards;
 5. uses only existing collectible cards;
-6. never mutates the canonical recipe during screening;
-7. is evaluated against the **entire six-starter matrix**, not only the target matchup.
+6. is applied as a read-only simulator override;
+7. is evaluated against the **entire six-starter matrix**.
 
-## Screening candidates
+No exploratory candidate mutates `decks.ts`.
 
-### Ironwood — six candidates
+## Round 1 — proactive-power hypothesis
 
-- 1x Wither -> Champion;
-- 1x Bark Rupture -> Champion;
-- 1x Wither + 1x Bark Rupture -> Champion + Canopy;
-- 1x Wither + 1x Bark Rupture -> Champion + Ward;
-- 1x Wither + 1x Bark Rupture -> Champion + Ent;
-- 2x Wither -> Champion + Canopy.
+The first experiment targeted the most stranded cards:
 
-These candidates reduce conditional removal density while increasing proactive unit/protection density.
+- Ironwood `wood_wither`: ~17.6% play rate when seen;
+- Ironwood `wood_bark_rupture`: ~18.7%;
+- Tidecall `tide_dispel`: ~16.6%.
 
-### Tidecall — six candidates
+Twelve candidates replaced those slots with highly utilized proactive cards such as Champion, Canopy, Draw and Mirror.
 
-- 1x Dispel -> Draw;
-- 1x Dispel -> Mirror;
-- 1x Dispel -> Champion;
-- 2x Dispel -> Draw + Mirror;
-- 2x Dispel -> Champion + Draw;
-- 2x Dispel -> Champion + Mirror.
+### Round-1 grid
 
-These candidates reduce target-starved permanent removal while increasing card flow, board pressure or equipment value.
+- 12 individual candidates at reduced full-matrix screening;
+- top 2 Wood × top 2 Tide;
+- four finalists at 3,000 games each;
+- unchanged 3,000-game baseline control;
+- **24,750 total games**.
+
+Artifact:
+
+- ZIP SHA-256: `0d24e536f485974a3bc212558992daec7243d2aa920da59d2b256bd59266409f`;
+- JSON SHA-256: `2ccbb33a07e0bcfbfb8a83187562cfc7fbd39a4ad50c7d3830d8308a823b28d0`.
+
+Baseline control remained:
+
+- 3 critical;
+- 4 watch;
+- health 78;
+- first-player 50.5%.
+
+Best Round-1 finalist:
+
+`wood_one_wither_to_champion__tide_one_dispel_to_draw`
+
+Result:
+
+- 4 critical;
+- 6 watch;
+- health 74;
+- first-player 50.8%.
+
+It improved Ember×Wood from 68/32 to 60/40 and Tide×Florestia from 37.5/62.5 to 40/60, but Ironwood became too strong elsewhere, creating critical matchups against Tide, Void and Tempestade while still remaining critical against Florestia.
+
+### Round-1 decision
+
+**Rejected. No recipe promoted.**
+
+The result proves that generic proactive power is the wrong lever.
+
+## Round 2 — matchup-specific tech
+
+Round 2 keeps the same grid methodology but replaces dead permanent-only interaction with defensive/control tools already legal in the certified regional identities.
+
+The goal is not to make Ironwood or Tide generally stronger. The goal is to improve their bad combat shapes against Ember/Florestia without pushing healthy matchups across 60%.
+
+### Ironwood — six tech candidates
+
+Ironwood is Tidecall/Ironwood, so the following Tidecall tools are legal recipe options.
+
+1. `wood_wither -> tide_guard`
+   - 2/5 Tough + Reach blocker;
+   - targets Ember and Florestia combat pressure.
+
+2. `wood_bark_rupture -> tide_guard`
+   - preserves both cheap Withers;
+   - replaces one expensive permanent-only answer with defense.
+
+3. `wood_wither -> tide_heal`
+   - +4 Nexus health;
+   - specifically buys turns against rush without increasing board stats.
+
+4. `wood_wither -> tide_stun`
+   - cheap unit tempo;
+   - can interrupt Ember and Florestia attack turns.
+
+5. `wood_wither -> tide_freeze`
+   - 2 damage + draw;
+   - board interaction plus replacement card rather than generic stat density.
+
+6. `wood_bark_rupture -> tide_stun`
+   - preserves both Withers;
+   - converts one expensive permanent answer into combat tempo.
+
+### Tidecall — six tech candidates
+
+Each keeps one `tide_dispel` and converts the second target-starved copy into broader creature/combat interaction.
+
+1. `tide_dispel -> tide_heal` — third Soothing Tide;
+2. `tide_dispel -> tide_freeze` — third Riptide;
+3. `tide_dispel -> tide_stun` — third Riptide Stun;
+4. `tide_dispel -> tide_frostbite` — third Flash Freeze;
+5. `tide_dispel -> tide_recall` — second Recall;
+6. `tide_dispel -> tide_shield` — third Ripcurrent Ward.
 
 ## Two-stage grid
-
-The workflow deliberately separates exploration from certification.
 
 ### Stage 1 — screening
 
 For all 12 individual candidates:
 
-- all 15 starter matchups;
+- 15 matchups;
 - 5 deterministic seed strata;
 - 10 games per stratum;
 - 50 games per matchup;
 - 750 games per candidate.
 
-A baseline control is run at the same reduced sample.
+A baseline control runs at the same sample.
 
-Candidates are ranked with a fail-closed priority:
+Ranking priority:
 
 1. fewer critical matchups;
 2. fewer watch matchups;
 3. higher health score;
 4. lower first-player skew.
 
-The top two Ironwood candidates and top two Tidecall candidates advance.
+Top two Ironwood and top two Tidecall candidates advance.
 
 ### Stage 2 — finalists
 
-The four Wood × Tide combinations are rerun at the full certified sample:
+Four Wood × Tide combinations:
 
 - 15 matchups;
-- 5 deterministic seed strata;
+- 5 seed strata;
 - 40 games per stratum;
 - 200 games per matchup;
 - **3,000 games per finalist**.
 
-A full 3,000-game unchanged baseline control is also rerun in the same workflow.
+A full unchanged 3,000-game baseline control runs in the same workflow.
 
-Expected grid volume is roughly 25,000 games.
+Expected volume: approximately 25,000 games.
 
 ## Promotion rule
 
-No candidate is promoted merely because it improves one critical matchup.
+A finalist is not promoted merely for improving one target matchup.
 
-A finalist is eligible for promotion only if:
+Promotion requires:
 
-- every requested game completes;
-- the full matrix remains legal/stable;
-- no new critical matchup is introduced;
-- total critical matchups decrease, or the same count is retained with a clearly stronger health profile and no regression that outweighs the target improvement;
-- first-player skew does not materially worsen;
-- CI, behavioral, coverage, build, E2E and visual certs stay green after the actual recipe is committed.
+- complete/stable matrix;
+- no new critical matchup;
+- fewer critical matchups than baseline, or a clearly superior global profile with no compensating regression;
+- no material first-player skew regression;
+- exact real recipe reproduces the simulation after promotion;
+- CI, behavioral, coverage, build, E2E and four visual certs all green.
 
-The screening script itself **does not modify `decks.ts`**.
+If Round 2 still fails, the next hypothesis is controlled recipe nerf of the common overperformers (Florestia and/or Ember), not repeated generic buffs to weak decks.
 
-## Files in this exploration slice
+## Files
 
-- `src/game/alpha-starter-balance-1-1.ts` — candidate definitions and read-only recipe overrides;
-- `src/game/alpha-starter-balance-1-1.test.ts` — legality, slot locality and semantic teaching-card preservation;
-- `scripts/alpha-starter-balance-recipe-grid.ts` — two-stage deterministic matrix;
-- `.github/workflows/alpha-starter-balance-recipe-grid.yml` — evidence workflow;
+- `src/game/alpha-starter-balance-1-1.ts` — candidate definitions;
+- `src/game/alpha-starter-balance-1-1.test.ts` — legality/slot-locality contract;
+- `scripts/alpha-starter-balance-recipe-grid.ts` — two-stage deterministic grid;
+- `.github/workflows/alpha-starter-balance-recipe-grid.yml` — grid workflow;
 - this document.
-
-## Merge discipline
-
-The exploration branch is not merge-ready simply because the grid completes.
-
-After the artifact is inspected:
-
-1. choose the best finalist;
-2. promote only its exact recipe changes to `src/game/decks.ts`;
-3. replace exploratory acceptance with a canonical recipe test/gate;
-4. rerun the full 3,000-game Alpha baseline on the real recipe;
-5. require normal repository CI + four visual certs;
-6. merge only if the promoted real recipe reproduces the evidence.
