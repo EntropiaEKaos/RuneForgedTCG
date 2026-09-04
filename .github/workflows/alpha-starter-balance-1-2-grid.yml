@@ -1,4 +1,4 @@
-name: Alpha Starter Balance 1.2 Wood Grid
+name: Alpha Starter Balance 1.2 Matchup Grid
 
 on:
   pull_request:
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   grid:
-    name: Wood one-slot screening + 4 full finalists
+    name: matchup-specific screening + 4 full finalists
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
@@ -45,17 +45,17 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Certify Wood 1.2 candidate contract
+      - name: Certify Balance 1.2 candidate contract
         run: node --import tsx src/game/alpha-starter-balance-1-2.test.ts
 
-      - name: Run Wood 1.2 recipe grid
+      - name: Run Balance 1.2 recipe grid
         run: |
           mkdir -p artifacts/alpha-balance-1-2
           node --import tsx scripts/alpha-starter-balance-1-2-grid.ts \
             --write artifacts/alpha-balance-1-2/ALPHA_STARTER_BALANCE_1.2_GRID.json \
             --enforce-quality
 
-      - name: Upload Wood 1.2 grid evidence
+      - name: Upload Balance 1.2 grid evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
