@@ -68,7 +68,7 @@ export const DECKS: DeckDef[] = [
       "tide_wood_chorus", "tide_wood_chorus",
       "tide_anchor", "rfalpha_tide_structure_silent_beacon",
       "tide_mirror",
-      "tide_dispel", "tide_dispel",
+      "tide_recall", "tide_dispel",
       "tide_tidecaller",
       "tide_guard",
       "tide_champion", "tide_champion",
