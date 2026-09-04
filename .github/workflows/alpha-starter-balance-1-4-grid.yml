@@ -26,11 +26,10 @@ concurrency:
 
 jobs:
   grid:
-    name: Tempestade/Tide Round 2 + four full finalists
+    name: Tide-only Round 3 full matrices
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
-      ALPHA_1_4_SCREEN_GAMES: "10"
       ALPHA_1_4_FINAL_GAMES: "40"
 
     steps:
@@ -51,17 +50,17 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Certify Balance 1.4 candidate contract
+      - name: Certify Balance 1.4 Round 3 candidate contract
         run: node --import tsx src/game/alpha-starter-balance-1-4.test.ts
 
-      - name: Run Balance 1.4 watch-compression grid
+      - name: Run Balance 1.4 Round 3 Tide-only matrices
         run: |
           mkdir -p artifacts/alpha-balance-1-4
           node --import tsx scripts/alpha-starter-balance-1-4-grid.ts \
             --write artifacts/alpha-balance-1-4/ALPHA_STARTER_BALANCE_1.4_GRID.json \
             --enforce-quality
 
-      - name: Upload Balance 1.4 grid evidence
+      - name: Upload Balance 1.4 Round 3 evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
