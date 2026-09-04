@@ -48,15 +48,13 @@ jobs:
       fail-fast: false
       matrix:
         variant:
-          - oracle_to_stun
-          - stalker_to_stun
-          - guard_to_stun
-          - drain_to_stun
-          - glacial_to_stun
-          - hexer_to_stun
+          - baseline_1_0
+          - recordacao_cost2
+          - recordacao_cost3
+          - recordacao_cost4
     env:
       ECOS_GAMES_PER_STRATUM: "100"
-      ECOS_RECOLLECTION_STUN_VARIANT: ${{ matrix.variant }}
+      ECOS_METHODOLOGY_VARIANT: ${{ matrix.variant }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -76,7 +74,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Run Recordação Stun refinement
+      - name: Run order-invariant methodology probe
         run: node --import tsx scripts/ecos-do-abismo-balance-v2.ts --enforce
 
       - name: Upload balance report
