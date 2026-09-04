@@ -1,0 +1,121 @@
+name: Alpha Starter Balance 1.2 Canonical Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/game/decks.ts"
+      - "src/game/alpha-starter-balance-1-2.test.ts"
+      - "src/game/ai.ts"
+      - "src/game/engine/**"
+      - "src/game/cards/**"
+      - "src/lib/balance-simulator.ts"
+      - "scripts/alpha-starter-balance-audit.ts"
+      - "docs/ALPHA-STARTER-BALANCE-1-2-WOOD.md"
+      - ".github/workflows/alpha-starter-balance-1-2.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/game/decks.ts"
+      - "src/game/alpha-starter-balance-1-2.test.ts"
+      - "src/game/ai.ts"
+      - "src/game/engine/**"
+      - "src/game/cards/**"
+      - "src/lib/balance-simulator.ts"
+      - "scripts/alpha-starter-balance-audit.ts"
+      - "docs/ALPHA-STARTER-BALANCE-1-2-WOOD.md"
+      - ".github/workflows/alpha-starter-balance-1-2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alpha-starter-balance-1-2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  canonical:
+    name: canonical recipe + 3k balance gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm run ci:install
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Certify promoted recipe contract
+        run: node --import tsx src/game/alpha-starter-balance-1-2.test.ts
+
+      - name: Run canonical 3,000-game matrix
+        run: |
+          mkdir -p artifacts/alpha-balance-1-2
+          node --import tsx scripts/alpha-starter-balance-audit.ts 40 5 \
+            --write artifacts/alpha-balance-1-2/ALPHA_STARTER_BALANCE_1.2.json \
+            --enforce-quality
+
+      - name: Enforce Alpha starter 1.2 balance profile
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = "artifacts/alpha-balance-1-2/ALPHA_STARTER_BALANCE_1.2.json";
+          const report = JSON.parse(fs.readFileSync(path, "utf8"));
+
+          const fail = (message) => {
+            console.error("ALPHA STARTER BALANCE 1.2: BLOCKED — " + message);
+            process.exit(1);
+          };
+
+          if (report.totalGames !== 3000) fail(`expected 3000 games, found ${report.totalGames}`);
+          if (report.matchups !== 15) fail(`expected 15 matchups, found ${report.matchups}`);
+          if (report.simulationQuality?.gate !== "pass") fail("simulation quality gate is not pass");
+          if ((report.simulationQuality?.reactionCoverageErrors ?? []).length !== 0) {
+            fail("reaction coverage errors are present");
+          }
+          if (report.health?.criticalMatchups > 1) {
+            fail(`expected at most 1 critical matchup, found ${report.health?.criticalMatchups}`);
+          }
+          if (report.health?.healthScore < 86) {
+            fail(`expected health score >= 86, found ${report.health?.healthScore}`);
+          }
+          if (Math.abs(report.firstPlayerWinRate - 50) > 2) {
+            fail(`first-player rate ${report.firstPlayerWinRate}% exceeds ±2pp guardrail`);
+          }
+
+          const criticalPairs = report.health.outliers
+            .filter((row) => row.status === "critical")
+            .map((row) => `${row.deckA}::${row.deckB}`);
+
+          const allowedCriticalPairs = new Set(["wood_midrange::florestia_tribal"]);
+          const unexpected = criticalPairs.filter((pair) => !allowedCriticalPairs.has(pair));
+          if (unexpected.length) {
+            fail(`unexpected critical pair(s): ${unexpected.join(", ")}`);
+          }
+
+          console.log(
+            `ALPHA STARTER BALANCE 1.2: PASS — ${report.totalGames} games · health=${report.health.healthScore} · critical=${report.health.criticalMatchups} · watch=${report.health.watchMatchups} · first-player=${report.firstPlayerWinRate}%`,
+          );
+          NODE
+
+      - name: Upload Alpha starter 1.2 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: alpha-starter-balance-1-2-${{ github.sha }}
+          path: artifacts/alpha-balance-1-2/ALPHA_STARTER_BALANCE_1.2.json
+          if-no-files-found: error
+          retention-days: 14
