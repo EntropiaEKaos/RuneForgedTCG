@@ -6,10 +6,11 @@ import {
   alphaStarterBalanceSeed,
 } from "../src/game/alpha-starter-balance";
 import {
-  WOOD_1_2_CANDIDATES,
-  woodCandidateOverride,
-  validateWoodCandidateSet,
-  type WoodRecipeCandidate,
+  BALANCE_1_2_CANDIDATES,
+  overridesForCandidates,
+  validateCandidateSet,
+  type Balance12Candidate,
+  type Balance12Family,
 } from "../src/game/alpha-starter-balance-1-2";
 import {
   runStackAwareBalanceSimulation,
@@ -94,14 +95,14 @@ type BalanceHealth = ReturnType<typeof summarizeBalance>;
 interface MatrixResult {
   id: string;
   label: string;
-  candidateId: string | null;
+  candidateIds: string[];
   gamesPerStratum: number;
   totalGames: number;
   complete: boolean;
   health: BalanceHealth;
   criticalPairs: string[];
   newCriticalPairs: string[];
-  targetMatchups: Record<string, { woodWinRate: number; opponentWinRate: number }>;
+  tracked: Record<string, { left: number; right: number }>;
   score: number;
   rows: MatrixRow[];
 }
@@ -113,42 +114,42 @@ function criticalPairs(health: BalanceHealth): string[] {
     .sort();
 }
 
-function targetMatchup(rows: MatrixRow[], opponent: string): { woodWinRate: number; opponentWinRate: number } {
+function matchup(rows: MatrixRow[], deckA: string, deckB: string): { left: number; right: number } {
   const row = rows.find(
     (candidate) =>
-      (candidate.deckA === "wood_midrange" && candidate.deckB === opponent) ||
-      (candidate.deckB === "wood_midrange" && candidate.deckA === opponent),
+      (candidate.deckA === deckA && candidate.deckB === deckB) ||
+      (candidate.deckA === deckB && candidate.deckB === deckA),
   );
-  if (!row) return { woodWinRate: 0, opponentWinRate: 0 };
-  return row.deckA === "wood_midrange"
-    ? { woodWinRate: row.winRateA, opponentWinRate: row.winRateB }
-    : { woodWinRate: row.winRateB, opponentWinRate: row.winRateA };
+  if (!row) return { left: 0, right: 0 };
+  return row.deckA === deckA
+    ? { left: row.winRateA, right: row.winRateB }
+    : { left: row.winRateB, right: row.winRateA };
 }
 
 function runMatrix(
   id: string,
   label: string,
-  candidate: WoodRecipeCandidate | null,
+  candidates: readonly Balance12Candidate[],
   gamesPerStratum: number,
   baselineCriticalPairs: readonly string[] = [],
 ): MatrixResult {
-  const overrides = candidate ? woodCandidateOverride(candidate) : undefined;
+  const overrides = candidates.length ? overridesForCandidates(candidates) : undefined;
   const rows: MatrixRow[] = [];
 
-  for (const matchup of alphaStarterBalanceMatchups()) {
+  for (const pair of alphaStarterBalanceMatchups()) {
     const parts: SimulationSummary[] = [];
     for (let stratum = 0; stratum < STRATA; stratum += 1) {
       parts.push(
         runStackAwareBalanceSimulation(
-          matchup.leftId,
-          matchup.rightId,
+          pair.leftId,
+          pair.rightId,
           gamesPerStratum,
-          alphaStarterBalanceSeed(matchup, stratum),
+          alphaStarterBalanceSeed(pair, stratum),
           overrides,
         ),
       );
     }
-    rows.push(aggregate(parts, matchup.leftId, matchup.rightId));
+    rows.push(aggregate(parts, pair.leftId, pair.rightId));
   }
 
   const health = summarizeBalance(rows);
@@ -157,12 +158,10 @@ function runMatrix(
   const critical = criticalPairs(health);
   const baselineSet = new Set(baselineCriticalPairs);
   const newCriticalPairs = critical.filter((pair) => !baselineSet.has(pair));
-  const tide = targetMatchup(rows, "tide_control");
 
   const score =
     health.criticalMatchups * 1_000_000 +
     newCriticalPairs.length * 500_000 +
-    (tide.woodWinRate > 60 ? 250_000 + Math.round((tide.woodWinRate - 60) * 10_000) : 0) +
     health.watchMatchups * 10_000 +
     (100 - health.healthScore) * 100 +
     Math.round(Math.abs(health.firstPlayerWinRate - 50) * 10);
@@ -170,23 +169,27 @@ function runMatrix(
   return {
     id,
     label,
-    candidateId: candidate?.id ?? null,
+    candidateIds: candidates.map((candidate) => candidate.id),
     gamesPerStratum,
     totalGames,
     complete: totalGames === expected && rows.every((row) => row.completedGames === row.requestedGames),
     health,
     criticalPairs: critical,
     newCriticalPairs,
-    targetMatchups: {
-      ember: targetMatchup(rows, "ember_aggro"),
-      florestia: targetMatchup(rows, "florestia_tribal"),
-      tide: targetMatchup(rows, "tide_control"),
-      void: targetMatchup(rows, "void_shadow"),
-      tempestade: targetMatchup(rows, "tempestade_rush"),
+    tracked: {
+      emberWood: matchup(rows, "ember_aggro", "wood_midrange"),
+      woodFlorestia: matchup(rows, "wood_midrange", "florestia_tribal"),
+      emberTempestade: matchup(rows, "ember_aggro", "tempestade_rush"),
+      tideFlorestia: matchup(rows, "tide_control", "florestia_tribal"),
+      florestiaTempestade: matchup(rows, "florestia_tribal", "tempestade_rush"),
     },
     score,
     rows,
   };
+}
+
+function familyCandidates(family: Balance12Family): Balance12Candidate[] {
+  return BALANCE_1_2_CANDIDATES.filter((candidate) => candidate.family === family);
 }
 
 function ranked(results: MatrixResult[]): MatrixResult[] {
@@ -200,25 +203,44 @@ function ranked(results: MatrixResult[]): MatrixResult[] {
   );
 }
 
-const candidateErrors = validateWoodCandidateSet();
+const candidateErrors = validateCandidateSet();
 if (candidateErrors.length) {
   throw new Error(`Alpha starter 1.2 candidate set is invalid: ${candidateErrors.join(" | ")}`);
 }
 
-const screenBaseline = runMatrix("baseline_screen", "1.1 baseline screen", null, SCREEN_GAMES_PER_STRATUM);
-const screenBaselineCritical = screenBaseline.criticalPairs;
-
-const screening = WOOD_1_2_CANDIDATES.map((candidate) =>
-  runMatrix(candidate.id, candidate.label, candidate, SCREEN_GAMES_PER_STRATUM, screenBaselineCritical),
+const screenBaseline = runMatrix("baseline_screen", "1.1 baseline screen", [], SCREEN_GAMES_PER_STRATUM);
+const screening = BALANCE_1_2_CANDIDATES.map((candidate) =>
+  runMatrix(candidate.id, candidate.label, [candidate], SCREEN_GAMES_PER_STRATUM, screenBaseline.criticalPairs),
 );
-const topIds = new Set(ranked(screening).slice(0, 4).map((result) => result.id));
-const finalists = WOOD_1_2_CANDIDATES.filter((candidate) => topIds.has(candidate.id));
 
-const fullBaseline = runMatrix("baseline_full", "Certified 1.1 baseline control", null, FINAL_GAMES_PER_STRATUM);
-const fullBaselineCritical = fullBaseline.criticalPairs;
-const fullFinalists = finalists.map((candidate) =>
-  runMatrix(candidate.id, candidate.label, candidate, FINAL_GAMES_PER_STRATUM, fullBaselineCritical),
+const topEmberIds = new Set(
+  ranked(screening.filter((result) =>
+    familyCandidates("ember").some((candidate) => candidate.id === result.id)
+  )).slice(0, 2).map((result) => result.id),
 );
+const topFlorestiaIds = new Set(
+  ranked(screening.filter((result) =>
+    familyCandidates("florestia").some((candidate) => candidate.id === result.id)
+  )).slice(0, 2).map((result) => result.id),
+);
+const topEmber = familyCandidates("ember").filter((candidate) => topEmberIds.has(candidate.id));
+const topFlorestia = familyCandidates("florestia").filter((candidate) => topFlorestiaIds.has(candidate.id));
+
+const fullBaseline = runMatrix("baseline_full", "Certified 1.1 baseline control", [], FINAL_GAMES_PER_STRATUM);
+const fullFinalists: MatrixResult[] = [];
+for (const ember of topEmber) {
+  for (const florestia of topFlorestia) {
+    fullFinalists.push(
+      runMatrix(
+        `${ember.id}__${florestia.id}`,
+        `${ember.label} + ${florestia.label}`,
+        [ember, florestia],
+        FINAL_GAMES_PER_STRATUM,
+        fullBaseline.criticalPairs,
+      ),
+    );
+  }
+}
 const finalistRanking = ranked(fullFinalists);
 const best = finalistRanking[0];
 
@@ -231,14 +253,13 @@ const eligible = finalistRanking.filter((result) =>
   result.complete &&
   result.health.criticalMatchups < fullBaseline.health.criticalMatchups &&
   result.newCriticalPairs.length === 0 &&
-  result.targetMatchups.tide.woodWinRate <= 60 &&
   Math.abs(result.health.firstPlayerWinRate - 50) <= 2,
 );
 
 const report = {
-  version: "1.2",
+  version: "1.2-round3",
   methodology:
-    "Wood-only one-slot recipe screening on certified 1.1; stack-aware simulator; full six-starter matrix; same five deterministic strata; four finalists rerun at 200 games/matchup; no-new-critical and Wood-vs-Tide <=60% guardrails",
+    "matchup-specific Ember/Florestia one-slot redistribution; stack-aware simulator; full six-starter matrix; same five deterministic strata; top two per family cross-combined; full finalists at 200 games/matchup; no-new-critical promotion rule",
   screeningGamesPerStratum: SCREEN_GAMES_PER_STRATUM,
   finalistGamesPerStratum: FINAL_GAMES_PER_STRATUM,
   strata: STRATA,
@@ -250,13 +271,10 @@ const report = {
     health: result.health,
     criticalPairs: result.criticalPairs,
     newCriticalPairs: result.newCriticalPairs,
-    targetMatchups: result.targetMatchups,
+    tracked: result.tracked,
   })),
-  selectedFinalists: finalists.map((candidate) => ({
-    id: candidate.id,
-    label: candidate.label,
-    rationale: candidate.rationale,
-  })),
+  selectedEmber: topEmber.map((candidate) => ({ id: candidate.id, label: candidate.label, rationale: candidate.rationale })),
+  selectedFlorestia: topFlorestia.map((candidate) => ({ id: candidate.id, label: candidate.label, rationale: candidate.rationale })),
   fullBaseline,
   finalistRanking: finalistRanking.map((result) => ({
     id: result.id,
@@ -265,7 +283,7 @@ const report = {
     health: result.health,
     criticalPairs: result.criticalPairs,
     newCriticalPairs: result.newCriticalPairs,
-    targetMatchups: result.targetMatchups,
+    tracked: result.tracked,
   })),
   eligible: eligible.map((result) => result.id),
   best,
@@ -293,9 +311,10 @@ console.log(JSON.stringify({
   baseline: {
     health: fullBaseline.health,
     criticalPairs: fullBaseline.criticalPairs,
-    targetMatchups: fullBaseline.targetMatchups,
+    tracked: fullBaseline.tracked,
   },
-  selectedFinalists: report.selectedFinalists,
+  selectedEmber: report.selectedEmber,
+  selectedFlorestia: report.selectedFlorestia,
   finalistRanking: report.finalistRanking,
   eligible: report.eligible,
   improvement: report.improvement,
@@ -306,7 +325,7 @@ console.log(JSON.stringify({
         health: best.health,
         criticalPairs: best.criticalPairs,
         newCriticalPairs: best.newCriticalPairs,
-        targetMatchups: best.targetMatchups,
+        tracked: best.tracked,
       }
     : null,
 }, null, 2));
