@@ -180,7 +180,48 @@ Promotion requires:
 - exact real recipe reproduces the simulation after promotion;
 - CI, behavioral, coverage, build, E2E and four visual certs all green.
 
-If Round 2 still fails, the next hypothesis is controlled recipe nerf of the common overperformers (Florestia and/or Ember), not repeated generic buffs to weak decks.
+## Round 3 — controlled Florestia + Ember softening
+
+Round 2 also failed to move the certified criticals. Its best finalist reproduced the baseline aggregate profile (3 critical / 4 watch / health 78) but left Ember×Wood and Wood×Florestia unchanged and worsened Tide×Florestia to 36/64.
+
+Artifact:
+
+- ZIP SHA-256: `6aa0ce66a37838f2d14a4dc80322658fca0c1bcda8c53f4bee9c96a4a2a8afbb`;
+- JSON SHA-256: `a6d8d2c8657497a4a0baae42f89e20d2f92f050377e8c4446e752fb82ecf3d8d`.
+
+**Round-2 decision: rejected.**
+
+The third hypothesis acts directly on the common overperformers, while staying recipe-only.
+
+### Florestia candidates
+
+Florestia is present in two critical matchups. Candidates reduce one or two tribal power spikes and replace them with slower existing utility:
+
+1. Packrunner -> third Summon Pack;
+2. Alpha -> third Summon Pack;
+3. Champion -> third Summon Pack;
+4. Packrunner + Alpha -> Summon Pack + third Nature's Mending;
+5. Packrunner + Champion -> Summon Pack + third Nature's Mending;
+6. Alpha + Champion -> Summon Pack + third Nature's Mending.
+
+This spans mild to strong softening without changing the deck's Structure/Ritual/Trap or regional identity.
+
+### Ember candidates
+
+Ember is present in the remaining critical matchup. Instead of inserting dead cards, candidates trade a small amount of raw damage/curve density for existing interactive Ember cards:
+
+1. Bolt -> second Flame Lash;
+2. Whelp -> second Flare Line;
+3. Whelp + Bolt -> Flame Lash + Flare Line;
+4. Drake + Bolt -> Flame Lash + Flare Line;
+5. Whelp + Drake -> Flame Lash + Flare Line;
+6. Champion + Bolt -> Flame Lash + Flare Line.
+
+The intent is to reduce Ember's 68/32 edge into Ironwood while preserving its already-watch matchup against Tempestade.
+
+### Round-3 promotion requirement
+
+A Florestia/Ember finalist must reduce the number of critical matchups below three. Merely redistributing which decks are critical is not sufficient.
 
 ## Files
 
