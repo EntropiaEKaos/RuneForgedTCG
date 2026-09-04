@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
-import { getDeck, validateDeck } from "./decks";
+import { validateDeck, getDeck } from "./decks";
 import { SEMANTIC_ALPHA_CARDS } from "./cards/semantic-alpha";
 
-const expectedEmber = [
+/**
+ * Historical Balance 1.1 snapshot.
+ *
+ * Balance 1.2 and later are allowed to evolve the active canonical recipes.
+ * This test preserves the exact 1.1 recipes as a valid historical artifact
+ * while enforcing backward-compatible structural guarantees on the active
+ * starters. Exact current recipe order is owned by the newest version gate.
+ */
+const historicalEmber11 = [
   "ember_ashguard", "ember_whelp", "ember_whelp",
   "ember_drake", "ember_drake", "ember_drake",
   "ember_herald", "ember_herald",
@@ -26,7 +34,7 @@ const expectedEmber = [
   "ember_champion", "ember_champion",
 ];
 
-const expectedFlorestia = [
+const historicalFlorestia11 = [
   "forest_cub", "forest_cub", "forest_cub",
   "forest_canopy_warden", "forest_packrunner", "forest_packrunner",
   "forest_stalker", "forest_stalker",
@@ -49,48 +57,54 @@ const expectedFlorestia = [
   "forest_primal_recall", "forest_primal_recall",
 ];
 
-const ember = getDeck("ember_aggro");
-const florestia = getDeck("florestia_tribal");
-
-assert.deepEqual(
-  ember.cards,
-  expectedEmber,
-  "Emberhold Blitz 1.1 must preserve the exact Round-4 deterministic recipe order",
-);
-assert.deepEqual(
-  florestia.cards,
-  expectedFlorestia,
-  "Matilha da Florestia 1.1 must preserve the exact Round-4 deterministic recipe order",
-);
-
-for (const deck of [ember, florestia]) {
-  assert.equal(deck.cards.length, 40, `${deck.id} must remain exactly 40 cards`);
-  const legality = validateDeck(deck.cards);
-  assert.equal(legality.ok, true, `${deck.id} must remain legal: ${legality.errors.join(" | ")}`);
+for (const [id, cards] of [
+  ["ember_aggro@1.1", historicalEmber11],
+  ["florestia_tribal@1.1", historicalFlorestia11],
+] as const) {
+  assert.equal(cards.length, 40, `${id} historical snapshot must contain exactly 40 cards`);
+  const legality = validateDeck(cards);
+  assert.equal(legality.ok, true, `${id} historical snapshot must remain legal: ${legality.errors.join(" | ")}`);
   assert.equal(
-    deck.cards.filter((defId) => defId in SEMANTIC_ALPHA_CARDS).length,
+    cards.filter((defId) => defId in SEMANTIC_ALPHA_CARDS).length,
     3,
-    `${deck.id} must preserve exactly Structure + Ritual + Trap teaching cards`,
+    `${id} historical snapshot must preserve Structure + Ritual + Trap`,
   );
 }
 
-assert.equal(ember.cards.filter((id) => id === "ember_whelp").length, 2);
-assert.equal(ember.cards.filter((id) => id === "ember_ashguard").length, 2);
-assert.equal(ember.cards.filter((id) => id === "ember_bolt").length, 2);
-assert.equal(ember.cards.filter((id) => id === "ember_stun").length, 2);
+assert.equal(historicalEmber11.filter((id) => id === "ember_whelp").length, 2);
+assert.equal(historicalEmber11.filter((id) => id === "ember_ashguard").length, 2);
+assert.equal(historicalEmber11.filter((id) => id === "ember_bolt").length, 2);
+assert.equal(historicalEmber11.filter((id) => id === "ember_stun").length, 2);
 
-assert.equal(florestia.cards.filter((id) => id === "forest_packrunner").length, 2);
-assert.equal(florestia.cards.filter((id) => id === "forest_canopy_warden").length, 2);
-assert.equal(florestia.cards.filter((id) => id === "forest_alpha").length, 1);
-assert.equal(florestia.cards.filter((id) => id === "wood_webweaver").length, 2);
-assert.equal(florestia.cards.filter((id) => id === "forest_champion").length, 2);
+assert.equal(historicalFlorestia11.filter((id) => id === "forest_packrunner").length, 2);
+assert.equal(historicalFlorestia11.filter((id) => id === "forest_canopy_warden").length, 2);
+assert.equal(historicalFlorestia11.filter((id) => id === "forest_alpha").length, 1);
+assert.equal(historicalFlorestia11.filter((id) => id === "wood_webweaver").length, 2);
+assert.equal(historicalFlorestia11.filter((id) => id === "forest_champion").length, 2);
 
-for (const id of ["tide_control", "wood_midrange", "void_shadow", "tempestade_rush"] as const) {
+for (const id of [
+  "ember_aggro",
+  "tide_control",
+  "wood_midrange",
+  "void_shadow",
+  "florestia_tribal",
+  "tempestade_rush",
+] as const) {
   const deck = getDeck(id);
-  assert.equal(deck.cards.length, 40, `${id} must remain a 40-card starter`);
-  assert.equal(validateDeck(deck.cards).ok, true, `${id} must remain legal after recipe 1.1 promotion`);
+  assert.equal(deck.cards.length, 40, `${id} active starter must remain exactly 40 cards`);
+  const legality = validateDeck(deck.cards);
+  assert.equal(legality.ok, true, `${id} active starter must remain legal: ${legality.errors.join(" | ")}`);
+}
+
+for (const id of ["ember_aggro", "florestia_tribal"] as const) {
+  const deck = getDeck(id);
+  assert.equal(
+    deck.cards.filter((defId) => defId in SEMANTIC_ALPHA_CARDS).length,
+    3,
+    `${id} active starter must preserve Structure + Ritual + Trap teaching cards`,
+  );
 }
 
 console.log(
-  "ALPHA STARTER BALANCE 1.1 RECIPE: PASS — exact Ember/Florestia order · 40 cards · legal regions/copies · Structure/Ritual/Trap preserved",
+  "ALPHA STARTER BALANCE 1.1 HISTORICAL SNAPSHOT: PASS — exact 1.1 recipes archived · active starters remain legal · later version gates may evolve canonical order",
 );
