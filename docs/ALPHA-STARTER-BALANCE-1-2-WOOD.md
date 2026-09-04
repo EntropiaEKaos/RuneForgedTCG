@@ -148,3 +148,66 @@ Each tool is tested in both stranded slots:
 - `wood_bark_rupture -> candidate`.
 
 The promotion rules remain unchanged: fewer than 2 criticals, no replacement critical, Wood×Tide <=60%, and first-player within ±2pp.
+
+
+## Round 2 result — rejected
+
+The anti-board/resilient-defense grid also completed **21,750 games** with quality PASS.
+
+Artifact:
+
+- ZIP SHA-256: `c1040d5945efdda8e4d039ddeec867bbf097b9c380f2f9ddce69499d23f3582e`;
+- JSON SHA-256: `83bac7cd1b75875b0f915e6711683b38bc9c09aa5463739a0b4d46f3247225e9`.
+
+No finalist was promotion-eligible.
+
+Best: `wood_bark_to_glacial`
+
+- health 80;
+- first-player 51.3%;
+- 2 critical;
+- Ember × Wood: 68/32;
+- Wood × Florestia: 36.5/63.5;
+- Wood × Tide: 60/40.
+
+Rootwater Sage and Memory Tide moved Wood to roughly 38% against Ember but created criticals against Tide/Tempestade. Elder Bear almost reached 40% in both target matchups but created three replacement criticals.
+
+**Conclusion: Wood-only power redistribution is exhausted.**
+
+## Round 3 — redistribute power on the winning sides
+
+Round 3 no longer modifies Ironwood during screening.
+
+### Ember candidates
+
+Ember's `ember_shatter` has only ~22.5% aggregate play rate, but its permanent destruction can be disproportionately valuable into Ironwood's Equipment/Enchantment package.
+
+It is replaced with effects expected to be more useful against Tempestade's smaller units and less useful against Ironwood's larger bodies:
+
+1. Shatter -> Cinder Snap (Burst 2 to a unit);
+2. Shatter -> Emberstorm (2 AoE to all enemy units);
+3. Shatter -> second Flare Line;
+4. Shatter -> third Flame Lash.
+
+### Florestia candidates
+
+Florestia sits only 42% against Tempestade, so any further softening must preserve anti-air.
+
+Candidates remove interaction expected to be strong into Ironwood's larger units:
+
+1. Primal Recall -> third Canopy Warden;
+2. Primal Recall -> third Webweaver;
+3. Predator Pounce -> third Canopy Warden;
+4. Predator Pounce -> third Webweaver.
+
+This trades anti-Ironwood removal/tempo for Reach bodies that should protect the Tempestade matchup.
+
+### Round-3 grid
+
+- 8 individual candidates × 750 games;
+- top 2 Ember + top 2 Florestia;
+- four cross-family finalists × 3,000 games;
+- unchanged 3,000-game baseline control;
+- ~21,750 games.
+
+Promotion requires fewer than 2 criticals, zero replacement criticals and first-player within ±2pp.
