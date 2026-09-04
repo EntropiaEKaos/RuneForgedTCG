@@ -2,26 +2,19 @@ import { getCard } from "../src/game/cards";
 import { getDeck, validateDeck } from "../src/game/decks";
 
 type SlotRefinement =
-  | "heal_for_stalker"
-  | "heal_for_guard"
-  | "heal_for_sprite"
+  | "current_heal"
   | "heal_for_oracle"
   | "heal_for_hexer"
-  | "heal_for_drain"
-  | "heal_for_freeze";
+  | "heal_for_drain";
 
-const variant = (process.env.ECOS_RECOLLECTION_SLOT_VARIANT ?? "heal_for_stalker") as SlotRefinement;
+const variant = (process.env.ECOS_RECOLLECTION_SLOT_VARIANT ?? "current_heal") as SlotRefinement;
 const RECOLLECTION_ID = "rfalpha_reanimator_drowned_recollection";
 const STARTERS = ["ember_aggro", "tide_control", "wood_midrange", "void_shadow", "florestia_tribal", "tempestade_rush"] as const;
 
-const replacementTarget: Record<SlotRefinement, string> = {
-  heal_for_stalker: "void_stalker",
-  heal_for_guard: "tide_guard",
-  heal_for_sprite: "tide_sprite",
+const replacementTarget: Partial<Record<SlotRefinement, string>> = {
   heal_for_oracle: "tide_oracle",
   heal_for_hexer: "void_hexer",
   heal_for_drain: "void_drain",
-  heal_for_freeze: "tide_freeze",
 };
 
 async function main(): Promise<void> {
@@ -46,10 +39,13 @@ async function main(): Promise<void> {
   }
 
   const target = replacementTarget[variant];
-  if (!target) throw new Error(`Unknown Ecos slot refinement: ${variant}`);
-  const index = deck.cards.indexOf(target);
-  if (index < 0) throw new Error(`Variant ${variant} expected ${target} in the canonical recipe.`);
-  deck.cards.splice(index, 1, "tide_heal");
+  if (target) {
+    const index = deck.cards.indexOf(target);
+    if (index < 0) throw new Error(`Variant ${variant} expected ${target} in the canonical recipe.`);
+    deck.cards.splice(index, 1, "tide_heal");
+  } else if (variant !== "current_heal") {
+    throw new Error(`Unknown Ecos slot refinement: ${variant}`);
+  }
 
   if (deck.cards.length !== 40) {
     throw new Error(`Ecos slot refinement ${variant} must contain exactly 40 cards; got ${deck.cards.length}.`);
@@ -66,10 +62,10 @@ async function main(): Promise<void> {
 
   const recollectionCopies = deck.cards.filter((defId) => defId === RECOLLECTION_ID).length;
   const healCopies = deck.cards.filter((defId) => defId === "tide_heal").length;
-  const targetCopies = deck.cards.filter((defId) => defId === target).length;
-  if (recollectionCopies !== 1 || healCopies !== 2) {
+  const expectedHeals = variant === "current_heal" ? 1 : 2;
+  if (recollectionCopies !== 1 || healCopies !== expectedHeals) {
     throw new Error(
-      `Ecos slot refinement ${variant} recipe drift: Recordação=${recollectionCopies}, Soothing Tide=${healCopies}; expected 1/2.`,
+      `Ecos slot refinement ${variant} recipe drift: Recordação=${recollectionCopies}, Soothing Tide=${healCopies}; expected 1/${expectedHeals}.`,
     );
   }
 
@@ -81,7 +77,7 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `ECOS RECORDACAO DUPLICATE-SLOT REFINEMENT: ${variant} · replaced ${target} · remaining=${targetCopies} · cost2 · selfMill1 -> draw1 · Recordação=1x · Soothing Tide=2x`,
+    `ECOS ORDER-INVARIANT REFINEMENT: ${variant} · replaced=${target ?? "tide_heal"} · cost2 · selfMill1 -> draw1 · Recordação=1x · Soothing Tide=${healCopies}x`,
   );
   await import("./ecos-do-abismo-balance-audit");
 }
