@@ -1,4 +1,4 @@
-# Alpha Starter Balance 1.2 — Ironwood Focus
+# Alpha Starter Balance 1.2 — Matchup Redistribution
 
 ## Starting point
 
@@ -279,3 +279,79 @@ Promotion rules remain unchanged:
 - zero replacement critical pairs;
 - first-player within ±2pp of 50%;
 - exact canonical reproduction after promotion.
+
+
+## Round 4 result — promoted candidate
+
+Round 4 completed **21,750 games** with quality PASS and produced the first Balance 1.2 promotion-eligible recipes.
+
+Artifact:
+
+- ZIP SHA-256: `86639f7791e9b285d3f290449eef22178449ef7a0782d397a6fe05bdf5134524`;
+- JSON SHA-256: `76c943cc66c7be1838bc3105bfd400873b74dd2eaaddbc9a7d0f8d37e1754cf4`.
+
+Two finalists were eligible. The best was:
+
+`ember_shatter_wyrm_to_stun_rain__forest_pounce_moonsnare_to_web_shelter`
+
+Full 3,000-game result:
+
+- health score: **86**;
+- first-player: **51.7%**;
+- healthy: **8**;
+- watch: **6**;
+- critical: **1**;
+- new critical pairs: **0**.
+
+The repaired critical:
+
+- Ember × Ironwood: 68.5/31.5 -> **58/42**.
+
+Only residual critical:
+
+- Ironwood × Florestia: **36.5/63.5**.
+
+Important guardrails:
+
+- Ember × Tempestade: **40/60** — watch boundary, not critical;
+- Tide × Florestia: **41/59**;
+- Florestia × Tempestade: **48/52**.
+
+### Exact promoted recipe delta
+
+Emberhold:
+
+- `ember_shatter -> ember_stun`;
+- first `ember_tide_wyrm -> ember_rain`.
+
+Florestia:
+
+- first `forest_predator_pounce -> wood_webweaver`;
+- first `forest_moon_snare -> forest_pack_shelter`.
+
+The replacements were applied in the exact textual positions used by the deterministic `replaceFirst` screening harness.
+
+## Canonical 1.2 certification
+
+After promotion, the exploratory helper, grid script and grid workflow are removed from the branch.
+
+The final implementation contains:
+
+- the real recipe changes in `src/game/decks.ts`;
+- `src/game/alpha-starter-balance-1-2.test.ts` locking the exact 40-card arrays and order;
+- `.github/workflows/alpha-starter-balance-1-2.yml` running the canonical recipe through 3,000 games;
+- this evidence document;
+- behavioral taxonomy registration.
+
+The canonical gate fails closed unless:
+
+1. all 3,000 games complete;
+2. all 15 matchups complete;
+3. simulation quality passes;
+4. reaction coverage errors remain zero;
+5. health score remains at least 86;
+6. critical matchups remain at most 1;
+7. no critical pair exists outside Ironwood × Florestia;
+8. first-player rate remains within ±2 percentage points of 50%.
+
+The remaining Ironwood × Florestia critical is explicitly deferred to the next balance iteration. Balance 1.2 is not considered integrated until the same recipe also passes CI, Alpha evidence, Ecos 4k, four visual certs and post-merge certification on `main`.
