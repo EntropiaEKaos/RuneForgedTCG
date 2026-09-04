@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   grid:
-    name: Ember/Tide screening + four full finalists
+    name: Tempestade/Tide Round 2 + four full finalists
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     env:
