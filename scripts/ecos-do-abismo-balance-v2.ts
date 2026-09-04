@@ -1,44 +1,31 @@
 import { getCard } from "../src/game/cards";
 import { getDeck, validateDeck } from "../src/game/decks";
 
-type SelfMillRefinement = "two_mill1" | "one_mill2" | "one_mill1";
-
-const variant = (process.env.ECOS_SELF_MILL_VARIANT ?? "two_mill1") as SelfMillRefinement;
 const RECOLLECTION_ID = "rfalpha_reanimator_drowned_recollection";
 
 async function main(): Promise<void> {
   const deck = getDeck("ecos_do_abismo");
-  const recollection = getCard(RECOLLECTION_ID);
-  if (recollection.spell?.kind !== "selfMill") {
-    throw new Error("Recordação Submersa must remain a selfMill Spell.");
-  }
-
-  if (variant === "two_mill1") {
-    recollection.spell.amount = 1;
-  } else if (variant === "one_mill2" || variant === "one_mill1") {
-    const index = deck.cards.indexOf(RECOLLECTION_ID);
-    if (index < 0) throw new Error(`Variant ${variant} expected Recordação Submersa in the canonical deck.`);
-    deck.cards.splice(index, 1, "tide_heal");
-    recollection.spell.amount = variant === "one_mill1" ? 1 : 2;
-  } else {
-    throw new Error(`Unknown Ecos self-mill refinement: ${variant}`);
-  }
-
-  if (deck.cards.length !== 40) throw new Error(`Ecos refinement ${variant} must contain exactly 40 cards; got ${deck.cards.length}.`);
+  if (deck.cards.length !== 40) throw new Error(`Canonical Ecos do Abismo must contain exactly 40 cards; got ${deck.cards.length}.`);
 
   const validation = validateDeck(deck.cards);
-  if (!validation.ok) throw new Error(`Ecos refinement ${variant} is illegal: ${validation.errors.join(" | ")}`);
+  if (!validation.ok) throw new Error(`Canonical Ecos do Abismo is illegal: ${validation.errors.join(" | ")}`);
   if (validation.regions.length !== 2 || !validation.regions.includes("Tidecall") || !validation.regions.includes("Voidborn")) {
-    throw new Error(`Ecos refinement ${variant} must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
+    throw new Error(`Canonical Ecos do Abismo must remain Tidecall/Voidborn; got ${validation.regions.join(", ")}.`);
+  }
+
+  const recollection = getCard(RECOLLECTION_ID);
+  if (recollection.type !== "Spell" || recollection.spell?.kind !== "selfMill" || recollection.spell.amount !== 1) {
+    throw new Error("Ecos 1.1 requires Recordação Submersa to be a Spell with canonical selfMill 1.");
+  }
+  if (recollection.spell.also?.kind !== "draw" || recollection.spell.also.amount !== 1 || recollection.spell.also.target !== "none") {
+    throw new Error("Ecos 1.1 requires Recordação Submersa to chain exactly draw 1.");
   }
 
   const recollectionCopies = deck.cards.filter((defId) => defId === RECOLLECTION_ID).length;
   const healCopies = deck.cards.filter((defId) => defId === "tide_heal").length;
-  const expectedRecollectionCopies = variant === "two_mill1" ? 2 : 1;
-  const expectedHealCopies = variant === "two_mill1" ? 0 : 1;
-  if (recollectionCopies !== expectedRecollectionCopies || healCopies !== expectedHealCopies) {
+  if (recollectionCopies !== 1 || healCopies !== 1) {
     throw new Error(
-      `Ecos refinement ${variant} recipe drift: Recordação=${recollectionCopies}, Soothing Tide=${healCopies}.`,
+      `Ecos 1.1 canonical recipe requires Recordação=1 and Soothing Tide=1; got Recordação=${recollectionCopies}, Soothing Tide=${healCopies}.`,
     );
   }
 
@@ -49,9 +36,7 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log(
-    `ECOS SELF-MILL 1.1 REFINEMENT: ${variant} · Recordação=${recollectionCopies}x · selfMill=${recollection.spell.amount} · Soothing Tide=${healCopies}x`,
-  );
+  console.log("ECOS CANONICAL BALANCE 1.1: 4k · 1x Recordação Submersa selfMill 1 · 1x Soothing Tide · starters isolated");
   await import("./ecos-do-abismo-balance-audit");
 }
 
