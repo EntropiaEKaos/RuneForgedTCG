@@ -13,7 +13,7 @@ import {
 } from "../src/game/alpha-starter-balance";
 import {
   mergeBalanceSimulationTelemetry,
-  runBalanceSimulationWithTelemetry,
+  runStackAwareBalanceSimulationWithTelemetry,
   type DeckUtilizationTelemetry,
   type SimulationSummary,
 } from "../src/lib/balance-simulator";
@@ -203,7 +203,7 @@ let incompleteStrata = 0;
 for (const matchup of alphaStarterBalanceMatchups()) {
   const parts: SimulationSummary[] = [];
   for (let stratum = 0; stratum < strata; stratum += 1) {
-    const result = runBalanceSimulationWithTelemetry(
+    const result = runStackAwareBalanceSimulationWithTelemetry(
       matchup.leftId,
       matchup.rightId,
       gamesPerStratum,
@@ -228,6 +228,21 @@ const deckSummaries = Object.values(telemetry.decks)
 const expectedGamesPerDeck = (ALPHA_STARTER_IDS.length - 1) * gamesPerStratum * strata;
 const expectedPolicyGamesPerDeck = expectedGamesPerDeck / 2;
 const telemetryErrors: string[] = [];
+const reactionCoverageErrors: string[] = [];
+const reactionCoverage = deckSummaries.map((deck) => {
+  const trap = deck.semanticTypes.find((type) => type.semanticType === "Armadilha");
+  const seen = trap?.seen ?? 0;
+  const played = trap?.played ?? 0;
+  if (!trap) reactionCoverageErrors.push(`${deck.id}: missing Armadilha semantic telemetry`);
+  else if (seen <= 0) reactionCoverageErrors.push(`${deck.id}: starter Trap was never seen in the certified matrix`);
+  else if (played <= 0) reactionCoverageErrors.push(`${deck.id}: starter Trap was seen ${seen} times but never played`);
+  return {
+    deckId: deck.id,
+    seen,
+    played,
+    playRateWhenSeen: pct(played, seen),
+  };
+});
 for (const deck of deckSummaries) {
   if (deck.games !== expectedGamesPerDeck) telemetryErrors.push(`${deck.id}: expected ${expectedGamesPerDeck} games, found ${deck.games}`);
   if (deck.playerHeuristic.games !== expectedPolicyGamesPerDeck) {
@@ -251,6 +266,8 @@ const simulationQuality = {
   incompleteStrata,
   poolErrors,
   telemetryErrors,
+  reactionCoverageErrors,
+  reactionCoverage,
   stabilityMetric: "maximum absolute seed-stratum deviation from pooled matchup win rate",
   stabilityThreshold,
   stableMatchups: rows.length - unstable.length,
@@ -262,7 +279,8 @@ const simulationQuality = {
     incompleteMatchups.length === 0 &&
     incompleteStrata === 0 &&
     unstable.length === 0 &&
-    telemetryErrors.length === 0
+    telemetryErrors.length === 0 &&
+    reactionCoverageErrors.length === 0
       ? "pass"
       : "blocked",
 };
@@ -284,7 +302,7 @@ const releaseCandidateGate =
 const report = {
   version: ALPHA_STARTER_BALANCE_VERSION,
   methodology:
-    "six canonical Alpha starter recipes, unchanged; full 15-matchup round robin; deterministic independent seed strata; alternating policy side and first player; Wilson 95%; read-only utilization telemetry; simulation quality and balance health are separate gates",
+    "six canonical Alpha starter recipes, unchanged; full 15-matchup round robin; deterministic independent seed strata; alternating policy side and first player; authoritative stack-aware reactions; Wilson 95%; read-only utilization telemetry; Trap reaction coverage is fail-closed; simulation quality and balance health are separate gates",
   starterIds: ALPHA_STARTER_IDS,
   gamesPerStratum,
   strata,
@@ -327,6 +345,7 @@ const compact = {
   releaseCandidateGate: report.releaseCandidateGate,
   health: report.health,
   simulationQuality: report.simulationQuality,
+  reactionCoverage: report.simulationQuality.reactionCoverage,
   strongestDeck: report.strongestDeck,
   weakestDeck: report.weakestDeck,
   mostExtremeMatchup: report.mostExtremeMatchup,

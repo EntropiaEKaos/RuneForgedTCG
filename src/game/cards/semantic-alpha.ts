@@ -115,7 +115,7 @@ export const SEMANTIC_ALPHA_CARDS: Record<string, CardDef> = {
     archetypeKey: "trap",
     archetypeName: "Armadilha",
     cost: 3,
-    speed: "Fast",
+    speed: "Burst",
     spell: { kind: "negateSpell", amount: 0, target: "spellOnStack" },
     description: "Armadilha — somente como reação. Negue a ação na pilha, se ela puder ser anulada.",
     flavor: "A corrente mais perigosa é a que decide voltar.",

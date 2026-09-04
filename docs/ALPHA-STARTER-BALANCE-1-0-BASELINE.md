@@ -2,7 +2,7 @@
 
 ## Goal
 
-Establish a reproducible, evidence-backed balance baseline for the six canonical Alpha starter decks **without changing any card, stat, rule or deck recipe**.
+Establish a reproducible, evidence-backed balance baseline for the six canonical Alpha starter decks **without changing gameplay content inside this PR**. The matrix consumes the already-certified main branch, including Balance Simulator 2.0 reaction support and the Tidecall counter-Trap timing correction from PR #126.
 
 This is the first gameplay front after the original Flagship Art Set reached 30/30 certified masters.
 
@@ -23,7 +23,7 @@ Each starter must remain legal, contain exactly 40 cards and retain its three se
 
 ## Methodology
 
-The baseline reuses the existing authoritative Balance Simulator and its read-only utilization telemetry. No parallel combat implementation is introduced.
+The baseline uses the certified **stack-aware** Balance Simulator and its read-only utilization telemetry. Proactive hand actions travel through the same `aiChooseReaction()` + `applyStackedActionWithAi()` authority used by the live engine; no parallel combat or reaction implementation is introduced. Historical reaction-free simulator APIs remain untouched for old baselines.
 
 The evidence workflow runs:
 
@@ -46,7 +46,8 @@ Therefore the workflow initially enforces only the **simulation-quality gate**:
 - every requested game completed;
 - no pool/legality errors;
 - no telemetry accounting errors;
-- no matchup exceeding the certified seed-stratum instability threshold.
+- no matchup exceeding the certified seed-stratum instability threshold;
+- every starter's semantic **Armadilha** must be observed and must record at least one real reaction play in the full matrix.
 
 Balance findings are emitted independently and do not make the baseline workflow fail.
 
@@ -85,6 +86,12 @@ The same run records read-only telemetry for each starter and card, including:
 
 This is used to distinguish **power imbalance** from **utilization friction** before changing content.
 
+### Reaction-coverage correction
+
+The first refreshed 3,000-game artifact was deliberately **not promoted** after inspection showed all six starter Traps at zero plays despite 2,318 combined appearances. The historical simulator only advanced main/blocking decisions and therefore omitted reaction-stack value.
+
+PR #126 introduced an opt-in stack-aware balance mode and certified all six starter Traps. This baseline now consumes that mode and fails closed if a starter Trap is seen but never played, so the same blind spot cannot be silently promoted again.
+
 ## Decision order after baseline
 
 1. Certify the 3,000-game unchanged baseline.
@@ -101,6 +108,6 @@ This slice does not change:
 
 - any starter deck recipe;
 - any CardDef stats, costs, keywords or effects;
-- engine rules or AI policy;
+- engine rules or AI policy inside this PR (reaction support is inherited from already-certified main);
 - Ranked, matchmaking, persistence, economy or payments;
 - the Alpha Visual Feature Freeze surfaces.

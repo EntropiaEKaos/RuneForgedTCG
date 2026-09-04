@@ -1,5 +1,6 @@
 import {
   createCustomGame,
+  applyStackedActionWithAi,
   resolveCombat,
   canPlayCard,
   canDeclareAttack,
@@ -12,7 +13,7 @@ import {
   isValidTarget,
   type CardAction,
 } from "@/game/engine";
-import { aiChooseAction, aiChooseSentinelaAction, applyAiAction, aiResolveTurnEnd } from "@/game/ai";
+import { aiChooseAction, aiChooseReaction, aiChooseSentinelaAction, applyAiAction, aiResolveTurnEnd } from "@/game/ai";
 import { getCard } from "@/game/cards";
 import { getDeck } from "@/game/decks";
 import { semanticCardTypeLabel } from "@/game/semantic-card-types";
@@ -127,10 +128,16 @@ export type TelemetrySimulationResult = {
 
 type DecisionKind = "cardPlay" | "activation" | "attack" | "endTurn" | "noOp";
 
+type ReactionRecord = {
+  playerId: PlayerId;
+  action: CardAction;
+};
+
 type DecisionResult = {
   next: GameState;
   kind: DecisionKind;
   action?: CardAction;
+  reactions?: ReactionRecord[];
 };
 
 type SeenContext = {
@@ -371,6 +378,57 @@ function playOneForPlayer(state: GameState): GameState {
   return playOneForPlayerDetailed(state).next;
 }
 
+function playOneForPlayerStackAwareDetailed(state: GameState): DecisionResult {
+  const sentinelAction = aiChooseSentinelaAction(state, "player");
+  if (sentinelAction) {
+    const next = applyAiAction(state, sentinelAction, "player");
+    return { next, kind: next === state ? "noOp" : "activation", action: sentinelAction };
+  }
+
+  const p = state.players.player;
+  const playable = p.hand
+    .filter((card) => canPlayCard(state, "player", card.instanceId))
+    .sort((a, b) => getCard(b.defId).cost - getCard(a.defId).cost);
+
+  for (const card of playable) {
+    const def = getCard(card.defId);
+    let action: CardAction | undefined;
+
+    if (def.type === "Unit" || def.type === "Enchantment" || def.type === "Artifact" || def.type === "Sentinela") {
+      action = { kind: "unit", instanceId: card.instanceId, defId: card.defId };
+    } else if (def.type === "Equipment") {
+      const target = [...p.bench].filter((unit) => unit.equipment.length < 2).sort((a, b) => b.power - a.power)[0];
+      if (!target) continue;
+      action = { kind: "unit", instanceId: card.instanceId, defId: card.defId, targetInstanceId: target.instanceId };
+    } else if (def.type === "Spell") {
+      const needs = spellNeedsTarget(card.defId);
+      if (!needs || needs === "none" || needs === "self") {
+        action = { kind: "spell", instanceId: card.instanceId, defId: card.defId };
+      } else if (needs === "enemyUnit" || needs === "anyUnit") {
+        const target = state.players.ai.bench.slice().sort((a, b) => b.power - a.power)[0];
+        if (!target) continue;
+        action = { kind: "spell", instanceId: card.instanceId, defId: card.defId, targetInstanceId: target.instanceId };
+      } else if (needs === "allyUnit") {
+        const target = p.bench.slice().sort((a, b) => b.power - a.power)[0];
+        if (!target) continue;
+        action = { kind: "spell", instanceId: card.instanceId, defId: card.defId, targetInstanceId: target.instanceId };
+      }
+    }
+
+    if (!action) continue;
+    const applied = applyStackAwareCardAction(state, action, "player");
+    if (applied.next !== state) {
+      return { next: applied.next, kind: "cardPlay", action, reactions: applied.reactions };
+    }
+  }
+
+  if (canDeclareAttack(state, "player")) {
+    const ids = p.bench.filter((unit) => !unit.stunned && !unit.summonedThisTurn).map((unit) => unit.instanceId);
+    if (ids.length) return { next: declareAttack(state, "player", ids, {}), kind: "attack" };
+  }
+  return { next: endTurn(state, "player"), kind: "endTurn" };
+}
+
 function playOneForAiDetailed(state: GameState): DecisionResult {
   const action = aiChooseAction(state);
   if (action) {
@@ -383,8 +441,69 @@ function playOneForAiDetailed(state: GameState): DecisionResult {
   return { next, kind: attacked ? "attack" : "endTurn" };
 }
 
+function playOneForAiStackAwareDetailed(state: GameState): DecisionResult {
+  const action = aiChooseAction(state, "ai");
+  if (action) {
+    const fromHand = state.players.ai.hand.some((card) => card.instanceId === action.instanceId);
+    if (!fromHand || action.kind === "sentinela") {
+      const next = applyAiAction(state, action, "ai");
+      return { next, kind: next === state ? "noOp" : fromHand ? "cardPlay" : "activation", action };
+    }
+    const applied = applyStackAwareCardAction(state, action, "ai");
+    return {
+      next: applied.next,
+      kind: applied.next === state ? "noOp" : "cardPlay",
+      action,
+      reactions: applied.reactions,
+    };
+  }
+  const next = aiResolveTurnEnd(state, "ai");
+  const attacked = next.phase === "blocking" || (next.combat !== undefined && next.combat !== state.combat);
+  return { next, kind: attacked ? "attack" : "endTurn" };
+}
+
 function other(playerId: PlayerId): PlayerId {
   return playerId === "player" ? "ai" : "player";
+}
+
+function applyStackAwareCardAction(
+  state: GameState,
+  action: CardAction,
+  playerId: PlayerId,
+): { next: GameState; reactions: ReactionRecord[] } {
+  const pending: CardAction = { ...action, player: playerId };
+  const responder = other(playerId);
+
+  if (responder === "player") {
+    const response = aiChooseReaction(state, pending, "player");
+    const result = applyStackedActionWithAi(
+      state,
+      pending,
+      response ? "react" : "skip",
+      response,
+      (current, pendingAction) => aiChooseReaction(current, pendingAction, "ai"),
+    );
+    return {
+      next: result.next,
+      reactions: response ? [{ playerId: "player", action: response }] : [],
+    };
+  }
+
+  let chosenAiResponse: CardAction | null = null;
+  const result = applyStackedActionWithAi(
+    state,
+    pending,
+    "skip",
+    null,
+    (current, pendingAction) => {
+      chosenAiResponse = aiChooseReaction(current, pendingAction, "ai");
+      return chosenAiResponse;
+    },
+  );
+  return {
+    next: result.next,
+    reactions: chosenAiResponse ? [{ playerId: "ai", action: chosenAiResponse }] : [],
+  };
 }
 
 function legalMainTargetExists(state: GameState, playerId: PlayerId, defId: string): boolean {
@@ -522,6 +641,36 @@ function recordDecisionOutcome(
   }
 }
 
+function recordReactionOutcome(
+  runtime: TelemetryRuntime,
+  before: GameState,
+  after: GameState,
+  playerId: PlayerId,
+  deckId: string,
+  policy: BalanceSimulationPolicy,
+  action: CardAction,
+): void {
+  const deckTelemetry = runtime.report.decks[deckId];
+  const policyTelemetry = deckTelemetry.policies[policy];
+
+  if (action.kind === "sentinela") {
+    policyTelemetry.activations += 1;
+    return;
+  }
+
+  const handCard = before.players[playerId].hand.find((card) => card.instanceId === action.instanceId);
+  if (!handCard) return;
+  recordSeen(runtime, deckId, handCard.defId, handCard.instanceId, false);
+
+  policyTelemetry.cardPlays += 1;
+  deckTelemetry.cardsPlayed += 1;
+  incrementBoth(deckTelemetry, handCard.defId, "played");
+  const def = getCard(handCard.defId);
+  deckTelemetry.printedCostPlayed += def.cost;
+  deckTelemetry.manaSpentOnCardPlays += Math.max(0, before.players[playerId].mana - after.players[playerId].mana);
+  deckTelemetry.spellManaSpentOnCardPlays += Math.max(0, before.players[playerId].spellMana - after.players[playerId].spellMana);
+}
+
 function recordFinalState(
   runtime: TelemetryRuntime,
   state: GameState,
@@ -551,6 +700,7 @@ function runSimulationCore(
   seed: number,
   overrides?: Record<string, DeckInput>,
   withTelemetry = false,
+  stackAwareReactions = false,
 ): TelemetrySimulationResult {
   const count=Math.min(Math.max(Math.floor(games),1),5000);const rounds:number[]=[];let winsA=0,winsB=0,draws=0,firstPlayerWins=0,secondPlayerWins=0;
   const a=deck(deckAId, overrides), b=deck(deckBId, overrides);
@@ -581,16 +731,34 @@ function runSimulationCore(
       if(state.activePlayer==="ai"&&state.phase==="main"){
         const before=state;
         const playable = withTelemetry ? observeDecision(runtime,before,"ai",opponentDeck.id,"ai-core") : [];
-        const result=playOneForAiDetailed(before);
+        const result=stackAwareReactions?playOneForAiStackAwareDetailed(before):playOneForAiDetailed(before);
         state=result.next;
-        if(withTelemetry)recordDecisionOutcome(runtime,before,state,"ai",opponentDeck.id,"ai-core",result,playable);
+        if(withTelemetry){
+          recordDecisionOutcome(runtime,before,state,"ai",opponentDeck.id,"ai-core",result,playable);
+          for(const reaction of result.reactions??[]){
+            const reactionDeckId=reaction.playerId==="player"?playerDeck.id:opponentDeck.id;
+            const reactionPolicy:BalanceSimulationPolicy=reaction.playerId==="player"?"player-heuristic":"ai-core";
+            recordReactionOutcome(runtime,before,state,reaction.playerId,reactionDeckId,reactionPolicy,reaction.action);
+          }
+        }
       }
       else if(state.activePlayer==="player"&&state.phase==="main"){
         const before=state;
         const playable = withTelemetry ? observeDecision(runtime,before,"player",playerDeck.id,"player-heuristic") : [];
-        const result=withTelemetry?playOneForPlayerDetailed(before):{next:playOneForPlayer(before),kind:"noOp" as DecisionKind};
+        const result=stackAwareReactions
+          ? playOneForPlayerStackAwareDetailed(before)
+          : withTelemetry
+            ? playOneForPlayerDetailed(before)
+            : {next:playOneForPlayer(before),kind:"noOp" as DecisionKind};
         state=result.next;
-        if(withTelemetry)recordDecisionOutcome(runtime,before,state,"player",playerDeck.id,"player-heuristic",result,playable);
+        if(withTelemetry){
+          recordDecisionOutcome(runtime,before,state,"player",playerDeck.id,"player-heuristic",result,playable);
+          for(const reaction of result.reactions??[]){
+            const reactionDeckId=reaction.playerId==="player"?playerDeck.id:opponentDeck.id;
+            const reactionPolicy:BalanceSimulationPolicy=reaction.playerId==="player"?"player-heuristic":"ai-core";
+            recordReactionOutcome(runtime,before,state,reaction.playerId,reactionDeckId,reactionPolicy,reaction.action);
+          }
+        }
       }
     }
     // Alternate which deck occupies the human-side heuristic so that policy asymmetry is averaged out.
@@ -618,10 +786,10 @@ function runSimulationCore(
 
 /** Historical balance API. Telemetry is opt-in so Ranked and existing audits retain the exact public contract. */
 export function runBalanceSimulation(deckAId: string, deckBId: string, games: number, seed: number, overrides?: Record<string, DeckInput>): SimulationSummary {
-  return runSimulationCore(deckAId,deckBId,games,seed,overrides,false).summary;
+  return runSimulationCore(deckAId,deckBId,games,seed,overrides,false,false).summary;
 }
 
-/** Runs the same deterministic simulation while collecting read-only utilization observations. */
+/** Runs the same historical deterministic simulation while collecting read-only utilization observations. */
 export function runBalanceSimulationWithTelemetry(
   deckAId: string,
   deckBId: string,
@@ -629,5 +797,31 @@ export function runBalanceSimulationWithTelemetry(
   seed: number,
   overrides?: Record<string, DeckInput>,
 ): TelemetrySimulationResult {
-  return runSimulationCore(deckAId,deckBId,games,seed,overrides,true);
+  return runSimulationCore(deckAId,deckBId,games,seed,overrides,true,false);
+}
+
+/**
+ * Opt-in stack-aware balance mode. Proactive hand actions travel through the
+ * certified reaction stack so Traps, counters and reaction abilities can
+ * participate without changing the historical simulator contract.
+ */
+export function runStackAwareBalanceSimulation(
+  deckAId: string,
+  deckBId: string,
+  games: number,
+  seed: number,
+  overrides?: Record<string, DeckInput>,
+): SimulationSummary {
+  return runSimulationCore(deckAId,deckBId,games,seed,overrides,false,true).summary;
+}
+
+/** Stack-aware simulation with the same read-only telemetry contract. */
+export function runStackAwareBalanceSimulationWithTelemetry(
+  deckAId: string,
+  deckBId: string,
+  games: number,
+  seed: number,
+  overrides?: Record<string, DeckInput>,
+): TelemetrySimulationResult {
+  return runSimulationCore(deckAId,deckBId,games,seed,overrides,true,true);
 }

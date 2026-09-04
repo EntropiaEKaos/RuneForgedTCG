@@ -10,8 +10,8 @@ import {
   validateAlphaStarterBalancePool,
 } from "./alpha-starter-balance";
 import {
-  runBalanceSimulation,
-  runBalanceSimulationWithTelemetry,
+  runStackAwareBalanceSimulation,
+  runStackAwareBalanceSimulationWithTelemetry,
 } from "../lib/balance-simulator";
 
 assert.deepEqual(validateAlphaStarterBalancePool(), [], "Alpha starter balance pool must be structurally valid");
@@ -43,17 +43,17 @@ for (const matchup of matchups) {
 
 const probe = matchups[0];
 const seed = alphaStarterBalanceSeed(probe, 0);
-const plain = runBalanceSimulation(probe.leftId, probe.rightId, 4, seed);
-const instrumented = runBalanceSimulationWithTelemetry(probe.leftId, probe.rightId, 4, seed);
+const plain = runStackAwareBalanceSimulation(probe.leftId, probe.rightId, 4, seed);
+const instrumented = runStackAwareBalanceSimulationWithTelemetry(probe.leftId, probe.rightId, 4, seed);
 assert.deepEqual(
   instrumented.summary,
   plain,
-  "read-only starter utilization telemetry must never change deterministic simulation results",
+  "read-only stack-aware starter telemetry must never change deterministic simulation results",
 );
 assert.equal(instrumented.summary.completedGames, 4, "starter baseline probe must complete every requested game");
 assert.equal(instrumented.telemetry.decks[probe.leftId]?.games, 4, "left starter telemetry must account for all probe games");
 assert.equal(instrumented.telemetry.decks[probe.rightId]?.games, 4, "right starter telemetry must account for all probe games");
 
 console.log(
-  "ALPHA STARTER BALANCE 1.0 CONTRACT: PASS — 6 starters · 15 matchups · 8 deterministic seed strata · telemetry non-interference certified",
+  "ALPHA STARTER BALANCE 1.0 CONTRACT: PASS — 6 starters · 15 matchups · 8 deterministic seed strata · stack-aware reactions · telemetry non-interference certified",
 );
