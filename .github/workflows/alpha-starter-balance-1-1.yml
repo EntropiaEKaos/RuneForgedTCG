@@ -58,7 +58,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Certify promoted recipe contract
+      - name: Certify historical 1.1 snapshot + active compatibility
         run: node --import tsx src/game/alpha-starter-balance-1-1.test.ts
 
       - name: Run canonical 3,000-game matrix
