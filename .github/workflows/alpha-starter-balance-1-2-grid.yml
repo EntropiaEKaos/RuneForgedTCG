@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "src/game/decks.ts"
       - "src/game/alpha-starter-balance-1-2.ts"
       - "src/game/alpha-starter-balance-1-2.test.ts"
       - "scripts/alpha-starter-balance-1-2-grid.ts"
