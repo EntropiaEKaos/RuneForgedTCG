@@ -62,7 +62,7 @@ export const DECKS: DeckDef[] = [
       "tide_bladedancer", "tide_cloudpiercer",
       "tide_freeze", "tide_freeze",
       "tide_draw", "rfalpha_tide_ritual_memory_tide",
-      "tide_heal", "tide_heal",
+      "rfalpha_reanimator_drowned_recollection", "rfalpha_reanimator_drowned_recollection",
       "tide_shield", "tide_shield",
       "tide_caller", "tide_caller",
       "tide_wood_chorus", "tide_wood_chorus",
