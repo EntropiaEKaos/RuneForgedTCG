@@ -94,3 +94,74 @@ changed until a 3,000-game finalist is promotion-eligible.
 
 If no candidate qualifies, Round 1 is rejected and 1.3 pivots without forcing
 a recipe change.
+
+
+## Round 1 result — promoted candidate
+
+Round 1 completed **21,750 games** with quality PASS.
+
+Evidence artifact:
+
+- workflow: Alpha Starter Balance 1.3 Matchup Grid #1;
+- artifact ZIP SHA-256: `b01d50e2b160e1d82de805a1931f46dad33e163502b2f323f58284a38c221281`.
+
+Exactly one 3,000-game finalist was promotion-eligible:
+
+`forest_recall_thornfang_to_canopy_spirit`
+
+Exact recipe delta:
+
+- first `forest_primal_recall -> forest_canopy_warden`;
+- first `forest_thornfang -> forest_spirit_guide`.
+
+Full finalist result:
+
+- health score: **89** (baseline 86);
+- first-player: **51.3%**;
+- healthy: **8**;
+- watch: **7**;
+- critical: **0**;
+- new critical pairs: **0**.
+
+Target repair:
+
+- Ironwood × Florestia: **36.5/63.5 -> 40/60**.
+
+Key guardrails:
+
+- Ember × Ironwood: **58/42** — unchanged;
+- Tide × Florestia: **42.5/57.5**;
+- Void × Florestia: **49/51**;
+- Ember × Florestia: **50.5/49.5**;
+- Florestia × Tempestade: **49.5/50.5**.
+
+The promotion therefore removes the final critical matchup without replacing it
+elsewhere.
+
+## Canonical 1.3 certification
+
+After promotion, exploratory candidate/grid source and the grid workflow are
+removed from the branch.
+
+The final implementation contains:
+
+- the real recipe delta in `src/game/decks.ts`;
+- `src/game/alpha-starter-balance-1-3.test.ts` locking the exact active recipe;
+- the 1.2 test converted to a historical snapshot for forward compatibility;
+- `.github/workflows/alpha-starter-balance-1-3.yml` running the canonical
+  3,000-game matrix;
+- this evidence document.
+
+The canonical gate fails closed unless:
+
+1. all 3,000 games complete;
+2. all 15 matchups complete;
+3. simulation quality passes;
+4. reaction coverage errors remain zero;
+5. health score remains at least 89;
+6. critical matchup count is exactly zero;
+7. first-player remains within ±2 percentage points of 50%.
+
+Balance 1.3 is not integrated until CI, Alpha evidence, the historical 1.1/1.2
+compatibility gates, the four visual certs and post-merge certification all pass
+on the exact promoted recipe.
