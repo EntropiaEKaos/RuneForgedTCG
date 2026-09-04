@@ -291,14 +291,11 @@ The strongest candidate changes three slots, but no CardDef, rule or semantic te
 
 Promotion still requires fewer than three critical matchups in the full 3,000-game finalist matrix. Health-score improvement alone is not enough.
 
-## Files
+## Exploration implementation lifecycle
 
-- `src/game/alpha-starter-balance-1-1.ts` — candidate definitions;
-- `src/game/alpha-starter-balance-1-1.test.ts` — legality/slot-locality contract;
-- `scripts/alpha-starter-balance-recipe-grid.ts` — two-stage deterministic grid;
-- `.github/workflows/alpha-starter-balance-recipe-grid.yml` — grid workflow;
-- this document.
+The candidate helper, two-stage grid script and exploratory grid workflow existed only while Rounds 1–4 were being measured. They were deliberately removed after promotion so the merge diff contains no dormant experimental execution path.
 
+Historical methodology and artifact hashes remain documented here; the final branch keeps only the canonical recipe, canonical test and canonical 3k gate.
 
 ## Round 4 result — promoted candidate
 
