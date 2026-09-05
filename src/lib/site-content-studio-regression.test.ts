@@ -27,8 +27,8 @@ for (const resource of SITE_CONTENT_RESOURCES) {
 assert.match(studio, /expectedVersion: editor\.version/);
 assert.match(studio, /response\.status === 409/);
 assert.match(studio, /Reload server version/);
-assert.match(studio, /\/publish/);
-assert.match(studio, /\/archive/);
+assert.match(studio, /action: "publish" \| "archive"/);
+assert.match(studio, /\$\{action\}/);
 assert.match(studio, /\/rollback\//);
 assert.match(studio, /Immutable version history/);
 assert.match(studio, /previously published version remains live/);
