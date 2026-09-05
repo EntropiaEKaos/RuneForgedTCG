@@ -227,8 +227,11 @@ The branch adds:
 - behavioral policy coverage in `src/lib/site-content.test.ts`;
 - source/authority coverage in `src/lib/site-content-api-regression.test.ts`;
 - central API contract coverage;
+- PostgreSQL runtime certification after an idempotent `db:upgrade`;
 - fresh schema parity;
 - semantic schema parity;
 - bootstrap/upgrade inclusion.
+
+The PostgreSQL runtime cert verifies the required CHECK/FK constraints, all CMS indexes, advisory-lock serialization, UNIQUE/CHECK enforcement and history cascade on a real PostgreSQL 17 service.
 
 The CMS is not considered integrated until the full RuneForge CI and post-merge certification are green.
