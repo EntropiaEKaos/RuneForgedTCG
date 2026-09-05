@@ -495,6 +495,14 @@ async function main() {
     await navigate(host.cdp, "/pvp");
     await waitForText(host.cdp, "PvP casual", 20_000);
     await waitForText(host.cdp, hostName, 20_000);
+    await waitUntil(
+      () => evaluate(
+        host.cdp,
+        `Boolean([...document.querySelectorAll('button')].find((button) => (button.textContent || '').includes('Criar nova sala') && !button.disabled))`,
+      ),
+      "enabled create-room control",
+      20_000,
+    );
     await clickText(host.cdp, "Criar nova sala");
     const roomCode = await waitUntil(() => evaluate(host.cdp, `([...document.querySelectorAll('h2')].map((node) => (node.textContent || '').trim()).find((text) => /^[A-Z2-9]{6}$/.test(text)) || '')`), "host authoritative room code rendered in lobby", 20_000);
     assert.match(roomCode, /^[A-Z2-9]{6}$/);
