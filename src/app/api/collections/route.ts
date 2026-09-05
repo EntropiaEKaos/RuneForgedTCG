@@ -48,8 +48,15 @@ export async function GET() {
         cardCount: publicCounts.get(c.key) ?? 0,
         metadata: c.metadata,
       })),
+    }, {
+      headers: {
+        "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+      },
     });
   } catch {
-    return Response.json({ ok: true, collections: [] });
+    return Response.json({ ok: false, error: "Public collections unavailable" }, {
+      status: 500,
+      headers: { "Cache-Control": "no-store" },
+    });
   }
 }
