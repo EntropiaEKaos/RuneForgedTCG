@@ -2,7 +2,7 @@ import "server-only";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { siteContent, siteContentVersions } from "@/db/schema";
-import { isPlainRecord, type SiteContentResource } from "./site-content";
+import { isPlainRecord, resolveSitePublicSource, type SiteContentResource } from "./site-content";
 
 export type PublishedSiteContentView = {
   slug: string;
@@ -72,8 +72,9 @@ export async function readPublishedSiteContentItem(
     eq(siteContent.locale, locale),
   )).limit(1);
 
-  if (!current || current.status === "archived") return null;
-  if (current.status === "published") return fromCurrent(current);
+  if (!current) return null;
+  if (resolveSitePublicSource(current.status, null) === "current") return fromCurrent(current);
+  if (current.status === "archived") return null;
 
   const [lifecycle] = await db.select({
     version: siteContentVersions.version,
@@ -85,7 +86,9 @@ export async function readPublishedSiteContentItem(
     inArray(siteContentVersions.status, ["published", "archived"]),
   )).orderBy(desc(siteContentVersions.version)).limit(1);
 
-  return lifecycle ? fromPublishedVersion(current, lifecycle) : null;
+  return resolveSitePublicSource(current.status, lifecycle?.status) === "history" && lifecycle
+    ? fromPublishedVersion(current, lifecycle)
+    : null;
 }
 
 export async function listPublishedSiteContent(
@@ -121,13 +124,13 @@ export async function listPublishedSiteContent(
 
   const items: PublishedSiteContentView[] = [];
   for (const current of currentRows) {
-    if (current.status === "archived") continue;
-    if (current.status === "published") {
+    const lifecycle = latestLifecycle.get(current.id);
+    const source = resolveSitePublicSource(current.status, lifecycle?.status);
+    if (source === "current") {
       items.push(fromCurrent(current));
       continue;
     }
-    const lifecycle = latestLifecycle.get(current.id);
-    if (!lifecycle || lifecycle.status !== "published") continue;
+    if (source !== "history" || !lifecycle) continue;
     const view = fromPublishedVersion(current, lifecycle);
     if (view) items.push(view);
   }
