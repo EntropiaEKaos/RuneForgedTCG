@@ -51,3 +51,14 @@ A database/runtime failure is **not** converted into an empty public archive. It
 Successful collection responses use `public, max-age=60, stale-while-revalidate=300`.
 
 This allows SiteRuneForged to distinguish “nothing is published” from “the source of truth is temporarily unavailable”.
+
+
+## Public metadata allowlist
+
+`adminCollections.metadata` is an authoring/control-plane JSON object and is not returned wholesale by the public endpoint.
+
+The only currently supported public metadata field is:
+
+- `accentColor` — accepted only as a six-digit hex color (`#RRGGBB`).
+
+This preserves the existing public Collections showcase styling without exposing arbitrary future Studio metadata fields.
