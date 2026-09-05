@@ -10,6 +10,7 @@ const playerSession = read("src/lib/player-session.ts");
 const siteAdmin = read("src/app/api/admin/site/[resource]/[slug]/route.ts");
 const sitePublic = read("src/app/api/public/site/[resource]/[slug]/route.ts");
 const sitePublish = read("src/app/api/admin/site/[resource]/[slug]/publish/route.ts");
+const publicCards = read("src/app/api/public/game/cards/route.ts");
 
 assert.match(proxy, /requestOriginAllowed/);
 assert.match(proxy, /x-request-id/);
@@ -29,5 +30,8 @@ assert.match(siteAdmin, /parseExpectedSiteVersion/);
 assert.match(siteAdmin, /pg_advisory_xact_lock/);
 assert.match(sitePublish, /canPublishSiteContent/);
 assert.match(sitePublic, /site-content-public/);
+assert.match(publicCards, /toPublicCardDto/);
+assert.match(publicCards, /getCardCollection/);
+assert.doesNotMatch(publicCards, /isAdminAuthorized|unauthorized/);
 
 console.log("API CONTRACT REGRESSION: PASS");
