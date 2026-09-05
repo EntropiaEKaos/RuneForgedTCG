@@ -63,6 +63,15 @@ export function isPlainRecord(value: unknown): value is Record<string, unknown> 
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+export const SITE_CONTENT_PAYLOAD_MAX_BYTES = 256 * 1024;
+export const SITE_CONTENT_SEO_MAX_BYTES = 64 * 1024;
+
+export function validateSiteDocument(value: unknown, maxBytes: number, label: string) {
+  if (!isPlainRecord(value)) return `${label} must be an object`;
+  const bytes = Buffer.byteLength(JSON.stringify(value), "utf8");
+  return bytes <= maxBytes ? null : `${label} exceeds ${maxBytes} bytes`;
+}
+
 export function sanitizeSiteChangeNote(value: unknown, fallback = "") {
   return typeof value === "string" ? value.trim().slice(0, 500) : fallback;
 }
