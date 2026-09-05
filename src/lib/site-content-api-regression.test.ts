@@ -44,10 +44,10 @@ for (const source of [publicList, publicItem]) {
 
 assert.match(publicContinuity, /current\.status === "archived"/);
 assert.match(publicContinuity, /current\.status === "published"/);
-assert.match(publicContinuity, /eq\(siteContentVersions\.status, "published"\)/);
+assert.match(publicContinuity, /inArray\(siteContentVersions\.status, \["published", "archived"\]\)/);
 assert.match(publicContinuity, /orderBy\(desc\(siteContentVersions\.version\)\)/);
-assert.match(publicContinuity, /latestPublished/);
-assert.doesNotMatch(publicContinuity, /siteContentVersions\.actor|siteContentVersions\.changeNote/);
+assert.match(publicContinuity, /latestLifecycle/);
+assert.match(publicContinuity, /lifecycle\.status !== "published"/);\nassert.doesNotMatch(publicContinuity, /siteContentVersions\.actor|siteContentVersions\.changeNote/);
 
 assert.match(policy, /SITE_CONTENT_RESOURCES/);
 assert.match(policy, /canEditSiteContent/);
