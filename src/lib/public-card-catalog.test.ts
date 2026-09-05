@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { CardDef } from "@/game/types";
-import { queryPublicCardCatalog, toPublicCardDto, type PublicCardDto } from "./public-card-catalog";
+import { countPublicCardsByCollection, queryPublicCardCatalog, toPublicCardDto, type PublicCardDto } from "./public-card-catalog";
 
 const collection = { key: "vanilla", code: "VAN", name: "Vanilla", symbol: "/vanilla.png" };
 
@@ -87,4 +87,11 @@ const bounded = queryPublicCardCatalog([second, dto], { pageSize: 1000, page: 99
 assert.equal(bounded.pageSize, 100);
 assert.equal(bounded.page, 1);
 
-console.log("PUBLIC CARD CATALOG: PASS — safe DTO · semantic type · fail-closed collection · filters · facets · pagination");
+const collectionCounts = countPublicCardsByCollection(
+  [source, { ...source, defId: "public_fixture_2", name: "Second Public Fixture" }],
+  (defId) => defId === "public_fixture_2" ? null : collection,
+);
+assert.equal(collectionCounts.get("vanilla"), 1, "collection counts must use the same fail-closed public identity boundary");
+assert.equal(collectionCounts.size, 1);
+
+console.log("PUBLIC CARD CATALOG: PASS — safe DTO · semantic type · fail-closed collection · filters · facets · pagination · collection counts");
