@@ -13,7 +13,7 @@ Current post-2.96 code-authored waves include at least:
 - 18 Semantic Alpha cards;
 - 10 Ecos do Abismo cards.
 
-This creates a current public base floor of at least 457 collectible definitions.
+This brings the current code-authored base-definition floor to at least 457. Some historical base definitions are intentionally `collectible: false`, so the public collectible total is lower; the endpoint must count the actual collectible projection rather than either raw definition count or metadata rows.
 
 ## Fix
 
@@ -32,8 +32,8 @@ This keeps collection card counts consistent with `/api/public/game/cards?collec
 Behavioral coverage verifies:
 
 - cards without public collection identity are not counted;
-- current code-authored base cards remain included in canonical Vanilla;
-- the current public base floor does not regress below 457.
+- all 18 Semantic Alpha and 10 Ecos do Abismo cards remain collectible and flow into the public collection projection;
+- the complete code-authored definition floor remains at least 457, while noncollectible definitions are correctly excluded from public counts.
 
 Source-contract coverage prevents `/api/collections` from returning to a metadata-only `card_catalog_meta count(*)` implementation.
 
