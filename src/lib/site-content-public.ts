@@ -13,6 +13,16 @@ export type PublishedSiteContentView = {
   publishedAt: Date | null;
 };
 
+type PublishedSnapshot = {
+  version: number;
+  snapshot: unknown;
+  createdAt: Date;
+};
+
+type ListedPublishedSnapshot = PublishedSnapshot & {
+  contentId: number;
+};
+
 function fromCurrent(item: typeof siteContent.$inferSelect): PublishedSiteContentView {
   return {
     slug: item.slug,
@@ -26,7 +36,7 @@ function fromCurrent(item: typeof siteContent.$inferSelect): PublishedSiteConten
 
 function fromPublishedVersion(
   item: typeof siteContent.$inferSelect,
-  version: typeof siteContentVersions.$inferSelect,
+  version: PublishedSnapshot,
 ): PublishedSiteContentView | null {
   const snapshot = isPlainRecord(version.snapshot) ? version.snapshot : {};
   const payload = isPlainRecord(snapshot.payload) ? snapshot.payload : null;
@@ -63,7 +73,11 @@ export async function readPublishedSiteContentItem(
   if (!current || current.status === "archived") return null;
   if (current.status === "published") return fromCurrent(current);
 
-  const [published] = await db.select().from(siteContentVersions).where(and(
+  const [published] = await db.select({
+    version: siteContentVersions.version,
+    snapshot: siteContentVersions.snapshot,
+    createdAt: siteContentVersions.createdAt,
+  }).from(siteContentVersions).where(and(
     eq(siteContentVersions.contentId, current.id),
     eq(siteContentVersions.status, "published"),
   )).orderBy(desc(siteContentVersions.version)).limit(1);
@@ -82,15 +96,11 @@ export async function listPublishedSiteContent(
 
   if (!currentRows.length) return [];
 
-  const publishedVersions = await db.select({
+  const publishedVersions: ListedPublishedSnapshot[] = await db.select({
     contentId: siteContentVersions.contentId,
     version: siteContentVersions.version,
-    status: siteContentVersions.status,
     snapshot: siteContentVersions.snapshot,
-    actor: siteContentVersions.actor,
-    changeNote: siteContentVersions.changeNote,
     createdAt: siteContentVersions.createdAt,
-    id: siteContentVersions.id,
   }).from(siteContentVersions)
     .innerJoin(siteContent, eq(siteContentVersions.contentId, siteContent.id))
     .where(and(
@@ -100,7 +110,7 @@ export async function listPublishedSiteContent(
     ))
     .orderBy(desc(siteContentVersions.version));
 
-  const latestPublished = new Map<number, typeof siteContentVersions.$inferSelect>();
+  const latestPublished = new Map<number, ListedPublishedSnapshot>();
   for (const row of publishedVersions) {
     if (!latestPublished.has(row.contentId)) latestPublished.set(row.contentId, row);
   }
