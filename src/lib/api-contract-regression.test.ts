@@ -7,6 +7,9 @@ const pvp = read("src/app/api/pvp/[code]/route.ts");
 const matchmaking = read("src/app/api/matchmaking/route.ts");
 const ranked = read("src/app/api/ranked/route.ts");
 const playerSession = read("src/lib/player-session.ts");
+const siteAdmin = read("src/app/api/admin/site/[resource]/[slug]/route.ts");
+const sitePublic = read("src/app/api/public/site/[resource]/[slug]/route.ts");
+const sitePublish = read("src/app/api/admin/site/[resource]/[slug]/publish/route.ts");
 
 assert.match(proxy, /requestOriginAllowed/);
 assert.match(proxy, /x-request-id/);
@@ -21,5 +24,10 @@ assert.match(matchmaking, /activeRoom/);
 assert.match(matchmaking, /resumed:\s*true/);
 assert.match(ranked, /RANKED_SETTLEMENT_PVP_ONLY/);
 assert.match(ranked, /settlePvpRoom/);
+assert.match(siteAdmin, /isAdminAuthorized/);
+assert.match(siteAdmin, /parseExpectedSiteVersion/);
+assert.match(siteAdmin, /pg_advisory_xact_lock/);
+assert.match(sitePublish, /canPublishSiteContent/);
+assert.match(sitePublic, /eq\(siteContent\.status,\s*"published"\)/);
 
 console.log("API CONTRACT REGRESSION: PASS");

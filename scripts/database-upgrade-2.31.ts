@@ -6,6 +6,7 @@ const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
 
 const reactionMigration = "drizzle/0041_pvp_reaction_priority.sql";
+const siteCmsMigration = "drizzle/0042_site_portal_cms.sql";
 const upgradePlans: Array<{ when: (versions: Set<string>) => boolean; files: string[] }> = [
   { when: (v) => v.has("2.96.2"), files: ["drizzle/0039_ranked_certification_2_97.sql", "drizzle/0040_pvp_content_snapshot_2_97.sql", reactionMigration] },
   { when: (v) => v.has("2.96.1"), files: ["drizzle/0038_engineering_integrity_2_96_2.sql", "drizzle/0039_ranked_certification_2_97.sql", "drizzle/0040_pvp_content_snapshot_2_97.sql", reactionMigration] },
@@ -77,14 +78,26 @@ async function main() {
         && constraints.has("fk_ranked_matches_season")
         && indexRows.rows.length === 1;
       if (complete) {
-        console.log("DATABASE UPGRADE 2.97: already current");
-        return;
+        const cmsClient = await pool.connect();
+        try {
+          await cmsClient.query("begin");
+          await cmsClient.query("select pg_advisory_xact_lock(hashtext('runeforge-schema-upgrade'))");
+          await applyFiles(cmsClient, [siteCmsMigration]);
+          await cmsClient.query("commit");
+          console.log("DATABASE UPGRADE 2.97 + PORTAL CMS: already core-current; CMS verified");
+          return;
+        } catch (error) {
+          await cmsClient.query("rollback");
+          throw error;
+        } finally {
+          cmsClient.release();
+        }
       }
       const repairClient = await pool.connect();
       try {
         await repairClient.query("begin");
         await repairClient.query("select pg_advisory_xact_lock(hashtext('runeforge-schema-upgrade'))");
-        await applyFiles(repairClient, ["drizzle/0039_ranked_certification_2_97.sql", "drizzle/0040_pvp_content_snapshot_2_97.sql", reactionMigration]);
+        await applyFiles(repairClient, ["drizzle/0039_ranked_certification_2_97.sql", "drizzle/0040_pvp_content_snapshot_2_97.sql", reactionMigration, siteCmsMigration]);
         await repairClient.query("commit");
         console.log("DATABASE UPGRADE 2.97: repaired Ranked/content/reaction certification schema");
         return;
@@ -102,10 +115,10 @@ async function main() {
     try {
       await client.query("begin");
       await client.query("select pg_advisory_xact_lock(hashtext('runeforge-schema-upgrade'))");
-      await applyFiles(client, plan.files);
+      await applyFiles(client, [...plan.files, siteCmsMigration]);
       await client.query("insert into runeforge_schema_meta(version) values($1) on conflict(version) do nothing", ["2.97"]);
       await client.query("commit");
-      console.log("DATABASE UPGRADE 2.97: PASS");
+      console.log("DATABASE UPGRADE 2.97 + PORTAL CMS: PASS");
     } catch (error) {
       await client.query("rollback");
       throw error;
