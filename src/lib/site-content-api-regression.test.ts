@@ -9,6 +9,7 @@ const archive = read("src/app/api/admin/site/[resource]/[slug]/archive/route.ts"
 const rollback = read("src/app/api/admin/site/[resource]/[slug]/rollback/[version]/route.ts");
 const publicList = read("src/app/api/public/site/[resource]/route.ts");
 const publicItem = read("src/app/api/public/site/[resource]/[slug]/route.ts");
+const publicContinuity = read("src/lib/site-content-public.ts");
 const policy = read("src/lib/site-content.ts");
 const migration = read("drizzle/0042_site_portal_cms.sql");
 const bootstrap = read("scripts/database-bootstrap.ts");
@@ -37,15 +38,23 @@ assert.match(rollback, /status:\s*"draft"/);
 assert.match(rollback, /Version not found/);
 
 for (const source of [publicList, publicItem]) {
-  assert.match(source, /eq\(siteContent\.status,\s*"published"\)/);
+  assert.match(source, /site-content-public/);
   assert.doesNotMatch(source, /adminAuditLogs|siteContentVersions|isAdminAuthorized/);
 }
+
+assert.match(publicContinuity, /current\.status === "archived"/);
+assert.match(publicContinuity, /inArray\(siteContentVersions\.status, \["published", "archived"\]\)/);
+assert.match(publicContinuity, /orderBy\(desc\(siteContentVersions\.version\)\)/);
+assert.match(publicContinuity, /latestLifecycle/);
+assert.match(publicContinuity, /resolveSitePublicSource/);
+assert.doesNotMatch(publicContinuity, /siteContentVersions\.actor|siteContentVersions\.changeNote/);
 
 assert.match(policy, /SITE_CONTENT_RESOURCES/);
 assert.match(policy, /canEditSiteContent/);
 assert.match(policy, /canPublishSiteContent/);
 assert.match(policy, /SITE_CONTENT_PAYLOAD_MAX_BYTES/);
 assert.match(policy, /siteContentLockKey/);
+assert.match(policy, /resolveSitePublicSource/);
 
 assert.match(migration, /CREATE TABLE IF NOT EXISTS site_content/i);
 assert.match(migration, /CREATE TABLE IF NOT EXISTS site_content_versions/i);
@@ -67,4 +76,4 @@ assert.match(ciWorkflow, /Portal CMS PostgreSQL certification/);
 assert.match(ciWorkflow, /npm run db:upgrade/);
 assert.match(ciWorkflow, /site-cms-postgres-certification\.ts/);
 
-console.log("PORTAL CMS API SOURCE CONTRACT: PASS — RBAC + published-only + bounded JSON + optimistic version + DB locks + version/audit history");
+console.log("PORTAL CMS API SOURCE CONTRACT: PASS — RBAC + continuous published snapshots + bounded JSON + optimistic version + DB locks + version/audit history");

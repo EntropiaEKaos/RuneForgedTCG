@@ -9,6 +9,7 @@ export const SITE_CONTENT_STATUSES = ["draft", "review", "published", "archived"
 
 export type SiteContentResource = typeof SITE_CONTENT_RESOURCES[number];
 export type SiteContentStatus = typeof SITE_CONTENT_STATUSES[number];
+export type SitePublicSource = "current" | "history" | null;
 
 const resources = new Set<string>(SITE_CONTENT_RESOURCES);
 
@@ -83,4 +84,14 @@ export function parseExpectedSiteVersion(value: unknown): number | null {
 
 export function siteContentLockKey(resource: SiteContentResource, slug: string, locale: string) {
   return `runeforge:site:${resource}:${locale}:${slug}`;
+}
+
+
+export function resolveSitePublicSource(
+  currentStatus: string,
+  latestLifecycleStatus: string | null | undefined,
+): SitePublicSource {
+  if (currentStatus === "archived") return null;
+  if (currentStatus === "published") return "current";
+  return latestLifecycleStatus === "published" ? "history" : null;
 }

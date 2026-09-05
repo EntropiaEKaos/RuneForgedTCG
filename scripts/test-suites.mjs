@@ -154,6 +154,7 @@ export const sourceContractTests = [
   "src/lib/security-audit-2.15.test.ts",
   "src/lib/security-audit-2.16.test.ts",
   "src/lib/site-content-api-regression.test.ts",
+  "src/lib/site-content-studio-regression.test.ts",
   "src/lib/semantic-card-types-regression.test.ts",
   "src/lib/sentinela-convergence-2.96.test.ts",
   "src/lib/studio-ability-composer-regression.test.ts",

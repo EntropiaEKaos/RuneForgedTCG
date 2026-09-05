@@ -15,7 +15,8 @@ export type StudioUiCapability =
   | "runtime"
   | "balance"
   | "qa-tools"
-  | "brawl";
+  | "brawl"
+  | "site";
 
 const ALL_STUDIO_UI_CAPABILITIES: readonly StudioUiCapability[] = [
   "authoring",
@@ -31,14 +32,15 @@ const ALL_STUDIO_UI_CAPABILITIES: readonly StudioUiCapability[] = [
   "balance",
   "qa-tools",
   "brawl",
+  "site",
 ];
 
 const STUDIO_UI_CAPABILITIES_BY_ROLE: Record<AdminRole, readonly StudioUiCapability[]> = {
   admin: ALL_STUDIO_UI_CAPABILITIES,
-  designer: ["authoring"],
-  qa: ["production", "balance", "qa-tools", "brawl"],
-  publisher: ["production"],
-  liveops: ["liveops"],
+  designer: ["authoring", "site"],
+  qa: ["production", "balance", "qa-tools", "brawl", "site"],
+  publisher: ["production", "site"],
+  liveops: ["liveops", "site"],
 };
 
 export function canAccessStudioAuthoring(role: AdminRole | string | null | undefined): role is AdminRole {
