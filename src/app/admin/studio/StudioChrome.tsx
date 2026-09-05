@@ -17,6 +17,7 @@ const routes: StudioCommand[] = [
   { href: "/admin/studio/mechanics", label: "Mechanics Studio", desc: "Compose keywords, effects and card archetypes", capability: "authoring" },
   { href: "/admin/studio/dependencies", label: "Dependency Graph", desc: "Inspect content references and cycles", capability: "authoring" },
   { href: "/admin/studio/production", label: "Production", desc: "Validate, QA and publish", capability: "production" },
+  { href: "/admin/studio/site", label: "Portal CMS", desc: "Versioned public site content", capability: "site" },
   { href: "/admin/studio/ops", label: "Live Ops", desc: "Events and promotions", capability: "liveops" },
   { href: "/admin/studio/4", label: "Operations", desc: "Content pipeline and approvals", capability: "operations" },
   { href: "/admin/studio/operators", label: "Admin Operators", desc: "Manage individual RBAC and MFA", capability: "operators" },
@@ -35,6 +36,7 @@ const routes: StudioCommand[] = [
 const quickActions: StudioCommand[] = [
   { href: "/admin/studio/cards?new=1", label: "Create card", desc: "Start a new card draft", capability: "authoring" },
   { href: "/admin/studio/mechanics", label: "Create mechanic", desc: "Compose a safe keyword, effect or card type", capability: "authoring" },
+  { href: "/admin/studio/site", label: "Create portal content", desc: "Start a versioned site content draft", capability: "site" },
   { href: "/admin/studio/ops?new=event", label: "Create event", desc: "Start a Live Ops event", capability: "liveops" },
   { href: "/admin/studio/ops?new=promotion", label: "Create promotion", desc: "Start a promotion draft", capability: "liveops" },
   { href: "/admin/studio/5?tab=matrix", label: "Run matchup matrix", desc: "Open Balance matrix controls", capability: "balance" },
