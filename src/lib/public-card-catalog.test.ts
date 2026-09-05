@@ -57,6 +57,7 @@ const second: PublicCardDto = {
   keywords: [],
   customKeywords: [],
   description: "A calm unit.",
+  flavor: "Still waters remember.",
   races: ["Sprite"],
   classes: [],
   isLegend: false,
