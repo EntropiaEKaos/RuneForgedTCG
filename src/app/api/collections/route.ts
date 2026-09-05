@@ -1,28 +1,32 @@
 import { db } from "@/db";
-import { adminCollections, cardCatalogMeta } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { adminCollections } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { collectibleCards } from "@/game/cards";
+import { ensureCustomCardsLoaded } from "@/game/catalog";
+import { getCardCollection } from "@/game/card-collections";
+import { countPublicCardsByCollection } from "@/lib/public-card-catalog";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Endpoint público (sem auth) — lista as coleções/sets publicados, com a
- * contagem de cartas de cada uma. O Studio já tinha o CRUD completo em
- * /api/admin/... para adminCollections, mas nada expunha isso pro jogador;
- * "coleção" ficava só metadado técnico, nunca virava algo que o jogador via.
+ * Public published-set index.
+ *
+ * Card counts intentionally use the exact same public collection identity
+ * boundary as /api/public/game/cards. Counting only card_catalog_meta rows
+ * under-counts code-authored waves that resolve through canonical collection
+ * identity (for example later Vanilla waves).
  */
 export async function GET() {
   try {
+    await ensureCustomCardsLoaded();
+
     const rows = await db
       .select()
       .from(adminCollections)
       .where(eq(adminCollections.status, "published"))
       .orderBy(adminCollections.releaseDate);
 
-    const counts = await db
-      .select({ collectionId: cardCatalogMeta.collectionId, n: sql<number>`count(*)::int` })
-      .from(cardCatalogMeta)
-      .groupBy(cardCatalogMeta.collectionId);
-    const countById = new Map(counts.map((c) => [c.collectionId, c.n]));
+    const publicCounts = countPublicCardsByCollection(collectibleCards(), getCardCollection);
 
     return Response.json({
       ok: true,
@@ -41,7 +45,7 @@ export async function GET() {
           if (c.rotationDate && c.rotationDate.getTime() <= now) return "rotated";
           return "active";
         })(),
-        cardCount: countById.get(c.id) ?? 0,
+        cardCount: publicCounts.get(c.key) ?? 0,
         metadata: c.metadata,
       })),
     });
