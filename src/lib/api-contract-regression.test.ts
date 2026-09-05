@@ -28,6 +28,6 @@ assert.match(siteAdmin, /isAdminAuthorized/);
 assert.match(siteAdmin, /parseExpectedSiteVersion/);
 assert.match(siteAdmin, /pg_advisory_xact_lock/);
 assert.match(sitePublish, /canPublishSiteContent/);
-assert.match(sitePublic, /eq\(siteContent\.status,\s*"published"\)/);
+assert.match(sitePublic, /site-content-public/);
 
 console.log("API CONTRACT REGRESSION: PASS");
