@@ -51,10 +51,7 @@ export function StudioCommandPalette({ role }: { role?: string | null }) {
   const effectiveRole = role ?? sessionRole;
   const pathname = usePathname();
   useEffect(() => {
-    if (role) {
-      setSessionRole(role);
-      return;
-    }
+    if (role) return;
     let active = true;
     fetch("/api/admin/session", { credentials: "include" })
       .then((response) => response.ok ? response.json() : null)
