@@ -43,6 +43,7 @@ export default function MechanicsStudio({ role }: { role: string }) {
   const [msg, setMsg] = useState("");
   const [rows, setRows] = useState<any[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const identityLocked = editingId !== null;
   const [impactReport, setImpactReport] = useState<MechanicsImpactReport | null>(null);
   const [impactLoading, setImpactLoading] = useState(false);
   const [impactError, setImpactError] = useState("");
@@ -118,10 +119,11 @@ export default function MechanicsStudio({ role }: { role: string }) {
     } else {
       payload = { key: arch.key, name: arch.name, description: arch.description, baseType: arch.baseType, definition: { version: 1, baseType: arch.baseType, defaults: arch.definition?.defaults || {} } };
     }
+    if (identityLocked) delete payload.key;
     const url = editingId ? `/api/admin/studio/${resource}/${editingId}` : `/api/admin/studio/${resource}`;
     const response = await fetch(url, { method: editingId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
     const data = await response.json();
-    setMsg(data.ok ? (editingId ? "Draft atualizado." : "Draft criado. Valide/QA/publique pelo Production Studio.") : data.error || "Falha ao salvar");
+    setMsg(data.ok ? (editingId ? "Draft atualizado. A identity key foi preservada." : "Draft criado. Valide/QA/publique pelo Production Studio.") : data.error || "Falha ao salvar");
     if (data.ok) {
       await load();
       resetEditor();
@@ -160,7 +162,7 @@ export default function MechanicsStudio({ role }: { role: string }) {
           {tab === "keyword" && <>
             <Heading title="Keyword Composer" />
             <Grid>
-              <Field label="Key"><input className="input font-mono" value={kw.key} onChange={(event) => setKw({ ...kw, key: event.target.value })} /></Field>
+              <Field label="Identity key"><KeyInput value={kw.key} locked={identityLocked} onChange={(key) => setKw({ ...kw, key })} /></Field>
               <Field label="Name"><input className="input" value={kw.name} onChange={(event) => setKw({ ...kw, name: event.target.value })} /></Field>
               <Field label="Icon"><input className="input" maxLength={8} value={kw.icon} onChange={(event) => setKw({ ...kw, icon: event.target.value })} /></Field>
               <Field label="Trigger"><Select value={kw.trigger} options={UNIT_TRIGGER_EVENTS} onChange={(trigger) => setKw({ ...kw, trigger: trigger as TriggerWhen })} /></Field>
@@ -173,7 +175,7 @@ export default function MechanicsStudio({ role }: { role: string }) {
           {tab === "effect" && <>
             <Heading title="Effect Composer" />
             <Grid>
-              <Field label="Key"><input className="input font-mono" value={fx.key} onChange={(event) => setFx({ ...fx, key: event.target.value })} /></Field>
+              <Field label="Identity key"><KeyInput value={fx.key} locked={identityLocked} onChange={(key) => setFx({ ...fx, key })} /></Field>
               <Field label="Name"><input className="input" value={fx.name} onChange={(event) => setFx({ ...fx, name: event.target.value })} /></Field>
             </Grid>
             <Field label="Description"><textarea className="input min-h-20" value={fx.description} onChange={(event) => setFx({ ...fx, description: event.target.value })} /></Field>
@@ -182,7 +184,7 @@ export default function MechanicsStudio({ role }: { role: string }) {
           {tab === "archetype" && <>
             <Heading title="Card Type / Archetype Composer" />
             <Grid>
-              <Field label="Key"><input className="input font-mono" value={arch.key} onChange={(event) => setArch({ ...arch, key: event.target.value })} /></Field>
+              <Field label="Identity key"><KeyInput value={arch.key} locked={identityLocked} onChange={(key) => setArch({ ...arch, key })} /></Field>
               <Field label="Display type"><input className="input" value={arch.name} onChange={(event) => setArch({ ...arch, name: event.target.value })} placeholder="Location" /></Field>
               <Field label="Structural base"><Select value={arch.baseType} options={CARD_TYPES} onChange={(baseType) => setArch({ ...arch, baseType })} /></Field>
               <Field label="Default max health"><input className="input" type="number" value={Number(arch.definition.defaults?.maxHealth ?? 3)} onChange={(event) => setArch({ ...arch, definition: { defaults: { ...arch.definition.defaults, maxHealth: Number(event.target.value) } } })} /></Field>
@@ -215,4 +217,19 @@ export default function MechanicsStudio({ role }: { role: string }) {
 function Heading({ title }: { title: string }) { return <><div className="studio-kicker">SAFE AUTHORING</div><h2 className="mb-4 mt-1 text-xl font-black">{title}</h2></>; }
 function Grid({ children }: { children: React.ReactNode }) { return <div className="grid gap-3 md:grid-cols-2">{children}</div>; }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="mb-3 block"><span className="label">{label}</span>{children}</label>; }
+function KeyInput({ value, locked, onChange }: { value: string; locked: boolean; onChange: (value: string) => void }) {
+  return <div>
+    <input
+      className="input font-mono"
+      value={value}
+      readOnly={locked}
+      aria-readonly={locked}
+      title={locked ? "Identity key imutável após a criação." : "Defina uma identity key estável para referências e histórico."}
+      onChange={(event) => onChange(event.target.value)}
+    />
+    <p className="mt-1 text-[10px] leading-4 text-slate-500">
+      {locked ? "Identity key imutável após a criação para preservar referências, histórico e dependências." : "A identity key vira referência estável após a criação."}
+    </p>
+  </div>;
+}
 function Select({ value, options, onChange }: { value: string; options: readonly string[]; onChange: (value: string) => void }) { return <select className="input" value={value} onChange={(event) => onChange(event.target.value)}>{options.map((option) => <option key={option}>{option}</option>)}</select>; }
