@@ -99,6 +99,7 @@ export const behavioralTests = [
   "src/lib/request-security.test.ts",
   "src/lib/ranked-launch-2.97.test.ts",
   "src/lib/security.test.ts",
+  "src/lib/site-content.test.ts",
   "src/lib/vanilla-runtime-smoke.test.ts"
 ];
 export const sourceContractTests = [
@@ -152,6 +153,7 @@ export const sourceContractTests = [
   "src/lib/security-audit-2.14.test.ts",
   "src/lib/security-audit-2.15.test.ts",
   "src/lib/security-audit-2.16.test.ts",
+  "src/lib/site-content-api-regression.test.ts",
   "src/lib/semantic-card-types-regression.test.ts",
   "src/lib/sentinela-convergence-2.96.test.ts",
   "src/lib/studio-ability-composer-regression.test.ts",
