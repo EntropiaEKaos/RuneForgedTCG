@@ -37,3 +37,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS site_content_versions_content_version_uq
   ON site_content_versions(content_id, version);
 CREATE INDEX IF NOT EXISTS site_content_versions_content_created_idx
   ON site_content_versions(content_id, created_at);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'site_content_status_check') THEN
+    ALTER TABLE site_content ADD CONSTRAINT site_content_status_check CHECK (status IN ('draft', 'review', 'published', 'archived'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'site_content_version_positive') THEN
+    ALTER TABLE site_content ADD CONSTRAINT site_content_version_positive CHECK (version > 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'site_content_versions_status_check') THEN
+    ALTER TABLE site_content_versions ADD CONSTRAINT site_content_versions_status_check CHECK (status IN ('draft', 'review', 'published', 'archived'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'site_content_versions_version_positive') THEN
+    ALTER TABLE site_content_versions ADD CONSTRAINT site_content_versions_version_positive CHECK (version > 0);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'site_content_versions_content_id_fkey') THEN
+    ALTER TABLE site_content_versions
+      ADD CONSTRAINT site_content_versions_content_id_fkey
+      FOREIGN KEY (content_id) REFERENCES site_content(id) ON DELETE CASCADE;
+  END IF;
+END $$;
