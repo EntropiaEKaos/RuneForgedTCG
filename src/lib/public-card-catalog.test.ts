@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import type { CardDef } from "@/game/types";
 import { baseCardsOnly } from "@/game/cards";
+import { SEMANTIC_ALPHA_CARDS } from "@/game/cards/semantic-alpha";
+import { ECOS_DO_ABISMO_CARDS } from "@/game/cards/ecos-do-abismo";
 import { getCardCollection } from "@/game/card-collections";
 import { countPublicCardsByCollection, queryPublicCardCatalog, toPublicCardDto, type PublicCardDto } from "./public-card-catalog";
 
@@ -98,11 +100,21 @@ assert.equal(collectionCounts.size, 1);
 
 const collectibleBase = baseCardsOnly().filter((card) => card.collectible !== false);
 const baseCounts = countPublicCardsByCollection(collectibleBase, getCardCollection);
-assert.ok(collectibleBase.length >= 457, "current code-authored public catalog must retain post-2.96 waves");
+assert.ok(baseCardsOnly().length >= 457, "current code-authored definitions must retain the 429-card 2.96 floor plus later waves");
+assert.equal(
+  Object.values(SEMANTIC_ALPHA_CARDS).filter((card) => card.collectible !== false).length,
+  18,
+  "all 18 Semantic Alpha cards must remain public collectible definitions",
+);
+assert.equal(
+  Object.values(ECOS_DO_ABISMO_CARDS).filter((card) => card.collectible !== false).length,
+  10,
+  "all 10 Ecos do Abismo cards must remain public collectible definitions",
+);
 assert.equal(
   baseCounts.get("vanilla"),
   collectibleBase.length,
-  "canonical Vanilla count must include every currently public code-authored base card",
+  "canonical Vanilla count must equal the complete currently public collectible base catalog",
 );
 
 console.log("PUBLIC CARD CATALOG: PASS — safe DTO · semantic type · fail-closed collection · filters · facets · pagination · collection counts");
