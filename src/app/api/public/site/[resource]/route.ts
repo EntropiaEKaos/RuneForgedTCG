@@ -1,8 +1,6 @@
 import { NextRequest } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
-import { db } from "@/db";
-import { siteContent } from "@/db/schema";
 import { isSiteContentResource, parseSiteLocale } from "@/lib/site-content";
+import { listPublishedSiteContent } from "@/lib/site-content-public";
 
 export const dynamic = "force-dynamic";
 
@@ -13,18 +11,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ reso
   const locale = parseSiteLocale(req.nextUrl.searchParams.get("locale"));
   if (!locale) return Response.json({ ok: false, error: "Invalid locale" }, { status: 400 });
 
-  const items = await db.select({
-    slug: siteContent.slug,
-    locale: siteContent.locale,
-    payload: siteContent.payload,
-    seo: siteContent.seo,
-    version: siteContent.version,
-    publishedAt: siteContent.publishedAt,
-  }).from(siteContent).where(and(
-    eq(siteContent.resource, resource),
-    eq(siteContent.locale, locale),
-    eq(siteContent.status, "published"),
-  )).orderBy(desc(siteContent.publishedAt));
-
+  const items = await listPublishedSiteContent(resource, locale);
   return Response.json({ ok: true, resource, locale, items });
 }
