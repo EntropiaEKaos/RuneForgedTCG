@@ -89,6 +89,11 @@ jobs:
       - name: Fresh PostgreSQL bootstrap
         run: npm run db:bootstrap
 
+      - name: Portal CMS PostgreSQL certification — upgrade, constraints and lock semantics
+        run: |
+          npm run db:upgrade
+          node --import tsx scripts/site-cms-postgres-certification.ts
+
       - name: Mercado Pago PostgreSQL certification — exactly-once, financial state and rotation safety
         env:
           NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
