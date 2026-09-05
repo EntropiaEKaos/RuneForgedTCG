@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { StudioBreadcrumb, StudioCommandPalette } from "../StudioChrome";
 
 type StudioUser = { username: string; role: string };
@@ -132,14 +133,6 @@ export default function SiteContentStudio({ initialUser = null }: { initialUser?
   const [notice, setNotice] = useState("");
   const [conflictVersion, setConflictVersion] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (user && allowedResources.length && !allowedResources.includes(resource)) {
-      setResource(allowedResources[0]);
-      setEditor(emptyEditor());
-      setVersions([]);
-    }
-  }, [allowedResources, resource, user]);
-
   const handleApiFailure = useCallback(async (response: Response, fallback: string) => {
     const data = await response.json().catch(() => ({})) as { error?: string; currentVersion?: number };
     if (response.status === 401) setUser(null);
@@ -166,8 +159,8 @@ export default function SiteContentStudio({ initialUser = null }: { initialUser?
     }
   }, [allowedResources, handleApiFailure, locale, resource, user]);
 
-  useEffect(() => {
-    void loadList();
+  useDeferredEffect(() => {
+    return loadList();
   }, [loadList]);
 
   async function openItem(slug: string, preserveNotice = false) {
