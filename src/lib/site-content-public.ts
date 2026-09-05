@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { siteContent, siteContentVersions } from "@/db/schema";
 import { isPlainRecord, type SiteContentResource } from "./site-content";
@@ -13,13 +13,14 @@ export type PublishedSiteContentView = {
   publishedAt: Date | null;
 };
 
-type PublishedSnapshot = {
+type LifecycleSnapshot = {
   version: number;
+  status: string;
   snapshot: unknown;
   createdAt: Date;
 };
 
-type ListedPublishedSnapshot = PublishedSnapshot & {
+type ListedLifecycleSnapshot = LifecycleSnapshot & {
   contentId: number;
 };
 
@@ -36,8 +37,9 @@ function fromCurrent(item: typeof siteContent.$inferSelect): PublishedSiteConten
 
 function fromPublishedVersion(
   item: typeof siteContent.$inferSelect,
-  version: PublishedSnapshot,
+  version: LifecycleSnapshot,
 ): PublishedSiteContentView | null {
+  if (version.status !== "published") return null;
   const snapshot = isPlainRecord(version.snapshot) ? version.snapshot : {};
   const payload = isPlainRecord(snapshot.payload) ? snapshot.payload : null;
   const seo = isPlainRecord(snapshot.seo) ? snapshot.seo : {};
@@ -56,7 +58,7 @@ function fromPublishedVersion(
  * Public continuity contract:
  * - published current rows are served directly;
  * - draft/review edits keep serving the latest immutable published snapshot;
- * - archived rows are never public;
+ * - an archive is a public tombstone and remains effective across later draft/rollback work;
  * - content that has never been published remains private.
  */
 export async function readPublishedSiteContentItem(
@@ -73,16 +75,17 @@ export async function readPublishedSiteContentItem(
   if (!current || current.status === "archived") return null;
   if (current.status === "published") return fromCurrent(current);
 
-  const [published] = await db.select({
+  const [lifecycle] = await db.select({
     version: siteContentVersions.version,
+    status: siteContentVersions.status,
     snapshot: siteContentVersions.snapshot,
     createdAt: siteContentVersions.createdAt,
   }).from(siteContentVersions).where(and(
     eq(siteContentVersions.contentId, current.id),
-    eq(siteContentVersions.status, "published"),
+    inArray(siteContentVersions.status, ["published", "archived"]),
   )).orderBy(desc(siteContentVersions.version)).limit(1);
 
-  return published ? fromPublishedVersion(current, published) : null;
+  return lifecycle ? fromPublishedVersion(current, lifecycle) : null;
 }
 
 export async function listPublishedSiteContent(
@@ -96,9 +99,10 @@ export async function listPublishedSiteContent(
 
   if (!currentRows.length) return [];
 
-  const publishedVersions: ListedPublishedSnapshot[] = await db.select({
+  const lifecycleVersions: ListedLifecycleSnapshot[] = await db.select({
     contentId: siteContentVersions.contentId,
     version: siteContentVersions.version,
+    status: siteContentVersions.status,
     snapshot: siteContentVersions.snapshot,
     createdAt: siteContentVersions.createdAt,
   }).from(siteContentVersions)
@@ -106,13 +110,13 @@ export async function listPublishedSiteContent(
     .where(and(
       eq(siteContent.resource, resource),
       eq(siteContent.locale, locale),
-      eq(siteContentVersions.status, "published"),
+      inArray(siteContentVersions.status, ["published", "archived"]),
     ))
     .orderBy(desc(siteContentVersions.version));
 
-  const latestPublished = new Map<number, ListedPublishedSnapshot>();
-  for (const row of publishedVersions) {
-    if (!latestPublished.has(row.contentId)) latestPublished.set(row.contentId, row);
+  const latestLifecycle = new Map<number, ListedLifecycleSnapshot>();
+  for (const row of lifecycleVersions) {
+    if (!latestLifecycle.has(row.contentId)) latestLifecycle.set(row.contentId, row);
   }
 
   const items: PublishedSiteContentView[] = [];
@@ -122,9 +126,9 @@ export async function listPublishedSiteContent(
       items.push(fromCurrent(current));
       continue;
     }
-    const published = latestPublished.get(current.id);
-    if (!published) continue;
-    const view = fromPublishedVersion(current, published);
+    const lifecycle = latestLifecycle.get(current.id);
+    if (!lifecycle || lifecycle.status !== "published") continue;
+    const view = fromPublishedVersion(current, lifecycle);
     if (view) items.push(view);
   }
 
