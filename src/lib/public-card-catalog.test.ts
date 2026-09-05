@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import type { CardDef } from "@/game/types";
+import { baseCardsOnly } from "@/game/cards";
+import { getCardCollection } from "@/game/card-collections";
 import { countPublicCardsByCollection, queryPublicCardCatalog, toPublicCardDto, type PublicCardDto } from "./public-card-catalog";
 
 const collection = { key: "vanilla", code: "VAN", name: "Vanilla", symbol: "/vanilla.png" };
@@ -93,5 +95,14 @@ const collectionCounts = countPublicCardsByCollection(
 );
 assert.equal(collectionCounts.get("vanilla"), 1, "collection counts must use the same fail-closed public identity boundary");
 assert.equal(collectionCounts.size, 1);
+
+const collectibleBase = baseCardsOnly().filter((card) => card.collectible !== false);
+const baseCounts = countPublicCardsByCollection(collectibleBase, getCardCollection);
+assert.ok(collectibleBase.length >= 457, "current code-authored public catalog must retain post-2.96 waves");
+assert.equal(
+  baseCounts.get("vanilla"),
+  collectibleBase.length,
+  "canonical Vanilla count must include every currently public code-authored base card",
+);
 
 console.log("PUBLIC CARD CATALOG: PASS — safe DTO · semantic type · fail-closed collection · filters · facets · pagination · collection counts");
