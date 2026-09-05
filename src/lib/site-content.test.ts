@@ -8,7 +8,9 @@ import {
   isSiteContentResource,
   normalizeSiteSlug,
   parseSiteLocale,
+  parseExpectedSiteVersion,
   sanitizeSiteChangeNote,
+  siteContentLockKey,
 } from "./site-content";
 
 for (const resource of SITE_CONTENT_RESOURCES) assert.equal(isSiteContentResource(resource), true);
@@ -49,5 +51,10 @@ assert.equal(isPlainRecord([]), false);
 assert.equal(isPlainRecord(null), false);
 assert.equal(sanitizeSiteChangeNote("  release note  "), "release note");
 assert.equal(sanitizeSiteChangeNote(null, "fallback"), "fallback");
+assert.equal(parseExpectedSiteVersion(0), 0);
+assert.equal(parseExpectedSiteVersion("4"), 4);
+assert.equal(parseExpectedSiteVersion(-1), null);
+assert.equal(parseExpectedSiteVersion("nan"), null);
+assert.equal(siteContentLockKey("news", "patch-notes", "pt-BR"), "runeforge:site:news:pt-BR:patch-notes");
 
 console.log(`SITE CONTENT POLICY: PASS — ${SITE_CONTENT_RESOURCES.length} resources + RBAC + slug/locale validation`);
