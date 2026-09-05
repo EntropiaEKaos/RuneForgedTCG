@@ -38,7 +38,7 @@ assert.match(studio, /changeNote/);
 
 assert.match(publicContinuity, /draft\/review edits keep serving the latest immutable published snapshot/);
 assert.match(publicContinuity, /current\.status === "archived"/);
-assert.match(publicContinuity, /eq\(siteContentVersions\.status, "published"\)/);
+assert.match(publicContinuity, /inArray\(siteContentVersions\.status, \["published", "archived"\]\)/);\nassert.match(publicContinuity, /lifecycle\.status !== "published"/);
 
 console.log(
   "PORTAL CMS STUDIO 2.1 SOURCE CONTRACT: PASS — 16 resources · existing admin auth/RBAC · optimistic conflicts · version history · publish/archive/rollback · continuous public publication",
