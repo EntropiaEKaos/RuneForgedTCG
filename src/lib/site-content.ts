@@ -66,3 +66,12 @@ export function isPlainRecord(value: unknown): value is Record<string, unknown> 
 export function sanitizeSiteChangeNote(value: unknown, fallback = "") {
   return typeof value === "string" ? value.trim().slice(0, 500) : fallback;
 }
+
+export function parseExpectedSiteVersion(value: unknown): number | null {
+  const version = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(version) && version >= 0 ? version : null;
+}
+
+export function siteContentLockKey(resource: SiteContentResource, slug: string, locale: string) {
+  return `runeforge:site:${resource}:${locale}:${slug}`;
+}
