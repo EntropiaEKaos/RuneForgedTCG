@@ -170,10 +170,10 @@ export default function SiteContentStudio({ initialUser = null }: { initialUser?
     void loadList();
   }, [loadList]);
 
-  async function openItem(slug: string) {
+  async function openItem(slug: string, preserveNotice = false) {
     setBusy(true);
     setError("");
-    setNotice("");
+    if (!preserveNotice) setNotice("");
     setConflictVersion(null);
     try {
       const response = await fetch(
@@ -281,7 +281,7 @@ export default function SiteContentStudio({ initialUser = null }: { initialUser?
           : "Revision saved.",
       );
       await loadList();
-      await openItem(data.item.slug);
+      await openItem(data.item.slug, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {
@@ -309,7 +309,7 @@ export default function SiteContentStudio({ initialUser = null }: { initialUser?
       const data = await response.json() as { item: SiteItem };
       setNotice(action === "publish" ? "Published revision is now live." : "Content archived and removed from the public API.");
       await loadList();
-      await openItem(data.item.slug);
+      await openItem(data.item.slug, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : `${action} failed.`);
     } finally {
@@ -341,7 +341,7 @@ export default function SiteContentStudio({ initialUser = null }: { initialUser?
       const data = await response.json() as { item: SiteItem };
       setNotice(`Version ${targetVersion} restored as a new draft. The last published revision stays live until republish.`);
       await loadList();
-      await openItem(data.item.slug);
+      await openItem(data.item.slug, true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Rollback failed.");
     } finally {
