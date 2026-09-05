@@ -409,11 +409,36 @@ async function playDefensiveUnit(cdp, snapshot) {
     const selector = `#player-hand-cards [data-card-tip-def-id="${defId}"] button[data-card-state="playable"]:not(:disabled)`;
     const playable = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`);
     if (!playable) continue;
-    const beforeCount = snapshot.boardCount;
+
+    const beforeBoardIds = new Set(snapshot.board.map((unit) => unit.unitId).filter(Boolean));
+    const beforeHandCopies = snapshot.hand.filter((id) => id === defId).length;
+    const beforeMana = snapshot.playerMana;
+
     if (!await clickSelector(cdp, selector)) continue;
+
+    // Defensive development is only a setup action for the activated source.
+    // A successfully played unit can be removed before the next polling sample,
+    // so requiring boardCount to stay increased creates a false-negative race.
+    // Accept the play once any independent browser-visible commit signal appears:
+    // a new copy on board, one fewer copy in hand, or same-round regular mana spent.
     await waitUntil(
-      async () => (await matchSnapshot(cdp)).boardCount > beforeCount,
-      `defensive unit ${defId} to enter battlefield`,
+      async () => {
+        const current = await matchSnapshot(cdp);
+        const newBoardUnit = current.board.some(
+          (unit) => unit.defId === defId && unit.unitId && !beforeBoardIds.has(unit.unitId),
+        );
+        const handCopies = current.hand.filter((id) => id === defId).length;
+        const handSpent = handCopies < beforeHandCopies;
+        const manaSpent =
+          current.round === snapshot.round &&
+          Number.isFinite(beforeMana) &&
+          Number.isFinite(current.playerMana) &&
+          current.playerMana < beforeMana;
+
+        if (!newBoardUnit && !handSpent && !manaSpent) return null;
+        return { current, newBoardUnit, handSpent, manaSpent };
+      },
+      `defensive unit ${defId} play to commit`,
       10_000,
     );
     return defId;
