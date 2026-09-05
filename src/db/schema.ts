@@ -10,3 +10,5 @@ export * from "./schema/multiplayer";
 export * from "./schema/admin-content";
 export * from "./schema/admin-ops";
 export * from "./schema/commerce";
+
+export * from "./schema/site-content";
