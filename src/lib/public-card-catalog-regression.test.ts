@@ -26,6 +26,10 @@ assert.match(collections, /status:\s*500/);
 assert.match(collections, /Cache-Control/);
 assert.match(collections, /no-store/);
 assert.doesNotMatch(collections, /ok:\s*true,\s*collections:\s*\[\]/);
+assert.match(collections, /publicCollectionMetadata/);
+assert.match(collections, /accentColor/);
+assert.match(collections, /\^#\[0-9a-fA-F\]\{6\}\$/);
+assert.doesNotMatch(collections, /metadata:\s*c\.metadata/);
 
 for (const safeField of ["defId", "name", "regions", "structuralType", "description", "rarity", "collection"]) {
   assert.ok(helper.includes(safeField), `public DTO must expose ${safeField}`);
