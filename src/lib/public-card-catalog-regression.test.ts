@@ -21,6 +21,11 @@ assert.match(collections, /countPublicCardsByCollection/);
 assert.match(collections, /collectibleCards/);
 assert.match(collections, /getCardCollection/);
 assert.doesNotMatch(collections, /cardCatalogMeta|groupBy\(|count\(\*\)/);
+assert.match(collections, /Public collections unavailable/);
+assert.match(collections, /status:\s*500/);
+assert.match(collections, /Cache-Control/);
+assert.match(collections, /no-store/);
+assert.doesNotMatch(collections, /ok:\s*true,\s*collections:\s*\[\]/);
 
 for (const safeField of ["defId", "name", "regions", "structuralType", "description", "rarity", "collection"]) {
   assert.ok(helper.includes(safeField), `public DTO must expose ${safeField}`);
