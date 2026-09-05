@@ -10,6 +10,7 @@ import {
   normalizeSiteSlug,
   parseSiteLocale,
   parseExpectedSiteVersion,
+  resolveSitePublicSource,
   sanitizeSiteChangeNote,
   siteContentLockKey,
   validateSiteDocument,
@@ -61,5 +62,13 @@ assert.equal(parseExpectedSiteVersion("4"), 4);
 assert.equal(parseExpectedSiteVersion(-1), null);
 assert.equal(parseExpectedSiteVersion("nan"), null);
 assert.equal(siteContentLockKey("news", "patch-notes", "pt-BR"), "runeforge:site:news:pt-BR:patch-notes");
+
+assert.equal(resolveSitePublicSource("published", "archived"), "current");
+assert.equal(resolveSitePublicSource("draft", "published"), "history");
+assert.equal(resolveSitePublicSource("review", "published"), "history");
+assert.equal(resolveSitePublicSource("draft", "archived"), null);
+assert.equal(resolveSitePublicSource("review", "archived"), null);
+assert.equal(resolveSitePublicSource("draft", null), null);
+assert.equal(resolveSitePublicSource("archived", "published"), null);
 
 console.log(`SITE CONTENT POLICY: PASS — ${SITE_CONTENT_RESOURCES.length} resources + RBAC + slug/locale validation`);
