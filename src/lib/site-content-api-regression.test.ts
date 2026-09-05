@@ -43,17 +43,18 @@ for (const source of [publicList, publicItem]) {
 }
 
 assert.match(publicContinuity, /current\.status === "archived"/);
-assert.match(publicContinuity, /current\.status === "published"/);
 assert.match(publicContinuity, /inArray\(siteContentVersions\.status, \["published", "archived"\]\)/);
 assert.match(publicContinuity, /orderBy\(desc\(siteContentVersions\.version\)\)/);
 assert.match(publicContinuity, /latestLifecycle/);
-assert.match(publicContinuity, /lifecycle\.status !== "published"/);\nassert.doesNotMatch(publicContinuity, /siteContentVersions\.actor|siteContentVersions\.changeNote/);
+assert.match(publicContinuity, /resolveSitePublicSource/);
+assert.doesNotMatch(publicContinuity, /siteContentVersions\.actor|siteContentVersions\.changeNote/);
 
 assert.match(policy, /SITE_CONTENT_RESOURCES/);
 assert.match(policy, /canEditSiteContent/);
 assert.match(policy, /canPublishSiteContent/);
 assert.match(policy, /SITE_CONTENT_PAYLOAD_MAX_BYTES/);
 assert.match(policy, /siteContentLockKey/);
+assert.match(policy, /resolveSitePublicSource/);
 
 assert.match(migration, /CREATE TABLE IF NOT EXISTS site_content/i);
 assert.match(migration, /CREATE TABLE IF NOT EXISTS site_content_versions/i);
