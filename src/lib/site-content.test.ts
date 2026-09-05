@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  SITE_CONTENT_PAYLOAD_MAX_BYTES,
   SITE_CONTENT_RESOURCES,
   canEditSiteContent,
   canPublishSiteContent,
@@ -11,6 +12,7 @@ import {
   parseExpectedSiteVersion,
   sanitizeSiteChangeNote,
   siteContentLockKey,
+  validateSiteDocument,
 } from "./site-content";
 
 for (const resource of SITE_CONTENT_RESOURCES) assert.equal(isSiteContentResource(resource), true);
@@ -49,6 +51,9 @@ assert.equal(parseSiteLocale("invalid"), null);
 assert.equal(isPlainRecord({}), true);
 assert.equal(isPlainRecord([]), false);
 assert.equal(isPlainRecord(null), false);
+assert.equal(validateSiteDocument({ title: "ok" }, SITE_CONTENT_PAYLOAD_MAX_BYTES, "payload"), null);
+assert.equal(validateSiteDocument([], SITE_CONTENT_PAYLOAD_MAX_BYTES, "payload"), "payload must be an object");
+assert.match(validateSiteDocument({ body: "x".repeat(SITE_CONTENT_PAYLOAD_MAX_BYTES) }, SITE_CONTENT_PAYLOAD_MAX_BYTES, "payload") || "", /exceeds/);
 assert.equal(sanitizeSiteChangeNote("  release note  "), "release note");
 assert.equal(sanitizeSiteChangeNote(null, "fallback"), "fallback");
 assert.equal(parseExpectedSiteVersion(0), 0);
