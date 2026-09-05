@@ -47,7 +47,25 @@ const quickActions: StudioCommand[] = [
 export function StudioCommandPalette({ role }: { role?: string | null }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [sessionRole, setSessionRole] = useState<string | null>(role ?? null);
+  const effectiveRole = role ?? sessionRole;
   const pathname = usePathname();
+  useEffect(() => {
+    if (role) {
+      setSessionRole(role);
+      return;
+    }
+    let active = true;
+    fetch("/api/admin/session", { credentials: "include" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (active) setSessionRole(data?.user?.role ? String(data.user.role) : null);
+      })
+      .catch(() => {
+        if (active) setSessionRole(null);
+      });
+    return () => { active = false; };
+  }, [role]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -60,12 +78,12 @@ export function StudioCommandPalette({ role }: { role?: string | null }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const allowedRoutes = useMemo(
-    () => routes.filter((command) => hasStudioUiCapability(role, command.capability)),
-    [role],
+    () => routes.filter((command) => hasStudioUiCapability(effectiveRole, command.capability)),
+    [effectiveRole],
   );
   const allowedActions = useMemo(
-    () => quickActions.filter((command) => hasStudioUiCapability(role, command.capability)),
-    [role],
+    () => quickActions.filter((command) => hasStudioUiCapability(effectiveRole, command.capability)),
+    [effectiveRole],
   );
   const filtered = useMemo(
     () => allowedRoutes.filter(({ label, desc }) => `${label} ${desc}`.toLowerCase().includes(query.toLowerCase())),
