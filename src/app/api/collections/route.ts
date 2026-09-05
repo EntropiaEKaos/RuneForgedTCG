@@ -8,6 +8,14 @@ import { countPublicCardsByCollection } from "@/lib/public-card-catalog";
 
 export const dynamic = "force-dynamic";
 
+function publicCollectionMetadata(value: unknown): { accentColor: string } | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const accentColor = (value as Record<string, unknown>).accentColor;
+  return typeof accentColor === "string" && /^#[0-9a-fA-F]{6}$/.test(accentColor)
+    ? { accentColor }
+    : null;
+}
+
 /**
  * Public published-set index.
  *
@@ -46,7 +54,7 @@ export async function GET() {
           return "active";
         })(),
         cardCount: publicCounts.get(c.key) ?? 0,
-        metadata: c.metadata,
+        metadata: publicCollectionMetadata(c.metadata),
       })),
     }, {
       headers: {
