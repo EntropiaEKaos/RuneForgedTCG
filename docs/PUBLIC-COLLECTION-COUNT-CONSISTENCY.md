@@ -36,3 +36,18 @@ Behavioral coverage verifies:
 - the current public base floor does not regress below 457.
 
 Source-contract coverage prevents `/api/collections` from returning to a metadata-only `card_catalog_meta count(*)` implementation.
+
+
+## Availability semantics
+
+A successful query with zero published collections remains an authoritative `200` with `collections: []`.
+
+A database/runtime failure is **not** converted into an empty public archive. It returns:
+
+- HTTP 500;
+- `ok: false`;
+- `Cache-Control: no-store`.
+
+Successful collection responses use `public, max-age=60, stale-while-revalidate=300`.
+
+This allows SiteRuneForged to distinguish “nothing is published” from “the source of truth is temporarily unavailable”.
