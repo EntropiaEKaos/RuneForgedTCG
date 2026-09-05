@@ -10,6 +10,8 @@ Public Card Catalog 1.0 provides a stable, read-only card projection for portal/
 
 `GET /api/public/game/cards`
 
+`GET /api/public/game/cards/{defId}` returns one public collectible card or 404.
+
 Optional query parameters:
 
 - `q` — text search across public card presentation fields;
