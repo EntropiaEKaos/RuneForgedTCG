@@ -104,6 +104,7 @@ export const behavioralTests = [
 export const sourceContractTests = [
   "src/lib/api-contract-regression.test.ts",
   "src/lib/alpha-onboarding-regression.test.ts",
+  "src/lib/activated-ability-browser-fixture-regression.test.ts",
   "src/lib/ci-chrome-bootstrap-regression.test.ts",
   "src/lib/alpha-visual-feature-freeze-regression.test.ts",
   "src/lib/flagship-champion-art-regression.test.ts",
