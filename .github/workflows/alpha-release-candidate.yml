@@ -52,6 +52,8 @@ jobs:
       ALLOW_LEGACY_PLAYER_IDENTITY: "false"
       RANKED_RELEASE_CERTIFIED: "false"
       RUNEFORGE_RELEASE: "2.97.0"
+      RUNEFORGE_DEPLOY_SHA: ${{ github.sha }}
+      RUNEFORGE_DEPLOY_ENV: alpha
       ASSET_STORAGE_MODE: local
       ALLOW_LOCAL_ASSET_STORAGE: "true"
       E2E_BASE_URL: http://127.0.0.1:3000

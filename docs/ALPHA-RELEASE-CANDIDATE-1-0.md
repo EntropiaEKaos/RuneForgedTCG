@@ -21,7 +21,8 @@ It certifies the **exact merge SHA** in a clean Ubuntu runner with:
 7. the persisted Alpha HTTP journey;
 8. the real two-browser Casual PvP journey;
 9. the Alpha visual journey;
-10. the public readiness endpoint and its seven advertised capabilities.
+10. the public readiness endpoint and its seven advertised capabilities;
+11. the public deployment-provenance endpoint bound to the exact GitHub SHA.
 
 The workflow uploads `alpha-release-candidate-<sha>` evidence for 30 days.
 
@@ -31,7 +32,7 @@ The workflow uploads `alpha-release-candidate-<sha>` evidence for 30 days.
 
 `artifacts/alpha-release-candidate/manifest.json`
 
-The manifest records the repository, exact commit SHA, run id, package version, public readiness payload and every gate assertion.
+The manifest records the repository, exact commit SHA, run id, package version, public readiness payload, public deployment provenance and every gate assertion.
 
 The release-candidate gate requires:
 
@@ -48,7 +49,10 @@ The release-candidate gate requires:
   - rewards/progression;
   - Casual PvP;
 - every capability available;
-- API release version matching the package/release environment.
+- API release version matching the package/release environment;
+- HTTP 200 + `no-store` from `/api/public/game/deployment/provenance`;
+- provenance commit SHA exactly matching both `GITHUB_SHA` and `RUNEFORGE_DEPLOY_SHA`;
+- provenance environment exactly `alpha`.
 
 ## Deliberate launch boundaries
 
@@ -68,6 +72,8 @@ The public readiness manifest explicitly verifies all three boundaries and requi
 
 Do not call a commit the deployable public Alpha candidate merely because its pull request CI is green.
 
-A candidate is launch-certifiable only when the **exact merge SHA** has a green `Alpha Release Candidate` workflow and its uploaded manifest reports `passed: true`.
+A candidate is launch-certifiable only when the **exact merge SHA** has a green `Alpha Release Candidate` workflow, its uploaded manifest reports `passed: true`, and the running provenance endpoint reports that same exact SHA.
+
+See `docs/PUBLIC-DEPLOYMENT-PROVENANCE-1-0.md` for the provider-neutral runtime identity contract.
 
 Ranked activation remains a separate later decision requiring its own release verification and balance gate.

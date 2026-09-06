@@ -14,6 +14,7 @@ const publicCards = read("src/app/api/public/game/cards/route.ts");
 const publicKeywords = read("src/app/api/public/game/keywords/route.ts");
 const publicRulesContracts = read("src/app/api/public/game/rules/contracts/route.ts");
 const publicAlphaReadiness = read("src/app/api/public/game/alpha/readiness/route.ts");
+const publicDeploymentProvenance = read("src/app/api/public/game/deployment/provenance/route.ts");
 
 assert.match(proxy, /requestOriginAllowed/);
 assert.match(proxy, /x-request-id/);
@@ -46,5 +47,8 @@ assert.doesNotMatch(publicRulesContracts, /isAdminAuthorized|unauthorized/);
 assert.match(publicAlphaReadiness, /buildPublicAlphaReadiness/);
 assert.match(publicAlphaReadiness, /runtimeStatus/);
 assert.doesNotMatch(publicAlphaReadiness, /isAdminAuthorized|unauthorized/);
+assert.match(publicDeploymentProvenance, /readDeploymentProvenance/);
+assert.match(publicDeploymentProvenance, /APP_RELEASE/);
+assert.doesNotMatch(publicDeploymentProvenance, /isAdminAuthorized|unauthorized|DATABASE_URL|ADMIN_|PAYMENT_|SECRET/);
 
 console.log("API CONTRACT REGRESSION: PASS");
