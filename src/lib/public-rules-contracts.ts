@@ -80,14 +80,11 @@ const STRUCTURAL_INFO: Record<CardType, Omit<PublicCardRuleContract, "key" | "na
 
 function countByDisplayType(cards: PublicCardDto[]) {
   const counts = new Map<string, number>();
-  for (const card of cards) {
-    counts.set(card.type, (counts.get(card.type) ?? 0) + 1);
-  }
+  for (const card of cards) counts.set(card.type, (counts.get(card.type) ?? 0) + 1);
   return counts;
 }
 
 export function publicStructuralCardTypeContracts(cards: PublicCardDto[]): PublicCardRuleContract[] {
-  const displayCounts = countByDisplayType(cards);
   return CARD_TYPES.map((type) => ({
     key: type,
     name: type,
@@ -123,10 +120,5 @@ export function publicSemanticCardTypeContracts(cards: PublicCardDto[]): PublicC
 export function buildPublicRulesContracts(cards: PublicCardDto[]) {
   const structural = publicStructuralCardTypeContracts(cards);
   const semantic = publicSemanticCardTypeContracts(cards);
-  return {
-    version: 1 as const,
-    structural,
-    semantic,
-    all: [...structural, ...semantic],
-  };
+  return { version: 1 as const, structural, semantic, all: [...structural, ...semantic] };
 }
