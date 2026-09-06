@@ -176,7 +176,7 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
       collections: [...collectionCounts.entries()]
         .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
         .map(([value, data]) => ({ value, label: data.label, count: data.count })),
-      keywords: countFacet(sorted.flatMap((card) => [...card.keywords, ...card.customKeywords])),
+      keywords: countFacet(sorted.flatMap((card) => unique([...card.keywords, ...card.customKeywords]))),
     },
   };
 }
