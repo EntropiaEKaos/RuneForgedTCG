@@ -32,8 +32,8 @@ npm run alpha:certify
 
 ## Current release status
 
-- PvE / Casual PvP / Studio / Vanilla / Forge / Draft: candidate GO after clean deployment verification.
-- Playable Alpha journey: certified in CI only when the full persisted HTTP journey passes after the production build.
+- PvE / Casual PvP / Studio / Vanilla / Forge / Draft: candidate GO only when the exact `main` SHA passes the dedicated **Alpha Release Candidate** clean-deployment workflow.
+- Playable Alpha journey: certified in normal CI and re-certified in the Alpha RC gate against a fresh PostgreSQL bootstrap, production build, persisted PvE journey, two-browser Casual PvP journey and visual evidence.
 - Ranked code + balance candidate: **PASS** for the `season-zero-r1` certified pool.
 - Ranked production activation remains **fail-closed by default** (`RANKED_RELEASE_CERTIFIED=false`) until the clean deployment machine completes the official dependency/toolchain/PostgreSQL release gate and deliberately switches it to `true`.
 - Mercado Pago: implementation is present and hardened; validate production/sandbox credentials and complete provider E2E before accepting real money.
@@ -223,21 +223,24 @@ Historical 2.97 local evidence retained for provenance:
 
 ## Production verification boundary
 
-This repository includes the reviewed npm lockfile. A production activation still requires a clean registry-connected machine and real PostgreSQL:
+The public Alpha and Ranked now have deliberately separate promotion boundaries.
+
+For the **free public Alpha**, the exact merge SHA must pass the dedicated `Alpha Release Candidate` workflow. That gate performs a clean registry install, fresh PostgreSQL bootstrap, `production:verify`, launches the production build, replays the persisted Alpha journey, certifies real Casual PvP in two browsers and records a SHA-bound readiness manifest plus screenshots. Ranked remains disabled during this gate.
+
+For later **Ranked** activation, the deployment must additionally pass:
 
 ```bash
-npm ci
 npm run production:verify
 npm run ranked:verify
 ```
 
-Only after those commands pass should production set:
+Only after that separate Ranked decision should production set:
 
 ```env
 RUNEFORGE_RELEASE=2.97.0
 RANKED_RELEASE_CERTIFIED=true
 ```
 
-The shipped `.env.production.example` keeps `RANKED_RELEASE_CERTIFIED=false` deliberately so an unverified deployment cannot accidentally enable Ranked.
+The shipped `.env.production.example` keeps `RANKED_RELEASE_CERTIFIED=false` deliberately so an Alpha deploy cannot accidentally enable Ranked.
 
-See `docs/RELEASE.md`, `docs/TESTING.md`, `docs/SECURITY.md` and `docs/ARCHITECTURE.md`.
+See `docs/ALPHA-RELEASE-CANDIDATE-1-0.md`, `docs/RELEASE.md`, `docs/TESTING.md`, `docs/SECURITY.md` and `docs/ARCHITECTURE.md`.

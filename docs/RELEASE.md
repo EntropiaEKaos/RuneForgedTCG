@@ -2,29 +2,88 @@
 
 ## Local candidate evidence
 
-The source candidate has passed executable behavioral regression, static/source audits, static schema guards, import checks and the 4,800-game Ranked balance certification. Ranked remains fail-closed at runtime unless the deployment explicitly opts in.
+The source candidate has passed executable behavioral regression, static/source audits, static schema guards, import checks and the certified Alpha journeys. Ranked has separate balance evidence and remains fail-closed at runtime unless a deployment explicitly opts in.
 
-## Required clean deployment sequence
+## Public Alpha clean-deployment gate
 
-On a registry-connected machine with PostgreSQL configured:
+The free public Alpha is promoted independently from Ranked and real-money payments.
+
+The authoritative clean-deployment proof is:
+
+`.github/workflows/alpha-release-candidate.yml`
+
+For every relevant push to `main`, and on manual dispatch, the workflow certifies the **exact merge SHA** with:
+
+- Node 22.23.2;
+- clean registry-backed `npm ci`;
+- lock/runtime reproducibility;
+- fresh PostgreSQL 17 bootstrap;
+- `npm run production:verify`;
+- the built application running through `next start`;
+- persisted Alpha HTTP journey;
+- real two-browser Casual PvP journey;
+- Alpha visual journey;
+- public readiness evidence for all seven Alpha capabilities.
+
+The workflow runs with:
+
+```env
+RUNEFORGE_RELEASE=2.97.0
+RANKED_RELEASE_CERTIFIED=false
+```
+
+A public Alpha candidate is acceptable only when the exact merge SHA has a green **Alpha Release Candidate** run and the uploaded `artifacts/alpha-release-candidate/manifest.json` reports `passed: true`.
+
+See `docs/ALPHA-RELEASE-CANDIDATE-1-0.md`.
+
+## Equivalent operator verification
+
+On a registry-connected machine with a fresh PostgreSQL deployment, the equivalent operator sequence starts with:
 
 ```bash
-npm run lock:refresh
-# review and commit the generated package-lock.json
 npm ci
+npm run db:bootstrap
 RUNEFORGE_RELEASE=2.97.0 RANKED_RELEASE_CERTIFIED=false npm run production:verify
+```
+
+Then start the production build and run the launch-scope journeys against it:
+
+```bash
+npm start
+npm run test:e2e:alpha-journey
+node scripts/alpha-casual-pvp-journey.mjs
+node scripts/alpha-visual-journey.mjs
+npm run alpha:release-evidence
+```
+
+The GitHub Actions gate is preferred because it binds the evidence to the repository SHA and uploads the manifest/screenshots automatically.
+
+## Ranked activation is a separate decision
+
+Ranked is not required for the public Alpha.
+
+Only when Ranked itself is being promoted should the exact deploy artifact additionally run:
+
+```bash
+npm run production:verify
 npm run ranked:verify
 ```
 
-After both commands pass on the exact deploy artifact, enable Ranked deliberately:
+After both commands pass in the final Ranked environment, enable Ranked deliberately:
 
 ```env
 RUNEFORGE_RELEASE=2.97.0
 RANKED_RELEASE_CERTIFIED=true
 ```
 
-Then rerun the deployment preflight/production verification with the final environment and perform HTTP E2E/smoke tests against the deployed PostgreSQL instance.
+Then rerun deployment verification and HTTP smoke tests against the deployed PostgreSQL instance.
+
+## Real-money payments are also separate
+
+Mercado Pago database/idempotency hardening remains part of production safety verification, but the public Alpha does not require live provider credentials or provider-network E2E.
+
+Do not accept real money until sandbox/production credentials and provider E2E are separately certified.
 
 ## Why the shipped example is false
 
-`.env.production.example` intentionally ships `RANKED_RELEASE_CERTIFIED=false`. A source ZIP with a passing simulation is not enough to bypass dependency, database and build verification.
+`.env.production.example` intentionally ships `RANKED_RELEASE_CERTIFIED=false`. A source ZIP, passing balance simulation, or normal pull-request CI is not enough to bypass the SHA-bound clean-deployment gate.
