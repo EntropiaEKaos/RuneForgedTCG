@@ -11,6 +11,7 @@ assert.match(route, /collectibleCards/);
 assert.match(route, /getCardCollection/);
 assert.match(route, /toPublicCardDto/);
 assert.match(route, /queryPublicCardCatalog/);
+assert.match(route, /keyword: params\.get\("keyword"\)/);
 assert.match(route, /Cache-Control/);
 assert.doesNotMatch(route, /isAdminAuthorized|adminAuditLogs|customCards\.data/);
 assert.match(detail, /toPublicCardDto/);
@@ -39,5 +40,7 @@ for (const forbiddenField of ["spell:", "trigger:", "mechanics:", "sentinela:", 
 }
 assert.match(helper, /if \(!collection\) return null/);
 assert.match(helper, /Math\.min\(100/);
+assert.match(helper, /query\.keyword/);
+assert.match(helper, /facets:[\s\S]*keywords:/);
 
 console.log("PUBLIC CARD CATALOG SOURCE CONTRACT: PASS — public-only DTO · fail-closed collection · bounded pagination · unified collection counts");
