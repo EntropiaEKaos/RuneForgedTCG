@@ -8,6 +8,7 @@ export type DeploymentProvenance = {
 };
 
 type DeploymentEnvSource = {
+  [key: string]: string | undefined;
   RUNEFORGE_DEPLOY_SHA?: string;
   RUNEFORGE_DEPLOY_ENV?: string;
 };
