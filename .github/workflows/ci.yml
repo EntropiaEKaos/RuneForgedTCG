@@ -44,6 +44,8 @@ jobs:
       TRUST_PROXY: "false"
       ALLOW_LEGACY_PLAYER_IDENTITY: "false"
       RANKED_RELEASE_CERTIFIED: "false"
+      RUNEFORGE_DEPLOY_SHA: ${{ github.sha }}
+      RUNEFORGE_DEPLOY_ENV: ci
 
     steps:
       - name: Checkout
