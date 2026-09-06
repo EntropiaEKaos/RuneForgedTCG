@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
       type: params.get("type"),
       rarity: params.get("rarity"),
       collection: params.get("collection"),
+      keyword: params.get("keyword"),
       page: numberParam(params.get("page")),
       pageSize: numberParam(params.get("pageSize")),
     });
