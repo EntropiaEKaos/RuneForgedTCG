@@ -4,7 +4,7 @@ import fs from "node:fs";
 const route = fs.readFileSync("src/app/api/public/game/alpha/readiness/route.ts", "utf8");
 const helper = fs.readFileSync("src/lib/public-alpha-readiness.ts", "utf8");
 
-assert.match(route, /db.execute(sql`select 1`)/);
+assert.match(route, /db\.execute\(sql`select 1`\)/);
 assert.match(route, /runtimeStatus/);
 assert.match(route, /APP_RELEASE/);
 assert.match(route, /ENGINE_VERSION/);
