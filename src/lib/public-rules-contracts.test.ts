@@ -4,8 +4,7 @@ import { CERTIFIED_SEMANTIC_CARD_TYPES } from "@/game/semantic-card-types";
 import type { PublicCardDto } from "./public-card-catalog";
 import { buildPublicRulesContracts } from "./public-rules-contracts";
 
-const collection = { key: "vanilla", code: "VAN", name: "Vanilla", symbol: null };
-const base = {
+const base: Omit<PublicCardDto, "defId" | "name" | "type" | "structuralType"> = {
   region: "Emberhold",
   regions: ["Emberhold"],
   cost: 2,
@@ -19,8 +18,8 @@ const base = {
   isChampion: false,
   emoji: "◆",
   doctrineAffinities: [],
-  collection,
-} as const;
+  collection: { key: "vanilla", code: "VAN", name: "Vanilla", symbol: null },
+};
 
 const cards: PublicCardDto[] = [
   { ...base, defId: "unit", name: "Unit", type: "Unit", structuralType: "Unit", power: 2, health: 2 },
