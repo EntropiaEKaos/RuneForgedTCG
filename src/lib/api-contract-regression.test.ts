@@ -12,6 +12,7 @@ const sitePublic = read("src/app/api/public/site/[resource]/[slug]/route.ts");
 const sitePublish = read("src/app/api/admin/site/[resource]/[slug]/publish/route.ts");
 const publicCards = read("src/app/api/public/game/cards/route.ts");
 const publicKeywords = read("src/app/api/public/game/keywords/route.ts");
+const publicRulesContracts = read("src/app/api/public/game/rules/contracts/route.ts");
 
 assert.match(proxy, /requestOriginAllowed/);
 assert.match(proxy, /x-request-id/);
@@ -37,5 +38,9 @@ assert.doesNotMatch(publicCards, /isAdminAuthorized|unauthorized/);
 assert.match(publicKeywords, /buildPublicKeywordCatalog/);
 assert.match(publicKeywords, /adminKeywords\.enabled/);
 assert.doesNotMatch(publicKeywords, /isAdminAuthorized|unauthorized/);
+assert.match(publicRulesContracts, /buildPublicRulesContracts/);
+assert.match(publicRulesContracts, /collectibleCards/);
+assert.match(publicRulesContracts, /getCardCollection/);
+assert.doesNotMatch(publicRulesContracts, /isAdminAuthorized|unauthorized/);
 
 console.log("API CONTRACT REGRESSION: PASS");
