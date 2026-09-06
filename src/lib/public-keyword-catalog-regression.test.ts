@@ -26,9 +26,11 @@ assert.match(helper, /source: "canonical"/);
 assert.match(helper, /source: "custom"/);
 assert.match(helper, /cardCount/);
 assert.match(helper, /timing/);
-assert.doesNotMatch(helper, /PublicKeywordDto[\s\S]{0,700}\bbehavior\??:/);
-assert.doesNotMatch(helper, /PublicKeywordDto[\s\S]{0,700}\beffect\??:/);
-assert.doesNotMatch(helper, /PublicKeywordDto[\s\S]{0,700}\bcondition\??:/);
+const dtoBlock = helper.match(/export type PublicKeywordDto = \\{([\\s\\S]*?)\\n\\};/)?.[1] ?? "";
+assert.ok(dtoBlock, "PublicKeywordDto block must be inspectable");
+assert.doesNotMatch(dtoBlock, /\\bbehavior\\??:/);
+assert.doesNotMatch(dtoBlock, /\\beffect\\??:/);
+assert.doesNotMatch(dtoBlock, /\\bcondition\\??:/);
 
 assert.match(cardsRoute, /keyword: params\.get\("keyword"\)/);
 
