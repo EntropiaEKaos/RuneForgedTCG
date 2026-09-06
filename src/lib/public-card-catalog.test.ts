@@ -78,14 +78,20 @@ assert.equal(result.totalPages, 1);
 assert.ok(result.facets.regions.some((facet) => facet.value === "Emberhold"));
 assert.ok(result.facets.types.some((facet) => facet.value === "Ritual"));
 assert.ok(result.facets.collections.some((facet) => facet.value === "vanilla" && facet.count === 2));
+assert.ok(result.facets.keywords.some((facet) => facet.value === "Barrier" && facet.count === 1));
+assert.ok(result.facets.keywords.some((facet) => facet.value === "Overcharge" && facet.count === 1));
 
 const filtered = queryPublicCardCatalog([second, dto], {
   region: "tempestade",
   type: "ritual",
   rarity: "epic",
   collection: "VAN",
+  keyword: "barrier",
 });
 assert.deepEqual(filtered.items.map((card) => card.defId), ["public_fixture"]);
+
+const customKeywordFiltered = queryPublicCardCatalog([second, dto], { keyword: "overcharge" });
+assert.deepEqual(customKeywordFiltered.items.map((card) => card.defId), ["public_fixture"]);
 
 const bounded = queryPublicCardCatalog([second, dto], { pageSize: 1000, page: 99 });
 assert.equal(bounded.pageSize, 100);
@@ -117,4 +123,4 @@ assert.equal(
   "canonical Vanilla count must equal the complete currently public collectible base catalog",
 );
 
-console.log("PUBLIC CARD CATALOG: PASS — safe DTO · semantic type · fail-closed collection · filters · facets · pagination · collection counts");
+console.log("PUBLIC CARD CATALOG: PASS — safe DTO · semantic type · fail-closed collection · filters · keyword facets · pagination · collection counts");

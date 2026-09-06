@@ -37,6 +37,7 @@ export type PublicCardCatalogQuery = {
   type?: string | null;
   rarity?: string | null;
   collection?: string | null;
+  keyword?: string | null;
   page?: number | null;
   pageSize?: number | null;
 };
@@ -46,6 +47,7 @@ export type PublicCardCatalogFacets = {
   types: Array<{ value: string; count: number }>;
   rarities: Array<{ value: string; count: number }>;
   collections: Array<{ value: string; label: string; count: number }>;
+  keywords: Array<{ value: string; count: number }>;
 };
 
 export type PublicCardCatalogResult = {
@@ -116,6 +118,7 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
   const type = normalized(query.type);
   const rarity = normalized(query.rarity);
   const collection = normalized(query.collection);
+  const keyword = normalized(query.keyword);
 
   const sorted = [...cards].sort((a, b) => a.name.localeCompare(b.name) || a.defId.localeCompare(b.defId));
   const filtered = sorted.filter((card) => {
@@ -143,6 +146,7 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
     if (type && normalized(card.type) !== type && normalized(card.structuralType) !== type) return false;
     if (rarity && normalized(card.rarity) !== rarity) return false;
     if (collection && normalized(card.collection.key) !== collection && normalized(card.collection.code) !== collection) return false;
+    if (keyword && ![...card.keywords, ...card.customKeywords].some((value) => normalized(value) === keyword)) return false;
     return true;
   });
 
@@ -172,6 +176,7 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
       collections: [...collectionCounts.entries()]
         .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
         .map(([value, data]) => ({ value, label: data.label, count: data.count })),
+      keywords: countFacet(sorted.flatMap((card) => unique([...card.keywords, ...card.customKeywords]))),
     },
   };
 }
