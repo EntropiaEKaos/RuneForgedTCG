@@ -27,6 +27,20 @@ if (!["true", "false"].includes(process.env.RANKED_RELEASE_CERTIFIED || "")) fai
 const release = process.env.RUNEFORGE_RELEASE?.trim();
 if (release && release !== packageMetadata.version) failures.push(`RUNEFORGE_RELEASE (${release}) must match package version (${packageMetadata.version})`);
 
+const deploySha = (process.env.RUNEFORGE_DEPLOY_SHA?.trim() || "").toLowerCase();
+if (!/^[0-9a-f]{40}$/.test(deploySha)) failures.push("RUNEFORGE_DEPLOY_SHA must be the exact 40-character Git commit SHA being deployed");
+
+const deployEnvironment = (process.env.RUNEFORGE_DEPLOY_ENV?.trim() || "").toLowerCase();
+const allowedDeployEnvironments = ["ci", "preview", "alpha", "staging", "production"];
+if (!allowedDeployEnvironments.includes(deployEnvironment)) {
+  failures.push(`RUNEFORGE_DEPLOY_ENV must be one of: ${allowedDeployEnvironments.join(", ")}`);
+}
+
+const githubSha = (process.env.GITHUB_SHA?.trim() || "").toLowerCase();
+if (githubSha && /^[0-9a-f]{40}$/.test(deploySha) && githubSha !== deploySha) {
+  failures.push(`RUNEFORGE_DEPLOY_SHA (${deploySha}) must match GITHUB_SHA (${githubSha}) exactly`);
+}
+
 const assetMode = (process.env.ASSET_STORAGE_MODE?.trim().toLowerCase() || "s3");
 if (assetMode === "s3") {
   for (const key of ["ASSET_S3_ENDPOINT", "ASSET_S3_BUCKET", "ASSET_S3_ACCESS_KEY_ID", "ASSET_S3_SECRET_ACCESS_KEY", "ASSET_PUBLIC_BASE_URL"] as const) {
@@ -50,4 +64,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`FAIL ${failure}`);
   process.exit(1);
 }
-console.log("RELEASE PREFLIGHT: PASS");
+console.log(`RELEASE PREFLIGHT: PASS — deploy ${deployEnvironment}@${deploySha.slice(0, 12)}`);
