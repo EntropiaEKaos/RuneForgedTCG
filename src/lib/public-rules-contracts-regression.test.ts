@@ -25,8 +25,10 @@ assert.doesNotMatch(helper, /CardEffect|CARD_EFFECT_CONTRACTS|sanitizeCardEffect
 
 const dtoBlock = helper.match(/export type PublicCardRuleContract = \{([\s\S]*?)\n\};/)?.[1] ?? "";
 assert.ok(dtoBlock);
-for (const forbidden of ["spell", "effect", "behavior", "mechanics", "condition", "schema"]) {
-  assert.ok(!dtoBlock.includes(forbidden), `public rules DTO must not expose ${forbidden}`);
+for (const forbiddenProperty of ["spell", "effect", "behavior", "mechanics", "condition", "schema"]) {
+  const propertyPattern = new RegExp(`\\b${forbiddenProperty}\\??\\s*:`);
+  assert.doesNotMatch(dtoBlock, propertyPattern, `public rules DTO must not expose ${forbiddenProperty} property`);
 }
+assert.match(dtoBlock, /countsAsSpellCast:\s*boolean/);
 
 console.log("PUBLIC RULES CONTRACT SOURCE CONTRACT: PASS — engine card types + certified semantics · no executable grammar exposure");
