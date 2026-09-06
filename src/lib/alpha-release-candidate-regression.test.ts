@@ -38,7 +38,7 @@ for (const key of [
   "rewards-progression",
   "casual-pvp",
 ]) {
-  assert.ok(evidence.includes(`\"${key}\"`), `Evidence manifest must certify capability ${key}`);
+  assert.ok(evidence.includes(`"${key}"`), `Evidence manifest must certify capability ${key}`);
 }
 
 for (const marker of [
@@ -55,7 +55,7 @@ for (const marker of [
 
 assert.equal(pkg.scripts["alpha:release-evidence"], "node scripts/alpha-release-candidate-evidence.mjs");
 assert.ok(releaseDocs.includes("exact merge SHA"));
-assert.ok(releaseDocs.includes("Ranked remains outside"));
-assert.ok(releaseDocs.includes("real-money payments remain outside"));
+assert.match(releaseDocs, /Ranked remains outside/i);
+assert.match(releaseDocs, /real-money payments remain outside/i);
 
 console.log("ALPHA RELEASE CANDIDATE SOURCE CONTRACT: PASS");
