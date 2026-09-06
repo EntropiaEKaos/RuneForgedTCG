@@ -51,7 +51,7 @@ assert.ok(maintenance.capabilities.every((item) => item.status === "temporarily-
 assert.equal(maintenance.boundaries.rankedOperational, true, "runtime Ranked status remains observable but outside Alpha launch scope");
 
 for (const item of ready.capabilities) {
-  assert.match(item.route, /^/(play|forge|profile|pvp)$/);
+  assert.match(item.route, /^\/(play|forge|profile|pvp)$/);
 }
 
 console.log("PUBLIC ALPHA READINESS: PASS — ready · limited · maintenance · certified Alpha boundary");
