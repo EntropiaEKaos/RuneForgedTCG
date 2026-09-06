@@ -150,6 +150,7 @@ export const sourceContractTests = [
   "src/lib/public-keyword-catalog-regression.test.ts",
   "src/lib/public-rules-contracts-regression.test.ts",
   "src/lib/public-alpha-readiness-regression.test.ts",
+  "src/lib/alpha-release-candidate-regression.test.ts",
   "src/lib/pvp-engine-regression.test.ts",
   "src/lib/reaction-activated-ui-regression.test.ts",
   "src/lib/release-certification-2.95.test.ts",
