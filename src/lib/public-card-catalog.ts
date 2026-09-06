@@ -175,3 +175,17 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
     },
   };
 }
+
+
+export function countPublicCardsByCollection(
+  cards: CardDef[],
+  resolveCollection: (defId: string) => CardCollectionIdentity | null,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const card of cards) {
+    const dto = toPublicCardDto(card, resolveCollection(card.defId));
+    if (!dto) continue;
+    counts.set(dto.collection.key, (counts.get(dto.collection.key) ?? 0) + 1);
+  }
+  return counts;
+}
