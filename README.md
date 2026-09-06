@@ -225,7 +225,7 @@ Historical 2.97 local evidence retained for provenance:
 
 The public Alpha and Ranked now have deliberately separate promotion boundaries.
 
-For the **free public Alpha**, the exact merge SHA must pass the dedicated `Alpha Release Candidate` workflow. That gate performs a clean registry install, fresh PostgreSQL bootstrap, `production:verify`, launches the production build, replays the persisted Alpha journey, certifies real Casual PvP in two browsers and records a SHA-bound readiness manifest plus screenshots. Ranked remains disabled during this gate.
+For the **free public Alpha**, the exact merge SHA must pass the dedicated `Alpha Release Candidate` workflow. That gate performs a clean registry install, fresh PostgreSQL bootstrap, `production:verify`, launches the production build, replays the persisted Alpha journey, certifies real Casual PvP in two browsers and records a SHA-bound readiness manifest plus screenshots. Ranked remains disabled during this gate. The running server also exposes `/api/public/game/deployment/provenance`, which must report the same exact commit SHA injected by the deploy pipeline.
 
 For later **Ranked** activation, the deployment must additionally pass:
 
@@ -243,4 +243,4 @@ RANKED_RELEASE_CERTIFIED=true
 
 The shipped `.env.production.example` keeps `RANKED_RELEASE_CERTIFIED=false` deliberately so an Alpha deploy cannot accidentally enable Ranked.
 
-See `docs/ALPHA-RELEASE-CANDIDATE-1-0.md`, `docs/RELEASE.md`, `docs/TESTING.md`, `docs/SECURITY.md` and `docs/ARCHITECTURE.md`.
+See `docs/ALPHA-RELEASE-CANDIDATE-1-0.md`, `docs/PUBLIC-DEPLOYMENT-PROVENANCE-1-0.md`, `docs/RELEASE.md`, `docs/TESTING.md`, `docs/SECURITY.md` and `docs/ARCHITECTURE.md`.
