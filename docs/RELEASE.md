@@ -29,6 +29,8 @@ The workflow runs with:
 
 ```env
 RUNEFORGE_RELEASE=2.97.0
+RUNEFORGE_DEPLOY_SHA=<exact 40-character commit SHA>
+RUNEFORGE_DEPLOY_ENV=alpha
 RANKED_RELEASE_CERTIFIED=false
 ```
 
@@ -43,7 +45,7 @@ On a registry-connected machine with a fresh PostgreSQL deployment, the equivale
 ```bash
 npm ci
 npm run db:bootstrap
-RUNEFORGE_RELEASE=2.97.0 RANKED_RELEASE_CERTIFIED=false npm run production:verify
+RUNEFORGE_RELEASE=2.97.0 RUNEFORGE_DEPLOY_SHA=<exact-40-char-sha> RUNEFORGE_DEPLOY_ENV=alpha RANKED_RELEASE_CERTIFIED=false npm run production:verify
 ```
 
 Then start the production build and run the launch-scope journeys against it:
@@ -56,7 +58,9 @@ node scripts/alpha-visual-journey.mjs
 npm run alpha:release-evidence
 ```
 
-The GitHub Actions gate is preferred because it binds the evidence to the repository SHA and uploads the manifest/screenshots automatically.
+The GitHub Actions gate is preferred because it binds the evidence to the repository SHA and uploads the manifest/screenshots automatically. `release:preflight` also rejects a malformed deploy SHA and, inside GitHub Actions, rejects any `RUNEFORGE_DEPLOY_SHA` that differs from `GITHUB_SHA`.
+
+The running deployment exposes `GET /api/public/game/deployment/provenance`. That endpoint must report the same exact SHA and a bounded environment identity (`ci`, `preview`, `alpha`, `staging` or `production`); invalid or missing provenance returns HTTP 503. See `docs/PUBLIC-DEPLOYMENT-PROVENANCE-1-0.md`.
 
 ## Ranked activation is a separate decision
 
