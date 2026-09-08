@@ -62,6 +62,26 @@ The GitHub Actions gate is preferred because it binds the evidence to the reposi
 
 The running deployment exposes `GET /api/public/game/deployment/provenance`. That endpoint must report the same exact SHA and a bounded environment identity (`ci`, `preview`, `alpha`, `staging` or `production`); invalid or missing provenance returns HTTP 503. See `docs/PUBLIC-DEPLOYMENT-PROVENANCE-1-0.md`.
 
+## Netlify is fail-closed
+
+The repository no longer permits Netlify to run a plain `npm run build`.
+
+`netlify.toml` calls:
+
+```bash
+npm run deploy:netlify:certified
+```
+
+That gate refuses deployment unless all of the following are true:
+
+- `RUNEFORGE_NETLIFY_CERTIFIED=true` is an explicit operator decision;
+- Netlify `COMMIT_REF` is an exact 40-character Git SHA;
+- `RUNEFORGE_DEPLOY_SHA` exactly equals `COMMIT_REF`;
+- `RUNEFORGE_DEPLOY_ENV` is `alpha`, `staging` or `production`;
+- the complete `npm run production:verify` gate passes.
+
+This makes accidental Netlify auto-deploys fail before Next.js build/publish. A Netlify deployment is not certified merely because the framework plugin can build the repository.
+
 ## Ranked activation is a separate decision
 
 Ranked is not required for the public Alpha.
