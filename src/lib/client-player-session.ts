@@ -19,10 +19,13 @@ async function json(response: Response): Promise<PlayerSessionPayload> {
   return response.json().catch(() => ({ ok: false, error: `HTTP ${response.status}` }));
 }
 
-function clearLegacyRecoveryStorage() {
+function takeLegacyRecoveryCode(): string | null {
   // Migration only: old builds persisted the recovery credential in localStorage.
-  // New builds intentionally remove that copy and never persist another one.
+  // Consume it once, delete the persistent copy immediately, then either surface
+  // it to the user or use it once to recover/rotate an expired browser session.
+  const legacy = localStorage.getItem(LEGACY_RECOVERY_KEY)?.trim() || "";
   localStorage.removeItem(LEGACY_RECOVERY_KEY);
+  return legacy || null;
 }
 
 function acceptSessionPayload(payload: PlayerSessionPayload) {
@@ -32,7 +35,7 @@ function acceptSessionPayload(payload: PlayerSessionPayload) {
 }
 
 export async function ensurePlayerSession(preferredName?: string): Promise<PlayerSessionPayload> {
-  clearLegacyRecoveryStorage();
+  const legacyRecoveryCode = takeLegacyRecoveryCode();
 
   const current = await fetch("/api/player", { cache: "no-store" });
   if (current.ok) {
@@ -51,7 +54,18 @@ export async function ensurePlayerSession(preferredName?: string): Promise<Playe
       const renamed = await json(renamedResponse);
       if (renamed.ok) payload = renamed;
     }
+    if (legacyRecoveryCode) publishPendingRecoveryKey(legacyRecoveryCode);
     return acceptSessionPayload(payload);
+  }
+
+  if (legacyRecoveryCode) {
+    const migratedRecovery = await fetch("/api/player", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recoveryCode: legacyRecoveryCode }),
+    });
+    const migrated = await json(migratedRecovery);
+    if (migrated.ok) return acceptSessionPayload(migrated);
   }
 
   const normalized = preferredName?.trim();
@@ -70,7 +84,6 @@ export async function ensurePlayerSession(preferredName?: string): Promise<Playe
 }
 
 export function storedPlayerName(): string {
-  clearLegacyRecoveryStorage();
   return localStorage.getItem(PLAYER_NAME_KEY) || "";
 }
 
@@ -93,7 +106,7 @@ export async function rotatePlayerRecoveryCode(): Promise<PlayerSessionPayload> 
 }
 
 export async function recoverPlayerSession(recoveryCode: string): Promise<PlayerSessionPayload> {
-  clearLegacyRecoveryStorage();
+  takeLegacyRecoveryCode();
   const response = await fetch("/api/player", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
