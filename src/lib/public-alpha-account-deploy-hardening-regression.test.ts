@@ -17,7 +17,9 @@ const alpha = read("scripts/alpha-player-journey.ts");
 // Recovery secrets must never return to persistent Web Storage.
 assert.doesNotMatch(client, /runeforge_recovery_code/i);
 assert.doesNotMatch(client, /storedRecoveryCode/);
-assert.doesNotMatch(client, /localStorage\.(?:setItem|getItem|removeItem)\([^\n]*recovery/i);
+assert.doesNotMatch(client, /localStorage\.(?:setItem|getItem)\([^\n]*recovery/i);
+assert.match(client, /LEGACY_RECOVERY_KEY/);
+assert.match(client, /localStorage\.removeItem\(LEGACY_RECOVERY_KEY\)/);
 assert.match(client, /PLAYER_RECOVERY_KEY_EVENT/);
 assert.match(client, /consumePendingRecoveryCode/);
 assert.match(client, /recoverPlayerSession/);
