@@ -48,7 +48,8 @@ This avoids silently destroying the only recovery credential of an upgrading Alp
 The Alpha visual journey now requires:
 
 - the one-time recovery notice appears for a newly created account;
-- the displayed key matches the expected recovery-key shape;
+- the displayed key matches the expected recovery-key shape in live runtime;
+- the bearer credential is replaced with a redacted marker before screenshot evidence is written;
 - `localStorage.getItem("runeforge_recovery_code") === null`;
 - the user can dismiss the one-time notice;
 - `/recover` renders as part of the certified browser journey.
