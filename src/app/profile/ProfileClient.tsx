@@ -9,8 +9,8 @@ import {
   ensurePlayerSession,
   renamePlayerDisplayName,
   rotatePlayerRecoveryCode,
-  storedRecoveryCode,
 } from "@/lib/client-player-session";
+import { clearPendingRecoveryKey } from "@/lib/recovery-key-memory";
 
 interface PlayerData {
   id: number;
@@ -77,7 +77,6 @@ export default function ProfileClient() {
     const saved = localStorage.getItem("runeforge_playername") || "";
     setPlayerName(saved);
     setNameInput(saved);
-    setRecoveryCode(storedRecoveryCode());
   }, []);
 
   const loadProfile = useCallback(async (name: string) => {
@@ -93,7 +92,6 @@ export default function ProfileClient() {
         setDailies(Array.isArray(data.dailies) ? data.dailies as DailyProgress[] : []);
         setStats(data.stats && typeof data.stats === "object" ? data.stats as unknown as Stats : null);
         setSharedDecks(Array.isArray(data.sharedDecks) ? data.sharedDecks as SharedDeck[] : []);
-        setRecoveryCode(storedRecoveryCode());
       }
     } finally {
       setLoading(false);
@@ -158,8 +156,9 @@ export default function ProfileClient() {
         return;
       }
       setRecoveryCode(result.recoveryCode);
+      clearPendingRecoveryKey();
       setShowRecoveryCode(true);
-      setMessage("Nova chave gerada. A chave anterior deixou de funcionar.");
+      setMessage("Nova chave gerada. A chave anterior deixou de funcionar e esta nova chave não será salva no navegador.");
     } finally {
       setLoading(false);
     }
@@ -276,6 +275,28 @@ export default function ProfileClient() {
                 </div>
               </div>
             </section>
+
+            {!recoveryCode && (
+              <section className="mb-8 rounded-2xl border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,.05),rgba(3,5,8,.58))] p-5" aria-labelledby="recovery-security-heading">
+                <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                  <div className="max-w-2xl">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300/65">SEGURANÇA DA CONTA</p>
+                    <h2 id="recovery-security-heading" className="mt-1 text-xl font-black text-slate-100">Chave de recuperação não persistida</h2>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">
+                      O RuneForge não guarda sua chave de recuperação no navegador. Gere uma nova para salvá-la agora, ou use uma chave já salva para recuperar outra conta.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" disabled={loading} onClick={() => void rotateRecovery()}>
+                      GERAR NOVA CHAVE
+                    </button>
+                    <Link href="/recover" className="rf-button rf-button-secondary min-h-9 !px-3">
+                      RECUPERAR CONTA
+                    </Link>
+                  </div>
+                </div>
+              </section>
+            )}
 
             {recoveryCode && (
               <section className="mb-8 rounded-2xl border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,.07),rgba(3,5,8,.58))] p-5" aria-labelledby="recovery-heading">
