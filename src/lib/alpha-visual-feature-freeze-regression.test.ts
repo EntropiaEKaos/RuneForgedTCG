@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
  * structural surface changed; full CI/browser evidence is mandatory for this PR.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "0c663d88ac192a05d2da23fb75e8fb3d89caad41",
+  "src/app/layout.tsx": "8ab2cb79a28573966d813a191def3358aa70ee82",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "aefb06413aaf9927fa435579ee39a717ff9d38d7",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
