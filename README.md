@@ -28,7 +28,22 @@ After `alpha:setup`, run the complete playable-alpha certification with:
 npm run alpha:certify
 ```
 
-`alpha:certify` reruns the alpha verification gates, starts the production build locally and executes a real HTTP player journey against the persistent PostgreSQL database: account creation → catalog → Forge deck persistence → server-issued PvE token → complete authoritative match replay/settlement → exactly-once XP/gold/dust rewards → profile progression → account recovery with the same persisted deck and balances.
+`alpha:certify` reruns the alpha verification gates, starts the production build locally and executes a real HTTP player journey against the persistent PostgreSQL database: account creation → catalog → Forge deck persistence → server-issued PvE token → complete authoritative match replay/settlement → exactly-once XP/gold/dust rewards → profile progression → account recovery with the same persisted deck and balances. Recovery credentials are shown one time and are not persisted in browser storage.
+
+## Public Alpha account security
+
+Player sessions remain HttpOnly, durable and server-authoritative. Recovery credentials are hashed server-side, expire, rotate after successful use and revoke old sessions.
+
+The browser now treats the recovery key as a **one-time secret**:
+
+- no new recovery key is written to `localStorage`, `sessionStorage` or IndexedDB;
+- a newly issued key is kept only in volatile client memory and shown in a global save-now notice;
+- `/recover` provides an explicit account recovery flow;
+- a failed recovery attempt preserves the current player session;
+- a successful recovery replaces the current session and emits a fresh replacement key;
+- legacy `runeforge_recovery_code` storage is consumed once, removed immediately and migrated safely.
+
+See `docs/PUBLIC-ALPHA-SECURITY-HARDENING-1-0.md`.
 
 ## Current release status
 

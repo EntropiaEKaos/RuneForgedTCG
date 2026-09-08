@@ -294,11 +294,32 @@ async function main() {
   assert.equal(Number(profileAfter.body.stats.customDecks), 1, "forged deck must remain attached to the player profile");
 
   const recoveredClient = new BrowserClient();
+  const temporary = await recoveredClient.request("/api/player", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ displayName: `Recovery Temp ${runId}`.slice(0, 40) }),
+  });
+  assert.equal(temporary.response.status, 201, JSON.stringify(temporary.body));
+  const temporaryPlayerId = Number(temporary.body.player?.id);
+  assert.ok(temporaryPlayerId > 0 && temporaryPlayerId !== playerId, "recovery replacement must begin from a distinct current session");
+
+  const invalidRecovery = await recoveredClient.request("/api/player", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ recoveryCode: "invalid-recovery-key-000000000000" }),
+  });
+  assert.equal(invalidRecovery.response.status, 401, "invalid recovery key must not replace the current session");
+
+  const stillTemporary = await recoveredClient.request("/api/player");
+  assert.equal(stillTemporary.response.status, 200, JSON.stringify(stillTemporary.body));
+  assert.equal(Number(stillTemporary.body.player?.id), temporaryPlayerId, "invalid recovery key must preserve the current session");
+
   const recovered = await recoveredClient.request("/api/player", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ recoveryCode }),
   });
+  assert.equal(Number(recovered.body.player?.id), playerId, "valid recovery key must replace the temporary current session");
   assert.equal(recovered.response.status, 200, `alpha recovery failed after progression: ${JSON.stringify(recovered.body)}`);
   assert.equal(recovered.body.recovered, true);
   assert.equal(Number(recovered.body.player.id), playerId);

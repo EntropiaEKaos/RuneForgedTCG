@@ -3,15 +3,21 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
 /**
- * Visual Feature Freeze baseline certified by CI #632 on main SHA
+ * Visual Feature Freeze baseline originated from CI #632 on main SHA
  * 9fb9575831e603664070f04caea68e5c70c9e057.
+ *
+ * Public Alpha Security Hardening 1.0 intentionally refreshes ONLY the root
+ * layout blob because the layout now mounts the global one-time RecoveryKeyNotice.
+ * No battlefield, card-presentation or Visual 3.x layer is changed by this break.
+ * The refreshed layout candidate must pass full CI/browser evidence and the
+ * post-merge Alpha Release Candidate before this freeze break is definitive.
  *
  * These are Git blob SHAs, not arbitrary checksums. A deliberate structural
  * visual change must update this baseline and explain the freeze break in the PR.
  * Editorial card art under /public/art/cards/flagship is intentionally outside it.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "44674faeb04fbbea589f3b871ae70ae61a92d03f",
+  "src/app/layout.tsx": "8ab2cb79a28573966d813a191def3358aa70ee82",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "aefb06413aaf9927fa435579ee39a717ff9d38d7",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",

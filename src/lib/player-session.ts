@@ -76,6 +76,10 @@ export async function setPlayerSession(playerId: number, playerName: string) {
   await setPlayerSessionCookie(prepared.token);
 }
 
+export function playerSessionIdFromRequest(req: Request | NextRequest): string | null {
+  return parsePlayerSessionToken(cookieValue(req))?.sessionId ?? null;
+}
+
 export async function clearPlayerSession() {
   const store = await cookies();
   // The browser cookie is revoked server-side before deletion.

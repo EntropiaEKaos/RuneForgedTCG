@@ -323,6 +323,25 @@ async function main() {
 
     await navigate(cdp, "/play");
     await waitForText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL");
+    await waitForSelector(cdp, '[data-recovery-key-notice="true"]', 20_000);
+    const recoveryEvidence = await evaluate(cdp, `(() => ({
+      persistedRecovery: localStorage.getItem('runeforge_recovery_code'),
+      noticeVisible: Boolean(document.querySelector('[data-recovery-key-notice="true"]')),
+      key: document.querySelector('[data-recovery-key-value="true"]')?.textContent?.trim() || ''
+    }))()`);
+    assert.equal(recoveryEvidence.persistedRecovery, null, "recovery credential must never be persisted in localStorage");
+    assert.equal(recoveryEvidence.noticeVisible, true, "new Alpha account must surface its one-time recovery key");
+    assert.match(recoveryEvidence.key, /^[A-Za-z0-9_-]{24,}$/, "one-time recovery key must be visible for explicit user save");
+    const evidenceRedacted = await evaluate(cdp, `(() => {
+      const node = document.querySelector('[data-recovery-key-value="true"]');
+      if (!node) return false;
+      node.textContent = '•••• TEST RECOVERY KEY REDACTED ••••';
+      return true;
+    })()`);
+    assert.equal(evidenceRedacted, true, "recovery-key evidence must redact the bearer credential before screenshot capture");
+    await capture(cdp, "01a-recovery-key-notice.png", "one-time recovery key notice (credential redacted)", manifest);
+    await clickText(cdp, "JÁ SALVEI");
+    await waitUntil(() => evaluate(cdp, `!document.querySelector('[data-recovery-key-notice="true"]')`), "recovery-key notice dismissal");
     await capture(cdp, "01-first-run-onboarding.png", "first-run onboarding", manifest);
 
     await clickText(cdp, "COMEÇAR TREINAMENTO");
@@ -376,6 +395,7 @@ async function main() {
       ["/forge", "07-forge.png", "forge"],
       ["/modes", "08-modes.png", "PvE modes"],
       ["/profile", "09-profile.png", "profile and progression"],
+      ["/recover", "09b-recover-account.png", "explicit account recovery"],
       ["/codex", "10-codex.png", "codex and help"],
     ];
     for (const [path, file, stage] of staticStages) {

@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { players, playerCards, playerAchievements, playerDailies, matches, customDecks, sharedDecks, playerSessions } from "@/db/schema";
 import { and, eq, gt, desc, sql } from "drizzle-orm";
 import { ACHIEVEMENTS, DAILY_QUESTS, levelFromXp, xpForLevel } from "@/lib/achievements";
-import { clearPlayerSession, getPlayerSession, preparePlayerSession, setPlayerSession, setPlayerSessionCookie } from "@/lib/player-session";
+import { clearPlayerSession, getPlayerSession, playerSessionIdFromRequest, preparePlayerSession, setPlayerSession, setPlayerSessionCookie } from "@/lib/player-session";
 import { consumeRequestRateLimit } from "@/lib/rate-limit";
 import { getRuntimeStarterWallet } from "@/lib/control-plane";
 import { playerSelfDto } from "@/lib/player-public";
@@ -91,27 +91,7 @@ export async function POST(req: NextRequest) {
       body = {};
     }
     const current = await getPlayerSession(req);
-    if (current) {
-      const [player] = await db.select().from(players).where(eq(players.id, current.playerId)).limit(1);
-      if (!player) return Response.json({ ok: false, error: "Player not found" }, { status: 404 });
-      if (body.rotateRecoveryCode === true) {
-        const issuedRecoveryCode = randomBytes(24).toString("base64url");
-        const [updated] = await db.update(players).set({ recoveryKeyHash: recoveryHash(issuedRecoveryCode), recoveryKeyExpiresAt: recoveryExpiresAt() }).where(eq(players.id, player.id)).returning();
-        return Response.json({ ...(await profilePayload(updated)), recoveryCode: issuedRecoveryCode, recoveryRotated: true });
-      }
-      if (body.displayName !== undefined) {
-        const displayName = safeDisplayName(body.displayName);
-        if (!displayName) return Response.json({ ok: false, error: "Invalid display name" }, { status: 400 });
-        if (displayName !== player.name) {
-          const [existing] = await db.select({ id: players.id }).from(players).where(eq(players.name, displayName)).limit(1);
-          if (existing && existing.id !== player.id) return Response.json({ ok: false, error: "Display name is already in use" }, { status: 409 });
-          const [updated] = await db.update(players).set({ name: displayName }).where(eq(players.id, player.id)).returning();
-          return Response.json({ ...(await profilePayload(updated)), renamed: true });
-        }
-      }
-      return Response.json(await profilePayload(player));
-    }
-
+    const currentSessionId = current ? playerSessionIdFromRequest(req) : null;
     const recoveryCode = typeof body.recoveryCode === "string" ? body.recoveryCode.trim() : "";
     if (recoveryCode) {
       if (recoveryCode.length < 24 || recoveryCode.length > 128) return Response.json({ ok: false, error: "Invalid recovery code" }, { status: 400 });
@@ -131,13 +111,38 @@ export async function POST(req: NextRequest) {
         }).where(and(eq(players.id, candidate.id), eq(players.recoveryKeyHash, oldHash))).returning();
         if (!updated) return null;
 
-        await tx.update(playerSessions).set({ revokedAt: new Date() }).where(eq(playerSessions.playerId, updated.id));
+        const revokedAt = new Date();
+        await tx.update(playerSessions).set({ revokedAt }).where(eq(playerSessions.playerId, updated.id));
+        if (currentSessionId) {
+          await tx.update(playerSessions).set({ revokedAt }).where(eq(playerSessions.sessionId, currentSessionId));
+        }
         await tx.insert(playerSessions).values({ sessionId: prepared.sessionId, playerId: prepared.playerId, expiresAt: prepared.expiresAt });
         return { player: updated, token: prepared.token };
       });
       if (!rotated) return Response.json({ ok: false, error: "Recovery code not recognized or expired" }, { status: 401 });
       await setPlayerSessionCookie(rotated.token);
       return Response.json({ ...(await profilePayload(rotated.player)), recovered: true, recoveryCode: issuedRecoveryCode, recoveryRotated: true });
+    }
+
+    if (current) {
+      const [player] = await db.select().from(players).where(eq(players.id, current.playerId)).limit(1);
+      if (!player) return Response.json({ ok: false, error: "Player not found" }, { status: 404 });
+      if (body.rotateRecoveryCode === true) {
+        const issuedRecoveryCode = randomBytes(24).toString("base64url");
+        const [updated] = await db.update(players).set({ recoveryKeyHash: recoveryHash(issuedRecoveryCode), recoveryKeyExpiresAt: recoveryExpiresAt() }).where(eq(players.id, player.id)).returning();
+        return Response.json({ ...(await profilePayload(updated)), recoveryCode: issuedRecoveryCode, recoveryRotated: true });
+      }
+      if (body.displayName !== undefined) {
+        const displayName = safeDisplayName(body.displayName);
+        if (!displayName) return Response.json({ ok: false, error: "Invalid display name" }, { status: 400 });
+        if (displayName !== player.name) {
+          const [existing] = await db.select({ id: players.id }).from(players).where(eq(players.name, displayName)).limit(1);
+          if (existing && existing.id !== player.id) return Response.json({ ok: false, error: "Display name is already in use" }, { status: 409 });
+          const [updated] = await db.update(players).set({ name: displayName }).where(eq(players.id, player.id)).returning();
+          return Response.json({ ...(await profilePayload(updated)), renamed: true });
+        }
+      }
+      return Response.json(await profilePayload(player));
     }
 
     const requestedName = safeDisplayName(body.displayName);
