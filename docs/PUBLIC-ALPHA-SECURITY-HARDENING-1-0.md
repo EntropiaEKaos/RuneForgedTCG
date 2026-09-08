@@ -77,3 +77,26 @@ Plain `npm run build` is no longer a valid Netlify deployment command.
 - Ranked remains `RANKED_RELEASE_CERTIFIED=false` for public Alpha.
 - Real-money provider E2E remains outside Alpha launch requirements.
 - No engine, cards, deck recipes, balance data or CMS authority changes.
+
+
+## Intentional Alpha Visual Feature Freeze break
+
+This security slice intentionally changes `src/app/layout.tsx` only to mount the global
+`RecoveryKeyNotice`, because a newly issued recovery bearer credential must be shown
+regardless of which Alpha route created the player's first session.
+
+The frozen layout blob therefore moves from:
+
+`44674faeb04fbbea589f3b871ae70ae61a92d03f`
+
+to:
+
+`8ab2cb79a28573966d813a191def3358aa70ee82`
+
+All six other frozen structural blobs remain unchanged. This is not a new visual-system
+pass and does not modify the battlefield, card presentation, Arena identity or any
+Visual 3.x stylesheet.
+
+The freeze break is acceptable only after the exact final candidate passes full CI,
+the real Alpha browser journey (including the recovery notice), and the post-merge
+Alpha Release Candidate on the real `main` SHA.
