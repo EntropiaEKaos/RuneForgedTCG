@@ -13,6 +13,7 @@ import { readBoundedJson, RequestBodyTooLargeError } from "@/lib/request-securit
 
 export const dynamic = "force-dynamic";
 const MAX_PLAYER_BODY_BYTES = 16 * 1024;
+
 function safeDisplayName(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().replace(/\s+/g, " ").slice(0, 40);
@@ -42,8 +43,15 @@ async function profilePayload(player: typeof players.$inferSelect) {
   const now = new Date();
   const activeDailies = dailies.filter((d) => new Date(d.expiresAt) > now);
   const level = levelFromXp(player.xp);
+  const recoveryConfigured = Boolean(
+    player.recoveryKeyHash
+    && player.recoveryKeyExpiresAt
+    && player.recoveryKeyExpiresAt > now,
+  );
+
   return {
     ok: true,
+    recoveryConfigured,
     player: {
       ...playerSelfDto(player),
       level,
@@ -77,44 +85,42 @@ export async function GET(req: NextRequest) {
   }
 }
 
-/** Create a guest account or recover an existing one with its one-time-issued recovery code. */
+/**
+ * Create a guest account, explicitly issue/rotate a recovery key for the
+ * current account, or recover an existing account with a saved key.
+ *
+ * Recovery Key 2.0 deliberately does not create a recovery secret for a new
+ * guest account until the player explicitly requests one.
+ */
 export async function POST(req: NextRequest) {
   try {
     const rate = await consumeRequestRateLimit(req, "player-session", 20, 60_000);
-    if (!rate.allowed) return Response.json({ ok: false, error: "Too many requests" }, { status: 429, headers: { "retry-after": String(rate.retryAfterSeconds) } });
+    if (!rate.allowed) {
+      return Response.json(
+        { ok: false, error: "Too many requests" },
+        { status: 429, headers: { "retry-after": String(rate.retryAfterSeconds) } },
+      );
+    }
 
     let body: Record<string, unknown>;
     try {
       body = await readBoundedJson<Record<string, unknown>>(req, MAX_PLAYER_BODY_BYTES);
     } catch (error) {
-      if (error instanceof RequestBodyTooLargeError) return Response.json({ ok: false, error: "Payload too large" }, { status: 413 });
+      if (error instanceof RequestBodyTooLargeError) {
+        return Response.json({ ok: false, error: "Payload too large" }, { status: 413 });
+      }
       body = {};
     }
-    const current = await getPlayerSession(req);
-    if (current) {
-      const [player] = await db.select().from(players).where(eq(players.id, current.playerId)).limit(1);
-      if (!player) return Response.json({ ok: false, error: "Player not found" }, { status: 404 });
-      if (body.rotateRecoveryCode === true) {
-        const issuedRecoveryCode = randomBytes(24).toString("base64url");
-        const [updated] = await db.update(players).set({ recoveryKeyHash: recoveryHash(issuedRecoveryCode), recoveryKeyExpiresAt: recoveryExpiresAt() }).where(eq(players.id, player.id)).returning();
-        return Response.json({ ...(await profilePayload(updated)), recoveryCode: issuedRecoveryCode, recoveryRotated: true });
-      }
-      if (body.displayName !== undefined) {
-        const displayName = safeDisplayName(body.displayName);
-        if (!displayName) return Response.json({ ok: false, error: "Invalid display name" }, { status: 400 });
-        if (displayName !== player.name) {
-          const [existing] = await db.select({ id: players.id }).from(players).where(eq(players.name, displayName)).limit(1);
-          if (existing && existing.id !== player.id) return Response.json({ ok: false, error: "Display name is already in use" }, { status: 409 });
-          const [updated] = await db.update(players).set({ name: displayName }).where(eq(players.id, player.id)).returning();
-          return Response.json({ ...(await profilePayload(updated)), renamed: true });
-        }
-      }
-      return Response.json(await profilePayload(player));
-    }
 
+    // Recovery is an explicit identity-switch operation. It is processed before
+    // the current-session branch so a player can recover a saved account even
+    // if the browser has already created a temporary guest session.
     const recoveryCode = typeof body.recoveryCode === "string" ? body.recoveryCode.trim() : "";
     if (recoveryCode) {
-      if (recoveryCode.length < 24 || recoveryCode.length > 128) return Response.json({ ok: false, error: "Invalid recovery code" }, { status: 400 });
+      if (recoveryCode.length < 24 || recoveryCode.length > 128) {
+        return Response.json({ ok: false, error: "Invalid recovery code" }, { status: 400 });
+      }
+
       const oldHash = recoveryHash(recoveryCode);
       const issuedRecoveryCode = randomBytes(24).toString("base64url");
       const rotated = await db.transaction(async (tx) => {
@@ -132,12 +138,60 @@ export async function POST(req: NextRequest) {
         if (!updated) return null;
 
         await tx.update(playerSessions).set({ revokedAt: new Date() }).where(eq(playerSessions.playerId, updated.id));
-        await tx.insert(playerSessions).values({ sessionId: prepared.sessionId, playerId: prepared.playerId, expiresAt: prepared.expiresAt });
+        await tx.insert(playerSessions).values({
+          sessionId: prepared.sessionId,
+          playerId: prepared.playerId,
+          expiresAt: prepared.expiresAt,
+        });
         return { player: updated, token: prepared.token };
       });
-      if (!rotated) return Response.json({ ok: false, error: "Recovery code not recognized or expired" }, { status: 401 });
+
+      if (!rotated) {
+        return Response.json({ ok: false, error: "Recovery code not recognized or expired" }, { status: 401 });
+      }
+
       await setPlayerSessionCookie(rotated.token);
-      return Response.json({ ...(await profilePayload(rotated.player)), recovered: true, recoveryCode: issuedRecoveryCode, recoveryRotated: true });
+      return Response.json({
+        ...(await profilePayload(rotated.player)),
+        recovered: true,
+        recoveryCode: issuedRecoveryCode,
+        recoveryRotated: true,
+      });
+    }
+
+    const current = await getPlayerSession(req);
+    if (current) {
+      const [player] = await db.select().from(players).where(eq(players.id, current.playerId)).limit(1);
+      if (!player) return Response.json({ ok: false, error: "Player not found" }, { status: 404 });
+
+      if (body.rotateRecoveryCode === true) {
+        const issuedRecoveryCode = randomBytes(24).toString("base64url");
+        const [updated] = await db.update(players).set({
+          recoveryKeyHash: recoveryHash(issuedRecoveryCode),
+          recoveryKeyExpiresAt: recoveryExpiresAt(),
+        }).where(eq(players.id, player.id)).returning();
+
+        return Response.json({
+          ...(await profilePayload(updated)),
+          recoveryCode: issuedRecoveryCode,
+          recoveryRotated: true,
+        });
+      }
+
+      if (body.displayName !== undefined) {
+        const displayName = safeDisplayName(body.displayName);
+        if (!displayName) return Response.json({ ok: false, error: "Invalid display name" }, { status: 400 });
+        if (displayName !== player.name) {
+          const [existing] = await db.select({ id: players.id }).from(players).where(eq(players.name, displayName)).limit(1);
+          if (existing && existing.id !== player.id) {
+            return Response.json({ ok: false, error: "Display name is already in use" }, { status: 409 });
+          }
+          const [updated] = await db.update(players).set({ name: displayName }).where(eq(players.id, player.id)).returning();
+          return Response.json({ ...(await profilePayload(updated)), renamed: true });
+        }
+      }
+
+      return Response.json(await profilePayload(player));
     }
 
     const requestedName = safeDisplayName(body.displayName);
@@ -147,15 +201,21 @@ export async function POST(req: NextRequest) {
       if (existing) return Response.json({ ok: false, error: "Display name is already in use" }, { status: 409 });
     }
 
-    const issuedRecoveryCode = randomBytes(24).toString("base64url");
     const wallet = await getRuntimeStarterWallet();
     const [player] = await db.insert(players).values({
-      name, recoveryKeyHash: recoveryHash(issuedRecoveryCode), recoveryKeyExpiresAt: recoveryExpiresAt(), gold: wallet.gold, dust: wallet.dust, xp: wallet.xp, level: levelFromXp(wallet.xp),
+      name,
+      gold: wallet.gold,
+      dust: wallet.dust,
+      xp: wallet.xp,
+      level: levelFromXp(wallet.xp),
     }).returning();
+
     await setPlayerSession(player.id, player.name);
-    return Response.json({ ...(await profilePayload(player)), created: true, recoveryCode: issuedRecoveryCode }, { status: 201 });
+    return Response.json({ ...(await profilePayload(player)), created: true }, { status: 201 });
   } catch (error) {
-    if ((error as { code?: string })?.code === "23505") return Response.json({ ok: false, error: "Display name is already in use" }, { status: 409 });
+    if ((error as { code?: string })?.code === "23505") {
+      return Response.json({ ok: false, error: "Display name is already in use" }, { status: 409 });
+    }
     console.error("[player] POST failed", error);
     return Response.json({ ok: false, error: "Internal server error" }, { status: 500 });
   }
