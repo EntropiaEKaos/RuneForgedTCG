@@ -189,8 +189,19 @@ async function main() {
   assert.equal(created.response.status, 201, JSON.stringify(created.body));
   assert.equal(created.body.ok, true);
   assert.equal(created.body.player?.name, displayName);
-  assert.match(String(created.body.recoveryCode || ""), /^[A-Za-z0-9_-]{24,}$/);
-  const recoveryCode = String(created.body.recoveryCode);
+  assert.equal(created.body.recoveryConfigured, false, "new accounts must not silently issue a recovery secret");
+  assert.equal(created.body.recoveryCode, undefined, "new account creation must not return a recovery secret");
+
+  const recoveryIssued = await client.request("/api/player", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ rotateRecoveryCode: true }),
+  });
+  assert.equal(recoveryIssued.response.status, 200, JSON.stringify(recoveryIssued.body));
+  assert.equal(recoveryIssued.body.recoveryConfigured, true);
+  assert.equal(recoveryIssued.body.recoveryRotated, true);
+  assert.match(String(recoveryIssued.body.recoveryCode || ""), /^[A-Za-z0-9_-]{24,}$/);
+  const recoveryCode = String(recoveryIssued.body.recoveryCode);
   const playerId = Number(created.body.player.id);
   const walletBefore = {
     xp: Number(created.body.player.xp || 0),
@@ -301,6 +312,10 @@ async function main() {
   });
   assert.equal(recovered.response.status, 200, `alpha recovery failed after progression: ${JSON.stringify(recovered.body)}`);
   assert.equal(recovered.body.recovered, true);
+  assert.equal(recovered.body.recoveryConfigured, true);
+  assert.equal(recovered.body.recoveryRotated, true);
+  assert.match(String(recovered.body.recoveryCode || ""), /^[A-Za-z0-9_-]{24,}$/);
+  assert.notEqual(String(recovered.body.recoveryCode), recoveryCode, "successful recovery must rotate the presented key");
   assert.equal(Number(recovered.body.player.id), playerId);
   assert.equal(Number(recovered.body.player.xp), Number(profileAfter.body.player.xp));
   assert.equal(Number(recovered.body.player.gold), Number(profileAfter.body.player.gold));
@@ -312,7 +327,15 @@ async function main() {
   assert.equal(recoveredDecks.response.status, 200, JSON.stringify(recoveredDecks.body));
   assert.ok(recoveredDecks.body.decks?.some((deck: { id: number }) => deck.id === forged.body.deck.id), "recovered session must retain the forged playable deck");
 
-  console.log(`ALPHA PLAYER JOURNEY: PASS — account → catalog → Forge → authoritative PvE (${generated.actions.length} actions, ${generated.final.winner}) → exactly-once rewards → progression → recovery persistence`);
+  const replayOldKeyClient = new BrowserClient();
+  const replayOldKey = await replayOldKeyClient.request("/api/player", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ recoveryCode }),
+  });
+  assert.equal(replayOldKey.response.status, 401, "a recovery key must be single-use after successful recovery rotation");
+
+  console.log(`ALPHA PLAYER JOURNEY: PASS — account → explicit recovery-key issuance → catalog → Forge → authoritative PvE (${generated.actions.length} actions, ${generated.final.winner}) → exactly-once rewards → progression → rotated recovery persistence`);
 }
 
 void main().catch((error) => {
