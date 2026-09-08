@@ -28,11 +28,28 @@ const register = async (client: BrowserClient, name: string) => {
   });
   assert.equal(result.response.status, 201, JSON.stringify(result.body));
   assert.equal(result.body.ok, true);
-  assert.match(String(result.body.recoveryCode || ""), /^[A-Za-z0-9_-]{24,}$/);
+  assert.equal(result.body.recoveryConfigured, false, "new E2E account must not silently issue a recovery key");
+  assert.equal(result.body.recoveryCode, undefined);
+
+  const issued = await client.request("/api/player", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ rotateRecoveryCode: true }),
+  });
+  assert.equal(issued.response.status, 200, JSON.stringify(issued.body));
+  assert.equal(issued.body.recoveryConfigured, true);
+  assert.equal(issued.body.recoveryRotated, true);
+  assert.match(String(issued.body.recoveryCode || ""), /^[A-Za-z0-9_-]{24,}$/);
+
   const current = await client.request("/api/player");
   assert.equal(current.response.status, 200, JSON.stringify(current.body));
   assert.equal(current.body.player.name, name);
-  return result.body as { player: { id: number; name: string }; recoveryCode: string };
+  assert.equal(current.body.recoveryConfigured, true);
+
+  return {
+    player: result.body.player as { id: number; name: string },
+    recoveryCode: String(issued.body.recoveryCode),
+  };
 };
 
 const recover = async (recoveryCode: string, expectedPlayerId: number) => {
