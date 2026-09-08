@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { players, playerCards, playerAchievements, playerDailies, matches, customDecks, sharedDecks, playerSessions } from "@/db/schema";
 import { and, eq, gt, desc, sql } from "drizzle-orm";
 import { ACHIEVEMENTS, DAILY_QUESTS, levelFromXp, xpForLevel } from "@/lib/achievements";
-import { clearPlayerSession, getPlayerSession, preparePlayerSession, revokePlayerSessionFromRequest, setPlayerSession, setPlayerSessionCookie } from "@/lib/player-session";
+import { clearPlayerSession, getPlayerSession, playerSessionIdFromRequest, preparePlayerSession, setPlayerSession, setPlayerSessionCookie } from "@/lib/player-session";
 import { consumeRequestRateLimit } from "@/lib/rate-limit";
 import { getRuntimeStarterWallet } from "@/lib/control-plane";
 import { playerSelfDto } from "@/lib/player-public";
@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
       body = {};
     }
     const current = await getPlayerSession(req);
+    const currentSessionId = current ? playerSessionIdFromRequest(req) : null;
     const recoveryCode = typeof body.recoveryCode === "string" ? body.recoveryCode.trim() : "";
     if (recoveryCode) {
       if (recoveryCode.length < 24 || recoveryCode.length > 128) return Response.json({ ok: false, error: "Invalid recovery code" }, { status: 400 });
@@ -110,12 +111,15 @@ export async function POST(req: NextRequest) {
         }).where(and(eq(players.id, candidate.id), eq(players.recoveryKeyHash, oldHash))).returning();
         if (!updated) return null;
 
-        await tx.update(playerSessions).set({ revokedAt: new Date() }).where(eq(playerSessions.playerId, updated.id));
+        const revokedAt = new Date();
+        await tx.update(playerSessions).set({ revokedAt }).where(eq(playerSessions.playerId, updated.id));
+        if (currentSessionId) {
+          await tx.update(playerSessions).set({ revokedAt }).where(eq(playerSessions.sessionId, currentSessionId));
+        }
         await tx.insert(playerSessions).values({ sessionId: prepared.sessionId, playerId: prepared.playerId, expiresAt: prepared.expiresAt });
         return { player: updated, token: prepared.token };
       });
       if (!rotated) return Response.json({ ok: false, error: "Recovery code not recognized or expired" }, { status: 401 });
-      if (current) await revokePlayerSessionFromRequest(req);
       await setPlayerSessionCookie(rotated.token);
       return Response.json({ ...(await profilePayload(rotated.player)), recovered: true, recoveryCode: issuedRecoveryCode, recoveryRotated: true });
     }
