@@ -18,8 +18,10 @@ const alphaRc = read(".github/workflows/alpha-release-candidate.yml");
 
 // Recovery credentials are never persisted in browser storage.
 assert.doesNotMatch(client, /localStorage\.setItem\([^\n]*recovery/i);
-assert.doesNotMatch(client, /localStorage\.getItem\([^\n]*recovery/i);
+assert.equal((client.match(/localStorage\.getItem\(LEGACY_RECOVERY_KEY\)/g) || []).length, 1, "legacy recovery storage may only be read once by the migration path");
+assert.match(client, /takeLegacyRecoveryCode/);
 assert.match(client, /localStorage\.removeItem\(LEGACY_RECOVERY_KEY\)/);
+assert.match(client, /if \(legacyRecoveryCode\) \{[\s\S]*body: JSON\.stringify\(\{ recoveryCode: legacyRecoveryCode \}\)/);
 assert.doesNotMatch(client, /storedRecoveryCode/);
 assert.match(client, /publishPendingRecoveryKey\(payload\.recoveryCode\)/);
 assert.match(client, /recoverPlayerSession/);
