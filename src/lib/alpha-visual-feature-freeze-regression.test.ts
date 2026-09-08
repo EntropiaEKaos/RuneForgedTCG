@@ -9,9 +9,13 @@ import { readFileSync } from "node:fs";
  * These are Git blob SHAs, not arbitrary checksums. A deliberate structural
  * visual change must update this baseline and explain the freeze break in the PR.
  * Editorial card art under /public/art/cards/flagship is intentionally outside it.
+ *
+ * Security break-glass 2026-09-08: layout.tsx was intentionally recertified only
+ * to mount the global one-time RecoveryKeyNotice. No battlefield/card/Visual 3.x
+ * structural surface changed; full CI/browser evidence is mandatory for this PR.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "44674faeb04fbbea589f3b871ae70ae61a92d03f",
+  "src/app/layout.tsx": "0c663d88ac192a05d2da23fb75e8fb3d89caad41",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "aefb06413aaf9927fa435579ee39a717ff9d38d7",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
