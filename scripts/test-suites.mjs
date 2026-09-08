@@ -157,6 +157,7 @@ export const sourceContractTests = [
   "src/lib/reaction-activated-ui-regression.test.ts",
   "src/lib/release-certification-2.95.test.ts",
   "src/lib/release-hardening-2.94.test.ts",
+  "src/lib/recovery-key-2-regression.test.ts",
   "src/lib/security-audit-2.10.test.ts",
   "src/lib/security-audit-2.11.test.ts",
   "src/lib/security-audit-2.12.test.ts",
