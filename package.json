@@ -93,7 +93,8 @@
     "audit:studio-structure": "node scripts/studio-structure-gate.mjs",
     "test:ranked-2.97": "tsx src/lib/ranked-launch-2.97.test.ts",
     "test:pvp-content-2.97": "tsx src/lib/pvp-content-snapshot-2.97.test.ts",
-    "test:pvp-public-2.97": "tsx src/lib/pvp-public-state-2.97.test.ts"
+    "test:pvp-public-2.97": "tsx src/lib/pvp-public-state-2.97.test.ts",
+    "deploy:netlify:certified": "node scripts/netlify-certified-build.mjs"
   },
   "dependencies": {
     "dotenv": "17.3.1",
