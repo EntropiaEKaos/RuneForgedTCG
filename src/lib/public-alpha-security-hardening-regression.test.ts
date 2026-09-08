@@ -39,13 +39,17 @@ assert.match(recover, /recoverPlayerSession/);
 assert.match(recover, /A sessão atual só é substituída depois que a chave é validada/);
 assert.match(recover, /data-recovered-replacement-key="true"/);
 
-// Server recovery is evaluated before the normal current-session branch and
-// only revokes the current durable session after a recovery credential succeeds.
+// Server recovery is evaluated before the normal current-session branch.
+// Recovery rotation, target-session revocation, current-session revocation and
+// replacement-session insertion are one durable database transaction.
 const recoveryIndex = playerRoute.indexOf('const recoveryCode = typeof body.recoveryCode');
 const currentBranchIndex = playerRoute.indexOf('if (current) {', recoveryIndex);
 assert.ok(recoveryIndex >= 0 && currentBranchIndex > recoveryIndex, "recovery credential must be evaluated before the ordinary current-session branch");
 assert.match(playerRoute, /if \(!rotated\) return Response\.json/);
-assert.match(playerRoute, /if \(current\) await revokePlayerSessionFromRequest\(req\);\s*await setPlayerSessionCookie\(rotated\.token\)/);
+assert.match(playerRoute, /const currentSessionId = current \? playerSessionIdFromRequest\(req\) : null/);
+assert.match(playerRoute, /if \(currentSessionId\) \{[\s\S]*tx\.update\(playerSessions\)[\s\S]*eq\(playerSessions\.sessionId, currentSessionId\)/);
+assert.match(playerRoute, /tx\.insert\(playerSessions\)\.values\(\{ sessionId: prepared\.sessionId/);
+assert.match(playerRoute, /if \(!rotated\) return Response\.json[\s\S]*await setPlayerSessionCookie\(rotated\.token\)/);
 
 // Browser and Alpha journey evidence cover the new lifecycle.
 assert.match(alphaVisual, /runeforge_recovery_code/);
