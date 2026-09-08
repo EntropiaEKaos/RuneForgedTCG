@@ -7,9 +7,9 @@ import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { ACHIEVEMENTS, DAILY_QUESTS } from "@/lib/achievements";
 import {
   ensurePlayerSession,
+  recoverPlayerSession,
   renamePlayerDisplayName,
   rotatePlayerRecoveryCode,
-  storedRecoveryCode,
 } from "@/lib/client-player-session";
 
 interface PlayerData {
@@ -70,14 +70,12 @@ export default function ProfileClient() {
   const [sharedDecks, setSharedDecks] = useState<SharedDeck[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
-  const [showRecoveryCode, setShowRecoveryCode] = useState(false);
+  const [recoveryInput, setRecoveryInput] = useState("");
 
   useDeferredEffect(() => {
     const saved = localStorage.getItem("runeforge_playername") || "";
     setPlayerName(saved);
     setNameInput(saved);
-    setRecoveryCode(storedRecoveryCode());
   }, []);
 
   const loadProfile = useCallback(async (name: string) => {
@@ -93,7 +91,6 @@ export default function ProfileClient() {
         setDailies(Array.isArray(data.dailies) ? data.dailies as DailyProgress[] : []);
         setStats(data.stats && typeof data.stats === "object" ? data.stats as unknown as Stats : null);
         setSharedDecks(Array.isArray(data.sharedDecks) ? data.sharedDecks as SharedDeck[] : []);
-        setRecoveryCode(storedRecoveryCode());
       }
     } finally {
       setLoading(false);
@@ -151,27 +148,38 @@ export default function ProfileClient() {
 
   const rotateRecovery = async () => {
     setLoading(true);
+    setMessage("");
     try {
       const result = await rotatePlayerRecoveryCode();
       if (!result.ok || !result.recoveryCode) {
         setMessage(result.error || "Não foi possível gerar nova chave.");
         return;
       }
-      setRecoveryCode(result.recoveryCode);
-      setShowRecoveryCode(true);
-      setMessage("Nova chave gerada. A chave anterior deixou de funcionar.");
+      setMessage("Nova chave gerada. Salve-a no aviso de segurança; a chave anterior deixou de funcionar.");
     } finally {
       setLoading(false);
     }
   };
 
-  const copyRecovery = async () => {
-    if (!recoveryCode) return;
+  const recoverAccount = async () => {
+    const code = recoveryInput.trim();
+    if (!code) return;
+    setLoading(true);
+    setMessage("");
     try {
-      await navigator.clipboard.writeText(recoveryCode);
-      setMessage("Chave de recuperação copiada.");
-    } catch {
-      setMessage("Não foi possível copiar a chave automaticamente.");
+      const result = await recoverPlayerSession(code);
+      if (!result.ok || !result.player) {
+        setMessage(result.error || "Não foi possível recuperar a conta.");
+        return;
+      }
+      const resolvedName = String(result.player.name);
+      setRecoveryInput("");
+      setPlayerName(resolvedName);
+      setNameInput(resolvedName);
+      setMessage("Conta recuperada. Uma nova chave foi emitida; salve-a agora.");
+      await loadProfile(resolvedName);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -277,31 +285,43 @@ export default function ProfileClient() {
               </div>
             </section>
 
-            {recoveryCode && (
-              <section className="mb-8 rounded-2xl border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,.07),rgba(3,5,8,.58))] p-5" aria-labelledby="recovery-heading">
-                <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                  <div className="max-w-2xl">
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300/65">SEGURANÇA DA CONTA</p>
-                    <h2 id="recovery-heading" className="mt-1 text-xl font-black text-slate-100">Chave de recuperação</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">Guarde esta chave fora do navegador. Ela permite recuperar seu progresso em outro dispositivo. Não compartilhe a chave com outros jogadores.</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" onClick={() => setShowRecoveryCode((visible) => !visible)}>
-                      {showRecoveryCode ? "OCULTAR" : "MOSTRAR"}
-                    </button>
-                    <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" onClick={() => void copyRecovery()}>
-                      COPIAR
-                    </button>
-                    <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" disabled={loading} onClick={() => void rotateRecovery()}>
-                      GERAR NOVA
-                    </button>
-                  </div>
+            <section className="mb-8 rounded-2xl border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,.07),rgba(3,5,8,.58))] p-5" aria-labelledby="recovery-heading">
+              <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300/65">SEGURANÇA DA CONTA</p>
+                  <h2 id="recovery-heading" className="mt-1 text-xl font-black text-slate-100">Chave de recuperação</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    A chave não fica salva automaticamente neste navegador. Ao criar, recuperar ou rotacionar uma conta,
+                    o RuneForge mostra a nova chave uma vez para você copiar ou baixar.
+                  </p>
                 </div>
-                <code className="mt-4 block min-h-10 select-all break-all rounded-lg border border-white/[0.07] bg-black/30 px-3 py-2.5 text-xs text-cyan-100" aria-label={showRecoveryCode ? "Chave de recuperação visível" : "Chave de recuperação oculta"}>
-                  {showRecoveryCode ? recoveryCode : "•••••••• •••••••• •••••••• ••••••••"}
-                </code>
-              </section>
-            )}
+                <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" disabled={loading} onClick={() => void rotateRecovery()}>
+                  GERAR NOVA CHAVE
+                </button>
+              </div>
+
+              <form
+                className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void recoverAccount();
+                }}
+              >
+                <label className="sr-only" htmlFor="profile-recovery-key">Chave de recuperação existente</label>
+                <input
+                  id="profile-recovery-key"
+                  className="input min-w-0"
+                  value={recoveryInput}
+                  onChange={(event) => setRecoveryInput(event.target.value)}
+                  placeholder="Cole uma chave para recuperar outra sessão"
+                  autoComplete="off"
+                  spellCheck={false}
+                />
+                <button type="submit" className="rf-button rf-button-primary min-h-10 !px-4" disabled={loading || recoveryInput.trim().length < 24}>
+                  RECUPERAR CONTA
+                </button>
+              </form>
+            </section>
 
             <section className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumo de progressão">
               <SummaryCard label="Conquistas" value={`${completedAchievements}/${ACHIEVEMENTS.length}`} copy="marcos concluídos" />
