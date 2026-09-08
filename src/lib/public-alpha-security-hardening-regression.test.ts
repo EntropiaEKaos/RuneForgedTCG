@@ -55,6 +55,8 @@ assert.match(playerRoute, /if \(!rotated\) return Response\.json[\s\S]*await set
 assert.match(alphaVisual, /runeforge_recovery_code/);
 assert.match(alphaVisual, /data-recovery-key-notice/);
 assert.match(alphaVisual, /JÁ SALVEI/);
+assert.match(alphaVisual, /TEST RECOVERY KEY REDACTED/);
+assert.match(alphaVisual, /credential redacted/);
 assert.match(alphaVisual, /\/recover/);
 assert.match(alphaJourney, /invalid recovery key must not replace the current session/);
 assert.match(alphaJourney, /valid recovery key must replace the temporary current session/);
