@@ -1,5 +1,16 @@
 [build]
-  command = "npm run build"
+  # Netlify exposes COMMIT_REF during the build. Bind it to the exact RuneForge
+  # release SHA and run the same fail-closed production verification used by CI.
+  command = "RUNEFORGE_DEPLOY_SHA=$COMMIT_REF npm run production:verify"
+
+[context.production.environment]
+  RUNEFORGE_DEPLOY_ENV = "production"
+
+[context.deploy-preview.environment]
+  RUNEFORGE_DEPLOY_ENV = "preview"
+
+[context.branch-deploy.environment]
+  RUNEFORGE_DEPLOY_ENV = "preview"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
