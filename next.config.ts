@@ -16,6 +16,9 @@ for (const script of [
   });
 }
 
+const buildDeploySha = (process.env.RUNEFORGE_DEPLOY_SHA?.trim() || process.env.COMMIT_REF?.trim() || "").toLowerCase();
+const buildDeployEnvironment = (process.env.RUNEFORGE_DEPLOY_ENV?.trim() || "").toLowerCase();
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
@@ -28,6 +31,12 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Deployment SHA/environment are public release identity, not secrets. Embedding
+  // them keeps provenance available on hosts whose Git metadata exists only at build time.
+  env: {
+    RUNEFORGE_BUILD_SHA: buildDeploySha,
+    RUNEFORGE_BUILD_ENV: buildDeployEnvironment,
+  },
   async headers() {
     // CSP is nonce-based and generated per request in src/proxy.ts.
     return [{ source: "/:path*", headers: securityHeaders }];
