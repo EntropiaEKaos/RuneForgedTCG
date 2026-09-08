@@ -76,12 +76,8 @@ export async function setPlayerSession(playerId: number, playerName: string) {
   await setPlayerSessionCookie(prepared.token);
 }
 
-export async function revokePlayerSessionFromRequest(req: Request | NextRequest) {
-  const parsed = parsePlayerSessionToken(cookieValue(req));
-  if (!parsed) return;
-  await db.update(playerSessions)
-    .set({ revokedAt: new Date() })
-    .where(eq(playerSessions.sessionId, parsed.sessionId));
+export function playerSessionIdFromRequest(req: Request | NextRequest): string | null {
+  return parsePlayerSessionToken(cookieValue(req))?.sessionId ?? null;
 }
 
 export async function clearPlayerSession() {
