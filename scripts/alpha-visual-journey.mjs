@@ -332,7 +332,14 @@ async function main() {
     assert.equal(recoveryEvidence.persistedRecovery, null, "recovery credential must never be persisted in localStorage");
     assert.equal(recoveryEvidence.noticeVisible, true, "new Alpha account must surface its one-time recovery key");
     assert.match(recoveryEvidence.key, /^[A-Za-z0-9_-]{24,}$/, "one-time recovery key must be visible for explicit user save");
-    await capture(cdp, "01a-recovery-key-notice.png", "one-time recovery key notice", manifest);
+    const evidenceRedacted = await evaluate(cdp, `(() => {
+      const node = document.querySelector('[data-recovery-key-value="true"]');
+      if (!node) return false;
+      node.textContent = '•••• TEST RECOVERY KEY REDACTED ••••';
+      return true;
+    })()`);
+    assert.equal(evidenceRedacted, true, "recovery-key evidence must redact the bearer credential before screenshot capture");
+    await capture(cdp, "01a-recovery-key-notice.png", "one-time recovery key notice (credential redacted)", manifest);
     await clickText(cdp, "JÁ SALVEI");
     await waitUntil(() => evaluate(cdp, `!document.querySelector('[data-recovery-key-notice="true"]')`), "recovery-key notice dismissal");
     await capture(cdp, "01-first-run-onboarding.png", "first-run onboarding", manifest);
