@@ -28,7 +28,7 @@ After `alpha:setup`, run the complete playable-alpha certification with:
 npm run alpha:certify
 ```
 
-`alpha:certify` reruns the alpha verification gates, starts the production build locally and executes a real HTTP player journey against the persistent PostgreSQL database: account creation → catalog → Forge deck persistence → server-issued PvE token → complete authoritative match replay/settlement → exactly-once XP/gold/dust rewards → profile progression → account recovery with the same persisted deck and balances.
+`alpha:certify` reruns the alpha verification gates, starts the production build locally and executes a real HTTP player journey against the persistent PostgreSQL database: account creation → explicit Recovery Key issuance → catalog → Forge deck persistence → server-issued PvE token → complete authoritative match replay/settlement → exactly-once XP/gold/dust rewards → profile progression → account recovery with the same persisted deck and balances → proof that the used recovery key cannot be replayed.
 
 ## Current release status
 

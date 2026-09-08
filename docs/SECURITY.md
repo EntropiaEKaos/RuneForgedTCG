@@ -2,7 +2,7 @@
 
 ## Authentication and sessions
 
-Admin passwords use scrypt and MFA secrets use AES-256-GCM. Sensitive operator mutations require step-up authentication and revoke sessions where appropriate. Player recovery credentials are hashed, expire, rotate after successful recovery and invalidate prior sessions. Public player responses use allow-list DTOs rather than database-row spreading.
+Admin passwords use scrypt and MFA secrets use AES-256-GCM. Sensitive operator mutations require step-up authentication and revoke sessions where appropriate. Player recovery credentials are hashed, expire, rotate after successful recovery and invalidate prior sessions. Recovery Key 2.0 does not silently issue a recovery secret during guest creation and never persists newly issued recovery keys in localStorage; players explicitly generate/save a key from Profile, and successful recovery rotates the presented key. Public player responses use allow-list DTOs rather than database-row spreading.
 
 ## Request security
 

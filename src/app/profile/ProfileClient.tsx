@@ -7,9 +7,11 @@ import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { ACHIEVEMENTS, DAILY_QUESTS } from "@/lib/achievements";
 import {
   ensurePlayerSession,
+  legacyRecoveryCodeAvailable,
+  migrateLegacyRecoveryCode,
+  recoverPlayerSession,
   renamePlayerDisplayName,
   rotatePlayerRecoveryCode,
-  storedRecoveryCode,
 } from "@/lib/client-player-session";
 
 interface PlayerData {
@@ -72,12 +74,15 @@ export default function ProfileClient() {
   const [message, setMessage] = useState("");
   const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
   const [showRecoveryCode, setShowRecoveryCode] = useState(false);
+  const [recoveryConfigured, setRecoveryConfigured] = useState(false);
+  const [legacyRecoveryAvailable, setLegacyRecoveryAvailable] = useState(false);
+  const [recoveryInput, setRecoveryInput] = useState("");
 
   useDeferredEffect(() => {
     const saved = localStorage.getItem("runeforge_playername") || "";
     setPlayerName(saved);
     setNameInput(saved);
-    setRecoveryCode(storedRecoveryCode());
+    setLegacyRecoveryAvailable(legacyRecoveryCodeAvailable());
   }, []);
 
   const loadProfile = useCallback(async (name: string) => {
@@ -93,7 +98,7 @@ export default function ProfileClient() {
         setDailies(Array.isArray(data.dailies) ? data.dailies as DailyProgress[] : []);
         setStats(data.stats && typeof data.stats === "object" ? data.stats as unknown as Stats : null);
         setSharedDecks(Array.isArray(data.sharedDecks) ? data.sharedDecks as SharedDeck[] : []);
-        setRecoveryCode(storedRecoveryCode());
+        setRecoveryConfigured(data.recoveryConfigured === true);
       }
     } finally {
       setLoading(false);
@@ -158,8 +163,9 @@ export default function ProfileClient() {
         return;
       }
       setRecoveryCode(result.recoveryCode);
+      setRecoveryConfigured(true);
       setShowRecoveryCode(true);
-      setMessage("Nova chave gerada. A chave anterior deixou de funcionar.");
+      setMessage("Nova chave gerada. Salve-a agora: ela não será armazenada automaticamente no navegador.");
     } finally {
       setLoading(false);
     }
@@ -172,6 +178,66 @@ export default function ProfileClient() {
       setMessage("Chave de recuperação copiada.");
     } catch {
       setMessage("Não foi possível copiar a chave automaticamente.");
+    }
+  };
+
+  const downloadRecovery = () => {
+    if (!recoveryCode) return;
+    const blob = new Blob([
+      `RuneForge Recovery Key\n\n${recoveryCode}\n\nGuarde esta chave fora do navegador. Quem possuir esta chave pode recuperar a conta.\n`,
+    ], { type: "text/plain;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "runeforge-recovery-key.txt";
+    link.click();
+    URL.revokeObjectURL(href);
+    setMessage("Arquivo da chave de recuperação gerado.");
+  };
+
+  const applyRecoveredProfile = async (result: Awaited<ReturnType<typeof recoverPlayerSession>>) => {
+    if (!result.ok || !result.player?.name) {
+      setMessage(result.error || "Não foi possível recuperar a conta.");
+      return;
+    }
+
+    const resolvedName = String(result.player.name);
+    setPlayerName(resolvedName);
+    setNameInput(resolvedName);
+    setRecoveryConfigured(result.recoveryConfigured === true);
+    setLegacyRecoveryAvailable(false);
+    setRecoveryInput("");
+
+    if (result.recoveryCode) {
+      setRecoveryCode(result.recoveryCode);
+      setShowRecoveryCode(true);
+    }
+
+    await loadProfile(resolvedName);
+    setMessage("Conta recuperada. A chave usada foi rotacionada; salve a nova chave exibida agora.");
+  };
+
+  const recoverAccount = async () => {
+    const code = recoveryInput.trim();
+    if (!code) {
+      setMessage("Cole uma chave de recuperação antes de continuar.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await applyRecoveredProfile(await recoverPlayerSession(code));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const migrateLegacyRecovery = async () => {
+    setLoading(true);
+    try {
+      await applyRecoveredProfile(await migrateLegacyRecoveryCode());
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -277,31 +343,85 @@ export default function ProfileClient() {
               </div>
             </section>
 
-            {recoveryCode && (
-              <section className="mb-8 rounded-2xl border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,.07),rgba(3,5,8,.58))] p-5" aria-labelledby="recovery-heading">
-                <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                  <div className="max-w-2xl">
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300/65">SEGURANÇA DA CONTA</p>
-                    <h2 id="recovery-heading" className="mt-1 text-xl font-black text-slate-100">Chave de recuperação</h2>
-                    <p className="mt-2 text-sm leading-6 text-slate-400">Guarde esta chave fora do navegador. Ela permite recuperar seu progresso em outro dispositivo. Não compartilhe a chave com outros jogadores.</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" onClick={() => setShowRecoveryCode((visible) => !visible)}>
-                      {showRecoveryCode ? "OCULTAR" : "MOSTRAR"}
-                    </button>
-                    <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" onClick={() => void copyRecovery()}>
-                      COPIAR
-                    </button>
-                    <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" disabled={loading} onClick={() => void rotateRecovery()}>
-                      GERAR NOVA
-                    </button>
-                  </div>
+            <section className="mb-8 rounded-2xl border border-cyan-300/20 bg-[linear-gradient(135deg,rgba(34,211,238,.07),rgba(3,5,8,.58))] p-5" aria-labelledby="recovery-heading">
+              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-cyan-300/65">SEGURANÇA DA CONTA · RECOVERY KEY 2.0</p>
+                  <h2 id="recovery-heading" className="mt-1 text-xl font-black text-slate-100">Chave de recuperação</h2>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    {recoveryCode
+                      ? "Esta chave acabou de ser emitida e existe apenas na memória desta página. Copie ou baixe agora; ao recarregar, ela deixa de ser exibida."
+                      : recoveryConfigured
+                        ? "Existe uma chave ativa para esta conta, mas ela não fica armazenada automaticamente no navegador. Se não a guardou, gere uma nova."
+                        : "Esta conta ainda não possui uma chave de recuperação. Gere uma e guarde fora do navegador antes de depender deste dispositivo."}
+                  </p>
                 </div>
-                <code className="mt-4 block min-h-10 select-all break-all rounded-lg border border-white/[0.07] bg-black/30 px-3 py-2.5 text-xs text-cyan-100" aria-label={showRecoveryCode ? "Chave de recuperação visível" : "Chave de recuperação oculta"}>
+                <div className="flex flex-wrap gap-2">
+                  {recoveryCode && (
+                    <>
+                      <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" onClick={() => setShowRecoveryCode((visible) => !visible)}>
+                        {showRecoveryCode ? "OCULTAR" : "MOSTRAR"}
+                      </button>
+                      <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" onClick={() => void copyRecovery()}>
+                        COPIAR
+                      </button>
+                      <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" onClick={downloadRecovery}>
+                        BAIXAR
+                      </button>
+                    </>
+                  )}
+                  <button type="button" className="rf-button rf-button-secondary min-h-9 !px-3" disabled={loading} onClick={() => void rotateRecovery()}>
+                    {recoveryConfigured ? "GERAR NOVA" : "GERAR CHAVE"}
+                  </button>
+                </div>
+              </div>
+
+              {recoveryCode && (
+                <code
+                  className="mt-4 block min-h-10 select-all break-all rounded-lg border border-white/[0.07] bg-black/30 px-3 py-2.5 text-xs text-cyan-100"
+                  aria-label={showRecoveryCode ? "Chave de recuperação visível" : "Chave de recuperação oculta"}
+                >
                   {showRecoveryCode ? recoveryCode : "•••••••• •••••••• •••••••• ••••••••"}
                 </code>
-              </section>
-            )}
+              )}
+
+              {legacyRecoveryAvailable && (
+                <div className="mt-5 rounded-xl border border-amber-300/20 bg-amber-300/[0.05] p-4">
+                  <p className="text-sm font-bold text-amber-100">Chave antiga encontrada neste navegador</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                    Uma instalação anterior salvou uma recovery key em localStorage. Migre-a agora: o servidor recupera a conta, rotaciona a credencial e remove a chave antiga do browser.
+                  </p>
+                  <button type="button" className="rf-button rf-button-secondary mt-3 min-h-9 !px-3" disabled={loading} onClick={() => void migrateLegacyRecovery()}>
+                    MIGRAR CHAVE ANTIGA
+                  </button>
+                </div>
+              )}
+
+              <form
+                className="mt-5 grid gap-2 md:grid-cols-[1fr_auto]"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void recoverAccount();
+                }}
+              >
+                <div>
+                  <label className="sr-only" htmlFor="recovery-key-input">Chave de recuperação de outra conta</label>
+                  <input
+                    id="recovery-key-input"
+                    className="input w-full"
+                    type="password"
+                    value={recoveryInput}
+                    onChange={(event) => setRecoveryInput(event.target.value)}
+                    placeholder="Cole uma chave para recuperar ou trocar de conta"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                </div>
+                <button type="submit" className="rf-button rf-button-secondary min-h-10 !px-4" disabled={loading || !recoveryInput.trim()}>
+                  RECUPERAR CONTA
+                </button>
+              </form>
+            </section>
 
             <section className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-label="Resumo de progressão">
               <SummaryCard label="Conquistas" value={`${completedAchievements}/${ACHIEVEMENTS.length}`} copy="marcos concluídos" />
