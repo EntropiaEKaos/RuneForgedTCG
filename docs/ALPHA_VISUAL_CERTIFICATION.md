@@ -13,19 +13,21 @@ The visual certifications run against the production Next.js build with fresh Ch
 The single-player journey covers:
 
 1. first-run Alpha onboarding;
-2. deck selection;
-3. mulligan;
-4. first-match guide;
-5. live battlefield;
-6. rich card intelligence inspection;
-7. collection;
-8. Forge;
-9. PvE modes;
-10. profile/progression;
-11. Codex/help;
-12. return-to-play loop, proving the one-time onboarding is not shown again;
-13. complete browser-driven PvE match result with confirmed rewards;
-14. post-match return and persisted profile progression.
+2. one-time recovery-key notice with the key visible but absent from browser persistent storage;
+3. deck selection;
+4. mulligan;
+5. first-match guide;
+6. live battlefield;
+7. rich card intelligence inspection;
+8. collection;
+9. Forge;
+10. PvE modes;
+11. profile/progression;
+12. explicit `/recover` account-recovery screen;
+13. Codex/help;
+14. return-to-play loop, proving the one-time onboarding is not shown again;
+15. complete browser-driven PvE match result with confirmed rewards;
+16. post-match return and persisted profile progression.
 
 `scripts/alpha-runtime-tooltip-cert.mjs` adds a dedicated runtime-modifier battlefield checkpoint (`05c`) proving that a live unit tooltip explains genuine in-match stat/equipment/ability changes.
 
@@ -56,7 +58,7 @@ Between captures, the gate also verifies that:
 - a disconnected participant recovers the latest committed version instead of falling back to local game authority;
 - in-battle concession uses the normal PvP leave/forfeit contract and settles both clients to consistent victory/defeat results.
 
-Every capture also checks that the viewport does not have horizontal page overflow and that meaningful visible text rendered. Unhandled browser runtime exceptions fail the certification.
+Every capture also checks that the viewport does not have horizontal page overflow and that meaningful visible text rendered. The first-run checkpoint additionally requires `localStorage.getItem("runeforge_recovery_code") === null`. Unhandled browser runtime exceptions fail the certification.
 
 ## Why CDP instead of another browser dependency
 
