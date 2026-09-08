@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { players, playerCards, playerAchievements, playerDailies, matches, customDecks, sharedDecks, playerSessions } from "@/db/schema";
 import { and, eq, gt, desc, sql } from "drizzle-orm";
 import { ACHIEVEMENTS, DAILY_QUESTS, levelFromXp, xpForLevel } from "@/lib/achievements";
-import { clearPlayerSession, getPlayerSession, preparePlayerSession, setPlayerSession, setPlayerSessionCookie } from "@/lib/player-session";
+import { clearPlayerSession, getPlayerSession, preparePlayerSession, revokePlayerSessionFromRequest, setPlayerSession, setPlayerSessionCookie } from "@/lib/player-session";
 import { consumeRequestRateLimit } from "@/lib/rate-limit";
 import { getRuntimeStarterWallet } from "@/lib/control-plane";
 import { playerSelfDto } from "@/lib/player-public";
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
         return { player: updated, token: prepared.token };
       });
       if (!rotated) return Response.json({ ok: false, error: "Recovery code not recognized or expired" }, { status: 401 });
-      if (current) await clearPlayerSession();
+      if (current) await revokePlayerSessionFromRequest(req);
       await setPlayerSessionCookie(rotated.token);
       return Response.json({ ...(await profilePayload(rotated.player)), recovered: true, recoveryCode: issuedRecoveryCode, recoveryRotated: true });
     }
