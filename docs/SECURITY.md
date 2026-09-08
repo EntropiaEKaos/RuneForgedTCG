@@ -2,7 +2,7 @@
 
 ## Authentication and sessions
 
-Admin passwords use scrypt and MFA secrets use AES-256-GCM. Sensitive operator mutations require step-up authentication and revoke sessions where appropriate. Player recovery credentials are hashed, expire, rotate after successful recovery and invalidate prior sessions. Public player responses use allow-list DTOs rather than database-row spreading.
+Admin passwords use scrypt and MFA secrets use AES-256-GCM. Sensitive operator mutations require step-up authentication and revoke sessions where appropriate. Player recovery credentials are hashed, expire, rotate after successful recovery and invalidate prior sessions. Recovery keys are never newly persisted in browser storage: they are surfaced once from volatile client memory and must be saved explicitly by the player. Legacy browser-stored recovery keys are consumed once, removed immediately and migrated through the normal rotation flow. Public player responses use allow-list DTOs rather than database-row spreading.
 
 ## Request security
 
@@ -24,3 +24,17 @@ Mercado Pago webhook signatures are verified, provider objects are re-fetched, o
 ## Operational note
 
 The PostgreSQL rate-limit store is appropriate for the MVP but writes for each limited request. Benchmark sustained production load and move behind the limiter interface to a dedicated low-latency backend such as Redis if database write pressure becomes material.
+
+
+## Player recovery browser boundary
+
+The recovery key is a bearer credential and is treated as such.
+
+- `rf_player_session` stays HttpOnly and is the normal browser identity.
+- Newly issued recovery keys live only in volatile JavaScript memory long enough to be shown/copy-saved.
+- `runeforge_recovery_code` is never written by current code.
+- Old builds that left that key in `localStorage` are migrated one time: read, removed immediately, and either surfaced for explicit saving or used once to recover/rotate an expired session.
+- Invalid recovery credentials do not destroy the current session.
+- Valid recovery credentials revoke the previous browser session row and issue one replacement cookie plus one replacement recovery key.
+
+The real Alpha browser journey asserts that the one-time key is visible while `localStorage.getItem("runeforge_recovery_code") === null`.
