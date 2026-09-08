@@ -40,12 +40,12 @@ assert.match(recover, /A sessão atual só é substituída depois que a chave é
 assert.match(recover, /data-recovered-replacement-key="true"/);
 
 // Server recovery is evaluated before the normal current-session branch and
-// only clears the current cookie after a recovery credential succeeds.
+// only revokes the current durable session after a recovery credential succeeds.
 const recoveryIndex = playerRoute.indexOf('const recoveryCode = typeof body.recoveryCode');
 const currentBranchIndex = playerRoute.indexOf('if (current) {', recoveryIndex);
 assert.ok(recoveryIndex >= 0 && currentBranchIndex > recoveryIndex, "recovery credential must be evaluated before the ordinary current-session branch");
 assert.match(playerRoute, /if \(!rotated\) return Response\.json/);
-assert.match(playerRoute, /if \(current\) await clearPlayerSession\(\);\s*await setPlayerSessionCookie\(rotated\.token\)/);
+assert.match(playerRoute, /if \(current\) await revokePlayerSessionFromRequest\(req\);\s*await setPlayerSessionCookie\(rotated\.token\)/);
 
 // Browser and Alpha journey evidence cover the new lifecycle.
 assert.match(alphaVisual, /runeforge_recovery_code/);
