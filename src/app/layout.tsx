@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Cinzel, Manrope } from "next/font/google";
-import CatalogBootstrap from "@/components/CatalogBootstrap";\nimport RecoveryKeyNotice from "@/components/RecoveryKeyNotice";
+import CatalogBootstrap from "@/components/CatalogBootstrap";
+import RecoveryKeyNotice from "@/components/RecoveryKeyNotice";
 import "./globals.css";
 import "./styles/tcg-visual.css";
 import "./styles/site-polish.css";
@@ -59,7 +60,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="pt-BR" className={`${displayFont.variable} ${bodyFont.variable}`}>
       <body className="bg-slate-950 text-slate-100 antialiased">
-        <CatalogBootstrap>{children}</CatalogBootstrap>\n        <RecoveryKeyNotice />
+        <CatalogBootstrap>{children}</CatalogBootstrap>
+        <RecoveryKeyNotice />
       </body>
     </html>
   );
