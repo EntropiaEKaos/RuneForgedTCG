@@ -43,7 +43,9 @@ ok(production.includes("reward economy idempotency"), "production DB test proves
 const player = read("src/app/api/player/route.ts");
 const getBody = player.slice(player.indexOf("export async function GET"), player.indexOf("export async function POST"));
 ok(!getBody.includes("db.insert(players)"), "GET /api/player never creates an account");
-ok(player.includes("recoveryKeyHash: recoveryHash") && player.includes("getRuntimeStarterWallet"), "guest creation uses hashed recovery and runtime wallet");
+const playerCreation = player.slice(player.indexOf("const requestedName"), player.indexOf("return Response.json({ ...(await profilePayload(player)), created: true"));
+ok(!playerCreation.includes("recoveryKeyHash") && !playerCreation.includes("issuedRecoveryCode"), "guest creation does not silently issue a recovery secret");
+ok(player.includes("rotateRecoveryCode") && player.includes("recoveryKeyHash: recoveryHash"), "explicit recovery-key issuance remains hashed and server-authoritative");
 
 const gates = read("src/lib/runtime-gates.ts");
 ok(gates.includes("MAINTENANCE_MODE") && gates.includes("RANKED_RELEASE_CERTIFIED"), "maintenance and ranked release gates are server-side");
