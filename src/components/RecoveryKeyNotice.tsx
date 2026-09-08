@@ -31,18 +31,29 @@ export default function RecoveryKeyNotice() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    const pending = consumePendingRecoveryCode();
-    if (pending) setCode(pending);
-
+    let active = true;
     const onIssued = (event: Event) => {
       const issued = (event as CustomEvent<{ code?: string }>).detail?.code?.trim();
-      if (!issued) return;
+      if (!issued || !active) return;
       consumePendingRecoveryCode();
       setCopied(false);
       setCode(issued);
     };
+
+    // Subscribe first, then reconcile any key issued just before this component
+    // mounted. The microtask avoids a synchronous state write inside the effect
+    // while keeping the handoff race-free.
     window.addEventListener(PLAYER_RECOVERY_KEY_EVENT, onIssued);
-    return () => window.removeEventListener(PLAYER_RECOVERY_KEY_EVENT, onIssued);
+    queueMicrotask(() => {
+      if (!active) return;
+      const pending = consumePendingRecoveryCode();
+      if (pending) setCode(pending);
+    });
+
+    return () => {
+      active = false;
+      window.removeEventListener(PLAYER_RECOVERY_KEY_EVENT, onIssued);
+    };
   }, []);
 
   if (!code) return null;
