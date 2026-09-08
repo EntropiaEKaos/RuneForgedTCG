@@ -1,6 +1,7 @@
 "use client";
 
 const PLAYER_NAME_KEY = "runeforge_playername";
+const LEGACY_RECOVERY_KEY = ["runeforge", "recovery", "code"].join("_");
 
 export const PLAYER_RECOVERY_KEY_EVENT = "runeforge:recovery-key-issued";
 let pendingRecoveryCode: string | null = null;
@@ -14,6 +15,10 @@ export interface PlayerSessionPayload {
   recoveryRotated?: boolean;
   error?: string;
   [key: string]: unknown;
+}
+
+function clearLegacyRecoverySecret() {
+  if (typeof window !== "undefined") localStorage.removeItem(LEGACY_RECOVERY_KEY);
 }
 
 async function json(response: Response): Promise<PlayerSessionPayload> {
@@ -49,6 +54,7 @@ async function createPlayer(displayName?: string): Promise<{ response: Response;
 }
 
 export async function ensurePlayerSession(preferredName?: string): Promise<PlayerSessionPayload> {
+  clearLegacyRecoverySecret();
   const current = await fetch("/api/player", { cache: "no-store" });
   if (current.ok) {
     let payload = await json(current);
@@ -110,6 +116,7 @@ export async function renamePlayerDisplayName(displayName: string): Promise<Play
 }
 
 export async function recoverPlayerSession(recoveryCode: string): Promise<PlayerSessionPayload> {
+  clearLegacyRecoverySecret();
   const normalized = recoveryCode.trim();
   if (normalized.length < 24 || normalized.length > 128) {
     return { ok: false, error: "Chave de recuperação inválida." };
@@ -129,6 +136,7 @@ export async function recoverPlayerSession(recoveryCode: string): Promise<Player
 }
 
 export async function rotatePlayerRecoveryCode(): Promise<PlayerSessionPayload> {
+  clearLegacyRecoverySecret();
   const response = await fetch("/api/player", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
