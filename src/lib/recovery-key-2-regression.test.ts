@@ -7,6 +7,7 @@ const client = read("src/lib/client-player-session.ts");
 const playerRoute = read("src/app/api/player/route.ts");
 const profile = read("src/app/profile/ProfileClient.tsx");
 const alphaJourney = read("scripts/alpha-player-journey.ts");
+const pvpE2e = read("scripts/e2e-pvp-ranked.ts");
 
 assert.doesNotMatch(
   client,
@@ -46,5 +47,8 @@ assert.match(profile, /Conta recuperada\. A chave usada foi rotacionada/);
 assert.match(alphaJourney, /new accounts must not silently issue a recovery secret/);
 assert.match(alphaJourney, /rotateRecoveryCode: true/);
 assert.match(alphaJourney, /a recovery key must be single-use after successful recovery rotation/);
+assert.match(pvpE2e, /new E2E account must not silently issue a recovery key/);
+assert.match(pvpE2e, /rotateRecoveryCode: true/);
+assert.doesNotMatch(pvpE2e, /assert\.match\(String\(result\.body\.recoveryCode/);
 
 console.log("RECOVERY KEY 2.0 SOURCE CONTRACT: PASS — explicit issuance · no localStorage persistence · legacy migration · single-use recovery rotation");
