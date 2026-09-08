@@ -90,28 +90,6 @@ export async function POST(req: NextRequest) {
       if (error instanceof RequestBodyTooLargeError) return Response.json({ ok: false, error: "Payload too large" }, { status: 413 });
       body = {};
     }
-    const current = await getPlayerSession(req);
-    if (current) {
-      const [player] = await db.select().from(players).where(eq(players.id, current.playerId)).limit(1);
-      if (!player) return Response.json({ ok: false, error: "Player not found" }, { status: 404 });
-      if (body.rotateRecoveryCode === true) {
-        const issuedRecoveryCode = randomBytes(24).toString("base64url");
-        const [updated] = await db.update(players).set({ recoveryKeyHash: recoveryHash(issuedRecoveryCode), recoveryKeyExpiresAt: recoveryExpiresAt() }).where(eq(players.id, player.id)).returning();
-        return Response.json({ ...(await profilePayload(updated)), recoveryCode: issuedRecoveryCode, recoveryRotated: true });
-      }
-      if (body.displayName !== undefined) {
-        const displayName = safeDisplayName(body.displayName);
-        if (!displayName) return Response.json({ ok: false, error: "Invalid display name" }, { status: 400 });
-        if (displayName !== player.name) {
-          const [existing] = await db.select({ id: players.id }).from(players).where(eq(players.name, displayName)).limit(1);
-          if (existing && existing.id !== player.id) return Response.json({ ok: false, error: "Display name is already in use" }, { status: 409 });
-          const [updated] = await db.update(players).set({ name: displayName }).where(eq(players.id, player.id)).returning();
-          return Response.json({ ...(await profilePayload(updated)), renamed: true });
-        }
-      }
-      return Response.json(await profilePayload(player));
-    }
-
     const recoveryCode = typeof body.recoveryCode === "string" ? body.recoveryCode.trim() : "";
     if (recoveryCode) {
       if (recoveryCode.length < 24 || recoveryCode.length > 128) return Response.json({ ok: false, error: "Invalid recovery code" }, { status: 400 });
@@ -136,8 +114,30 @@ export async function POST(req: NextRequest) {
         return { player: updated, token: prepared.token };
       });
       if (!rotated) return Response.json({ ok: false, error: "Recovery code not recognized or expired" }, { status: 401 });
-      await setPlayerSessionCookie(rotated.token);
+      // Explicit recovery may replace a temporary/other browser session. Revoke\n      // the current browser session before installing the recovered identity.\n      await clearPlayerSession();\n      await setPlayerSessionCookie(rotated.token);
       return Response.json({ ...(await profilePayload(rotated.player)), recovered: true, recoveryCode: issuedRecoveryCode, recoveryRotated: true });
+    }
+
+    const current = await getPlayerSession(req);
+    if (current) {
+      const [player] = await db.select().from(players).where(eq(players.id, current.playerId)).limit(1);
+      if (!player) return Response.json({ ok: false, error: "Player not found" }, { status: 404 });
+      if (body.rotateRecoveryCode === true) {
+        const issuedRecoveryCode = randomBytes(24).toString("base64url");
+        const [updated] = await db.update(players).set({ recoveryKeyHash: recoveryHash(issuedRecoveryCode), recoveryKeyExpiresAt: recoveryExpiresAt() }).where(eq(players.id, player.id)).returning();
+        return Response.json({ ...(await profilePayload(updated)), recoveryCode: issuedRecoveryCode, recoveryRotated: true });
+      }
+      if (body.displayName !== undefined) {
+        const displayName = safeDisplayName(body.displayName);
+        if (!displayName) return Response.json({ ok: false, error: "Invalid display name" }, { status: 400 });
+        if (displayName !== player.name) {
+          const [existing] = await db.select({ id: players.id }).from(players).where(eq(players.name, displayName)).limit(1);
+          if (existing && existing.id !== player.id) return Response.json({ ok: false, error: "Display name is already in use" }, { status: 409 });
+          const [updated] = await db.update(players).set({ name: displayName }).where(eq(players.id, player.id)).returning();
+          return Response.json({ ...(await profilePayload(updated)), renamed: true });
+        }
+      }
+      return Response.json(await profilePayload(player));
     }
 
     const requestedName = safeDisplayName(body.displayName);
