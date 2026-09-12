@@ -61,7 +61,7 @@ export const RANKED_PRECONS: readonly RankedPrecon[] = [
       "void_reaper", "void_gloom_warden",
       "void_champion", "void_champion",
       "void_drain", "void_drain", "void_drain",
-      "void_reaper", "void_soul_tax",
+      "void_imp", "void_soul_tax",
       "void_barrier", "void_barrier",
       "void_whisper", "void_whisper",
       "void_harvester", "void_harvester",
