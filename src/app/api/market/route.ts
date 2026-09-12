@@ -177,16 +177,18 @@ export async function POST(req: NextRequest) {
       const access = playerCanUseMarketplace(actor, settings, now);
       if (!access.ok) return { error: access.error, status: 403 };
 
-      const numericId = Math.trunc(Number(action === "list" ? body.assetId : body.listingId));
+      const rawId = Number(action === "list" ? body.assetId : body.listingId);
+      const rawPrice = Number(body.priceGold);
+      if (!Number.isSafeInteger(rawId) || rawId < 1) return { error: action === "list" ? "Invalid asset or price" : "Invalid listing", status: 400 };
+      if (action === "list" && !validateMarketPrice(rawPrice, settings)) return { error: "Invalid asset or price", status: 400 };
       const fingerprint = action === "list"
-        ? `market:list:${numericId}:${Math.trunc(Number(body.priceGold))}`
-        : `market:${action}:${numericId}`;
+        ? `market:list:${rawId}:${rawPrice}`
+        : `market:${action}:${rawId}`;
 
       const operation = await runIdempotentEconomyAction(tx, { playerId: actor.id, operationId, action: fingerprint }, async () => {
         if (action === "list") {
-          const assetId = Math.trunc(Number(body.assetId));
-          const priceGold = Math.trunc(Number(body.priceGold));
-          if (!Number.isInteger(assetId) || assetId < 1 || !validateMarketPrice(priceGold, settings)) return { error: "Invalid asset or price", status: 400 };
+          const assetId = rawId;
+          const priceGold = rawPrice;
           const active = await tx.select({ n: sql<number>`count(*)::int` }).from(marketListings).where(and(
             eq(marketListings.sellerPlayerId, actor.id),
             eq(marketListings.status, "active"),
@@ -204,8 +206,7 @@ export async function POST(req: NextRequest) {
           return { listingId: listing.id, priceGold, feeGold, sellerReceives: priceGold - feeGold, expiresAt };
         }
 
-        const listingId = Math.trunc(Number(body.listingId));
-        if (!Number.isInteger(listingId) || listingId < 1) return { error: "Invalid listing", status: 400 };
+        const listingId = rawId;
         const [listing] = await tx.select().from(marketListings).where(eq(marketListings.id, listingId)).limit(1).for("update");
         if (!listing || listing.status !== "active" || listing.expiresAt <= now) return { error: "Listing is no longer active", status: 409 };
 
