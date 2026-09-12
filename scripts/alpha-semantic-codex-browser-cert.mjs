@@ -35,7 +35,6 @@ function sleep(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
-
 function findChrome() {
   const candidates = [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean);
   for (const candidate of candidates) {
@@ -155,15 +154,59 @@ async function selectCard(cdp, defId) {
 }
 
 async function hover(cdp, selector) {
+  // Approach the card from a neutral point first. This produces the same
+  // mouse-enter/mouse-move sequence as a real player and prevents the prior
+  // probe's hover-close timer from racing the next Codex card.
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+  await sleep(160);
+
+  const scrolled = await evaluate(cdp, `(() => {
+    const target = document.querySelector(${JSON.stringify(selector)});
+    if (!target) return false;
+    target.scrollIntoView({ block: 'center', inline: 'center' });
+    return true;
+  })()`);
+  assert.equal(scrolled, true, `Could not locate hover target ${selector}`);
+  await sleep(120);
+
   const point = await evaluate(cdp, `(() => {
     const target = document.querySelector(${JSON.stringify(selector)});
     if (!target) return null;
-    target.scrollIntoView({ block: 'center', inline: 'center' });
     const rect = target.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const candidates = [
+      [0.50, 0.50], [0.35, 0.50], [0.65, 0.50],
+      [0.50, 0.35], [0.50, 0.65], [0.35, 0.35], [0.65, 0.65],
+    ];
+    for (const [rx, ry] of candidates) {
+      const x = rect.left + rect.width * rx;
+      const y = rect.top + rect.height * ry;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && (hit === target || target.contains(hit))) {
+        return { x, y, defId: target.getAttribute('data-card-tip-def-id') };
+      }
+    }
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const hit = document.elementFromPoint(centerX, centerY);
+    return {
+      blocked: true,
+      x: centerX,
+      y: centerY,
+      defId: target.getAttribute('data-card-tip-def-id'),
+      hitTag: hit?.tagName || null,
+      hitDefId: hit?.closest?.('[data-card-tip-def-id]')?.getAttribute('data-card-tip-def-id') || null,
+    };
   })()`);
   assert.ok(point, `Could not hover ${selector}`);
+  assert.notEqual(point.blocked, true, `Hover target ${point.defId || selector} is obscured (hit ${point.hitTag || 'unknown'} / ${point.hitDefId || 'no-card'})`);
+
+  // Two nearby physical moves make React receive an actual mouse-move after
+  // the post-scroll layout has settled, while still exercising the real UI.
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: Math.max(1, point.x - 2), y: point.y });
+  await sleep(40);
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
+  await sleep(80);
 }
 
 async function capture(cdp, filename) {
