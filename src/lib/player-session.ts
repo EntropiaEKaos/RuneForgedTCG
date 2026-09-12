@@ -42,7 +42,19 @@ export async function setPlayerSessionCookie(token: string) {
 }
 
 function cookieValue(req: Request | NextRequest): string | null {
-  return req.headers.get("cookie")?.match(/(?:^|; )rf_player_session=([^;]+)/)?.[1] ?? null;
+  const raw = req.headers.get("cookie");
+  if (!raw) return null;
+  // A browser replacing a cookie emits only the newest value, but test clients,
+  // proxies and transitional delete→set responses can temporarily preserve two
+  // same-name entries. Prefer the last non-empty value so an explicit account
+  // recovery cannot accidentally fall back to the session it just replaced.
+  const values = raw
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith(`${COOKIE}=`))
+    .map((part) => part.slice(COOKIE.length + 1))
+    .filter(Boolean);
+  return values.at(-1) ?? null;
 }
 
 export async function getPlayerSession(req: Request | NextRequest) {

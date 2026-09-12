@@ -35,7 +35,6 @@ function sleep(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
-
 function findChrome() {
   const candidates = [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean);
   for (const candidate of candidates) {
@@ -125,6 +124,37 @@ async function navigate(cdp, path) {
   await settle(cdp);
 }
 
+async function dismissRecoveryHandoffIfPresent(cdp) {
+  // CatalogBootstrap establishes a stable player session globally. A fresh
+  // browser therefore receives the one-time recovery-key handoff even on the
+  // Codex route. The Alpha visual journey certifies that handoff strictly;
+  // this semantic cert must clear it before exercising the real card hover.
+  await waitUntil(
+    () => evaluate(cdp, `fetch('/api/player', { cache: 'no-store' }).then((response) => response.status === 200).catch(() => false)`),
+    "global player session",
+  );
+  await sleep(350);
+
+  const handoff = await evaluate(cdp, `(() => {
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')];
+    const dialog = dialogs.find((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'));
+    if (!dialog) return { present: false, dismissed: false };
+    const button = [...dialog.querySelectorAll('button')].find((element) => (element.textContent || '').trim() === 'JÁ GUARDEI');
+    if (!button) return { present: true, dismissed: false };
+    button.click();
+    return { present: true, dismissed: true };
+  })()`);
+
+  if (handoff?.present) {
+    assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before Codex certification");
+  }
+  await waitUntil(
+    () => evaluate(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`),
+    "recovery-key handoff dismissal",
+    5_000,
+  );
+}
+
 async function setSearch(cdp, value) {
   const encoded = JSON.stringify(value);
   const changed = await evaluate(cdp, `(() => {
@@ -155,15 +185,56 @@ async function selectCard(cdp, defId) {
 }
 
 async function hover(cdp, selector) {
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+  await sleep(160);
+
+  const scrolled = await evaluate(cdp, `(() => {
+    const target = document.querySelector(${JSON.stringify(selector)});
+    if (!target) return false;
+    target.scrollIntoView({ block: 'center', inline: 'center' });
+    return true;
+  })()`);
+  assert.equal(scrolled, true, `Could not locate hover target ${selector}`);
+  await sleep(120);
+
   const point = await evaluate(cdp, `(() => {
     const target = document.querySelector(${JSON.stringify(selector)});
     if (!target) return null;
-    target.scrollIntoView({ block: 'center', inline: 'center' });
     const rect = target.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const candidates = [
+      [0.50, 0.50], [0.35, 0.50], [0.65, 0.50],
+      [0.50, 0.35], [0.50, 0.65], [0.35, 0.35], [0.65, 0.65],
+    ];
+    for (const [rx, ry] of candidates) {
+      const x = rect.left + rect.width * rx;
+      const y = rect.top + rect.height * ry;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && (hit === target || target.contains(hit))) {
+        return { x, y, defId: target.getAttribute('data-card-tip-def-id') };
+      }
+    }
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const hit = document.elementFromPoint(centerX, centerY);
+    return {
+      blocked: true,
+      x: centerX,
+      y: centerY,
+      defId: target.getAttribute('data-card-tip-def-id'),
+      hitTag: hit?.tagName || null,
+      hitDefId: hit?.closest?.('[data-card-tip-def-id]')?.getAttribute('data-card-tip-def-id') || null,
+      hitClass: typeof hit?.className === 'string' ? hit.className : null,
+      hitRole: hit?.getAttribute?.('role') || null,
+    };
   })()`);
   assert.ok(point, `Could not hover ${selector}`);
+  assert.notEqual(point.blocked, true, `Hover target ${point.defId || selector} is obscured (hit ${point.hitTag || 'unknown'} / ${point.hitDefId || 'no-card'} / ${point.hitRole || 'no-role'} / ${point.hitClass || 'no-class'})`);
+
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: Math.max(1, point.x - 2), y: point.y });
+  await sleep(40);
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
+  await sleep(80);
 }
 
 async function capture(cdp, filename) {
@@ -191,6 +262,7 @@ async function main() {
     await cdp.call("Runtime.enable");
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
     await navigate(cdp, "/codex");
+    await dismissRecoveryHandoffIfPresent(cdp);
 
     for (const probe of probes) {
       await setSearch(cdp, probe.query);

@@ -221,6 +221,18 @@ Historical 2.97 local evidence retained for provenance:
 - fresh schema static model **60 tables / 627 columns / 41 SQL FKs**;
 - semantic static model **6 Drizzle FKs / 14 named CHECKs / 10 named indexes**.
 
+## Player Recovery Security 2.0
+
+Recovery keys are no longer persisted in browser Web Storage. New/rotated keys are shown once through a global copy/download handoff, and legacy browser-stored recovery secrets are purged without being read. The Profile page supports explicit account recovery even when the browser currently holds a temporary guest session.
+
+See `docs/PLAYER-RECOVERY-SECURITY-2-0.md`.
+
+## Certified Netlify deployment
+
+`netlify.toml` no longer bypasses production gates. Git deploys bind Netlify `COMMIT_REF` to `RUNEFORGE_DEPLOY_SHA` and execute `npm run production:verify`; public SHA/environment identity is retained in the server build for runtime provenance.
+
+See `docs/NETLIFY-CERTIFIED-DEPLOYMENT.md`.
+
 ## Production verification boundary
 
 The public Alpha and Ranked now have deliberately separate promotion boundaries.

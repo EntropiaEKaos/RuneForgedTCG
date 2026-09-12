@@ -11,16 +11,18 @@ type DeploymentEnvSource = {
   [key: string]: string | undefined;
   RUNEFORGE_DEPLOY_SHA?: string;
   RUNEFORGE_DEPLOY_ENV?: string;
+  RUNEFORGE_BUILD_SHA?: string;
+  RUNEFORGE_BUILD_ENV?: string;
 };
 
 export function readDeploymentProvenance(
   env: DeploymentEnvSource = process.env,
 ): DeploymentProvenance | null {
-  const rawSha = env.RUNEFORGE_DEPLOY_SHA?.trim() || "";
+  const rawSha = env.RUNEFORGE_DEPLOY_SHA?.trim() || env.RUNEFORGE_BUILD_SHA?.trim() || "";
   const commitSha = rawSha.toLowerCase();
   if (!/^[0-9a-f]{40}$/.test(commitSha)) return null;
 
-  const rawEnvironment = env.RUNEFORGE_DEPLOY_ENV?.trim().toLowerCase() || "";
+  const rawEnvironment = env.RUNEFORGE_DEPLOY_ENV?.trim().toLowerCase() || env.RUNEFORGE_BUILD_ENV?.trim().toLowerCase() || "";
   if (!DEPLOYMENT_ENVIRONMENTS.includes(rawEnvironment as DeploymentEnvironment)) return null;
 
   return {

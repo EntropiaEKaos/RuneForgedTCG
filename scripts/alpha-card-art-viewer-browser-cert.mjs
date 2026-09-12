@@ -14,7 +14,6 @@ const artPath = "/art/cards/flagship/emberhold/ember_champion.webp";
 
 function sleep(ms) { return new Promise((resolvePromise) => setTimeout(resolvePromise, ms)); }
 
-
 function findChrome() {
   const candidates = [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean);
   for (const candidate of candidates) {
@@ -102,6 +101,33 @@ async function navigate(cdp, path) {
   await settle(cdp);
 }
 
+async function dismissRecoveryHandoffIfPresent(cdp) {
+  await waitUntil(
+    () => evaluate(cdp, `fetch('/api/player', { cache: 'no-store' }).then((response) => response.status === 200).catch(() => false)`),
+    "global player session",
+  );
+  await sleep(350);
+
+  const handoff = await evaluate(cdp, `(() => {
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')];
+    const dialog = dialogs.find((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'));
+    if (!dialog) return { present: false, dismissed: false };
+    const button = [...dialog.querySelectorAll('button')].find((element) => (element.textContent || '').trim() === 'JÁ GUARDEI');
+    if (!button) return { present: true, dismissed: false };
+    button.click();
+    return { present: true, dismissed: true };
+  })()`);
+
+  if (handoff?.present) {
+    assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before art viewer certification");
+  }
+  await waitUntil(
+    () => evaluate(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`),
+    "recovery-key handoff dismissal",
+    5_000,
+  );
+}
+
 async function setSearch(cdp, placeholderFragment, value) {
   const changed = await evaluate(cdp, `(() => {
     const input = [...document.querySelectorAll('input')].find((element) => (element.placeholder || '').includes(${JSON.stringify(placeholderFragment)}));
@@ -125,6 +151,8 @@ async function hoverCard(cdp) {
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   })()`);
   assert.ok(point, `Could not locate ${defId}`);
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+  await sleep(120);
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
   await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-tooltip-panel="true"]'))`), "card intelligence tooltip");
   await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer-trigger="${defId}"]'))`), "VER ARTE trigger");
@@ -192,6 +220,7 @@ async function main() {
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
 
     await navigate(cdp, "/codex");
+    await dismissRecoveryHandoffIfPresent(cdp);
     await setSearch(cdp, "Nome, habilidade", cardName);
     await hoverCard(cdp);
     await openViewer(cdp);
