@@ -10,7 +10,13 @@ function main() {
   }
   assert.match(migration, /PRIMARY KEY REFERENCES "card_assets"\("id"\)/, "one escrow row per collectible asset must be enforced in PostgreSQL");
   assert.match(migration, /market_listings_active_asset_uidx/, "one active sale per collectible must be enforced in PostgreSQL");
+  assert.match(migration, /"min_player_level" integer NOT NULL DEFAULT 2/, "fresh marketplace must not allow brand-new level-1 accounts to trade");
+  assert.match(migration, /"min_account_age_hours" integer NOT NULL DEFAULT 24/, "fresh marketplace must impose an account-age barrier against disposable-account Gold funneling");
   assert.match(migration, /2\.97-market-1\.0/, "marketplace schema provenance must be recorded");
+
+  const marketSchema = read("src/db/schema/marketplace.ts");
+  assert.match(marketSchema, /minPlayerLevel: integer\("min_player_level"\)\.notNull\(\)\.default\(2\)/, "Drizzle schema must preserve the conservative marketplace level default");
+  assert.match(marketSchema, /minAccountAgeHours: integer\("min_account_age_hours"\)\.notNull\(\)\.default\(24\)/, "Drizzle schema must preserve the conservative marketplace account-age default");
 
   const market = read("src/app/api/market/route.ts");
   assert.match(market, /runIdempotentEconomyAction/, "market mutations must be idempotent");
