@@ -91,10 +91,19 @@ export type TradeRequestedAsset = {
   finish?: string;
 };
 
+export type TradeOfferedAsset = {
+  assetId: number;
+  defId: string;
+  variantId: string;
+  frameId: string;
+  finish: string;
+};
+
 export const tradeOffers = pgTable("trade_offers", {
   id: serial("id").primaryKey(),
   proposerPlayerId: integer("proposer_player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
   recipientPlayerId: integer("recipient_player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  offeredAssets: jsonb("offered_assets").$type<TradeOfferedAsset[]>().notNull().default([]),
   requestedAssets: jsonb("requested_assets").$type<TradeRequestedAsset[]>().notNull().default([]),
   note: text("note").notNull().default(""),
   status: text("status").notNull().default("active"),
