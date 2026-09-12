@@ -63,6 +63,10 @@ async function main() {
   const ids = [seller.id, buyerA.id, buyerB.id, traderA.id, traderB.id];
 
   try {
+    const freshAccess = await seller.client.request("/api/market?view=inventory", { cache: "no-store" });
+    assert.equal(freshAccess.response.status, 403, `fresh account must be blocked by marketplace eligibility: ${JSON.stringify(freshAccess.body)}`);
+    assert.match(String(freshAccess.body.error || ""), /requires level|account age/i, "fresh-account denial must come from the marketplace eligibility gate");
+
     // The production defaults deliberately keep disposable fresh accounts out
     // of the P2P economy. Certification players are promoted/matured directly
     // in the isolated CI database so the test exercises the real gate instead
