@@ -122,6 +122,8 @@ async function main() {
 
     console.log("P2P MARKETPLACE BROWSER CERTIFICATION: PASS");
   } finally {
+    await pool.query("delete from trade_offers where proposer_player_id = any($1::int[]) or recipient_player_id = any($1::int[])", [ids]).catch(() => undefined);
+    await pool.query("delete from market_listings where seller_player_id = any($1::int[]) or buyer_player_id = any($1::int[])", [ids]).catch(() => undefined);
     await pool.query("delete from players where id = any($1::int[])", [ids]).catch(() => undefined);
   }
 }
