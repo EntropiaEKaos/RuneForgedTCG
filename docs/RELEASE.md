@@ -91,3 +91,20 @@ Do not accept real money until sandbox/production credentials and provider E2E a
 ## Why the shipped example is false
 
 `.env.production.example` intentionally ships `RANKED_RELEASE_CERTIFIED=false`. A source ZIP, passing balance simulation, or normal pull-request CI is not enough to bypass the SHA-bound clean-deployment gate.
+
+
+## Netlify deployment
+
+The repository Netlify path is certified rather than a plain framework build.
+
+`netlify.toml` binds the Git build `COMMIT_REF` to `RUNEFORGE_DEPLOY_SHA` and runs `npm run production:verify`. Production/deploy-preview/branch-deploy contexts set a bounded deploy environment. The exact non-secret SHA/environment are also embedded into the server build so deployment provenance remains available when Git metadata is build-only at runtime.
+
+A Netlify deploy is still not accepted as public Alpha evidence until the deployed HTTPS origin passes the external launch smoke/provenance checks.
+
+See `docs/NETLIFY-CERTIFIED-DEPLOYMENT.md`.
+
+## Recovery credential boundary
+
+Recovery keys are no longer persisted automatically in browser Web Storage. New/rotated keys use a one-time copy/download handoff; explicit recovery can replace a temporary guest session and rotates the credential on success.
+
+See `docs/PLAYER-RECOVERY-SECURITY-2-0.md`.

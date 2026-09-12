@@ -35,8 +35,7 @@ const register = async (client: BrowserClient, name: string) => {
   return result.body as { player: { id: number; name: string }; recoveryCode: string };
 };
 
-const recover = async (recoveryCode: string, expectedPlayerId: number) => {
-  const client = new BrowserClient();
+const recover = async (recoveryCode: string, expectedPlayerId: number, client = new BrowserClient()) => {
   const result = await client.request("/api/player", {
     method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ recoveryCode }),
   });
@@ -46,7 +45,7 @@ const recover = async (recoveryCode: string, expectedPlayerId: number) => {
   const current = await client.request("/api/player");
   assert.equal(current.response.status, 200, JSON.stringify(current.body));
   assert.equal(current.body.player.id, expectedPlayerId);
-  return client;
+  return { client, body: result.body };
 };
 
 const queue = (client: BrowserClient, mode: "casual" | "ranked") => client.request("/api/matchmaking", {
@@ -138,7 +137,12 @@ async function main() {
   const hostIdentity = await register(originalHost, `E2E Host ${runId}`);
   await register(guest, `E2E Guest ${runId}`);
 
-  const host = await recover(hostIdentity.recoveryCode, hostIdentity.player.id);
+  const recoveryBrowser = new BrowserClient();
+  const temporaryIdentity = await register(recoveryBrowser, `E2E Recovery Temp ${runId}`);
+  assert.notEqual(temporaryIdentity.player.id, hostIdentity.player.id, "temporary recovery browser must start on a different player");
+  const recoveredHost = await recover(hostIdentity.recoveryCode, hostIdentity.player.id, recoveryBrowser);
+  const host = recoveredHost.client;
+  assert.equal(recoveredHost.body.player.id, hostIdentity.player.id, "explicit recovery must replace an already-authenticated temporary session");
   const revoked = await originalHost.request("/api/player");
   assert.equal(revoked.response.status, 401, `pre-recovery host session must be revoked: ${JSON.stringify(revoked.body)}`);
 
@@ -224,7 +228,7 @@ async function main() {
   assert.equal(forfeited.response.status, 200, JSON.stringify(forfeited.body));
   assert.equal(forfeited.body.forfeited, true);
 
-  console.log(`E2E MVP: PASS — bounded public account body, recovery session rotation, final-pack deletion, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation and single-active-room invariant (${roomCode})`);
+  console.log(`E2E MVP: PASS — bounded public account body, recovery over active guest + session rotation, final-pack deletion, repeat economy operation IDs, Ranked fail-closed, casual PvP DTO isolation and single-active-room invariant (${roomCode})`);
 }
 
 void main();
