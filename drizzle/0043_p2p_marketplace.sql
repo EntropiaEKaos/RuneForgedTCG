@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS "trade_offers" (
   "id" serial PRIMARY KEY,
   "proposer_player_id" integer NOT NULL REFERENCES "players"("id") ON DELETE CASCADE,
   "recipient_player_id" integer NOT NULL REFERENCES "players"("id") ON DELETE CASCADE,
+  "offered_assets" jsonb NOT NULL DEFAULT '[]'::jsonb,
   "requested_assets" jsonb NOT NULL DEFAULT '[]'::jsonb,
   "note" text NOT NULL DEFAULT '',
   "status" text NOT NULL DEFAULT 'active',
