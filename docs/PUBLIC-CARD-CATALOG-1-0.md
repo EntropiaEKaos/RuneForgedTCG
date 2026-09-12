@@ -1,10 +1,10 @@
-# Public Card Catalog API 1.1 — Explorer 2.0
+# Public Card Catalog API 1.2 — Sentinela Public Abilities
 
 ## Purpose
 
 SiteRuneForged is deployed separately from the RuneForgedTCG runtime and must not import game source files or query the game database directly.
 
-Public Card Catalog 1.1 keeps the stable, read-only public projection from 1.0 and adds the query surface required by the portal Card Explorer 2.0. The endpoint still exposes presentation data only; no engine execution graph or admin state crosses the boundary.
+Public Card Catalog 1.2 keeps the stable, read-only public projection from 1.1 and adds a safe presentation projection for Sentinelas. The endpoint still exposes presentation data only; no engine execution graph or admin state crosses the boundary.
 
 ## Endpoint
 
@@ -14,7 +14,7 @@ Public Card Catalog 1.1 keeps the stable, read-only public projection from 1.0 a
 
 Optional query parameters:
 
-- `q` — text search across public card presentation fields;
+- `q` — text search across public card presentation fields, including public Sentinela ability descriptions;
 - `region` — matches any region in the card identity;
 - `type` — semantic display type or structural type;
 - `rarity`;
@@ -58,16 +58,19 @@ The portal may receive:
 - legend/champion flags;
 - public art URL and emoji;
 - strategic role / doctrine affinities;
-- public collection identity.
+- public collection identity;
+- for Sentinelas only: starting loyalty plus a list of `{ cost, description }` ability summaries.
 
 The DTO intentionally does **not** expose authoritative execution objects such as:
 
 - spell effect graphs;
 - trigger contracts;
 - mechanics ASTs;
-- Sentinela ability objects;
+- Sentinela ability `effect` payloads or other executable ability state;
 - equipment/aura runtime definitions;
 - admin metadata or audit state.
+
+This distinction is deliberate: players can read exactly what a Sentinela does, while the engine remains the only authority for how that text executes.
 
 ## Search, filters, facets and pagination
 
@@ -97,8 +100,11 @@ Failures are `no-store`.
 
 ## Certification
 
-Explorer 2.0 adds coverage for:
+Catalog 1.2 adds coverage for:
 
+- starting loyalty and readable Sentinela ability summaries;
+- explicit proof that Sentinela executable `effect` payloads remain private;
+- text search across public Sentinela ability descriptions;
 - race/class filters;
 - inclusive min/max cost filters;
 - deterministic sorting;
