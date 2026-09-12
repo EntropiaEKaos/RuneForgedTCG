@@ -75,7 +75,7 @@ The Marketplace release boundary is intentionally internal: player-to-player sal
 
 ## Ranked activation is a separate decision
 
-Ranked is not required for the public Alpha.
+Ranked is not required for the public Alpha. The current certified competitive pool is `season-zero-r2` under Ranked rules `2026.08.97`.
 
 Only when Ranked itself is being promoted should the exact deploy artifact additionally run:
 
@@ -84,14 +84,24 @@ npm run production:verify
 npm run ranked:verify
 ```
 
-After both commands pass in the final Ranked environment, enable Ranked deliberately:
+After both commands pass in the final Ranked environment, activation still requires three independent conditions:
+
+1. the host environment sets `RANKED_RELEASE_CERTIFIED=true`;
+2. the runtime game configuration sets `rankedEnabled=true` through the step-up protected LiveOps settings surface;
+3. PostgreSQL contains the intended Ranked season with `active=true` and the current time inside its start/end window.
+
+Safe promotion order:
 
 ```env
 RUNEFORGE_RELEASE=2.97.0
 RANKED_RELEASE_CERTIFIED=true
 ```
 
-Then rerun deployment verification and HTTP smoke tests against the deployed PostgreSQL instance.
+Redeploy/restart through the certified pipeline, verify deployment provenance, verify `/api/ranked` reports `rankedReleaseCertified: true`, pool `season-zero-r2`, rules `2026.08.97` and the intended open season, and only then switch `rankedEnabled=true`. Finish with a controlled two-player production smoke.
+
+The preferred immediate kill switch is `rankedEnabled=false`. A release-level shutdown uses `RANKED_RELEASE_CERTIFIED=false` followed by restart/redeploy. Deactivating the season independently blocks new Ranked admission.
+
+The full exact-SHA evidence and activation/rollback checklist are in `docs/RANKED-R2-RELEASE-CERTIFICATE.md`.
 
 ## Real-money payments are also separate
 
@@ -102,7 +112,6 @@ Do not accept real money until sandbox/production credentials and provider E2E a
 ## Why the shipped example is false
 
 `.env.production.example` intentionally ships `RANKED_RELEASE_CERTIFIED=false`. A source ZIP, passing balance simulation, or normal pull-request CI is not enough to bypass the SHA-bound clean-deployment gate.
-
 
 ## Netlify deployment
 
