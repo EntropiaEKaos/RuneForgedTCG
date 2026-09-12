@@ -9,6 +9,18 @@ Marketplace 1.0 adds two server-authoritative ways for players to exchange colle
 
 Gold is the only transferable currency in Marketplace 1.0. **Dust is never transferable.** Direct trades are card-for-card only. The system does not provide cash-out or any conversion from player-earned Gold to real money.
 
+### Alpha launch guardrails
+
+A fresh deployment starts with conservative P2P eligibility:
+
+- minimum player level: **2**;
+- minimum account age: **24 hours**;
+- marketplace sale fee: **5%** of Gold, snapshotted when a listing is created.
+
+The level/age gate reduces rapid Gold funneling through disposable accounts that receive starter currency. It is not a substitute for abuse monitoring, but it makes new-account farming materially slower while keeping the system available to established Alpha testers. Admins can adjust both thresholds from Studio, but policy changes require full Admin step-up authentication and are audited.
+
+The browser certification explicitly proves that a newly created account is denied Marketplace access before the isolated CI player records are promoted/matured for the sale and trade scenarios.
+
 ## Collectible ownership model
 
 Gameplay ownership remains represented by `player_cards` so deck legality and existing collection flows stay compatible.
@@ -95,7 +107,8 @@ Disenchanting removes only unlocked assets. A player cannot obtain Dust from a c
 - listing creation and cancellation;
 - instant Gold purchase;
 - the player's listing history;
-- direct incoming/outgoing trades with accept/decline/cancel.
+- direct incoming/outgoing trades with accept/decline/cancel;
+- player-facing card selection by name/rarity/region for requested trade cards, with internal `defId` values kept out of the player workflow.
 
 The global Forja navigation links to Mercado.
 
@@ -156,7 +169,7 @@ HTTP/browser gate against a built running server:
 npm run test:e2e:marketplace
 ```
 
-The browser certification creates real player sessions, lists a card, launches two concurrent purchases of the same listing and requires **exactly one buyer** to win. It then verifies asset ownership, Gold balances, buyer/seller ledger rows, creates a direct card-for-card trade, verifies escrow, accepts it, and verifies both collectible owners were swapped atomically.
+The browser certification first proves a brand-new account is rejected by the default eligibility gate. It then matures isolated certification players, lists a card, launches two concurrent purchases of the same listing and requires **exactly one buyer** to win. It verifies asset ownership, Gold balances, buyer/seller ledger rows, creates a direct card-for-card trade, verifies escrow, accepts it, and verifies both collectible owners were swapped atomically.
 
 `npm run production:verify` includes the Marketplace PostgreSQL integrity check. Pull-request CI also runs the Marketplace browser certification in the same built-server E2E stage as the Alpha journey.
 
