@@ -15,6 +15,7 @@ import { CONTENT_VERSION } from "@/game/content-version";
 import { getRuntimePacks } from "@/lib/control-plane";
 import { loadGameConfig } from "@/game/settings";
 import { economyOperationId, runIdempotentEconomyAction } from "@/lib/economy-idempotency";
+import { createStandardAssets } from "@/lib/marketplace-service";
 
 export const dynamic = "force-dynamic";
 
@@ -112,8 +113,14 @@ export async function POST(req: NextRequest) {
             if (card.count >= duplicateCap) {
               const definition = allCards().find((c) => c.defId === defId);
               if (definition) dustBonus += DUST_VALUES[definition.rarity];
-            } else await tx.update(playerCards).set({ count: sql`${playerCards.count} + 1` }).where(eq(playerCards.id, card.id));
-          } else await tx.insert(playerCards).values({ playerId: fresh.id, defId, count: 1 });
+            } else {
+              await tx.update(playerCards).set({ count: sql`${playerCards.count} + 1` }).where(eq(playerCards.id, card.id));
+              await createStandardAssets(tx, fresh.id, defId, 1, `pack:${packId}`);
+            }
+          } else {
+            await tx.insert(playerCards).values({ playerId: fresh.id, defId, count: 1 });
+            await createStandardAssets(tx, fresh.id, defId, 1, `pack:${packId}`);
+          }
         }
         let newDust = fresh.dust;
         if (dustBonus) {

@@ -24,6 +24,7 @@ const freshFiles = [
   "drizzle/0040_pvp_content_snapshot_2_97.sql",
   "drizzle/0041_pvp_reaction_priority.sql",
   "drizzle/0042_site_portal_cms.sql",
+  "drizzle/0043_p2p_marketplace.sql",
 ];
 const sql = freshFiles.map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n").replace(/--.*$/gm, "");
 const failures = [];
@@ -75,10 +76,6 @@ const byVariable = new Map(schemaEntries.map((entry) => [entry.variable, entry])
 
 let drizzleFkCount = 0;
 for (const entry of schemaEntries) {
-  // All current Drizzle FK declarations are field-local. Parsing line-by-line is
-  // intentionally strict: it cannot accidentally start at `id:` and wander into
-  // a later `playerId.references(...)` declaration, which was the source of a
-  // false positive in the first semantic checker draft.
   for (const line of entry.block.split(/\r?\n/)) {
     const m = line.match(/^\s*(\w+)\s*:\s*\w+\("([^"]+)"\)[^,\n]*?\.references\(\(\)\s*=>\s*(\w+)\.(\w+)/);
     if (!m) continue;

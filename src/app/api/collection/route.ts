@@ -11,13 +11,13 @@ import { getRuntimeCraftCosts } from "@/lib/control-plane";
 import { requireStablePlayerIdentity } from "@/lib/player-session";
 import { recordEconomyTransaction } from "@/lib/economy-ledger";
 import { economyOperationId, runIdempotentEconomyAction } from "@/lib/economy-idempotency";
+import { cleanupExpiredMarketplace, createStandardAssets, deleteUnlockedAssets } from "@/lib/marketplace-service";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   await ensureCustomCardsLoaded();
   try {
-    const url = new URL(req.url);
     const identity = await requireStablePlayerIdentity(req);
     if (!identity) return Response.json({ ok: false, error: "Player session required" }, { status: 401 });
     const [player] = await db.select().from(players).where(eq(players.id, identity.playerId)).limit(1);
@@ -64,8 +64,11 @@ export async function POST(req: NextRequest) {
 
       const operation = await runIdempotentEconomyAction(tx, { playerId: fresh.id, operationId, action: actionFingerprint }, async () => {
         if (action === "disenchant") {
+          await cleanupExpiredMarketplace(tx);
           const [ownedCard] = await tx.select({ id: playerCards.id, count: playerCards.count }).from(playerCards).where(and(eq(playerCards.playerId, fresh.id), eq(playerCards.defId, defId))).limit(1);
           if (!ownedCard || ownedCard.count < amount) return { error: "Not enough copies" };
+          const removable = await deleteUnlockedAssets(tx, fresh.id, defId, amount);
+          if (!removable) return { error: "Not enough unlocked copies; cards in marketplace escrow cannot be disenchanted" };
 
           let newCount: number;
           if (ownedCard.count === amount) {
@@ -91,12 +94,10 @@ export async function POST(req: NextRequest) {
         const spent = await tx.update(players).set({ dust: sql`${players.dust} - ${cost}` }).where(and(eq(players.id, fresh.id), sql`${players.dust} >= ${cost}`)).returning({ dust: players.dust });
         if (!spent.length) return { error: "Not enough dust" };
         await recordEconomyTransaction(tx, { playerId: fresh.id, currency: "dust", amount: -cost, balanceAfter: spent[0].dust, reason: "craft", referenceType: "card", referenceId: `${defId}:${operationId}` });
-        if (existing.length) {
-          await tx.update(playerCards).set({ count: sql`${playerCards.count} + ${amount}` }).where(eq(playerCards.id, existing[0].id));
-          return { dustSpent: cost, newCount: currentCount + amount };
-        }
-        await tx.insert(playerCards).values({ playerId: fresh.id, defId, count: amount });
-        return { dustSpent: cost, newCount: amount };
+        if (existing.length) await tx.update(playerCards).set({ count: sql`${playerCards.count} + ${amount}` }).where(eq(playerCards.id, existing[0].id));
+        else await tx.insert(playerCards).values({ playerId: fresh.id, defId, count: amount });
+        await createStandardAssets(tx, fresh.id, defId, amount, "craft");
+        return { dustSpent: cost, newCount: currentCount + amount };
       });
       return { ...operation.response, duplicate: operation.duplicate };
     });

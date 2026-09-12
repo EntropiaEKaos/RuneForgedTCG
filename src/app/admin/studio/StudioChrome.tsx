@@ -24,6 +24,7 @@ const routes: StudioCommand[] = [
   { href: "/admin/studio/control", label: "Total Game Control", desc: "Engine, AI, modes, economy and presentation", capability: "control" },
   { href: "/admin/studio/brawl-contract", label: "Brawl Contract Inspector", desc: "Preflight Brawl definitions against the canonical runtime validator", capability: "brawl" },
   { href: "/admin/studio/payments", label: "Payments", desc: "Mercado Pago credentials, webhooks and commerce", capability: "payments" },
+  { href: "/admin/studio/marketplace", label: "Marketplace", desc: "P2P Gold market, escrow and direct trades", capability: "payments" },
   { href: "/admin/studio/runtime", label: "Runtime Operations", desc: "Matches, replays, decks, chat and sessions", capability: "runtime" },
   { href: "/admin/studio/5", label: "Balance Lab", desc: "Matchups and outliers", capability: "balance" },
   { href: "/admin/studio/lab", label: "Card Laboratory", desc: "Run deterministic QA scenarios", capability: "qa-tools" },
@@ -42,6 +43,7 @@ const quickActions: StudioCommand[] = [
   { href: "/admin/studio/5?tab=matrix", label: "Run matchup matrix", desc: "Open Balance matrix controls", capability: "balance" },
   { href: "/admin/studio/control", label: "Open total control", desc: "Manage every runtime content domain", capability: "control" },
   { href: "/admin/studio/brawl-contract", label: "Validate Brawl contract", desc: "Check a Brawl payload before publication", capability: "brawl" },
+  { href: "/admin/studio/marketplace", label: "Open marketplace control", desc: "Tune P2P fees, limits and eligibility", capability: "payments" },
 ];
 
 export function StudioCommandPalette({ role }: { role?: string | null }) {

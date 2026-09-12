@@ -91,10 +91,11 @@ jobs:
       - name: Fresh PostgreSQL bootstrap
         run: npm run db:bootstrap
 
-      - name: Portal CMS PostgreSQL certification — upgrade, constraints and lock semantics
+      - name: Portal CMS PostgreSQL certification + Marketplace — upgrades, constraints and lock semantics
         run: |
           npm run db:upgrade
           node --import tsx scripts/site-cms-postgres-certification.ts
+          npm run test:marketplace:postgres
 
       - name: Mercado Pago PostgreSQL certification — exactly-once, financial state and rotation safety
         env:
@@ -139,7 +140,7 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://ci.placeholder.invalid
         run: npm run build
 
-      - name: HTTP/browser E2E — alpha journey, Studio authoring, recovery, Ranked fail-closed, casual matchmaking, two-browser PvP and DTO isolation
+      - name: HTTP/browser E2E — alpha journey, Marketplace, Studio authoring, recovery, Ranked fail-closed, casual matchmaking, two-browser PvP and DTO isolation
         env:
           E2E_BASE_URL: http://127.0.0.1:3000
         run: |
@@ -152,6 +153,7 @@ jobs:
             sleep 1
           done
           npm run test:e2e:alpha-journey
+          npm run test:e2e:marketplace
           npm run test:e2e:http
           node scripts/alpha-pvp-lobby-preflight.mjs
           node scripts/alpha-visual-journey.mjs

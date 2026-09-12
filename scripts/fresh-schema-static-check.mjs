@@ -24,6 +24,7 @@ const files = [
   "drizzle/0040_pvp_content_snapshot_2_97.sql",
   "drizzle/0041_pvp_reaction_priority.sql",
   "drizzle/0042_site_portal_cms.sql",
+  "drizzle/0043_p2p_marketplace.sql",
 ];
 
 const tables = new Map();
@@ -40,7 +41,7 @@ function addCreateTables(source) {
     const cols = colsFor(m[1]);
     for (const line of m[2].split(/\r?\n/)) {
       const mm = line.trim().replace(/,$/, "").match(/^["`]?([A-Za-z_][A-Za-z0-9_]*)["`]?\s+/);
-      if (!mm || ["CONSTRAINT", "PRIMARY", "UNIQUE", "FOREIGN", "CHECK"].includes(mm[1].toUpperCase())) continue;
+      if (!mm || ["CONSTRAINT", "PRIMARY", "UNIQUE", "FOREIGN", "CHECK", "AND", "OR"].includes(mm[1].toUpperCase())) continue;
       cols.add(mm[1]);
     }
   }
