@@ -29,8 +29,7 @@ export function marketplaceNet(priceGold: number, feeBps: number) {
 }
 
 export function validateMarketPrice(priceGold: number, settings: Pick<MarketplaceConfig, "minPriceGold" | "maxPriceGold">) {
-  const price = Math.trunc(priceGold);
-  return Number.isSafeInteger(price) && price >= settings.minPriceGold && price <= settings.maxPriceGold;
+  return Number.isSafeInteger(priceGold) && priceGold >= settings.minPriceGold && priceGold <= settings.maxPriceGold;
 }
 
 export function playerCanUseMarketplace(
