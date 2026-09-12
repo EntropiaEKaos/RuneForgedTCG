@@ -12,7 +12,7 @@ function main() {
   assert.equal(validateMarketPrice(1000, { minPriceGold: 1, maxPriceGold: 1000 }), true);
   assert.equal(validateMarketPrice(0, { minPriceGold: 1, maxPriceGold: 1000 }), false);
   assert.equal(validateMarketPrice(1001, { minPriceGold: 1, maxPriceGold: 1000 }), false);
-  assert.equal(validateMarketPrice(2.5, { minPriceGold: 1, maxPriceGold: 1000 }), true, "prices are integer Gold and normalize by truncation");
+  assert.equal(validateMarketPrice(2.5, { minPriceGold: 1, maxPriceGold: 1000 }), false, "Gold prices must be whole numbers");
 
   const now = new Date("2026-09-12T12:00:00Z");
   const settings = { enabled: true, minPlayerLevel: 2, minAccountAgeHours: 24 };
