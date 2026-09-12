@@ -294,6 +294,15 @@ async function main() {
   assert.equal(Number(profileAfter.body.stats.customDecks), 1, "forged deck must remain attached to the player profile");
 
   const recoveredClient = new BrowserClient();
+  const temporary = await recoveredClient.request("/api/player", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ displayName: `Alpha Temp ${runId}`.slice(0, 40) }),
+  });
+  assert.equal(temporary.response.status, 201, `temporary recovery account failed: ${JSON.stringify(temporary.body)}`);
+  const temporaryPlayerId = Number(temporary.body.player?.id);
+  assert.ok(temporaryPlayerId > 0 && temporaryPlayerId !== playerId, "recovery test must begin on a different authenticated player");
+
   const recovered = await recoveredClient.request("/api/player", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -312,7 +321,7 @@ async function main() {
   assert.equal(recoveredDecks.response.status, 200, JSON.stringify(recoveredDecks.body));
   assert.ok(recoveredDecks.body.decks?.some((deck: { id: number }) => deck.id === forged.body.deck.id), "recovered session must retain the forged playable deck");
 
-  console.log(`ALPHA PLAYER JOURNEY: PASS — account → catalog → Forge → authoritative PvE (${generated.actions.length} actions, ${generated.final.winner}) → exactly-once rewards → progression → recovery persistence`);
+  console.log(`ALPHA PLAYER JOURNEY: PASS — account → catalog → Forge → authoritative PvE (${generated.actions.length} actions, ${generated.final.winner}) → exactly-once rewards → progression → explicit recovery over temporary session`);
 }
 
 void main().catch((error) => {

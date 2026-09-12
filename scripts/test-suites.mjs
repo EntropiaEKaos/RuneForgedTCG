@@ -147,6 +147,7 @@ export const sourceContractTests = [
   "src/lib/mvp-final-2.96.test.ts",
   "src/lib/production-certification-regression.test.ts",
   "src/lib/production-gate-regression.test.ts",
+  "src/lib/public-alpha-account-deploy-hardening-regression.test.ts",
   "src/lib/public-card-catalog-regression.test.ts",
   "src/lib/public-keyword-catalog-regression.test.ts",
   "src/lib/public-rules-contracts-regression.test.ts",
