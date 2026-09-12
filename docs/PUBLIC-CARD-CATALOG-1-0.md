@@ -1,10 +1,10 @@
-# Public Card Catalog API 1.0
+# Public Card Catalog API 1.1 — Explorer 2.0
 
 ## Purpose
 
 SiteRuneForged is deployed separately from the RuneForgedTCG runtime and must not import game source files or query the game database directly.
 
-Public Card Catalog 1.0 provides a stable, read-only card projection for portal/catalog experiences without exposing internal engine contracts.
+Public Card Catalog 1.1 keeps the stable, read-only public projection from 1.0 and adds the query surface required by the portal Card Explorer 2.0. The endpoint still exposes presentation data only; no engine execution graph or admin state crosses the boundary.
 
 ## Endpoint
 
@@ -19,8 +19,16 @@ Optional query parameters:
 - `type` — semantic display type or structural type;
 - `rarity`;
 - `collection` — collection key or code;
+- `keyword` — built-in or custom public keyword;
+- `race` — matches any public race identity;
+- `class` — matches any public class identity;
+- `minCost` — inclusive lower mana-cost boundary;
+- `maxCost` — inclusive upper mana-cost boundary;
+- `sort` — `name-asc` (default), `name-desc`, `cost-asc`, `cost-desc` or `power-desc`;
 - `page` — one-based page;
 - `pageSize` — 1..100, default 48.
+
+Unknown sort values fail safe to deterministic name/defId ordering.
 
 ## Publication boundary
 
@@ -61,9 +69,9 @@ The DTO intentionally does **not** expose authoritative execution objects such a
 - equipment/aura runtime definitions;
 - admin metadata or audit state.
 
-## Search and pagination
+## Search, filters, facets and pagination
 
-Results are sorted deterministically by display name then defId.
+Results are filtered before pagination and then sorted deterministically according to the requested public sort mode.
 
 Page size is bounded to 100.
 
@@ -74,8 +82,10 @@ The response includes:
 - `pageSize`;
 - `totalPages`;
 - `items`;
-- facets for region, type, rarity and collection;
+- facets for region, type, rarity, collection, keyword, race, class and mana cost;
 - a `catalogRevision` identifier.
+
+Facets are calculated from the complete public catalog, not from one page, so the portal can build stable shareable filters.
 
 ## Caching
 
@@ -87,10 +97,13 @@ Failures are `no-store`.
 
 ## Certification
 
-The branch adds:
+Explorer 2.0 adds coverage for:
 
-- behavioral DTO/filter/facet/pagination tests;
-- fail-closed collection identity coverage;
-- source-boundary tests preventing engine/admin projection;
-- central API contract coverage;
-- full repository CI as the merge gate.
+- race/class filters;
+- inclusive min/max cost filters;
+- deterministic sorting;
+- race/class/cost facets;
+- existing keyword, region, type, rarity and collection behavior;
+- fail-closed public collection identity;
+- bounded pagination;
+- source-contract checks preventing internal engine/admin projection.
