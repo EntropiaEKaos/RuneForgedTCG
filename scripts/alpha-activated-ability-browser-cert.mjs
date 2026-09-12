@@ -62,7 +62,6 @@ function sleep(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
-
 function findChrome() {
   const candidates = [
     process.env.CHROME_BIN,
@@ -332,8 +331,6 @@ async function issueAuthoritativeToken(cdp, deckId) {
 async function prepareAuthoritativeFixture(cdp) {
   const attempts = [];
   for (let attempt = 1; attempt <= maxTokenAttempts; attempt++) {
-    // Match tokens are deterministic for a given custom deck id. Create a fresh
-    // deck id per attempt so the server produces a new authoritative seed.
     const deck = await seedDeck(cdp, attempt);
     const deckId = `custom_${deck.id}`;
     const token = await issueAuthoritativeToken(cdp, deckId);
@@ -345,10 +342,6 @@ async function prepareAuthoritativeFixture(cdp) {
     const openingHand = seededShuffle(cards, (seed ^ 0x9e3779b9) >>> 0).slice(0, startHand);
     const sourceInOpeningHand = openingHand.includes(sourceDefId);
     attempts.push({ attempt, seed, playerFirst, openingHand, sourceInOpeningHand });
-
-    // Even round + playerFirst means the AI acts first. The player can cast the
-    // cost-6 source as the second actor in round 6, pass, and start round 7 with
-    // refreshed mana before the AI can mutate/remove the source.
     if (sourceInOpeningHand && playerFirst) {
       return { deck, token, sourceDefId, openingHand, attempts };
     }
@@ -416,11 +409,6 @@ async function playDefensiveUnit(cdp, snapshot) {
 
     if (!await clickSelector(cdp, selector)) continue;
 
-    // Defensive development is only a setup action for the activated source.
-    // A successfully played unit can be removed before the next polling sample,
-    // so requiring boardCount to stay increased creates a false-negative race.
-    // Accept the play once any independent browser-visible commit signal appears:
-    // a new copy on board, one fewer copy in hand, or same-round regular mana spent.
     await waitUntil(
       async () => {
         const current = await matchSnapshot(cdp);
@@ -621,6 +609,13 @@ async function main() {
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
 
     await navigate(cdp, "/play");
+    await waitForText(cdp, "SALVE SUA CHAVE DE RECUPERAÇÃO", 30_000);
+    await clickText(cdp, "JÁ GUARDEI");
+    await waitUntil(
+      () => evaluate(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`),
+      "recovery-key handoff dismissal",
+      5_000,
+    );
     await waitForText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL", 30_000);
     const chosen = await prepareAuthoritativeFixture(cdp);
     assert.equal(chosen.token.playerFirst, true, "certification fixture must be server-authoritative player-first");
@@ -669,26 +664,15 @@ async function main() {
 
     const initialAbilityState = await abilityEvidence(cdp, chosen.sourceDefId);
     const blocked = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Mana insuficiente/i);
-    assert.equal(
-      blocked.disabled,
-      true,
-      "played 6-mana source must immediately expose a disabled ability after spending all 6 mana",
-    );
+    assert.equal(blocked.disabled, true, "played 6-mana source must immediately expose a disabled ability after spending all 6 mana");
     assert.match(blocked.text, /BLOQUEADA/i, "blocked state must be visible on the battlefield control");
     await capture(cdp, blockedScreenshot);
 
     await pressKey(cdp, " ", "Space");
     const refreshed = await waitForNextPlayerMain(cdp, played.round, chosen.sourceDefId);
-    assert.equal(
-      refreshed.round,
-      sourceRefreshRound,
-      `player-first fixture must advance directly from round ${sourcePlayRound} to player main in round ${sourceRefreshRound}: ${JSON.stringify(refreshed)}`,
-    );
+    assert.equal(refreshed.round, sourceRefreshRound, `player-first fixture must advance directly from round ${sourcePlayRound} to player main in round ${sourceRefreshRound}: ${JSON.stringify(refreshed)}`);
     assert.equal(refreshed.playerTurn, true, `round-${sourceRefreshRound} refresh must visibly belong to the player: ${JSON.stringify(refreshed)}`);
-    assert.ok(
-      (refreshed.playerMana ?? 0) >= 2,
-      `round-${sourceRefreshRound} refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`,
-    );
+    assert.ok((refreshed.playerMana ?? 0) >= 2, `round-${sourceRefreshRound} refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`);
 
     const ready = await waitForAbilityState(cdp, chosen.sourceDefId, "ready", null);
     assert.equal(ready.disabled, false, "activated ability must become usable after mana refresh");
@@ -727,11 +711,7 @@ async function main() {
     })()`);
 
     const abilitySelector = `${sourceSelector} button[data-activated-ability-index="0"][data-activated-ability-status="ready"]`;
-    assert.equal(
-      await clickSelector(cdp, abilitySelector),
-      true,
-      "real battlefield activated ability button must be clickable when ready",
-    );
+    assert.equal(await clickSelector(cdp, abilitySelector), true, "real battlefield activated ability button must be clickable when ready");
 
     const used = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Já usada nesta rodada/i);
     assert.equal(used.disabled, true, "once-per-round ability must become disabled after activation");
@@ -741,11 +721,7 @@ async function main() {
     await capture(cdp, usedScreenshot);
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
-    assert.equal(
-      runtimeExceptions.length,
-      0,
-      `browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0, 3))}`,
-    );
+    assert.equal(runtimeExceptions.length, 0, `browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0, 3))}`);
 
     const evidence = {
       ok: true,
@@ -776,29 +752,12 @@ async function main() {
     await mkdir(outputDir, { recursive: true });
     await writeFile(join(outputDir, evidenceName), `${JSON.stringify(evidence, null, 2)}\n`);
     await appendManifest([
-      {
-        stage: "activated ability blocked state",
-        file: blockedScreenshot,
-        href: `${baseUrl}/play`,
-        evidence: `${chosen.sourceDefId}: Mana insuficiente`,
-      },
-      {
-        stage: "activated ability ready + tooltip intelligence",
-        file: readyScreenshot,
-        href: `${baseUrl}/play`,
-        evidence: `${chosen.sourceDefId}: PRONTA PARA ATIVAR`,
-      },
-      {
-        stage: "activated ability used state",
-        file: usedScreenshot,
-        href: `${baseUrl}/play`,
-        evidence: `${chosen.sourceDefId}: Já usada nesta rodada`,
-      },
+      { stage: "activated ability blocked state", file: blockedScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.sourceDefId}: Mana insuficiente` },
+      { stage: "activated ability ready + tooltip intelligence", file: readyScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.sourceDefId}: PRONTA PARA ATIVAR` },
+      { stage: "activated ability used state", file: usedScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.sourceDefId}: Já usada nesta rodada` },
     ]);
 
-    console.log(
-      `ACTIVATED ABILITY BROWSER CERT: PASS — ${chosen.sourceDefId} blocked → ready → used in real browser; 3 screenshots captured`,
-    );
+    console.log(`ACTIVATED ABILITY BROWSER CERT: PASS — ${chosen.sourceDefId} blocked → ready → used in real browser; 3 screenshots captured`);
   } finally {
     try {
       cdp?.close();
