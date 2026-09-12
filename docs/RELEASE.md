@@ -53,6 +53,7 @@ Then start the production build and run the launch-scope journeys against it:
 ```bash
 npm start
 npm run test:e2e:alpha-journey
+npm run test:e2e:marketplace
 node scripts/alpha-casual-pvp-journey.mjs
 node scripts/alpha-visual-journey.mjs
 npm run alpha:release-evidence
@@ -61,6 +62,16 @@ npm run alpha:release-evidence
 The GitHub Actions gate is preferred because it binds the evidence to the repository SHA and uploads the manifest/screenshots automatically. `release:preflight` also rejects a malformed deploy SHA and, inside GitHub Actions, rejects any `RUNEFORGE_DEPLOY_SHA` that differs from `GITHUB_SHA`.
 
 The running deployment exposes `GET /api/public/game/deployment/provenance`. That endpoint must report the same exact SHA and a bounded environment identity (`ci`, `preview`, `alpha`, `staging` or `production`); invalid or missing provenance returns HTTP 503. See `docs/PUBLIC-DEPLOYMENT-PROVENANCE-1-0.md`.
+
+## P2P Marketplace gate
+
+Marketplace 1.0 is part of the Alpha candidate only when the per-copy ownership migration and its economy certifications pass.
+
+Fresh databases apply `drizzle/0043_p2p_marketplace.sql` through `db:bootstrap`. Existing certified databases apply it through `db:upgrade` under the shared schema advisory lock.
+
+`production:verify` includes Marketplace PostgreSQL integrity checks. Pull-request CI additionally runs the built-server `test:e2e:marketplace` journey, including two concurrent buyers racing for the same listing and a complete escrowed card-for-card trade. Exactly one concurrent buyer may succeed.
+
+The Marketplace release boundary is intentionally internal: player-to-player sales use RuneForge Gold only, Dust is non-transferable, direct trades are card-for-card, and there is no cash-out path. See `docs/P2P-MARKETPLACE-1.0.md`.
 
 ## Ranked activation is a separate decision
 
