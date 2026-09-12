@@ -63,7 +63,11 @@ async function main() {
   const ids = [seller.id, buyerA.id, buyerB.id, traderA.id, traderB.id];
 
   try {
-    await pool.query("update players set gold=1000 where id = any($1::int[])", [ids]);
+    // The production defaults deliberately keep disposable fresh accounts out
+    // of the P2P economy. Certification players are promoted/matured directly
+    // in the isolated CI database so the test exercises the real gate instead
+    // of weakening it through configuration overrides.
+    await pool.query("update players set gold=1000, level=2, created_at=now()-interval '48 hours' where id = any($1::int[])", [ids]);
     const saleAssetId = await seedAsset(seller.id, "void_imp");
     const traderAAsset = await seedAsset(traderA.id, "void_hexer");
     const traderBAsset = await seedAsset(traderB.id, "void_stalker");
