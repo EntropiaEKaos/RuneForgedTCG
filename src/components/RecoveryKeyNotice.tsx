@@ -71,7 +71,7 @@ export default function RecoveryKeyNotice() {
     <div className="fixed inset-0 z-[120] grid place-items-center bg-black/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="recovery-key-title">
       <section className="w-full max-w-xl rounded-2xl border border-cyan-300/25 bg-slate-950 p-5 shadow-2xl sm:p-6">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/70">SEGURANÇA DA CONTA</p>
-        <h2 id="recovery-key-title" className="mt-2 text-2xl font-black text-slate-50">Salve sua chave de recuperação</h2>
+        <h2 id="recovery-key-title" className="mt-2 text-2xl font-black text-slate-50">SALVE SUA CHAVE DE RECUPERAÇÃO</h2>
         <p className="mt-3 text-sm leading-6 text-slate-400">
           Ela não fica armazenada automaticamente no navegador. Copie ou baixe agora e guarde fora do RuneForge.
           Ao recuperar a conta ou gerar uma nova chave, a anterior deixa de funcionar.
