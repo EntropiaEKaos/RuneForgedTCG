@@ -54,7 +54,6 @@ const cheapUnitPriorities = [
 const runtimeBuffPattern = /(Poder\s+[+-][1-9]\d*|Vida máxima\s+[+-][1-9]\d*|Equipamentos\s+[+-][1-9]\d*\/[+-]\d+|Habilidade ganha:|Habilidade perdida:|❄\s*Congelado|✦\s*Atordoado)/i;
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 
-
 function findChrome() {
   for (const candidate of [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean)) {
     const result = spawnSync("which", [candidate], { encoding: "utf8" });
@@ -411,6 +410,13 @@ async function main() {
     await cdp.call("Runtime.enable");
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
     await navigate(cdp, "/play");
+    await waitText(cdp, "SALVE SUA CHAVE DE RECUPERAÇÃO", 30000);
+    await clickText(cdp, "JÁ GUARDEI");
+    await waitUntil(
+      () => evalJs(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`),
+      "recovery-key handoff dismissal",
+      5000,
+    );
     await waitText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL", 30000);
 
     const fixtureDeck = await seedDeck(cdp);
