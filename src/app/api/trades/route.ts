@@ -97,9 +97,10 @@ export async function POST(req: NextRequest) {
       if (action === "create") {
         const recipientName = String(body.recipientName || "").trim().slice(0, 40);
         const offeredAssetIds = Array.isArray(body.offeredAssetIds)
-          ? [...new Set(body.offeredAssetIds.map((value) => Math.trunc(Number(value))).filter((value) => Number.isInteger(value) && value > 0))]
+          ? [...new Set(body.offeredAssetIds.map((value) => Number(value)).filter((value) => Number.isSafeInteger(value) && value > 0))]
           : [];
         const requestedAssets = normalizeRequestedCollectibles(body.requestedAssets, settings.maxTradeCardsPerSide);
+        const note = String(body.note || "").trim().slice(0, 240);
         if (!recipientName || offeredAssetIds.length < 1 || offeredAssetIds.length > settings.maxTradeCardsPerSide || !requestedAssets) {
           return { error: "Invalid trade offer", status: 400 };
         }
@@ -110,20 +111,20 @@ export async function POST(req: NextRequest) {
         if (!recipient || recipient.id === actor.id) return { error: "Trade recipient not found", status: 404 };
         const recipientAccess = playerCanUseMarketplace(recipient, settings, now);
         if (!recipientAccess.ok) return { error: "Trade recipient is not eligible for marketplace trading", status: 409 };
-        await lockPlayers(tx, [actor.id, recipient.id]);
-        const offered = await tx.select().from(cardAssets).where(and(
-          inArray(cardAssets.id, offeredAssetIds),
-          eq(cardAssets.ownerPlayerId, actor.id),
-          eq(cardAssets.tradable, true),
-        )).orderBy(cardAssets.id).for("update");
-        if (offered.length !== offeredAssetIds.length) return { error: "One or more offered card copies are unavailable", status: 409 };
-        const existingLocks = await tx.select().from(cardAssetLocks).where(inArray(cardAssetLocks.assetId, offeredAssetIds));
-        if (existingLocks.length) return { error: "One or more offered card copies are already in escrow", status: 409 };
-        const offeredSnapshot = offered.map((asset) => ({ assetId: asset.id, defId: asset.defId, variantId: asset.variantId, frameId: asset.frameId, finish: asset.finish }));
-        const expiresAt = new Date(now.getTime() + settings.tradeDurationHours * 60 * 60 * 1000);
-        const note = String(body.note || "").trim().slice(0, 240);
-        const fingerprint = `trade:create:${recipient.id}:${offeredAssetIds.join(",")}:${JSON.stringify(requestedAssets)}`;
+
+        const fingerprint = `trade:create:${recipient.id}:${offeredAssetIds.join(",")}:${JSON.stringify(requestedAssets)}:${note}`;
         const operation = await runIdempotentEconomyAction(tx, { playerId: actor.id, operationId, action: fingerprint }, async () => {
+          await lockPlayers(tx, [actor.id, recipient.id]);
+          const offered = await tx.select().from(cardAssets).where(and(
+            inArray(cardAssets.id, offeredAssetIds),
+            eq(cardAssets.ownerPlayerId, actor.id),
+            eq(cardAssets.tradable, true),
+          )).orderBy(cardAssets.id).for("update");
+          if (offered.length !== offeredAssetIds.length) return { error: "One or more offered card copies are unavailable", status: 409 };
+          const existingLocks = await tx.select().from(cardAssetLocks).where(inArray(cardAssetLocks.assetId, offeredAssetIds));
+          if (existingLocks.length) return { error: "One or more offered card copies are already in escrow", status: 409 };
+          const offeredSnapshot = offered.map((asset) => ({ assetId: asset.id, defId: asset.defId, variantId: asset.variantId, frameId: asset.frameId, finish: asset.finish }));
+          const expiresAt = new Date(now.getTime() + settings.tradeDurationHours * 60 * 60 * 1000);
           const [offer] = await tx.insert(tradeOffers).values({ proposerPlayerId: actor.id, recipientPlayerId: recipient.id, offeredAssets: offeredSnapshot, requestedAssets, note, expiresAt }).returning();
           await tx.insert(cardAssetLocks).values(offered.map((asset) => ({ assetId: asset.id, ownerPlayerId: actor.id, kind: "trade", referenceId: offer.id, expiresAt })));
           return { tradeId: offer.id, expiresAt };
@@ -131,8 +132,8 @@ export async function POST(req: NextRequest) {
         return { ...operation.response, duplicate: operation.duplicate };
       }
 
-      const tradeId = Math.trunc(Number(body.tradeId));
-      if (!Number.isInteger(tradeId) || tradeId < 1) return { error: "Invalid trade", status: 400 };
+      const tradeId = Number(body.tradeId);
+      if (!Number.isSafeInteger(tradeId) || tradeId < 1) return { error: "Invalid trade", status: 400 };
       const fingerprint = `trade:${action}:${tradeId}`;
       const operation = await runIdempotentEconomyAction(tx, { playerId: actor.id, operationId, action: fingerprint }, async () => {
         const [offer] = await tx.select().from(tradeOffers).where(eq(tradeOffers.id, tradeId)).limit(1).for("update");
