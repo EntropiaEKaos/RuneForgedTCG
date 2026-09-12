@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type CardSummary = { defId: string; name: string; rarity?: string; region?: string | string[]; emoji?: string };
+type PublicCatalogCard = { defId: string; name: string; rarity?: string; region?: string; regions?: string[] };
 type Asset = {
   id: number;
   defId: string;
@@ -51,11 +52,17 @@ function collectibleLabel(item: { variantId?: string; frameId?: string; finish?:
   return [item.variantId && item.variantId !== "standard" ? item.variantId : null, item.frameId && item.frameId !== "default" ? item.frameId : null, item.finish && item.finish !== "normal" ? item.finish : null].filter(Boolean).join(" · ") || "Padrão";
 }
 
+function catalogCardLabel(card: PublicCatalogCard) {
+  const region = card.region || card.regions?.join("/") || "Multirregional";
+  return `${card.name}${card.rarity ? ` · ${card.rarity}` : ""}${region ? ` · ${region}` : ""}`;
+}
+
 export default function MarketClient() {
   const [tab, setTab] = useState<Tab>("market");
   const [listings, setListings] = useState<Listing[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [tradeCatalog, setTradeCatalog] = useState<PublicCatalogCard[]>([]);
   const [gold, setGold] = useState(0);
   const [playerId, setPlayerId] = useState<number | null>(null);
   const [feeBps, setFeeBps] = useState(500);
@@ -89,12 +96,32 @@ export default function MarketClient() {
     setTrades(data.trades || []);
   }, []);
 
+  const loadTradeCatalog = useCallback(async () => {
+    const firstResponse = await fetch("/api/public/game/cards?page=1&pageSize=100&sort=name-asc", { cache: "no-store" });
+    const first = await firstResponse.json();
+    if (!firstResponse.ok || !first.ok) throw new Error(first.error || "Falha ao carregar catálogo de cartas");
+
+    const totalPages = Math.max(1, Number(first.totalPages || 1));
+    const pages = totalPages > 1
+      ? await Promise.all(Array.from({ length: totalPages - 1 }, async (_, index) => {
+          const response = await fetch(`/api/public/game/cards?page=${index + 2}&pageSize=100&sort=name-asc`, { cache: "no-store" });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error(data.error || "Falha ao carregar catálogo de cartas");
+          return data.items || [];
+        }))
+      : [];
+
+    const allCards = [first.items || [], ...pages].flat() as PublicCatalogCard[];
+    const unique = new Map(allCards.map((card) => [card.defId, card]));
+    setTradeCatalog([...unique.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR") || a.defId.localeCompare(b.defId)));
+  }, []);
+
   const refresh = useCallback(async () => {
     setBusy(true);
     setMessage("");
     try {
       if (tab === "trades") {
-        await Promise.all([loadTrades(), loadMarket("inventory")]);
+        await Promise.all([loadTrades(), loadMarket("inventory"), loadTradeCatalog()]);
       } else if (tab === "inventory") await loadMarket("inventory");
       else if (tab === "mine") await loadMarket("mine");
       else if (tab === "history") await loadMarket("history");
@@ -104,7 +131,7 @@ export default function MarketClient() {
     } finally {
       setBusy(false);
     }
-  }, [loadMarket, loadTrades, tab]);
+  }, [loadMarket, loadTradeCatalog, loadTrades, tab]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -225,7 +252,10 @@ export default function MarketClient() {
                 <option value="">Carta que você oferece</option>
                 {availableAssets.map((asset) => <option key={asset.id} value={asset.id}>#{asset.id} — {asset.card.name} ({collectibleLabel(asset)})</option>)}
               </select>
-              <input className="rf-input" value={requestedDefId} onChange={(event) => setRequestedDefId(event.target.value)} placeholder="defId da carta desejada" />
+              <select className="rf-input" value={requestedDefId} onChange={(event) => setRequestedDefId(event.target.value)} aria-label="Carta que você deseja receber">
+                <option value="">Carta que você deseja receber</option>
+                {tradeCatalog.map((card) => <option key={card.defId} value={card.defId}>{catalogCardLabel(card)}</option>)}
+              </select>
               <button className="rf-button rf-button-primary" disabled={busy || !recipient || !offeredAssetId || !requestedDefId} onClick={() => void post("/api/trades", { action: "create", recipientName: recipient, offeredAssetIds: [Number(offeredAssetId)], requestedAssets: [{ defId: requestedDefId }], note: tradeNote }, "trade-create")}>Propor troca</button>
             </div>
             <input className="rf-input mt-3 w-full" value={tradeNote} onChange={(event) => setTradeNote(event.target.value)} maxLength={240} placeholder="Mensagem opcional" />
