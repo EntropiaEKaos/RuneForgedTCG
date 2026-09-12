@@ -24,6 +24,7 @@ const files = [
   "drizzle/0040_pvp_content_snapshot_2_97.sql",
   "drizzle/0041_pvp_reaction_priority.sql",
   "drizzle/0042_site_portal_cms.sql",
+  "drizzle/0043_p2p_marketplace.sql",
 ];
 
 const tables = new Map();
