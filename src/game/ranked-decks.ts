@@ -7,7 +7,7 @@ import { validateDeck } from "./decks";
  * requires rerunning the Ranked balance certification before release.
  */
 export const RANKED_RULESET_VERSION = "2026.08.97";
-export const RANKED_DECK_POOL_VERSION = "season-zero-r1";
+export const RANKED_DECK_POOL_VERSION = "season-zero-r2";
 export const RANKED_FORMAT_ID = "ranked-precon";
 
 export interface RankedPrecon extends DeckInput {
@@ -61,7 +61,7 @@ export const RANKED_PRECONS: readonly RankedPrecon[] = [
       "void_reaper", "void_gloom_warden",
       "void_champion", "void_champion",
       "void_drain", "void_drain", "void_drain",
-      "void_veil", "void_soul_tax",
+      "void_imp", "void_soul_tax",
       "void_barrier", "void_barrier",
       "void_whisper", "void_whisper",
       "void_harvester", "void_harvester",
@@ -146,7 +146,6 @@ export function resolveRankedPrecon(id: string): DeckInput {
   if (!deck) throw new Error("Deck is not in the certified Ranked pool");
   return { id: deck.id, name: deck.name, cards: [...deck.cards], formatId: RANKED_FORMAT_ID };
 }
-
 
 export function rankedDeckFingerprint(cards: readonly string[]): string {
   return [...cards].sort().join("|");

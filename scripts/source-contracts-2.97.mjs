@@ -25,7 +25,7 @@ assert.ok(String(pkg.scripts["audit:balance"] || "").includes("balance-audit-2.9
 assert.ok(String(pkg.scripts["ranked:verify"] || "").includes("balance-audit-2.97.ts"));
 checks.push("Ranked balance gate points to 2.97 simulation");
 
-has("src/game/ranked-decks.ts", 'RANKED_DECK_POOL_VERSION = "season-zero-r1"', "immutable deck-pool version is explicit");
+has("src/game/ranked-decks.ts", 'RANKED_DECK_POOL_VERSION = "season-zero-r2"', "immutable deck-pool version is explicit");
 has("src/game/ranked-decks.ts", "createRankedRoomCertification", "Ranked room captures deck certification fingerprints");
 has("src/lib/pvp-settlement.ts", "verifyRankedRoomCertification", "settlement verifies the room snapshot rather than current pool membership");
 has("src/lib/pvp-settlement.ts", "calculateAppliedMmrResult", "settlement persists applied MMR delta");
