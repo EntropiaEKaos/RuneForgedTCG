@@ -34,8 +34,8 @@ export const marketplaceSettings = pgTable("marketplace_settings", {
   listingDurationHours: integer("listing_duration_hours").notNull().default(72),
   tradeDurationHours: integer("trade_duration_hours").notNull().default(72),
   maxTradeCardsPerSide: integer("max_trade_cards_per_side").notNull().default(5),
-  minPlayerLevel: integer("min_player_level").notNull().default(1),
-  minAccountAgeHours: integer("min_account_age_hours").notNull().default(0),
+  minPlayerLevel: integer("min_player_level").notNull().default(2),
+  minAccountAgeHours: integer("min_account_age_hours").notNull().default(24),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: text("updated_by"),
 }, (t) => ({
