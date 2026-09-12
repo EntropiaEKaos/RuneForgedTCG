@@ -6,7 +6,7 @@ function read(path: string) { return fs.readFileSync(path, "utf8"); }
 function main() {
   const migration = read("drizzle/0043_p2p_marketplace.sql");
   for (const table of ["card_assets", "card_asset_locks", "market_listings", "marketplace_settings", "trade_offers"]) {
-    assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS \\"${table}\\"`), `${table} must be part of the certified migration`);
+    assert.ok(migration.includes(`CREATE TABLE IF NOT EXISTS "${table}"`), `${table} must be part of the certified migration`);
   }
   assert.match(migration, /PRIMARY KEY REFERENCES "card_assets"\("id"\)/, "one escrow row per collectible asset must be enforced in PostgreSQL");
   assert.match(migration, /market_listings_active_asset_uidx/, "one active sale per collectible must be enforced in PostgreSQL");
