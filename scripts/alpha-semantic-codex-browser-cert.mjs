@@ -124,6 +124,37 @@ async function navigate(cdp, path) {
   await settle(cdp);
 }
 
+async function dismissRecoveryHandoffIfPresent(cdp) {
+  // CatalogBootstrap establishes a stable player session globally. A fresh
+  // browser therefore receives the one-time recovery-key handoff even on the
+  // Codex route. The Alpha visual journey certifies that handoff strictly;
+  // this semantic cert must clear it before exercising the real card hover.
+  await waitUntil(
+    () => evaluate(cdp, `fetch('/api/player', { cache: 'no-store' }).then((response) => response.status === 200).catch(() => false)`),
+    "global player session",
+  );
+  await sleep(350);
+
+  const handoff = await evaluate(cdp, `(() => {
+    const dialogs = [...document.querySelectorAll('[role="dialog"]')];
+    const dialog = dialogs.find((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'));
+    if (!dialog) return { present: false, dismissed: false };
+    const button = [...dialog.querySelectorAll('button')].find((element) => (element.textContent || '').trim() === 'JÁ GUARDEI');
+    if (!button) return { present: true, dismissed: false };
+    button.click();
+    return { present: true, dismissed: true };
+  })()`);
+
+  if (handoff?.present) {
+    assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before Codex certification");
+  }
+  await waitUntil(
+    () => evaluate(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`),
+    "recovery-key handoff dismissal",
+    5_000,
+  );
+}
+
 async function setSearch(cdp, value) {
   const encoded = JSON.stringify(value);
   const changed = await evaluate(cdp, `(() => {
@@ -154,9 +185,6 @@ async function selectCard(cdp, defId) {
 }
 
 async function hover(cdp, selector) {
-  // Approach the card from a neutral point first. This produces the same
-  // mouse-enter/mouse-move sequence as a real player and prevents the prior
-  // probe's hover-close timer from racing the next Codex card.
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
   await sleep(160);
 
@@ -196,13 +224,13 @@ async function hover(cdp, selector) {
       defId: target.getAttribute('data-card-tip-def-id'),
       hitTag: hit?.tagName || null,
       hitDefId: hit?.closest?.('[data-card-tip-def-id]')?.getAttribute('data-card-tip-def-id') || null,
+      hitClass: typeof hit?.className === 'string' ? hit.className : null,
+      hitRole: hit?.getAttribute?.('role') || null,
     };
   })()`);
   assert.ok(point, `Could not hover ${selector}`);
-  assert.notEqual(point.blocked, true, `Hover target ${point.defId || selector} is obscured (hit ${point.hitTag || 'unknown'} / ${point.hitDefId || 'no-card'})`);
+  assert.notEqual(point.blocked, true, `Hover target ${point.defId || selector} is obscured (hit ${point.hitTag || 'unknown'} / ${point.hitDefId || 'no-card'} / ${point.hitRole || 'no-role'} / ${point.hitClass || 'no-class'})`);
 
-  // Two nearby physical moves make React receive an actual mouse-move after
-  // the post-scroll layout has settled, while still exercising the real UI.
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: Math.max(1, point.x - 2), y: point.y });
   await sleep(40);
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
@@ -234,6 +262,7 @@ async function main() {
     await cdp.call("Runtime.enable");
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
     await navigate(cdp, "/codex");
+    await dismissRecoveryHandoffIfPresent(cdp);
 
     for (const probe of probes) {
       await setSearch(cdp, probe.query);
