@@ -114,7 +114,10 @@ export async function POST(req: NextRequest) {
         return { player: updated, token: prepared.token };
       });
       if (!rotated) return Response.json({ ok: false, error: "Recovery code not recognized or expired" }, { status: 401 });
-      // Explicit recovery may replace a temporary/other browser session. Revoke\n      // the current browser session before installing the recovered identity.\n      await clearPlayerSession();\n      await setPlayerSessionCookie(rotated.token);
+      // Explicit recovery may replace a temporary/other browser session. Revoke
+      // the current browser session before installing the recovered identity.
+      await clearPlayerSession();
+      await setPlayerSessionCookie(rotated.token);
       return Response.json({ ...(await profilePayload(rotated.player)), recovered: true, recoveryCode: issuedRecoveryCode, recoveryRotated: true });
     }
 
