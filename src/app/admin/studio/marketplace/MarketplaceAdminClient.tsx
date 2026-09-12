@@ -50,7 +50,14 @@ export default function MarketplaceAdminClient() {
   }, []);
 
   useEffect(() => {
-    void load().catch((error) => setMessage(error instanceof Error ? error.message : "Falha ao carregar marketplace"));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void load().catch((error) => {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : "Falha ao carregar marketplace");
+      });
+    });
+    return () => { cancelled = true; };
   }, [load]);
 
   async function save() {
