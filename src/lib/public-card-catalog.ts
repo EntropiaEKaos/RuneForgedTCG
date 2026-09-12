@@ -3,6 +3,16 @@ import type { CardCollectionIdentity } from "@/game/card-collections";
 
 export type PublicCardCollection = Pick<CardCollectionIdentity, "key" | "code" | "name" | "symbol">;
 
+export type PublicSentinelaAbility = {
+  cost: number;
+  description: string;
+};
+
+export type PublicSentinelaSummary = {
+  startingLoyalty: number;
+  abilities: PublicSentinelaAbility[];
+};
+
 export type PublicCardDto = {
   defId: string;
   name: string;
@@ -28,6 +38,7 @@ export type PublicCardDto = {
   emoji: string;
   strategicRole?: string;
   doctrineAffinities: string[];
+  sentinela?: PublicSentinelaSummary;
   collection: PublicCardCollection;
 };
 
@@ -90,6 +101,16 @@ function normalized(value: string | null | undefined) {
 export function toPublicCardDto(card: CardDef, collection: CardCollectionIdentity | null): PublicCardDto | null {
   if (!collection) return null;
   const regions = unique([...(card.regions ?? []), card.region]) as Region[];
+  const sentinela = card.type === "Sentinela" && card.sentinela
+    ? {
+        startingLoyalty: card.sentinela.startingLoyalty,
+        abilities: card.sentinela.abilities.map((ability) => ({
+          cost: ability.cost,
+          description: ability.description,
+        })),
+      }
+    : undefined;
+
   return {
     defId: card.defId,
     name: card.name,
@@ -115,6 +136,7 @@ export function toPublicCardDto(card: CardDef, collection: CardCollectionIdentit
     emoji: card.emoji,
     ...(card.strategicRole ? { strategicRole: card.strategicRole } : {}),
     doctrineAffinities: unique(card.doctrineAffinities ?? []),
+    ...(sentinela ? { sentinela } : {}),
     collection: {
       key: collection.key,
       code: collection.code,
@@ -185,6 +207,7 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
         ...card.classes,
         card.collection.name,
         card.collection.code,
+        ...(card.sentinela?.abilities.map((ability) => ability.description) ?? []),
       ].join(" ").toLocaleLowerCase("en-US");
       if (!haystack.includes(q)) return false;
     }
