@@ -2,9 +2,10 @@
 
 ## 2.97.0 — Ranked Certification & Production Hardening
 
-- Replaced open/custom Ranked deck acceptance with an immutable server-authoritative `season-zero-r1` preconstructed pool.
+- Replaced open/custom Ranked deck acceptance with an immutable server-authoritative preconstructed pool; the current certified pool is `season-zero-r2`.
 - Added four certified Ranked precons and server-side fingerprint verification; custom decks remain Casual-only.
-- Added dedicated 2.97 balance certification: 4,800 games, health 100, 6/6 healthy, 0 watch, 0 critical, 6/6 stable.
+- Re-certified the current `season-zero-r2` pool across 4,800 games: health 100, 6/6 healthy, 0 watch, 0 critical, 6/6 stable, 50.5% first-player WR and 7.5 pp maximum seed deviation under the 15 pp threshold.
+- Added dedicated two-player Ranked browser certification with PostgreSQL covering the two-key release gate, certified admission, matchmaking, reconnect/resume, season snapshot provenance, forfeit settlement, atomic MMR history, idempotency, anti-farming cooldown, no AI fallback and closed-season rejection.
 - Added immutable Ranked season provenance (`rankedSeasonId`) and ranked rules/deck-pool provenance to settlement/replay records.
 - Added complete PvP content snapshots and content hashes so in-flight matches cannot change when Studio/runtime definitions are published.
 - Ensured initial PvP/Ranked game creation also executes inside the exact frozen content snapshot.
@@ -17,7 +18,8 @@
 - Made the initial Ranked season migration create-only so operator-disabled seasons are not silently reactivated.
 - Hardened 2.97 database upgrade/production verification for Ranked season/content snapshot columns, FKs and active-room invariants.
 - Added migrations `0039_ranked_certification_2_97.sql` and `0040_pvp_content_snapshot_2_97.sql`; schema metadata is now 2.97.
-- Kept production Ranked fail-closed until the clean dependency/PostgreSQL/build gate passes and `RANKED_RELEASE_CERTIFIED=true` is explicitly set.
+- Kept production Ranked fail-closed unless both `RANKED_RELEASE_CERTIFIED=true` and runtime `rankedEnabled=true`; an open Ranked season is additionally required for admission.
+- Added `docs/RANKED-R2-RELEASE-CERTIFICATE.md` as the current activation/rollback provenance record.
 
 ## 2.96.3 — Test Trust & Maintainability Hardening
 
