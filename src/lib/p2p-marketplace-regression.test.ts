@@ -27,6 +27,7 @@ function main() {
   assert.doesNotMatch(market, /currency:\s*["']dust["']/, "Dust must not be transferable through P2P sales");
 
   const trades = read("src/app/api/trades/route.ts");
+  assert.match(trades, /playerCanUseMarketplace\(player, settings, now\)/, "trade reads must enforce the same level/account-age eligibility gate as trade mutations");
   assert.match(trades, /cardAssetLocks/, "direct trades must escrow offered collectible copies");
   assert.match(trades, /duplicateCap/, "direct trades must preserve the collection copy cap");
   assert.doesNotMatch(trades, /proposerGold|recipientGold/, "Marketplace 1.0 direct trades are card-for-card only; Gold moves through sales");
