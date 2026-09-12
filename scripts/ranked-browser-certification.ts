@@ -165,7 +165,8 @@ async function main() {
   });
   assert.equal(forfeit.response.status, 200, JSON.stringify(forfeit.body));
   assert.equal(forfeit.body.forfeited, true);
-  assert.equal(forfeit.body.settlement?.alreadySettled, false);
+  assert.equal(forfeit.body.settlement?.alreadyFinished, false);
+  assert.equal(forfeit.body.settlement?.matchIds?.length, 2, "Ranked forfeit must persist both player match perspectives");
 
   const hostAfter = await playerRow(hostIdentity.player.id);
   const guestAfter = await playerRow(guestIdentity.player.id);
