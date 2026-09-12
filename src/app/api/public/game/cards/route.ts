@@ -28,6 +28,11 @@ export async function GET(req: NextRequest) {
       rarity: params.get("rarity"),
       collection: params.get("collection"),
       keyword: params.get("keyword"),
+      race: params.get("race"),
+      class: params.get("class"),
+      minCost: numberParam(params.get("minCost")),
+      maxCost: numberParam(params.get("maxCost")),
+      sort: params.get("sort"),
       page: numberParam(params.get("page")),
       pageSize: numberParam(params.get("pageSize")),
     });
