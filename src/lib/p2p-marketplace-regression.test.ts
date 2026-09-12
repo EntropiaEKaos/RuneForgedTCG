@@ -19,6 +19,7 @@ function main() {
   assert.match(marketSchema, /minAccountAgeHours: integer\("min_account_age_hours"\)\.notNull\(\)\.default\(24\)/, "Drizzle schema must preserve the conservative marketplace account-age default");
 
   const market = read("src/app/api/market/route.ts");
+  assert.match(market, /playerCanUseMarketplace\(player, settings, now\)/, "marketplace reads must enforce the same level/account-age eligibility gate as mutations");
   assert.match(market, /runIdempotentEconomyAction/, "market mutations must be idempotent");
   assert.match(market, /FOR UPDATE|\.for\("update"\)/, "market purchase must serialize ownership");
   assert.match(market, /market_purchase/, "buyer Gold movement must be written to the economy ledger");
