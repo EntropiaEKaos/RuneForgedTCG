@@ -24,6 +24,11 @@ function main() {
   assert.match(trades, /duplicateCap/, "direct trades must preserve the collection copy cap");
   assert.doesNotMatch(trades, /proposerGold|recipientGold/, "Marketplace 1.0 direct trades are card-for-card only; Gold moves through sales");
 
+  const marketClient = read("src/app/market/MarketClient.tsx");
+  assert.match(marketClient, /\/api\/public\/game\/cards/, "direct trades must resolve requested cards from the safe public catalog");
+  assert.match(marketClient, /Carta que você deseja receber/, "direct trade UI must expose a player-facing card picker");
+  assert.doesNotMatch(marketClient, /placeholder=["']defId da carta desejada["']/, "players must never be asked for an internal card defId");
+
   const collection = read("src/app/api/collection/route.ts");
   assert.match(collection, /deleteUnlockedAssets/, "disenchant must refuse escrowed collectible copies");
   const packs = read("src/app/api/packs/route.ts");
