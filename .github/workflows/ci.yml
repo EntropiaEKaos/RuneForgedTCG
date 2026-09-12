@@ -91,7 +91,7 @@ jobs:
       - name: Fresh PostgreSQL bootstrap
         run: npm run db:bootstrap
 
-      - name: Portal CMS + Marketplace PostgreSQL certification — upgrades, constraints and lock semantics
+      - name: Portal CMS PostgreSQL certification + Marketplace — upgrades, constraints and lock semantics
         run: |
           npm run db:upgrade
           node --import tsx scripts/site-cms-postgres-certification.ts
