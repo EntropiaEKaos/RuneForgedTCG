@@ -41,6 +41,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const now = new Date();
+    const [settings, player] = await Promise.all([
+      getMarketplaceSettings(),
+      db.select().from(players).where(eq(players.id, identity.playerId)).limit(1).then((rows) => rows[0]),
+    ]);
+    if (!settings) return Response.json({ ok: false, error: "Marketplace is not provisioned" }, { status: 503 });
+    if (!player) return Response.json({ ok: false, error: "Player not found" }, { status: 404 });
+    const access = playerCanUseMarketplace(player, settings, now);
+    if (!access.ok) return Response.json({ ok: false, error: access.error }, { status: 403 });
+
     const rows = await db.select().from(tradeOffers).where(or(
       eq(tradeOffers.proposerPlayerId, identity.playerId),
       eq(tradeOffers.recipientPlayerId, identity.playerId),
