@@ -6,6 +6,8 @@ on:
     branches: [main, master]
     paths:
       - '.github/workflows/ranked-release-certification.yml'
+      - 'BALANCE_AUDIT_2.97.json'
+      - 'docs/RANKED-R2-RELEASE-CERTIFICATE.md'
       - 'scripts/ranked-**'
       - 'scripts/balance-audit-2.97.ts'
       - 'src/game/ranked-decks.ts'
@@ -22,6 +24,8 @@ on:
     branches: [main, master]
     paths:
       - '.github/workflows/ranked-release-certification.yml'
+      - 'BALANCE_AUDIT_2.97.json'
+      - 'docs/RANKED-R2-RELEASE-CERTIFICATE.md'
       - 'scripts/ranked-**'
       - 'scripts/balance-audit-2.97.ts'
       - 'src/game/ranked-decks.ts'
