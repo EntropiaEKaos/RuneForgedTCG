@@ -38,16 +38,35 @@ export type PublicCardCatalogQuery = {
   rarity?: string | null;
   collection?: string | null;
   keyword?: string | null;
+  race?: string | null;
+  class?: string | null;
+  minCost?: number | null;
+  maxCost?: number | null;
+  sort?: string | null;
   page?: number | null;
   pageSize?: number | null;
 };
 
+export type PublicCardFacet = { value: string; count: number };
+
 export type PublicCardCatalogFacets = {
-  regions: Array<{ value: string; count: number }>;
-  types: Array<{ value: string; count: number }>;
-  rarities: Array<{ value: string; count: number }>;
+  regions: PublicCardFacet[];
+  types: PublicCardFacet[];
+  rarities: PublicCardFacet[];
   collections: Array<{ value: string; label: string; count: number }>;
-  keywords: Array<{ value: string; count: number }>;
+  keywords: PublicCardFacet[];
+  races: PublicCardFacet[];
+  classes: PublicCardFacet[];
+  costs: PublicCardFacet[];
+};
+
+export type PublicCardCatalogBreakdown = {
+  regions: PublicCardFacet[];
+  types: PublicCardFacet[];
+  rarities: PublicCardFacet[];
+  races: PublicCardFacet[];
+  classes: PublicCardFacet[];
+  costs: PublicCardFacet[];
 };
 
 export type PublicCardCatalogResult = {
@@ -57,6 +76,7 @@ export type PublicCardCatalogResult = {
   totalPages: number;
   items: PublicCardDto[];
   facets: PublicCardCatalogFacets;
+  breakdown: PublicCardCatalogBreakdown;
 };
 
 function unique(values: Array<string | undefined | null>) {
@@ -104,12 +124,34 @@ export function toPublicCardDto(card: CardDef, collection: CardCollectionIdentit
   };
 }
 
-function countFacet(values: string[]) {
+function countFacet(values: string[]): PublicCardFacet[] {
   const counts = new Map<string, number>();
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([value, count]) => ({ value, count }));
+}
+
+function cardSort(sort: string | null | undefined) {
+  const mode = normalized(sort);
+  return (a: PublicCardDto, b: PublicCardDto) => {
+    if (mode === "name-desc") return b.name.localeCompare(a.name) || a.defId.localeCompare(b.defId);
+    if (mode === "cost-asc") return a.cost - b.cost || a.name.localeCompare(b.name) || a.defId.localeCompare(b.defId);
+    if (mode === "cost-desc") return b.cost - a.cost || a.name.localeCompare(b.name) || a.defId.localeCompare(b.defId);
+    if (mode === "power-desc") return (b.power ?? -1) - (a.power ?? -1) || (b.health ?? -1) - (a.health ?? -1) || a.name.localeCompare(b.name);
+    return a.name.localeCompare(b.name) || a.defId.localeCompare(b.defId);
+  };
+}
+
+function breakdown(cards: PublicCardDto[]): PublicCardCatalogBreakdown {
+  return {
+    regions: countFacet(cards.flatMap((card) => card.regions)),
+    types: countFacet(cards.map((card) => card.type)),
+    rarities: countFacet(cards.map((card) => card.rarity)),
+    races: countFacet(cards.flatMap((card) => card.races)),
+    classes: countFacet(cards.flatMap((card) => card.classes)),
+    costs: countFacet(cards.map((card) => String(card.cost))),
+  };
 }
 
 export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCardCatalogQuery): PublicCardCatalogResult {
@@ -119,9 +161,13 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
   const rarity = normalized(query.rarity);
   const collection = normalized(query.collection);
   const keyword = normalized(query.keyword);
+  const race = normalized(query.race);
+  const cardClass = normalized(query.class);
+  const minCost = Number.isFinite(query.minCost) ? Number(query.minCost) : null;
+  const maxCost = Number.isFinite(query.maxCost) ? Number(query.maxCost) : null;
 
-  const sorted = [...cards].sort((a, b) => a.name.localeCompare(b.name) || a.defId.localeCompare(b.defId));
-  const filtered = sorted.filter((card) => {
+  const catalog = [...cards].sort(cardSort(query.sort));
+  const filtered = catalog.filter((card) => {
     if (q) {
       const haystack = [
         card.name,
@@ -147,6 +193,10 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
     if (rarity && normalized(card.rarity) !== rarity) return false;
     if (collection && normalized(card.collection.key) !== collection && normalized(card.collection.code) !== collection) return false;
     if (keyword && ![...card.keywords, ...card.customKeywords].some((value) => normalized(value) === keyword)) return false;
+    if (race && !card.races.some((value) => normalized(value) === race)) return false;
+    if (cardClass && !card.classes.some((value) => normalized(value) === cardClass)) return false;
+    if (minCost !== null && card.cost < minCost) return false;
+    if (maxCost !== null && card.cost > maxCost) return false;
     return true;
   });
 
@@ -157,7 +207,7 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
   const start = (page - 1) * pageSize;
 
   const collectionCounts = new Map<string, { label: string; count: number }>();
-  for (const card of sorted) {
+  for (const card of catalog) {
     const key = card.collection.key;
     const current = collectionCounts.get(key);
     collectionCounts.set(key, { label: card.collection.name, count: (current?.count ?? 0) + 1 });
@@ -170,17 +220,20 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
     totalPages,
     items: filtered.slice(start, start + pageSize),
     facets: {
-      regions: countFacet(sorted.flatMap((card) => card.regions)),
-      types: countFacet(sorted.map((card) => card.type)),
-      rarities: countFacet(sorted.map((card) => card.rarity)),
+      regions: countFacet(catalog.flatMap((card) => card.regions)),
+      types: countFacet(catalog.map((card) => card.type)),
+      rarities: countFacet(catalog.map((card) => card.rarity)),
       collections: [...collectionCounts.entries()]
         .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
         .map(([value, data]) => ({ value, label: data.label, count: data.count })),
-      keywords: countFacet(sorted.flatMap((card) => unique([...card.keywords, ...card.customKeywords]))),
+      keywords: countFacet(catalog.flatMap((card) => unique([...card.keywords, ...card.customKeywords]))),
+      races: countFacet(catalog.flatMap((card) => card.races)),
+      classes: countFacet(catalog.flatMap((card) => card.classes)),
+      costs: countFacet(catalog.map((card) => String(card.cost))),
     },
+    breakdown: breakdown(filtered),
   };
 }
-
 
 export function countPublicCardsByCollection(
   cards: CardDef[],

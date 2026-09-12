@@ -58,12 +58,14 @@ const second: PublicCardDto = {
   structuralType: "Unit",
   rarity: "Common",
   cost: 1,
+  power: 2,
+  health: 2,
   keywords: [],
   customKeywords: [],
   description: "A calm unit.",
   flavor: "Still waters remember.",
   races: ["Sprite"],
-  classes: [],
+  classes: ["Scout"],
   isLegend: false,
   isChampion: false,
   emoji: "💧",
@@ -80,6 +82,11 @@ assert.ok(result.facets.types.some((facet) => facet.value === "Ritual"));
 assert.ok(result.facets.collections.some((facet) => facet.value === "vanilla" && facet.count === 2));
 assert.ok(result.facets.keywords.some((facet) => facet.value === "Barrier" && facet.count === 1));
 assert.ok(result.facets.keywords.some((facet) => facet.value === "Overcharge" && facet.count === 1));
+assert.ok(result.facets.races.some((facet) => facet.value === "Dragon" && facet.count === 1));
+assert.ok(result.facets.classes.some((facet) => facet.value === "Mage" && facet.count === 1));
+assert.ok(result.facets.costs.some((facet) => facet.value === "3" && facet.count === 1));
+assert.deepEqual(result.breakdown.rarities, [{ value: "Epic", count: 1 }]);
+assert.deepEqual(result.breakdown.classes, [{ value: "Mage", count: 1 }]);
 
 const filtered = queryPublicCardCatalog([second, dto], {
   region: "tempestade",
@@ -87,11 +94,31 @@ const filtered = queryPublicCardCatalog([second, dto], {
   rarity: "epic",
   collection: "VAN",
   keyword: "barrier",
+  race: "dragon",
+  class: "mage",
+  minCost: 3,
+  maxCost: 3,
 });
 assert.deepEqual(filtered.items.map((card) => card.defId), ["public_fixture"]);
+assert.deepEqual(filtered.breakdown.costs, [{ value: "3", count: 1 }]);
+assert.ok(filtered.breakdown.regions.some((facet) => facet.value === "Tempestade" && facet.count === 1));
 
 const customKeywordFiltered = queryPublicCardCatalog([second, dto], { keyword: "overcharge" });
 assert.deepEqual(customKeywordFiltered.items.map((card) => card.defId), ["public_fixture"]);
+
+const raceFiltered = queryPublicCardCatalog([second, dto], { race: "sprite" });
+assert.deepEqual(raceFiltered.items.map((card) => card.defId), ["second"]);
+
+const classFiltered = queryPublicCardCatalog([second, dto], { class: "scout" });
+assert.deepEqual(classFiltered.items.map((card) => card.defId), ["second"]);
+
+const costFiltered = queryPublicCardCatalog([second, dto], { minCost: 2, maxCost: 4 });
+assert.deepEqual(costFiltered.items.map((card) => card.defId), ["public_fixture"]);
+
+const sortedByCost = queryPublicCardCatalog([dto, second], { sort: "cost-desc" });
+assert.deepEqual(sortedByCost.items.map((card) => card.defId), ["public_fixture", "second"]);
+const sortedByNameDesc = queryPublicCardCatalog([second, dto], { sort: "name-desc" });
+assert.deepEqual(sortedByNameDesc.items.map((card) => card.defId), ["second", "public_fixture"]);
 
 const bounded = queryPublicCardCatalog([second, dto], { pageSize: 1000, page: 99 });
 assert.equal(bounded.pageSize, 100);
@@ -123,4 +150,4 @@ assert.equal(
   "canonical Vanilla count must equal the complete currently public collectible base catalog",
 );
 
-console.log("PUBLIC CARD CATALOG: PASS — safe DTO · semantic type · fail-closed collection · filters · keyword facets · pagination · collection counts");
+console.log("PUBLIC CARD CATALOG: PASS — safe DTO · semantic type · advanced explorer filters/facets/sort/breakdown · fail-closed collection · pagination · collection counts");

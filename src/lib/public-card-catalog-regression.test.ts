@@ -12,6 +12,11 @@ assert.match(route, /getCardCollection/);
 assert.match(route, /toPublicCardDto/);
 assert.match(route, /queryPublicCardCatalog/);
 assert.match(route, /keyword: params\.get\("keyword"\)/);
+assert.match(route, /race: params\.get\("race"\)/);
+assert.match(route, /class: params\.get\("class"\)/);
+assert.match(route, /minCost: numberParam\(params\.get\("minCost"\)\)/);
+assert.match(route, /maxCost: numberParam\(params\.get\("maxCost"\)\)/);
+assert.match(route, /sort: params\.get\("sort"\)/);
 assert.match(route, /Cache-Control/);
 assert.doesNotMatch(route, /isAdminAuthorized|adminAuditLogs|customCards\.data/);
 assert.match(detail, /toPublicCardDto/);
@@ -41,6 +46,14 @@ for (const forbiddenField of ["spell:", "trigger:", "mechanics:", "sentinela:", 
 assert.match(helper, /if \(!collection\) return null/);
 assert.match(helper, /Math\.min\(100/);
 assert.match(helper, /query\.keyword/);
+assert.match(helper, /query\.race/);
+assert.match(helper, /query\.class/);
+assert.match(helper, /query\.minCost/);
+assert.match(helper, /query\.maxCost/);
+assert.match(helper, /cardSort\(query\.sort\)/);
 assert.match(helper, /facets:[\s\S]*keywords:/);
+assert.match(helper, /facets:[\s\S]*races:/);
+assert.match(helper, /facets:[\s\S]*classes:/);
+assert.match(helper, /facets:[\s\S]*costs:/);
 
-console.log("PUBLIC CARD CATALOG SOURCE CONTRACT: PASS — public-only DTO · fail-closed collection · bounded pagination · unified collection counts");
+console.log("PUBLIC CARD CATALOG SOURCE CONTRACT: PASS — public-only DTO · advanced explorer query · fail-closed collection · bounded pagination · unified collection counts");
