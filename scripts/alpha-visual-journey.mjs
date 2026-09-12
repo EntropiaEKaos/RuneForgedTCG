@@ -322,6 +322,13 @@ async function main() {
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
 
     await navigate(cdp, "/play");
+    await waitForText(cdp, "SALVE SUA CHAVE DE RECUPERAÇÃO");
+    await capture(cdp, "00-recovery-key-handoff.png", "one-time recovery key handoff", manifest);
+    await clickText(cdp, "JÁ GUARDEI");
+    await waitUntil(
+      () => evaluate(cdp, "document.body?.innerText?.includes('SALVE SUA CHAVE DE RECUPERAÇÃO') !== true"),
+      "recovery key handoff to close",
+    );
     await waitForText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL");
     await capture(cdp, "01-first-run-onboarding.png", "first-run onboarding", manifest);
 
