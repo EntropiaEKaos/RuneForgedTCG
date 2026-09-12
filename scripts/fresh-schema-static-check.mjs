@@ -41,7 +41,7 @@ function addCreateTables(source) {
     const cols = colsFor(m[1]);
     for (const line of m[2].split(/\r?\n/)) {
       const mm = line.trim().replace(/,$/, "").match(/^["`]?([A-Za-z_][A-Za-z0-9_]*)["`]?\s+/);
-      if (!mm || ["CONSTRAINT", "PRIMARY", "UNIQUE", "FOREIGN", "CHECK"].includes(mm[1].toUpperCase())) continue;
+      if (!mm || ["CONSTRAINT", "PRIMARY", "UNIQUE", "FOREIGN", "CHECK", "AND", "OR"].includes(mm[1].toUpperCase())) continue;
       cols.add(mm[1]);
     }
   }
