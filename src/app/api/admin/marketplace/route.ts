@@ -8,6 +8,8 @@ import { readBoundedJson, RequestBodyTooLargeError } from "@/lib/request-securit
 export const dynamic = "force-dynamic";
 const MAX_BODY = 12 * 1024;
 
+type MarketplaceSettingsPatch = Partial<typeof marketplaceSettings.$inferInsert>;
+
 export async function GET(req: NextRequest) {
   const actor = await getAdminSessionContext(req);
   if (!actor) return unauthorized();
@@ -45,25 +47,30 @@ export async function PATCH(req: NextRequest) {
 
     const int = (key: string, min: number, max: number) => {
       if (body[key] === undefined) return undefined;
-      const value = Math.trunc(Number(body[key]));
+      const value = Number(body[key]);
       if (!Number.isSafeInteger(value) || value < min || value > max) throw new Error(`INVALID_${key}`);
       return value;
     };
-    const patch = {
-      enabled: body.enabled === undefined ? undefined : body.enabled === true,
-      feeBps: int("feeBps", 0, 5000),
-      minPriceGold: int("minPriceGold", 1, 1_000_000),
-      maxPriceGold: int("maxPriceGold", 1, 10_000_000),
-      maxActiveListings: int("maxActiveListings", 1, 200),
-      listingDurationHours: int("listingDurationHours", 1, 720),
-      tradeDurationHours: int("tradeDurationHours", 1, 720),
-      maxTradeCardsPerSide: int("maxTradeCardsPerSide", 1, 20),
-      minPlayerLevel: int("minPlayerLevel", 1, 1000),
-      minAccountAgeHours: int("minAccountAgeHours", 0, 8760),
+    const clean: MarketplaceSettingsPatch = {
       updatedAt: new Date(),
       updatedBy: actor.actorId,
     };
-    const clean = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+    if (body.enabled !== undefined) clean.enabled = body.enabled === true;
+    const numeric: Array<[keyof MarketplaceSettingsPatch, number | undefined]> = [
+      ["feeBps", int("feeBps", 0, 5000)],
+      ["minPriceGold", int("minPriceGold", 1, 1_000_000)],
+      ["maxPriceGold", int("maxPriceGold", 1, 10_000_000)],
+      ["maxActiveListings", int("maxActiveListings", 1, 200)],
+      ["listingDurationHours", int("listingDurationHours", 1, 720)],
+      ["tradeDurationHours", int("tradeDurationHours", 1, 720)],
+      ["maxTradeCardsPerSide", int("maxTradeCardsPerSide", 1, 20)],
+      ["minPlayerLevel", int("minPlayerLevel", 1, 1000)],
+      ["minAccountAgeHours", int("minAccountAgeHours", 0, 8760)],
+    ];
+    for (const [key, value] of numeric) {
+      if (value !== undefined) (clean as Record<string, unknown>)[String(key)] = value;
+    }
+
     const [current] = await db.select().from(marketplaceSettings).where(eq(marketplaceSettings.id, 1)).limit(1);
     if (!current) return Response.json({ ok: false, error: "Marketplace is not provisioned" }, { status: 503 });
     const nextMin = Number(clean.minPriceGold ?? current.minPriceGold);
