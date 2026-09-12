@@ -133,7 +133,13 @@ export default function MarketClient() {
     }
   }, [loadMarket, loadTradeCatalog, loadTrades, tab]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void refresh();
+    });
+    return () => { cancelled = true; };
+  }, [refresh]);
 
   const post = useCallback(async (path: "/api/market" | "/api/trades", body: Record<string, unknown>, prefix: string) => {
     setBusy(true);
