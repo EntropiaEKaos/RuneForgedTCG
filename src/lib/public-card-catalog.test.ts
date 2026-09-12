@@ -46,7 +46,36 @@ assert.equal(dto.collection.code, "VAN");
 assert.equal("spell" in dto, false);
 assert.equal("trigger" in dto, false);
 assert.equal("mechanics" in dto, false);
+assert.equal("sentinela" in dto, false);
 assert.equal(toPublicCardDto(source, null), null, "cards without a public collection identity must fail closed");
+
+const sentinelaSource: CardDef = {
+  defId: "public_sentinela_fixture",
+  name: "Public Sentinela Fixture",
+  region: "Emberhold",
+  type: "Sentinela",
+  cost: 5,
+  description: "A public Sentinela fixture.",
+  rarity: "Legend",
+  isLegend: true,
+  emoji: "🛡️",
+  sentinela: {
+    startingLoyalty: 4,
+    abilities: [
+      { cost: 1, description: "+1: cause 1 de dano ao Nexus inimigo", effect: { kind: "damageNexus", amount: 1, target: "none" } },
+      { cost: -2, description: "-2: conceda Ataque Rápido a uma unidade aliada", effect: { kind: "grantKeyword", amount: 0, keyword: "QuickAttack", target: "allyUnit" } },
+    ],
+  },
+};
+
+const sentinelaDto = toPublicCardDto(sentinelaSource, collection);
+assert.ok(sentinelaDto?.sentinela);
+assert.equal(sentinelaDto.sentinela.startingLoyalty, 4);
+assert.deepEqual(sentinelaDto.sentinela.abilities, [
+  { cost: 1, description: "+1: cause 1 de dano ao Nexus inimigo" },
+  { cost: -2, description: "-2: conceda Ataque Rápido a uma unidade aliada" },
+]);
+assert.equal("effect" in sentinelaDto.sentinela.abilities[0]!, false, "public Sentinela summaries must never expose executable effects");
 
 const second: PublicCardDto = {
   ...dto,
@@ -103,6 +132,9 @@ assert.deepEqual(filtered.items.map((card) => card.defId), ["public_fixture"]);
 assert.deepEqual(filtered.breakdown.costs, [{ value: "3", count: 1 }]);
 assert.ok(filtered.breakdown.regions.some((facet) => facet.value === "Tempestade" && facet.count === 1));
 
+const sentinelaSearch = queryPublicCardCatalog([sentinelaDto], { q: "ataque rápido" });
+assert.deepEqual(sentinelaSearch.items.map((card) => card.defId), ["public_sentinela_fixture"], "text search must include public Sentinela ability descriptions");
+
 const customKeywordFiltered = queryPublicCardCatalog([second, dto], { keyword: "overcharge" });
 assert.deepEqual(customKeywordFiltered.items.map((card) => card.defId), ["public_fixture"]);
 
@@ -150,4 +182,4 @@ assert.equal(
   "canonical Vanilla count must equal the complete currently public collectible base catalog",
 );
 
-console.log("PUBLIC CARD CATALOG: PASS — safe DTO · semantic type · advanced explorer filters/facets/sort/breakdown · fail-closed collection · pagination · collection counts");
+console.log("PUBLIC CARD CATALOG: PASS — safe DTO · public Sentinela summaries · semantic type · advanced explorer filters/facets/sort/breakdown · fail-closed collection · pagination · collection counts");
