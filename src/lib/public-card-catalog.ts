@@ -47,15 +47,26 @@ export type PublicCardCatalogQuery = {
   pageSize?: number | null;
 };
 
+export type PublicCardFacet = { value: string; count: number };
+
 export type PublicCardCatalogFacets = {
-  regions: Array<{ value: string; count: number }>;
-  types: Array<{ value: string; count: number }>;
-  rarities: Array<{ value: string; count: number }>;
+  regions: PublicCardFacet[];
+  types: PublicCardFacet[];
+  rarities: PublicCardFacet[];
   collections: Array<{ value: string; label: string; count: number }>;
-  keywords: Array<{ value: string; count: number }>;
-  races: Array<{ value: string; count: number }>;
-  classes: Array<{ value: string; count: number }>;
-  costs: Array<{ value: string; count: number }>;
+  keywords: PublicCardFacet[];
+  races: PublicCardFacet[];
+  classes: PublicCardFacet[];
+  costs: PublicCardFacet[];
+};
+
+export type PublicCardCatalogBreakdown = {
+  regions: PublicCardFacet[];
+  types: PublicCardFacet[];
+  rarities: PublicCardFacet[];
+  races: PublicCardFacet[];
+  classes: PublicCardFacet[];
+  costs: PublicCardFacet[];
 };
 
 export type PublicCardCatalogResult = {
@@ -65,6 +76,7 @@ export type PublicCardCatalogResult = {
   totalPages: number;
   items: PublicCardDto[];
   facets: PublicCardCatalogFacets;
+  breakdown: PublicCardCatalogBreakdown;
 };
 
 function unique(values: Array<string | undefined | null>) {
@@ -112,7 +124,7 @@ export function toPublicCardDto(card: CardDef, collection: CardCollectionIdentit
   };
 }
 
-function countFacet(values: string[]) {
+function countFacet(values: string[]): PublicCardFacet[] {
   const counts = new Map<string, number>();
   for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
   return [...counts.entries()]
@@ -128,6 +140,17 @@ function cardSort(sort: string | null | undefined) {
     if (mode === "cost-desc") return b.cost - a.cost || a.name.localeCompare(b.name) || a.defId.localeCompare(b.defId);
     if (mode === "power-desc") return (b.power ?? -1) - (a.power ?? -1) || (b.health ?? -1) - (a.health ?? -1) || a.name.localeCompare(b.name);
     return a.name.localeCompare(b.name) || a.defId.localeCompare(b.defId);
+  };
+}
+
+function breakdown(cards: PublicCardDto[]): PublicCardCatalogBreakdown {
+  return {
+    regions: countFacet(cards.flatMap((card) => card.regions)),
+    types: countFacet(cards.map((card) => card.type)),
+    rarities: countFacet(cards.map((card) => card.rarity)),
+    races: countFacet(cards.flatMap((card) => card.races)),
+    classes: countFacet(cards.flatMap((card) => card.classes)),
+    costs: countFacet(cards.map((card) => String(card.cost))),
   };
 }
 
@@ -208,6 +231,7 @@ export function queryPublicCardCatalog(cards: PublicCardDto[], query: PublicCard
       classes: countFacet(catalog.flatMap((card) => card.classes)),
       costs: countFacet(catalog.map((card) => String(card.cost))),
     },
+    breakdown: breakdown(filtered),
   };
 }
 
