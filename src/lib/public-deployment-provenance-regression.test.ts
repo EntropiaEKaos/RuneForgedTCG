@@ -7,6 +7,9 @@ const preflight = fs.readFileSync("scripts/release-preflight.ts", "utf8");
 const rcWorkflow = fs.readFileSync(".github/workflows/alpha-release-candidate.yml", "utf8");
 const ciWorkflow = fs.readFileSync(".github/workflows/ci.yml", "utf8");
 const evidence = fs.readFileSync("scripts/alpha-release-candidate-evidence.mjs", "utf8");
+const netlify = fs.readFileSync("netlify.toml", "utf8");
+const vercel = JSON.parse(fs.readFileSync("vercel.json", "utf8")) as { buildCommand?: string };
+const vercelBuild = fs.readFileSync("scripts/vercel-certified-build.mjs", "utf8");
 
 for (const marker of [
   "readDeploymentProvenance",
@@ -43,4 +46,19 @@ assert.match(evidence, /deployment\/provenance/);
 assert.match(evidence, /provenance commit matches exact workflow SHA/);
 assert.match(evidence, /provenance environment is alpha/);
 
-console.log("PUBLIC DEPLOYMENT PROVENANCE SOURCE CONTRACT: PASS — provider-neutral · SHA-bound · fail-closed");
+assert.match(netlify, /RUNEFORGE_DEPLOY_SHA=\$COMMIT_REF npm run production:verify/);
+assert.equal(vercel.buildCommand, "node scripts/vercel-certified-build.mjs");
+for (const marker of [
+  "VERCEL_GIT_COMMIT_SHA",
+  "VERCEL_ENV",
+  "RUNEFORGE_DEPLOY_SHA",
+  "RUNEFORGE_DEPLOY_ENV",
+  "production:verify",
+  "production",
+  "preview",
+]) assert.ok(vercelBuild.includes(marker), `Vercel certified build must contain: ${marker}`);
+assert.match(vercelBuild, /\^\[0-9a-f\]\{40\}\$/);
+assert.match(vercelBuild, /spawnSync/);
+assert.doesNotMatch(vercelBuild, /DATABASE_URL|ADMIN_|PAYMENT_|SECRET/);
+
+console.log("PUBLIC DEPLOYMENT PROVENANCE SOURCE CONTRACT: PASS — provider-neutral identity · Netlify + Vercel certified adapters · SHA-bound · fail-closed");
