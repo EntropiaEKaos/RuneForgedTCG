@@ -27,7 +27,11 @@ async function main() {
   }
   console.log(`DATABASE MIGRATE: routing to ${script}`);
   run(process.platform === "win32" ? "npm.cmd" : "npm", ["run", script]);
-  console.log("DATABASE MIGRATE: synchronizing certified Studio baseline content");
-  run(process.execPath, ["--import", "tsx", "scripts/studio-content-sync.ts"]);
+  // Fresh bootstrap performs the same sync itself so standalone db:bootstrap
+  // is a complete first-install path. Existing databases need the sync here.
+  if (script === "db:upgrade") {
+    console.log("DATABASE MIGRATE: synchronizing certified Studio baseline content");
+    run(process.execPath, ["--import", "tsx", "scripts/studio-content-sync.ts"]);
+  }
 }
 main().catch((error) => { console.error(error instanceof Error ? error.message : error); process.exit(1); });
