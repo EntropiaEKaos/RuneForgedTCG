@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
         variantId: cardAssets.variantId,
         frameId: cardAssets.frameId,
         finish: cardAssets.finish,
+        serialNumber: cardAssets.serialNumber,
         tradable: cardAssets.tradable,
         acquiredAt: cardAssets.acquiredAt,
         lockKind: cardAssetLocks.kind,
@@ -93,6 +94,7 @@ export async function GET(req: NextRequest) {
         variantId: cardAssets.variantId,
         frameId: cardAssets.frameId,
         finish: cardAssets.finish,
+        serialNumber: cardAssets.serialNumber,
       }).from(marketListings)
         .innerJoin(cardAssets, eq(cardAssets.id, marketListings.assetId))
         .where(eq(marketListings.sellerPlayerId, player.id))
@@ -111,6 +113,7 @@ export async function GET(req: NextRequest) {
         variantId: cardAssets.variantId,
         frameId: cardAssets.frameId,
         finish: cardAssets.finish,
+        serialNumber: cardAssets.serialNumber,
         sellerName: players.name,
       }).from(marketListings)
         .innerJoin(cardAssets, eq(cardAssets.id, marketListings.assetId))
@@ -134,6 +137,7 @@ export async function GET(req: NextRequest) {
       variantId: cardAssets.variantId,
       frameId: cardAssets.frameId,
       finish: cardAssets.finish,
+      serialNumber: cardAssets.serialNumber,
     }).from(marketListings)
       .innerJoin(cardAssets, eq(cardAssets.id, marketListings.assetId))
       .innerJoin(players, eq(players.id, marketListings.sellerPlayerId))
@@ -143,7 +147,7 @@ export async function GET(req: NextRequest) {
 
     const enriched = rows.map((row) => ({ ...row, card: cardSummary(row.defId) }));
     const listings = q
-      ? enriched.filter((row) => `${row.card.name} ${row.defId} ${row.sellerName} ${row.variantId} ${row.frameId} ${row.finish}`.toLowerCase().includes(q))
+      ? enriched.filter((row) => `${row.card.name} ${row.defId} ${row.sellerName} ${row.variantId} ${row.frameId} ${row.finish} ${row.serialNumber ?? ""}`.toLowerCase().includes(q))
       : enriched;
     return Response.json({ ok: true, settings, player: { id: player.id, name: player.name, gold: player.gold }, listings: listings.slice(0, 100) });
   } catch (error) {
