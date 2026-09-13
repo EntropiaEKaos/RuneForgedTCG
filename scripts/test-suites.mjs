@@ -106,6 +106,7 @@ export const behavioralTests = [
   "src/lib/ranked-launch-2.97.test.ts",
   "src/lib/security.test.ts",
   "src/lib/site-content.test.ts",
+  "src/lib/studio-baseline-sync.test.ts",
   "src/lib/vanilla-runtime-smoke.test.ts"
 ];
 export const sourceContractTests = [
