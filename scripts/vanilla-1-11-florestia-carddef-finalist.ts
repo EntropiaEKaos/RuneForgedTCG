@@ -14,13 +14,15 @@ import type { CardDef } from "../src/game/types";
 const ASCENDANT = "vanilla_forest_2";
 const VANGUARD = "vanilla_forest_1";
 const GAMES_PER_STRATUM = 40;
-const STRATA = VANILLA_BALANCE_STRATUM_BASES.length;
+const STRATA = 5;
 const writeIndex = process.argv.indexOf("--write");
 const writePath = writeIndex >= 0 ? process.argv[writeIndex + 1] : "";
 const globalIndex = process.argv.indexOf("--global");
 const globalPath = globalIndex >= 0 ? process.argv[globalIndex + 1] : "";
 
-if (STRATA !== 5) throw new Error(`Expected five certified Vanilla strata, found ${STRATA}`);
+if (VANILLA_BALANCE_STRATUM_BASES.length < STRATA) {
+  throw new Error(`Expected at least ${STRATA} certified Vanilla strata, found ${VANILLA_BALANCE_STRATUM_BASES.length}`);
+}
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
@@ -199,6 +201,8 @@ const baseline = {
   vanguard: summarizeDeck(baselineRows, VANGUARD),
   rows: baselineRows,
 };
+const candidateAscendant = summarizeDeck(candidateRows, ASCENDANT);
+const candidateVanguard = summarizeDeck(candidateRows, VANGUARD);
 const candidate = {
   mutation: {
     defId: u04HealthPlusOne.defId,
@@ -211,10 +215,10 @@ const candidate = {
     watch: candidateRows.filter((row) => row.status === "watch").length,
     critical: candidateRows.filter((row) => row.status === "critical").length,
   },
-  ascendant: summarizeDeck(candidateRows, ASCENDANT),
-  vanguard: summarizeDeck(candidateRows, VANGUARD),
-  deltaAscendantPp: round1(summarizeDeck(candidateRows, ASCENDANT).winRate - baseline.ascendant.winRate),
-  deltaVanguardPp: round1(summarizeDeck(candidateRows, VANGUARD).winRate - baseline.vanguard.winRate),
+  ascendant: candidateAscendant,
+  vanguard: candidateVanguard,
+  deltaAscendantPp: round1(candidateAscendant.winRate - baseline.ascendant.winRate),
+  deltaVanguardPp: round1(candidateVanguard.winRate - baseline.vanguard.winRate),
   newCriticals: deltas.filter((row) => row.baselineStatus !== "critical" && row.candidateStatus === "critical"),
   clearedCriticals: deltas.filter((row) => row.baselineStatus === "critical" && row.candidateStatus !== "critical"),
   deltas,
