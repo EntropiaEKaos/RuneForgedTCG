@@ -1,0 +1,70 @@
+.card-shell.card-cosmetic-premium-frame {
+  box-shadow: 0 18px 42px rgba(0,0,0,.62), inset 0 0 0 1px rgba(255,255,255,.34), 0 0 20px color-mix(in srgb, var(--rf-card-accent, #f8d66d) 55%, transparent);
+}
+
+.card-shell.card-cosmetic-premium-frame .card-frame-ornament {
+  opacity: 1;
+  filter: saturate(1.25) brightness(1.18);
+}
+
+.card-shell.card-cosmetic-full-art .card-art,
+.card-shell.card-cosmetic-full-art .card-cosmetic-video {
+  transform: scale(1.035);
+}
+
+.card-shell.card-cosmetic-full-art .card-vignette {
+  background: linear-gradient(180deg, rgba(2,6,23,.14), rgba(2,6,23,.04) 42%, rgba(2,6,23,.78) 100%);
+}
+
+.card-shell.card-cosmetic-full-art .card-textbox {
+  background: linear-gradient(180deg, rgba(2,6,23,.45), rgba(2,6,23,.82));
+  backdrop-filter: blur(1.5px);
+}
+
+.card-shell.card-cosmetic-foil .card-sheen,
+.card-shell.card-finish-foil .card-sheen,
+.card-shell.card-finish-holo .card-sheen {
+  opacity: .78;
+  background: linear-gradient(112deg, transparent 14%, rgba(125,211,252,.18) 28%, rgba(232,121,249,.28) 40%, rgba(253,224,71,.22) 51%, rgba(110,231,183,.2) 63%, transparent 78%);
+  background-size: 240% 100%;
+  animation: rf-card-cosmetic-foil 4.8s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+
+.card-shell.card-cosmetic-serialized {
+  box-shadow: 0 18px 42px rgba(0,0,0,.66), inset 0 0 0 1px rgba(253,224,71,.52), 0 0 26px rgba(250,204,21,.2);
+}
+
+.card-cosmetic-video {
+  z-index: 0;
+  pointer-events: none;
+}
+
+.card-cosmetic-serial {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 30;
+  border: 1px solid rgba(253,224,71,.55);
+  border-radius: 999px;
+  background: rgba(2,6,23,.86);
+  padding: 2px 5px;
+  color: #fef08a;
+  font-size: 7px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .04em;
+  box-shadow: 0 2px 8px rgba(0,0,0,.5);
+}
+
+@keyframes rf-card-cosmetic-foil {
+  0%, 100% { background-position: 100% 50%; opacity: .48; }
+  50% { background-position: 0 50%; opacity: .86; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-shell.card-cosmetic-foil .card-sheen,
+  .card-shell.card-finish-foil .card-sheen,
+  .card-shell.card-finish-holo .card-sheen { animation: none !important; }
+  .card-shell .card-cosmetic-video { display: none; }
+}
