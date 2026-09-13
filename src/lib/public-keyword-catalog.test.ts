@@ -155,4 +155,34 @@ const catalog = buildPublicKeywordCatalog(cards, [
 assert.equal(catalog.length, 21);
 assert.equal(catalog.at(-1)?.key, "storm_echo");
 
-console.log("PUBLIC KEYWORD CODEX: PASS — 20 canonical · published custom · usage counts · safe DTO · internal behavior hidden");
+const managedCatalog = buildPublicKeywordCatalog(cards, [
+  {
+    key: "Flying",
+    name: "Flying",
+    description: "Managed Studio description for Flying.",
+    icon: "🦅",
+    engineKeyword: "Flying",
+    behavior: {},
+    enabled: true,
+  },
+  {
+    key: "storm_echo",
+    name: "Storm Echo",
+    description: "Triggers when this unit attacks.",
+    icon: null,
+    engineKeyword: null,
+    behavior: {
+      version: 1,
+      trigger: "onAttack",
+      condition: { kind: "always" },
+      effect: { kind: "draw", amount: 1, target: "none" },
+    },
+    enabled: true,
+  },
+]);
+assert.equal(managedCatalog.length, 21, "canonical management rows must not duplicate public codex entries");
+assert.equal(managedCatalog.filter((item) => item.key === "Flying").length, 1);
+assert.equal(managedCatalog.find((item) => item.key === "Flying")?.description, "Managed Studio description for Flying.");
+assert.equal(managedCatalog.find((item) => item.key === "Flying")?.source, "canonical");
+
+console.log("PUBLIC KEYWORD CODEX: PASS — 20 canonical · managed baseline overlays · published custom · usage counts · safe DTO");

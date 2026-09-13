@@ -1,11 +1,22 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { Pool } from "pg";
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
 const files = ["database/baseline-2.31.sql", "drizzle/0017_security_matrix_integrity.sql", "drizzle/0018_ownership_integrity.sql", "drizzle/0025_production_certification.sql", "drizzle/0026_production_gameplay_2_56.sql", "drizzle/0027_gameplay_visual_2_65.sql", "drizzle/0028_total_control_plane.sql", "drizzle/0029_multiregion_identity.sql", "drizzle/0030_bugfix_integrity.sql", "drizzle/0031_certification_2_90.sql", "drizzle/0032_mvp_2_91.sql", "drizzle/0033_vanilla_collection_2_92.sql", "drizzle/0034_growth_commerce_2_93.sql", "drizzle/0035_release_hardening_2_94.sql", "drizzle/0036_sentinelas_convergence_2_96.sql", "drizzle/0037_schema_replay_hotfix_2_96_1.sql", "drizzle/0038_engineering_integrity_2_96_2.sql", "drizzle/0039_ranked_certification_2_97.sql", "drizzle/0040_pvp_content_snapshot_2_97.sql", "drizzle/0041_pvp_reaction_priority.sql", "drizzle/0042_site_portal_cms.sql", "drizzle/0043_p2p_marketplace.sql"];
 const pool = new Pool({ connectionString: databaseUrl, max: 1, connectionTimeoutMillis: 5_000 });
+
+function syncStudioBaseline() {
+  const result = spawnSync(process.execPath, ["--import", "tsx", "scripts/studio-content-sync.ts"], {
+    cwd: process.cwd(),
+    env: process.env,
+    stdio: "inherit",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error(`Studio baseline sync failed with exit code ${result.status ?? "unknown"}`);
+}
 
 // Wrapped in an async main() — top-level await here breaks under tsx's CJS
 // output ("Top-level await is currently not supported with the 'cjs' output
@@ -37,6 +48,8 @@ async function main() {
   } finally {
     await pool.end();
   }
+  console.log("DATABASE BOOTSTRAP: synchronizing certified Studio baseline content");
+  syncStudioBaseline();
 }
 
 main().catch((error) => {

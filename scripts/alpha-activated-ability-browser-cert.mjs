@@ -422,9 +422,13 @@ async function playDefensiveUnit(cdp, snapshot) {
           Number.isFinite(beforeMana) &&
           Number.isFinite(current.playerMana) &&
           current.playerMana < beforeMana;
+        const responseOpened =
+          snapshot.phase === "main" &&
+          current.round === snapshot.round &&
+          current.phase === "response";
 
-        if (!newBoardUnit && !handSpent && !manaSpent) return null;
-        return { current, newBoardUnit, handSpent, manaSpent };
+        if (!newBoardUnit && !handSpent && !manaSpent && !responseOpened) return null;
+        return { current, newBoardUnit, handSpent, manaSpent, responseOpened };
       },
       `defensive unit ${defId} play to commit`,
       10_000,
