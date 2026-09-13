@@ -16,6 +16,8 @@ import {
 const TARGET_ID = "vanilla_ember_2";
 const GAMES_PER_STRATUM = 40;
 const STRATA = 5;
+const PRE_PROMOTION_BASE_SHA = "40675729a78e5f16c11becdb7871f752002e012c";
+const PRE_PROMOTION_GLOBAL_WIN_RATE = 39.9;
 const WINNER_EXTRA_SUFFIXES = [
   "u03", "u03",
   "u05", "u05",
@@ -162,7 +164,7 @@ const qualityGate =
 const report = {
   version: "1.10-winner-validation-1",
   methodology:
-    "Read-only full-matrix validation of the candidate-screen winner. Emberhold Ascendant is overridden in memory with the Resilient Pressure recipe only; CardDefs, rules, AI and product recipes remain untouched. Uses the same five deterministic certified strata and 40 games per stratum as the baseline diagnostic.",
+    "Read-only full-matrix validation of the candidate-screen winner against the frozen pre-promotion product baseline. Emberhold Ascendant is overridden in memory with the Resilient Pressure recipe only; CardDefs, rules, AI and product recipes remain untouched. Uses the same five deterministic certified strata and 40 games per stratum as the baseline diagnostic.",
   candidate: {
     id: "resilient-pressure",
     targetId: TARGET_ID,
@@ -171,9 +173,10 @@ const report = {
     cards: winnerCards,
   },
   baselineReference: {
-    version: "1.10-diagnostic-1",
+    label: "Pre-promotion Emberhold Ascendant product baseline",
+    sourceCommit: PRE_PROMOTION_BASE_SHA,
     games: 2200,
-    winRate: 39.9,
+    winRate: PRE_PROMOTION_GLOBAL_WIN_RATE,
     matchupHealth: { healthy: 4, watch: 3, critical: 4 },
   },
   target: {
@@ -182,7 +185,7 @@ const report = {
     losses: target.losses,
     draws: target.draws,
     winRate: pct(target.wins, decisiveGames),
-    deltaVsBaseline: round1(pct(target.wins, decisiveGames) - 39.9),
+    deltaVsBaseline: round1(pct(target.wins, decisiveGames) - PRE_PROMOTION_GLOBAL_WIN_RATE),
     matchupHealth: { healthy, watch, critical },
     recoveredCritical: recoveredCritical.length,
     newCritical: newCritical.length,
