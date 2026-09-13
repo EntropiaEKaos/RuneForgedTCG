@@ -11,6 +11,7 @@ if (!new Set(["production", "preview"]).has(environment)) {
 }
 
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const verifyScript = environment === "production" ? "production:verify" : "alpha:verify";
 const childEnv = {
   ...process.env,
   RUNEFORGE_DEPLOY_SHA: sha,
@@ -18,11 +19,12 @@ const childEnv = {
 };
 
 console.log(`VERCEL CERTIFIED BUILD: binding ${environment}@${sha.slice(0, 12)} to RuneForge deploy provenance`);
-const result = spawnSync(npmCommand, ["run", "production:verify"], {
+console.log(`VERCEL CERTIFIED BUILD: running ${verifyScript}`);
+const result = spawnSync(npmCommand, ["run", verifyScript], {
   cwd: process.cwd(),
   env: childEnv,
   stdio: "inherit",
 });
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);
-console.log(`VERCEL CERTIFIED BUILD: PASS — ${environment}@${sha.slice(0, 12)} passed production:verify`);
+console.log(`VERCEL CERTIFIED BUILD: PASS — ${environment}@${sha.slice(0, 12)} passed ${verifyScript}`);
