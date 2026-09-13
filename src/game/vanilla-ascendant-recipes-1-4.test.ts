@@ -3,10 +3,17 @@ import { buildVanillaContentAudit } from "./vanilla-content-audit";
 import { VANILLA_EXPERIMENTAL_DECKS } from "./vanilla-experimental-decks";
 
 const expectedDuplicateIds: Record<string, readonly string[]> = {
-  vanilla_ember_2: ["van_ember_u01", "van_ember_u02", "van_ember_u03", "van_ember_u04", "van_ember_u05", "van_ember_u06", "van_ember_u08", "van_ember_u11", "van_ember_u13", "van_ember_u14"],
   vanilla_tide_2: ["van_tide_u01", "van_tide_u02", "van_tide_u03", "van_tide_u04", "van_tide_u05", "van_tide_u06", "van_tide_u09", "van_tide_u10", "van_tide_e01", "van_tide_e02"],
   vanilla_storm_2: ["van_storm_u01", "van_storm_u02", "van_storm_u03", "van_storm_u04", "van_storm_u05", "van_storm_u06", "van_storm_u08", "van_storm_u11", "van_storm_u13", "van_storm_u14"],
 };
+
+const expectedEmberholdTriplicateIds = [
+  "van_ember_u03",
+  "van_ember_u05",
+  "van_ember_u08",
+  "van_ember_u11",
+  "van_ember_u13",
+] as const;
 
 const report = buildVanillaContentAudit();
 assert.equal(report.gate, "pass", report.errors.join("\n"));
@@ -17,11 +24,11 @@ assert.deepEqual(report.uncoveredExperimentalCardIds, []);
 const vanguards = report.decks.filter((deck) => deck.id.endsWith("_1"));
 const historicalVanguards = vanguards.filter((deck) => !["vanilla_ember_1", "vanilla_tide_1", "vanilla_storm_1"].includes(deck.id));
 const ascendants = report.decks.filter((deck) => deck.id.endsWith("_2"));
-const historicalAscendants = ascendants.filter((deck) => !["vanilla_wood_2", "vanilla_void_2", "vanilla_forest_2"].includes(deck.id));
+const historicalAscendants = ascendants.filter((deck) => !["vanilla_ember_2", "vanilla_wood_2", "vanilla_void_2", "vanilla_forest_2"].includes(deck.id));
 assert.equal(vanguards.length, 6);
 assert.equal(historicalVanguards.length, 3, "Vanilla 1.4 historical Vanguard contract must own exactly three decks after regional exceptions");
 assert.equal(ascendants.length, 6);
-assert.equal(historicalAscendants.length, 3, "Vanilla 1.4 two-copy Ascendant contract must own the three regions not evolved by Vanilla 1.7");
+assert.equal(historicalAscendants.length, 2, "Vanilla 1.4 two-copy Ascendant contract must own Tidecall and Tempestade after evidence-driven evolutions");
 
 for (const deck of historicalVanguards) {
   assert.equal(deck.cards, 40, `${deck.name}: Vanguard size drifted`);
@@ -51,6 +58,23 @@ for (const deck of historicalAscendants) {
   assert.ok(Object.values(deck.duplicateCopies).every((count) => count === 2), `${deck.name}: historical Ascendant card may not exceed two copies`);
 }
 
+const emberhold = ascendants.find((deck) => deck.id === "vanilla_ember_2");
+assert.ok(emberhold, "Vanilla 1.10 Emberhold Ascendant must remain in the experimental pool");
+const emberholdTriplicates = Object.entries(emberhold.duplicateCopies)
+  .filter(([, count]) => count === 3)
+  .map(([defId]) => defId)
+  .sort();
+assert.deepEqual(
+  emberholdTriplicates,
+  [...expectedEmberholdTriplicateIds].sort(),
+  "Vanilla 1.10 Emberhold resilient-pressure spine drifted",
+);
+assert.equal(Object.keys(emberhold.duplicateCopies).length, 5, "Vanilla 1.10 Emberhold should concentrate exactly five cards");
+assert.ok(
+  Object.values(emberhold.duplicateCopies).every((count) => count === 3),
+  "Vanilla 1.10 Emberhold concentrated cards must sit exactly at the legal three-copy ceiling",
+);
+
 const sourceDecks = new Map(VANILLA_EXPERIMENTAL_DECKS.map((deck) => [deck.id, deck] as const));
 for (const deck of ascendants) {
   const source = sourceDecks.get(deck.id);
@@ -59,4 +83,4 @@ for (const deck of ascendants) {
   assert.equal(source.cards.length, 40);
 }
 
-console.log("Vanilla 1.4 Ascendant recipe reconstruction: PASS");
+console.log("Vanilla Ascendant recipe reconstruction: PASS");
