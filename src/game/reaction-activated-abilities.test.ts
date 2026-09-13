@@ -89,14 +89,12 @@ try {
     throw new Error("Reaction ability did not record its independent per-round usage");
   }
 
-  // Event-kind filtering is authoritative; a spell must not open a unit-only response.
   sourceDef.reactionActivatedAbilities = [{ ...negateAbility, respondsTo: ["unit"] }];
   const wrongKindState = stateWithSource();
   if (applyStackedAction(wrongKindState, pendingSpell(wrongKindState.players.player.bench[0].instanceId)).awaitingReaction) {
     throw new Error("A reaction ability opened on an action kind outside respondsTo");
   }
 
-  // Uncounterable remains a shared stack rule for card and battlefield counters.
   sourceDef.reactionActivatedAbilities = [negateAbility];
   boltDef.customKeywords = [...originalBoltRules, "uncounterable"];
   const protectedState = stateWithSource();
@@ -105,7 +103,6 @@ try {
   }
   boltDef.customKeywords = originalBoltRules;
 
-  // A non-counter reaction resolves first and changes how the pending action resolves.
   sourceDef.reactionActivatedAbilities = [{
     description: "Emergency bark",
     respondsTo: ["spell"],
@@ -122,7 +119,6 @@ try {
     throw new Error("Payable board-target reaction did not open a window during preflight");
   }
 
-  // Exact selected costs are required at stack insertion even though preflight may omit them.
   const missingDiscard: CardAction = {
     kind: "sentinela",
     responseKind: "activatedAbility",
@@ -160,7 +156,6 @@ try {
     throw new Error(`Barrier reaction did not resolve before pending damage: ${protectedByAbility.players.player.bench[0].health}`);
   }
 
-  // Modal choices share the same base cost/usage budget and carry stable mode ids.
   sourceDef.reactionActivatedAbilities = [{
     description: "Choose a defense",
     respondsTo: ["spell"],
@@ -178,7 +173,6 @@ try {
     throw new Error(`Modal reaction choices lost stable ids: ${modalOptions.map((option) => option.modeId).join(",")}`);
   }
 
-  // AI response includes exact source/mode/target data and remains deterministic.
   sourceDef.reactionActivatedAbilities = [negateAbility];
   const aiState = stateWithSource();
   const movedSource = aiState.players.player.bench[0];
@@ -201,11 +195,6 @@ try {
   }
   if (JSON.stringify(aiResponseA) !== JSON.stringify(aiResponseB)) throw new Error("AI reaction ability choice is not deterministic");
 
-  // Regression: proactive battlefield activated abilities selected by the AI also
-  // travel through the reaction stack. Before this contract, resolving a skipped
-  // window treated every non-spell action as playUnit(), so a battlefield source
-  // no-oped and immediately reopened the same reaction window until the Alpha
-  // action budget was exhausted.
   const stackedState = createCustomGame("Stacked Activated AI", deck, deck, {
     skipMulligan: true,
     playerGoesFirst: false,
@@ -279,8 +268,7 @@ try {
     throw new Error("AI failed to make authoritative progress after stacked activated ability resolution");
   }
 
-  // #159: countering a proactive battlefield activation prevents only its
-  // effect. Mana, exhaust and the per-round usage budget remain committed.
+  // #159: countering a proactive battlefield activation prevents only its effect.
   const counteredState = createCustomGame("Countered Activated AI", deck, deck, {
     skipMulligan: true,
     playerGoesFirst: false,
@@ -342,9 +330,8 @@ try {
     throw new Error("Countered exhausted ability reopened the same reaction window");
   }
 
-  // `kind: sentinela` without an abilityIndex is a physical Sentinela card
-  // committed from hand. It must keep the normal card-play path rather than be
-  // misclassified as a battlefield activation.
+  // A physical Sentinela frame has no abilityIndex. Its hand-card instance is
+  // consumed and the engine mints the normal battlefield Sentinela instance.
   const physicalState = createCustomGame("Physical Sentinela Stack", deck, deck, {
     skipMulligan: true,
     playerGoesFirst: false,
@@ -369,7 +356,7 @@ try {
   if (physicalResolved.players.ai.hand.some((card) => card.instanceId === "physical-sentinela-card")) {
     throw new Error("Physical Sentinela card remained in hand after stack resolution");
   }
-  if (!physicalResolved.players.ai.sentinelas.some((sen) => sen.instanceId === "physical-sentinela-card")) {
+  if (!physicalResolved.players.ai.sentinelas.some((sen) => sen.defId === "sent_marinna")) {
     throw new Error("Physical Sentinela stack frame was misclassified as an activated ability");
   }
 
