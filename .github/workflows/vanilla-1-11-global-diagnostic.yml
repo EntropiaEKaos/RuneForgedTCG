@@ -12,7 +12,7 @@ permissions:
 jobs:
   diagnose-florestia-floor:
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -47,6 +47,11 @@ jobs:
           node --import tsx scripts/vanilla-1-11-florestia-recipe-screen.ts 20 3 \
             --write artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_SCREEN.json
 
+      - name: Run 6,300-game isolated Florestia CardDef lab
+        run: |
+          node --import tsx scripts/vanilla-1-11-florestia-carddef-lab.ts 20 3 \
+            --write artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_CARDDEF_LAB.json
+
       - name: Upload Vanilla 1.11 evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -55,5 +60,6 @@ jobs:
             artifacts/vanilla-1-11/VANILLA_1.11_GLOBAL_DIAGNOSTIC.json
             artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_DIAGNOSTIC.json
             artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_SCREEN.json
+            artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_CARDDEF_LAB.json
           if-no-files-found: error
           retention-days: 14
