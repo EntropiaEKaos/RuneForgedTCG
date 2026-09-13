@@ -11,8 +11,9 @@ import type { DeckDef } from "./decks";
  * Every Ascendant keeps one copy of all 30 regional `van_*` cards. The ten
  * remaining slots are explicit and evidence-selected. Vanilla 1.7 introduced
  * concentration up to the runtime-legal three-copy ceiling; Vanilla 1.8 refined
- * Florestia's closing core; Vanilla 1.9 converges that floor by shifting two
- * duplicate pairs into earlier Beast pressure while preserving 30/30 regional
+ * Florestia's closing core; Vanilla 1.9 converged that floor by shifting two
+ * duplicate pairs into earlier Beast pressure; Vanilla 1.10 promotes Emberhold's
+ * validated resilient-pressure spine. All iterations preserve 30/30 regional
  * coverage and the global 180/180 pool.
  */
 type VanillaPrefix =
@@ -130,7 +131,8 @@ function ascendantRecipe(prefix: VanillaPrefix, extraSuffixes: readonly Regional
 }
 
 const ASCENDANT_EXTRAS = {
-  ember: ["u03", "u02", "u05", "u08", "u04", "u01", "u13", "u11", "u14", "u06"],
+  // Vanilla 1.10: full-matrix validated resilient-pressure spine; five bodies at three copies each.
+  ember: ["u03", "u03", "u05", "u05", "u08", "u08", "u11", "u11", "u13", "u13"],
   tide: ["u01", "u02", "u03", "u04", "u05", "u06", "u09", "u10", "e01", "e02"],
   // Vanilla 1.7: five closing bodies at three copies each.
   wood: ["u03", "u03", "u08", "u08", "u11", "u11", "u13", "u13", "u18", "u18"],
