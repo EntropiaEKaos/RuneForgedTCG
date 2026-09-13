@@ -17,7 +17,10 @@ assert.match(playDefensiveUnit, /beforeHandCopies/);
 assert.match(playDefensiveUnit, /newBoardUnit/);
 assert.match(playDefensiveUnit, /handSpent/);
 assert.match(playDefensiveUnit, /manaSpent/);
+assert.match(playDefensiveUnit, /responseOpened/);
+assert.match(playDefensiveUnit, /snapshot\.phase\s*===\s*"main"/);
 assert.match(playDefensiveUnit, /current\.round\s*===\s*snapshot\.round/);
+assert.match(playDefensiveUnit, /current\.phase\s*===\s*"response"/);
 assert.match(playDefensiveUnit, /defensive unit \$\{defId\} play to commit/);
 
 assert.doesNotMatch(
@@ -32,5 +35,5 @@ assert.doesNotMatch(
 );
 
 console.log(
-  "ACTIVATED ABILITY BROWSER FIXTURE SOURCE CONTRACT: PASS — defensive plays accept board, hand-spend or same-round mana-spend commit signals",
+  "ACTIVATED ABILITY BROWSER FIXTURE SOURCE CONTRACT: PASS — defensive plays accept board, hand-spend, same-round mana-spend or same-round response-window commit signals",
 );
