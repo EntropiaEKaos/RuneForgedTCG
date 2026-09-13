@@ -8,6 +8,7 @@ import CardClassificationTab from "./CardClassificationTab";
 import CardRulesTab from "./CardRulesTab";
 import CardReleaseTab from "./CardReleaseTab";
 import CardQaStudio from "./CardQaStudio";
+import CardCosmeticsTab from "./CardCosmeticsTab";
 import { hasStudioUiCapability } from "@/lib/admin-studio-access";
 
 export default function CardAuthoringStudio({ role }: { role: string }) {
@@ -36,7 +37,8 @@ const {
     ["rules", "Rules", "03"],
     ["tests", "QA Tests", "04"],
     ["collection", "Release", "05"],
-    ["preview", "Preview", "06"],
+    ["cosmetics", "Cosmetics", "06"],
+    ["preview", "Preview", "07"],
   ];
   return (
     <div className="studio-shell min-h-screen">
@@ -83,6 +85,7 @@ const {
           {tab === "rules" && <CardRulesTab model={model} />}
           {tab === "tests" && <CardQaStudio model={model} />}
           {tab === "collection" && <CardReleaseTab model={model} />}
+          {tab === "cosmetics" && <CardCosmeticsTab model={model} role={role} />}
           {tab === "preview" && (
             <div className="grid gap-4 xl:grid-cols-[420px_1fr]">
               <div>
