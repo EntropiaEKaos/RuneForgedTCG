@@ -1,0 +1,56 @@
+name: Vanilla 1.9 Floor Diagnostic
+
+on:
+  push:
+    branches:
+      - engineering/vanilla-1-9-floor-convergence
+    paths:
+      - "scripts/vanilla-1-9-floor-diagnostic.ts"
+      - ".github/workflows/vanilla-1-9-floor-diagnostic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vanilla-1-9-floor-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    name: compare Florestia and Emberhold floors
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm run ci:install
+
+      - name: Typecheck diagnostic
+        run: npm run typecheck
+
+      - name: Run 4,200-game floor diagnostic
+        run: |
+          mkdir -p artifacts/vanilla-1-9
+          node --import tsx scripts/vanilla-1-9-floor-diagnostic.ts 40 5 \
+            --write artifacts/vanilla-1-9/VANILLA_1.9_FLOOR_DIAGNOSTIC.json
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: vanilla-1-9-floor-diagnostic-${{ github.sha }}
+          path: artifacts/vanilla-1-9/VANILLA_1.9_FLOOR_DIAGNOSTIC.json
+          if-no-files-found: error
+          retention-days: 14
