@@ -90,21 +90,46 @@ assert.ok(responsiveCss.includes("aside[data-mode-mission]"), "special-mode brie
 assert.ok(responsiveCss.includes(".tcg-arena .tcg-log[open]"), "battle log must remain accessible as an overlay drawer");
 assert.ok(responsiveCss.includes("overscroll-behavior: contain"), "internal tactical scrollers must contain overscroll instead of moving the page");
 
-// Real browser evidence must reproduce the exact notebook failure that motivated
-// Visual 4.0, not merely prove that the source contains responsive selectors.
+// Real browser evidence must reproduce the notebook failure that motivated
+// Visual 4.0 and now certify the common short-laptop viewport matrix in 4.1.
 assert.ok(
   visualJourney.includes("const notebookViewport = { width: 1366, height: 768"),
-  "real-browser visual certification must include the common 1366x768 notebook viewport",
+  "real-browser visual certification must preserve the common 1366x768 notebook viewport",
+);
+assert.ok(
+  visualJourney.includes("const notebookViewportMatrix = ["),
+  "Visual 4.1 must run a deterministic notebook viewport matrix",
+);
+assert.ok(
+  visualJourney.includes("{ width: 1280, height: 720"),
+  "Visual 4.1 must certify the constrained 1280x720 notebook floor",
+);
+assert.ok(
+  visualJourney.includes("{ width: 1536, height: 864"),
+  "Visual 4.1 must certify a common 1536x864 notebook viewport",
 );
 assert.ok(visualJourney.includes("assertBattlefieldNotebookFit"), "visual journey must certify notebook battlefield geometry");
 assert.ok(
-  visualJourney.includes("notebook battlefield requires vertical page scrolling"),
-  "browser certification must fail when the page needs vertical scrolling",
+  visualJourney.includes("battlefield requires vertical page scrolling"),
+  "browser certification must fail when any notebook viewport needs vertical scrolling",
 );
 assert.ok(
   visualJourney.includes("05a-battlefield-notebook-1366x768.png"),
-  "notebook certification must emit reviewable screenshot evidence",
+  "1366x768 certification must preserve its reviewable screenshot evidence",
 );
+assert.ok(
+  visualJourney.includes('`05a-battlefield-notebook-${viewportLabel}.png`'),
+  "Visual 4.1 must emit reviewable screenshot evidence for the additional notebook matrix viewports",
+);
+assert.ok(visualJourney.includes("notebookMatrixEvidence"), "Visual 4.1 manifest must retain measured notebook geometry");
+for (const minimum of [
+  "rival field became too short to read",
+  "player field became too short to read",
+  "hand became too short to read",
+  "action rail became too short to use",
+]) {
+  assert.ok(visualJourney.includes(minimum), `Visual 4.1 readability floor missing: ${minimum}`);
+}
 for (const selector of ["rivalField", "playerField", "hand", "actions"]) {
   assert.ok(visualJourney.includes(`${selector}: rectOf(`), `notebook browser evidence must measure ${selector}`);
 }
@@ -115,4 +140,4 @@ for (const forbidden of ["fetch(", "dispatch(", "castSpell(", "playUnit(", "loca
   assert.equal(responsiveCss.includes(forbidden), false, `responsive presentation layer must not contain ${forbidden}`);
 }
 
-console.log("RUNE FORGE VISUAL 3.0 + 4.0 BATTLEFIELD CONTRACT: source contract PASS");
+console.log("RUNE FORGE VISUAL 3.0 + 4.0 + 4.1 BATTLEFIELD CONTRACT: source contract PASS");
