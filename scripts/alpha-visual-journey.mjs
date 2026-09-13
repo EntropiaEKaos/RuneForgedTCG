@@ -9,6 +9,11 @@ const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 const notebookViewport = { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false };
+const notebookViewportMatrix = [
+  notebookViewport,
+  { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false },
+  { width: 1536, height: 864, deviceScaleFactor: 1, mobile: false },
+];
 
 function sleep(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
@@ -273,7 +278,7 @@ async function assertViewportIntegrity(cdp, stage) {
   return metrics;
 }
 
-async function assertBattlefieldNotebookFit(cdp) {
+async function assertBattlefieldNotebookFit(cdp, expectedViewport = notebookViewport) {
   const evidence = await evaluate(cdp, `(() => {
     const rectOf = (selector) => {
       const element = document.querySelector(selector);
@@ -294,10 +299,11 @@ async function assertBattlefieldNotebookFit(cdp) {
     };
   })()`);
 
-  assert.equal(evidence.innerWidth, notebookViewport.width, "notebook certification must run at 1366px width");
-  assert.equal(evidence.innerHeight, notebookViewport.height, "notebook certification must run at 768px height");
-  assert.ok(evidence.scrollWidth <= evidence.innerWidth + 2, `notebook battlefield has horizontal page overflow: ${evidence.scrollWidth}px > ${evidence.innerWidth}px`);
-  assert.ok(evidence.scrollHeight <= evidence.innerHeight + 2, `notebook battlefield requires vertical page scrolling: ${evidence.scrollHeight}px > ${evidence.innerHeight}px`);
+  const viewportLabel = `${expectedViewport.width}x${expectedViewport.height}`;
+  assert.equal(evidence.innerWidth, expectedViewport.width, `${viewportLabel} certification width mismatch`);
+  assert.equal(evidence.innerHeight, expectedViewport.height, `${viewportLabel} certification height mismatch`);
+  assert.ok(evidence.scrollWidth <= evidence.innerWidth + 2, `${viewportLabel} battlefield has horizontal page overflow: ${evidence.scrollWidth}px > ${evidence.innerWidth}px`);
+  assert.ok(evidence.scrollHeight <= evidence.innerHeight + 2, `${viewportLabel} battlefield requires vertical page scrolling: ${evidence.scrollHeight}px > ${evidence.innerHeight}px`);
 
   for (const [label, rect] of Object.entries({
     arena: evidence.arena,
@@ -306,10 +312,15 @@ async function assertBattlefieldNotebookFit(cdp) {
     hand: evidence.hand,
     actions: evidence.actions,
   })) {
-    assert.ok(rect, `notebook battlefield is missing ${label}`);
-    assert.ok(rect.top >= -1, `notebook battlefield clips ${label} above viewport: top=${rect.top}`);
-    assert.ok(rect.bottom <= evidence.innerHeight + 1, `notebook battlefield clips ${label} below viewport: bottom=${rect.bottom}, viewport=${evidence.innerHeight}`);
+    assert.ok(rect, `${viewportLabel} battlefield is missing ${label}`);
+    assert.ok(rect.top >= -1, `${viewportLabel} battlefield clips ${label} above viewport: top=${rect.top}`);
+    assert.ok(rect.bottom <= evidence.innerHeight + 1, `${viewportLabel} battlefield clips ${label} below viewport: bottom=${rect.bottom}, viewport=${evidence.innerHeight}`);
   }
+
+  assert.ok(evidence.rivalField.height >= 92, `${viewportLabel} rival field became too short to read: ${evidence.rivalField.height}px`);
+  assert.ok(evidence.playerField.height >= 92, `${viewportLabel} player field became too short to read: ${evidence.playerField.height}px`);
+  assert.ok(evidence.hand.height >= 112, `${viewportLabel} hand became too short to read: ${evidence.hand.height}px`);
+  assert.ok(evidence.actions.height >= 32, `${viewportLabel} action rail became too short to use: ${evidence.actions.height}px`);
 
   return evidence;
 }
@@ -355,7 +366,7 @@ async function main() {
   let cdp;
   const manifest = [];
   try {
-    port = await waitForChromeDevToolsPort({ profileDir: profileDir, chrome, getStderr: () => browserStderr });
+    port = await waitForChromeDevToolsPort({ profileDir: profileDir, chrome: chrome, getStderr: () => browserStderr });
     const websocketUrl = await waitForChrome(port);
     cdp = await CdpClient.connect(websocketUrl);
     await cdp.call("Page.enable");
@@ -392,11 +403,19 @@ async function main() {
     await waitUntil(() => evaluate(cdp, "!document.querySelector('.match-guide-backdrop')"), "first match guide to close");
     await capture(cdp, "05-battlefield.png", "live battlefield", manifest);
 
-    await cdp.call("Emulation.setDeviceMetricsOverride", notebookViewport);
-    await settle(cdp);
-    const notebookEvidence = await assertBattlefieldNotebookFit(cdp);
-    await capture(cdp, "05a-battlefield-notebook-1366x768.png", "live battlefield notebook fit 1366x768", manifest);
-    console.log(`ALPHA VISUAL: notebook battlefield fit PASS — ${JSON.stringify(notebookEvidence)}`);
+    const notebookMatrixEvidence = [];
+    for (const targetViewport of notebookViewportMatrix) {
+      await cdp.call("Emulation.setDeviceMetricsOverride", targetViewport);
+      await settle(cdp);
+      const viewportLabel = `${targetViewport.width}x${targetViewport.height}`;
+      const notebookEvidence = await assertBattlefieldNotebookFit(cdp, targetViewport);
+      const screenshotName = viewportLabel === "1366x768"
+        ? "05a-battlefield-notebook-1366x768.png"
+        : `05a-battlefield-notebook-${viewportLabel}.png`;
+      await capture(cdp, screenshotName, `live battlefield notebook fit ${viewportLabel}`, manifest);
+      notebookMatrixEvidence.push({ viewport: viewportLabel, ...notebookEvidence });
+      console.log(`ALPHA VISUAL: notebook battlefield fit ${viewportLabel} PASS — ${JSON.stringify(notebookEvidence)}`);
+    }
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
     await settle(cdp);
 
@@ -481,6 +500,8 @@ async function main() {
       chrome: chromePath,
       viewport,
       notebookViewport,
+      notebookViewportMatrix,
+      notebookMatrixEvidence,
       gitSha: process.env.GITHUB_SHA || null,
       capturedAt: new Date().toISOString(),
       screenshots: manifest,
