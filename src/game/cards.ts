@@ -6,6 +6,7 @@ import { TEMPESTADE_CARDS } from "./cards/base/tempestade";
 import { TIDECALL_CARDS } from "./cards/base/tidecall";
 import { VOIDBORN_CARDS } from "./cards/base/voidborn";
 import { VANILLA_ADDITIONAL_CARDS } from "./cards/vanilla";
+import { VANILLA_1_11_CARD_OVERRIDES } from "./cards/vanilla/balance-1-11";
 import { RELEASE_296_CARDS } from "./cards/release-2.96";
 import { SEMANTIC_ALPHA_CARDS } from "./cards/semantic-alpha";
 import { ECOS_DO_ABISMO_CARDS } from "./cards/ecos-do-abismo";
@@ -18,6 +19,9 @@ export const CARDS: Record<string, CardDef> = {
   ...TIDECALL_CARDS,
   ...VOIDBORN_CARDS,
   ...VANILLA_ADDITIONAL_CARDS,
+  // Vanilla 1.11: narrow evidence-driven CardDef replacements are applied
+  // after the immutable regional snapshot and before later collection layers.
+  ...VANILLA_1_11_CARD_OVERRIDES,
   ...RELEASE_296_CARDS,
   ...SEMANTIC_ALPHA_CARDS,
   ...ECOS_DO_ABISMO_CARDS,
