@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { adminAuditLogs, cardAssets, cardCosmeticVariants } from "@/db/schema";
+import { adminAuditLogs, cardAssets, cardCosmeticVariants, playerCardCosmeticPreferences } from "@/db/schema";
 import { allCards } from "@/game/cards";
 import { ensureCustomCardsLoaded } from "@/game/catalog";
 import { normalizeCardCosmeticInput } from "@/game/card-cosmetics";
@@ -13,6 +13,34 @@ async function actorFor(req: NextRequest, role: "designer" | "publisher") {
   const actor = await getAdminSessionContext(req);
   if (!actor || !adminRoleAllowed(actor.role, role)) return null;
   return actor;
+}
+
+async function clearPreferencesForVariant(tx: any, defId: string, variantId: string) {
+  const assets = await tx.select({ id: cardAssets.id }).from(cardAssets).where(and(
+    eq(cardAssets.defId, defId),
+    eq(cardAssets.variantId, variantId),
+  ));
+  if (!assets.length) return 0;
+  const ids = assets.map((asset: { id: number }) => asset.id);
+  const removed = await tx.delete(playerCardCosmeticPreferences)
+    .where(inArray(playerCardCosmeticPreferences.assetId, ids))
+    .returning({ id: playerCardCosmeticPreferences.id });
+  return removed.length;
+}
+
+async function validateLivePackPool(defId: string, currentId: number, nextWeight: number) {
+  const siblings = await db.select({
+    id: cardCosmeticVariants.id,
+    dropWeight: cardCosmeticVariants.dropWeight,
+    acquisition: cardCosmeticVariants.acquisition,
+    packEligible: cardCosmeticVariants.packEligible,
+    status: cardCosmeticVariants.status,
+    enabled: cardCosmeticVariants.enabled,
+  }).from(cardCosmeticVariants).where(eq(cardCosmeticVariants.defId, defId));
+  const used = siblings
+    .filter((row) => row.id !== currentId && row.status === "published" && row.enabled && row.packEligible && row.acquisition === "pack")
+    .reduce((sum, row) => sum + Math.max(0, row.dropWeight), 0);
+  return used + Math.max(0, nextWeight) <= 1_000_000;
 }
 
 export async function GET(req: NextRequest) {
@@ -70,6 +98,10 @@ export async function PATCH(req: NextRequest) {
   const publishing = requestedStatus === "published" || requestedEnabled || current.status === "published" || current.enabled;
   if (publishing && !adminRoleAllowed(actor.role, "publisher")) return Response.json({ ok: false, error: "Publisher role required to change a live cosmetic" }, { status: 403 });
   if (requestedEnabled && requestedStatus !== "published") return Response.json({ ok: false, error: "Only published cosmetics may be enabled" }, { status: 400 });
+  if (requestedEnabled && normalized.value.packEligible && normalized.value.acquisition === "pack") {
+    const poolValid = await validateLivePackPool(current.defId, id, normalized.value.dropWeight);
+    if (!poolValid) return Response.json({ ok: false, error: "Enabled cosmetic drop weights for this card would exceed 1,000,000 PPM (100%)" }, { status: 409 });
+  }
   const [row] = await db.transaction(async (tx) => {
     const updated = await tx.update(cardCosmeticVariants).set({
       name: normalized.value!.name,
@@ -90,7 +122,9 @@ export async function PATCH(req: NextRequest) {
       updatedBy: actor.actorId,
       updatedAt: new Date(),
     }).where(eq(cardCosmeticVariants.id, id)).returning();
-    await tx.insert(adminAuditLogs).values({ action: "card.cosmetic.update", resource: "card-cosmetic", resourceId: id, actor: actor.actorId, details: { defId: current.defId, variantId: current.variantId, fromStatus: current.status, status: requestedStatus, enabled: requestedEnabled } });
+    let clearedPreferences = 0;
+    if (!requestedEnabled || requestedStatus !== "published") clearedPreferences = await clearPreferencesForVariant(tx, current.defId, current.variantId);
+    await tx.insert(adminAuditLogs).values({ action: "card.cosmetic.update", resource: "card-cosmetic", resourceId: id, actor: actor.actorId, details: { defId: current.defId, variantId: current.variantId, fromStatus: current.status, status: requestedStatus, enabled: requestedEnabled, clearedPreferences } });
     return updated;
   });
   return Response.json({ ok: true, row });
@@ -105,11 +139,16 @@ export async function DELETE(req: NextRequest) {
   if (!current) return Response.json({ ok: false, error: "Cosmetic variant not found" }, { status: 404 });
   const owned = await db.select({ id: cardAssets.id }).from(cardAssets).where(and(eq(cardAssets.defId, current.defId), eq(cardAssets.variantId, current.variantId))).limit(1);
   if (owned.length) {
-    const [row] = await db.update(cardCosmeticVariants).set({ status: "archived", enabled: false, updatedBy: actor.actorId, updatedAt: new Date() }).where(eq(cardCosmeticVariants.id, id)).returning();
-    await db.insert(adminAuditLogs).values({ action: "card.cosmetic.archive", resource: "card-cosmetic", resourceId: id, actor: actor.actorId, details: { defId: current.defId, variantId: current.variantId, reason: "owned-assets-exist" } });
+    const [row] = await db.transaction(async (tx) => {
+      const updated = await tx.update(cardCosmeticVariants).set({ status: "archived", enabled: false, updatedBy: actor.actorId, updatedAt: new Date() }).where(eq(cardCosmeticVariants.id, id)).returning();
+      const clearedPreferences = await clearPreferencesForVariant(tx, current.defId, current.variantId);
+      await tx.insert(adminAuditLogs).values({ action: "card.cosmetic.archive", resource: "card-cosmetic", resourceId: id, actor: actor.actorId, details: { defId: current.defId, variantId: current.variantId, reason: "owned-assets-exist", clearedPreferences } });
+      return updated;
+    });
     return Response.json({ ok: true, archived: true, row });
   }
   await db.transaction(async (tx) => {
+    await clearPreferencesForVariant(tx, current.defId, current.variantId);
     await tx.delete(cardCosmeticVariants).where(eq(cardCosmeticVariants.id, id));
     await tx.insert(adminAuditLogs).values({ action: "card.cosmetic.delete", resource: "card-cosmetic", resourceId: id, actor: actor.actorId, details: { defId: current.defId, variantId: current.variantId } });
   });
