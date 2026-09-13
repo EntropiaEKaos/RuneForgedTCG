@@ -105,9 +105,12 @@ async function waitUntil(check, label, timeoutMs = 25_000) {
   throw new Error(`Timed out waiting for ${label}${last instanceof Error ? `: ${last.message}` : ""}`);
 }
 
-async function clickText(cdp, text) {
-  const clicked = await evaluate(cdp, `(()=>{const needle=${JSON.stringify(text)};const n=v=>(v||'').replace(/\\s+/g,' ').trim();const e=[...document.querySelectorAll('button,a,[role="button"]')].find(x=>!x.disabled&&n(x.textContent).includes(needle));if(!e)return false;e.click();return true;})()`);
-  assert.equal(clicked, true, `Could not click control containing text: ${text}`);
+async function clickText(cdp, text, timeoutMs = 30_000) {
+  await waitUntil(
+    () => evaluate(cdp, `(()=>{const needle=${JSON.stringify(text)};const n=v=>(v||'').replace(/\\s+/g,' ').trim();const e=[...document.querySelectorAll('button,a,[role="button"]')].find(x=>!x.disabled&&n(x.textContent).includes(needle));if(!e)return false;e.click();return true;})()`),
+    `hydrated enabled control containing ${JSON.stringify(text)}`,
+    timeoutMs,
+  );
 }
 
 async function settle(cdp) {
