@@ -54,11 +54,13 @@ for (const marker of [
   "RUNEFORGE_DEPLOY_SHA",
   "RUNEFORGE_DEPLOY_ENV",
   "production:verify",
+  "alpha:verify",
   "production",
   "preview",
 ]) assert.ok(vercelBuild.includes(marker), `Vercel certified build must contain: ${marker}`);
+assert.match(vercelBuild, /environment\s*===\s*"production"\s*\?\s*"production:verify"\s*:\s*"alpha:verify"/);
 assert.match(vercelBuild, /\^\[0-9a-f\]\{40\}\$/);
 assert.match(vercelBuild, /spawnSync/);
 assert.doesNotMatch(vercelBuild, /DATABASE_URL|ADMIN_|PAYMENT_|SECRET/);
 
-console.log("PUBLIC DEPLOYMENT PROVENANCE SOURCE CONTRACT: PASS — provider-neutral identity · Netlify + Vercel certified adapters · SHA-bound · fail-closed");
+console.log("PUBLIC DEPLOYMENT PROVENANCE SOURCE CONTRACT: PASS — provider-neutral identity · Netlify + Vercel certified adapters · production fail-closed · preview secret-isolated · SHA-bound");
