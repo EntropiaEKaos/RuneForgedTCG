@@ -12,7 +12,7 @@ permissions:
 jobs:
   diagnose-florestia-floor:
     runs-on: ubuntu-24.04
-    timeout-minutes: 50
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: npm run ci:install
 
-      - name: Typecheck evidence
+      - name: Typecheck product candidate
         run: npm run typecheck
 
       - name: Run current-product 13,200-game Vanilla matrix
@@ -42,31 +42,25 @@ jobs:
           node --import tsx scripts/vanilla-1-11-florestia-diagnostic.ts \
             --write artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_DIAGNOSTIC.json
 
-      - name: Run 5,280-game Florestia recipe screen
+      - name: Run 5,280-game Florestia recipe regression screen
         run: |
           node --import tsx scripts/vanilla-1-11-florestia-recipe-screen.ts 20 3 \
             --write artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_SCREEN.json
 
-      - name: Run 6,300-game isolated Florestia CardDef lab
+      - name: Run 8,400-game real-product Florestia validation
         run: |
-          node --import tsx scripts/vanilla-1-11-florestia-carddef-lab.ts 20 3 \
-            --write artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_CARDDEF_LAB.json
-
-      - name: Run 8,400-game high-sample Florestia CardDef finalist
-        run: |
-          node --import tsx scripts/vanilla-1-11-florestia-carddef-finalist.ts \
+          node --import tsx scripts/vanilla-1-11-florestia-product-validation.ts \
             --global artifacts/vanilla-1-11/VANILLA_1.11_GLOBAL_DIAGNOSTIC.json \
-            --write artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_CARDDEF_FINALIST.json
+            --write artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_PRODUCT_VALIDATION.json
 
-      - name: Upload Vanilla 1.11 evidence
+      - name: Upload Vanilla 1.11 product evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: vanilla-1-11-florestia-floor-${{ github.sha }}
+          name: vanilla-1-11-florestia-product-${{ github.sha }}
           path: |
             artifacts/vanilla-1-11/VANILLA_1.11_GLOBAL_DIAGNOSTIC.json
             artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_DIAGNOSTIC.json
             artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_SCREEN.json
-            artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_CARDDEF_LAB.json
-            artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_CARDDEF_FINALIST.json
+            artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_PRODUCT_VALIDATION.json
           if-no-files-found: error
           retention-days: 14
