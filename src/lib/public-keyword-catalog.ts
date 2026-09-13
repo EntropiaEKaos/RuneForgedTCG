@@ -102,13 +102,35 @@ export function toPublicCustomKeyword(
   };
 }
 
+function isCanonicalManagementRow(row: PublicCustomKeywordRow): row is PublicCustomKeywordRow & { engineKeyword: Keyword } {
+  const native = canonicalKeyword(row.engineKeyword);
+  return Boolean(row.enabled && native && row.key === native);
+}
+
 export function buildPublicKeywordCatalog(
   cards: PublicCardDto[],
   customRows: PublicCustomKeywordRow[],
 ): PublicKeywordDto[] {
   const usage = countPublicKeywordUsage(cards);
-  const canonical = canonicalPublicKeywords(usage);
+  const managementRows = new Map(
+    customRows
+      .filter(isCanonicalManagementRow)
+      .map((row) => [row.key, row] as const),
+  );
+
+  const canonical = canonicalPublicKeywords(usage).map((item) => {
+    const managed = managementRows.get(item.key);
+    if (!managed) return item;
+    return {
+      ...item,
+      name: managed.name || item.name,
+      description: managed.description || item.description,
+      icon: managed.icon || item.icon,
+    };
+  });
+
   const custom = customRows
+    .filter((row) => !isCanonicalManagementRow(row))
     .map((row) => toPublicCustomKeyword(row, usage))
     .filter((row): row is PublicKeywordDto => Boolean(row))
     .sort((a, b) => a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
