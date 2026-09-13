@@ -47,11 +47,11 @@ CREATE TABLE IF NOT EXISTS "player_card_cosmetic_preferences" (
   "updated_at" timestamp DEFAULT now() NOT NULL
 );
 DO $$ BEGIN
-  ALTER TABLE "player_card_cosmetic_preferences" ADD CONSTRAINT "player_card_cosmetic_preferences_player_id_players_id_fk" FOREIGN KEY ("player_id") REFERENCES "public"."players"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "player_card_cosmetic_preferences" ADD CONSTRAINT "player_card_cosmetic_preferences_player_id_players_id_fk" FOREIGN KEY ("player_id") REFERENCES "players"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN
-  ALTER TABLE "player_card_cosmetic_preferences" ADD CONSTRAINT "player_card_cosmetic_preferences_asset_id_card_assets_id_fk" FOREIGN KEY ("asset_id") REFERENCES "public"."card_assets"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "player_card_cosmetic_preferences" ADD CONSTRAINT "player_card_cosmetic_preferences_asset_id_card_assets_id_fk" FOREIGN KEY ("asset_id") REFERENCES "card_assets"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS "player_card_cosmetic_preferences_player_def_uidx" ON "player_card_cosmetic_preferences" USING btree ("player_id","def_id");
