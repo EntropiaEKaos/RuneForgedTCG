@@ -73,7 +73,10 @@ export default function CollectionsShowcase() {
   return (
     <section className="mb-8">
       <h2 className="mb-1 text-xl font-black text-amber-200">📚 Coleções</h2>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-slate-400">Toque numa coleção para ver lançamento, rotação e legalidade.</p><a href="/collections" className="text-xs font-bold text-amber-300 hover:text-amber-200">Calendário de coleções →</a></div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-slate-400">Toque numa coleção para ver lançamento, rotação e legalidade.</p>
+        <div className="flex flex-wrap gap-3"><a href="/collection/variants" className="text-xs font-bold text-cyan-300 hover:text-cyan-200">✨ Ateliê de variantes →</a><a href="/collections" className="text-xs font-bold text-amber-300 hover:text-amber-200">Calendário de coleções →</a></div>
+      </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         {collections.map((c) => (
           <CollectionFlipCard key={c.key} c={c} />
