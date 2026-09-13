@@ -1,6 +1,6 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { cardAssetLocks, cardAssets, marketListings, marketplaceSettings, playerCards, tradeOffers } from "@/db/schema";
+import { cardAssetLocks, cardAssets, marketListings, marketplaceSettings, playerCardCosmeticPreferences, playerCards, tradeOffers } from "@/db/schema";
 
 export async function getMarketplaceSettings(tx: any = db) {
   const [settings] = await tx.select().from(marketplaceSettings).where(eq(marketplaceSettings.id, 1)).limit(1);
@@ -62,6 +62,12 @@ export async function transferAsset(tx: any, assetId: number, fromPlayerId: numb
     eq(cardAssets.ownerPlayerId, fromPlayerId),
   )).limit(1).for("update");
   if (!asset) throw new Error("MARKET_ASSET_NOT_OWNED");
+  // An equipped cosmetic belongs to the exact physical/collectible copy. Once
+  // that asset changes owner the previous owner's render preference is invalid.
+  await tx.delete(playerCardCosmeticPreferences).where(and(
+    eq(playerCardCosmeticPreferences.playerId, fromPlayerId),
+    eq(playerCardCosmeticPreferences.assetId, assetId),
+  ));
   await tx.update(cardAssets).set({ ownerPlayerId: toPlayerId }).where(eq(cardAssets.id, assetId));
   await adjustPlayerCardCount(tx, fromPlayerId, asset.defId, -1);
   await adjustPlayerCardCount(tx, toPlayerId, asset.defId, 1);

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { replaceRegisteredCustomCards } from "@/game/custom-registry";
 import { replaceRegisteredCardCollections } from "@/game/card-collections";
 import { replaceRegisteredCardArt } from "@/game/card-art";
+import { replacePlayerCardCosmeticPreferences, replaceRegisteredCardCosmetics } from "@/game/card-cosmetics";
 import { hydrateClientRuntimeConfig } from "@/game/client-game-config";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { CatalogRevisionContext } from "./CatalogContext";
@@ -29,8 +30,8 @@ function timeLeft(endsAt: string | null): string {
 }
 
 /**
- * Loads custom cards + game banners from /api/catalog into the browser registry
- * so client-side getCard()/CardView can resolve admin-created cards.
+ * Loads runtime catalog data into browser registries so client-side rendering
+ * resolves admin-authored cards, art and cosmetic appearances without rebuilds.
  */
 export default function CatalogBootstrap({ children }: { children: React.ReactNode }) {
   const [announcement, setAnnouncement] = useState("");
@@ -39,13 +40,6 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
   const [promoIndex, setPromoIndex] = useState(0);
   const [colorblindMode, setColorblindMode] = useState(false);
   const [catalogRevision, setCatalogRevision] = useState(0);
-
-  useDeferredEffect(() => {
-    void ensurePlayerSession(localStorage.getItem("runeforge_playername") || "").catch(() => null);
-    const saved = localStorage.getItem("runeforge_colorblind_mode") === "1";
-    setColorblindMode(saved);
-    document.documentElement.classList.toggle("colorblind-mode", saved);
-  }, []);
 
   const toggleColorblindMode = () => {
     setColorblindMode((prev) => {
@@ -57,6 +51,33 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
   };
 
   const lastCatalogRevision = useRef<string>("");
+  const lastPlayerCosmeticRevision = useRef<string>("");
+
+  const refreshPlayerCosmetics = useCallback(async () => {
+    try {
+      const response = await fetch("/api/player/cosmetics", { cache: "no-store" });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (!data.ok || !Array.isArray(data.preferences)) return;
+      const revision = JSON.stringify(data.preferences);
+      if (revision === lastPlayerCosmeticRevision.current) return;
+      replacePlayerCardCosmeticPreferences(data.preferences);
+      lastPlayerCosmeticRevision.current = revision;
+      setCatalogRevision((current) => current + 1);
+    } catch {}
+  }, []);
+
+  useDeferredEffect(() => {
+    let cancelled = false;
+    void ensurePlayerSession(localStorage.getItem("runeforge_playername") || "")
+      .then(() => { if (!cancelled) void refreshPlayerCosmetics(); })
+      .catch(() => null);
+    const saved = localStorage.getItem("runeforge_colorblind_mode") === "1";
+    setColorblindMode(saved);
+    document.documentElement.classList.toggle("colorblind-mode", saved);
+    return () => { cancelled = true; };
+  }, [refreshPlayerCosmetics]);
+
   const refreshCatalog = useCallback(async () => {
     try {
       const response = await fetch("/api/catalog", { cache: "no-store" });
@@ -68,6 +89,7 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
         if (Array.isArray(data.custom)) replaceRegisteredCustomCards(data.custom);
         if (Array.isArray(data.cardCollections)) replaceRegisteredCardCollections(data.cardCollections);
         if (Array.isArray(data.cardArt)) replaceRegisteredCardArt(data.cardArt);
+        if (Array.isArray(data.cardCosmetics)) replaceRegisteredCardCosmetics(data.cardCosmetics);
         lastCatalogRevision.current = revision;
         shouldBumpRevision = true;
       }
@@ -93,15 +115,17 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
 
   useDeferredEffect(() => {
     void refreshCatalog();
-    const catalogTimer = window.setInterval(() => void refreshCatalog(), 15_000);
+    const catalogTimer = window.setInterval(() => {
+      void refreshCatalog();
+      void refreshPlayerCosmetics();
+    }, 15_000);
     fetch("/api/active-promotions")
       .then((r) => r.json())
       .then((data) => { if (data.ok && Array.isArray(data.items)) setPromos(data.items); })
       .catch(() => {});
     return () => window.clearInterval(catalogTimer);
-  }, [refreshCatalog]);
+  }, [refreshCatalog, refreshPlayerCosmetics]);
 
-  // Alterna entre vários eventos/promoções ativos ao mesmo tempo, se houver mais de um.
   useEffect(() => {
     if (promos.length < 2) return;
     const id = setInterval(() => setPromoIndex((i) => (i + 1) % promos.length), 6000);

@@ -15,13 +15,16 @@ export const cardAssets = pgTable("card_assets", {
   variantId: text("variant_id").notNull().default("standard"),
   frameId: text("frame_id").notNull().default("default"),
   finish: text("finish").notNull().default("normal"),
+  serialNumber: integer("serial_number"),
   tradable: boolean("tradable").notNull().default(true),
   source: text("source").notNull().default("legacy"),
   acquiredAt: timestamp("acquired_at").notNull().defaultNow(),
 }, (t) => ({
   ownerDefIdx: index("card_assets_owner_def_idx").on(t.ownerPlayerId, t.defId),
   collectibleIdx: index("card_assets_collectible_idx").on(t.defId, t.variantId, t.frameId, t.finish),
+  serialIdentity: uniqueIndex("card_assets_serial_uidx").on(t.defId, t.variantId, t.serialNumber).where(sql`${t.serialNumber} IS NOT NULL`),
   variantBounds: check("card_assets_variant_bounds", sql`char_length(${t.variantId}) BETWEEN 1 AND 80 AND char_length(${t.frameId}) BETWEEN 1 AND 80 AND char_length(${t.finish}) BETWEEN 1 AND 40`),
+  serialValid: check("card_assets_serial_number_valid", sql`${t.serialNumber} IS NULL OR ${t.serialNumber} > 0`),
 }));
 
 export const marketplaceSettings = pgTable("marketplace_settings", {
@@ -97,6 +100,7 @@ export type TradeOfferedAsset = {
   variantId: string;
   frameId: string;
   finish: string;
+  serialNumber?: number | null;
 };
 
 export const tradeOffers = pgTable("trade_offers", {

@@ -13,11 +13,16 @@ import { readFileSync } from "node:fs";
  * Security break-glass 2026-09-08: layout.tsx was intentionally recertified only
  * to mount the global one-time RecoveryKeyNotice. No battlefield/card/Visual 3.x
  * structural surface changed; full CI/browser evidence is mandatory for this PR.
+ *
+ * Cosmetics break-glass 2026-09-13: layout.tsx and CardView.tsx are intentionally
+ * recertified for the collectible printing layer. Gameplay identity, arena
+ * geometry, engine/reducer/replay state and Visual 3.x structural styles remain
+ * unchanged. Full CI plus browser/visual artifacts are mandatory before merge.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "8ab2cb79a28573966d813a191def3358aa70ee82",
+  "src/app/layout.tsx": "c0743de70bd5cb1e44593e7ffcbc1b7650b95410",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
-  "src/components/CardView.tsx": "aefb06413aaf9927fa435579ee39a717ff9d38d7",
+  "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
   "src/app/styles/visual-3-0-battlefield-cinematic.css": "3bf86d3b3729265db77b7ec8c92f58ae8a6bb04b",
   "src/app/styles/visual-3-1-card-presentation.css": "d5e6cafb58ce0aa759d249d2332b7753294042bd",

@@ -10,16 +10,18 @@ async function main() {
   try {
     const core = await pool.query("select to_regclass('public.players') players, to_regclass('public.player_cards') player_cards, to_regclass('public.runeforge_schema_meta') meta");
     if (!core.rows[0]?.players || !core.rows[0]?.player_cards || !core.rows[0]?.meta) {
-      throw new Error("Marketplace upgrade refused: certified RuneForge core schema is missing");
+      throw new Error("Marketplace/cosmetics upgrade refused: certified RuneForge core schema is missing");
     }
     const client = await pool.connect();
     try {
       await client.query("begin");
       await client.query("select pg_advisory_xact_lock(hashtext('runeforge-schema-upgrade'))");
-      const sql = await fs.readFile(path.join(process.cwd(), "drizzle/0043_p2p_marketplace.sql"), "utf8");
-      await client.query(sql);
+      for (const file of ["drizzle/0043_p2p_marketplace.sql", "drizzle/0044_card_cosmetics.sql"]) {
+        const sql = await fs.readFile(path.join(process.cwd(), file), "utf8");
+        await client.query(sql);
+      }
       await client.query("commit");
-      console.log("DATABASE UPGRADE — P2P MARKETPLACE 1.0: PASS");
+      console.log("DATABASE UPGRADE — P2P MARKETPLACE + CARD COSMETICS: PASS");
     } catch (error) {
       await client.query("rollback");
       throw error;

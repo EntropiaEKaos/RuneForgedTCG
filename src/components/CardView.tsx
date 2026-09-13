@@ -6,6 +6,7 @@ import { championProgressView } from "@/game/champion-progress";
 import { strategicRoleForCard } from "@/game/card-role";
 import { getCardCollection, type CardCollectionIdentity } from "@/game/card-collections";
 import { getCardArt } from "@/game/card-art";
+import { cosmeticClassNames, resolveCardAppearance } from "@/game/card-cosmetics";
 import { getClientArtFallbackUrl } from "@/game/client-game-config";
 import { certifiedSemanticCardType, semanticCardTypeLabel } from "@/game/semantic-card-types";
 import CollectionSymbolMark from "./CollectionSymbolMark";
@@ -67,10 +68,12 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
   const def: CardDef = definition ?? getCard(defId);
   const collection = collectionOverride === undefined ? getCardCollection(def.defId) : collectionOverride;
   const style = REGION_STYLE[def.region];
+  const appearance = resolveCardAppearance(def.defId);
+  const cosmeticClasses = cosmeticClassNames(appearance);
   const configuredFallbackArt = getClientArtFallbackUrl();
   const artAssignment = getCardArt(def.defId);
   const primaryArtUrl = artAssignment?.url || def.art || configuredFallbackArt || null;
-  const artSource = artAssignment?.url ? "editorial" : def.art ? "definition" : configuredFallbackArt ? "configured-fallback" : "regional-fallback";
+  const artSource = appearance.artUrl ? "cosmetic" : artAssignment?.url ? "editorial" : def.art ? "definition" : configuredFallbackArt ? "configured-fallback" : "regional-fallback";
   const artBackground = primaryArtUrl && primaryArtUrl !== style.art
     ? `${cssBackgroundUrl(primaryArtUrl)}, ${cssBackgroundUrl(style.art)}`
     : cssBackgroundUrl(style.art);
@@ -101,7 +104,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
   const cardState = targetable ? "targetable" : selected ? "selected" : attacking ? "attacking" : dimmed ? "dimmed" : onClick ? "playable" : "idle";
 
   return (
-    <button type="button" onClick={onClick} disabled={!onClick} aria-label={def.name}
+    <button type="button" onClick={onClick} disabled={!onClick} aria-label={appearance.variantId === "standard" ? def.name : `${def.name} — ${appearance.name}`}
       aria-pressed={selected || undefined}
       data-card-region={def.region.toLowerCase()}
       data-card-region-count={regions.length}
@@ -113,11 +116,16 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
       data-card-role={role.id}
       data-card-collection={collection?.code.toLowerCase() || "unassigned"}
       data-card-state={cardState}
-      className={["card-shell relative flex flex-col overflow-hidden rounded-xl border-2 text-left", dims, style.border, style.aura, rarity, rarityTier, className ?? "", onClick ? "cursor-pointer card-interactive" : "cursor-default", selected ? `ring-4 ${style.ring} -translate-y-2` : "", targetable ? "ring-4 ring-yellow-300 card-targetable" : "", attacking ? "ring-4 ring-red-400 card-attacking" : "", dimmed ? "opacity-40 grayscale-[0.5]" : "", leveled ? "card-leveled" : ""].join(" ")}
+      data-card-variant={appearance.variantId}
+      data-card-frame={appearance.frameId}
+      data-card-finish={appearance.finish}
+      data-card-cosmetic-kind={appearance.kind}
+      className={["card-shell relative flex flex-col overflow-hidden rounded-xl border-2 text-left", dims, style.border, style.aura, rarity, rarityTier, ...cosmeticClasses, className ?? "", onClick ? "cursor-pointer card-interactive" : "cursor-default", selected ? `ring-4 ${style.ring} -translate-y-2` : "", targetable ? "ring-4 ring-yellow-300 card-targetable" : "", attacking ? "ring-4 ring-red-400 card-attacking" : "", dimmed ? "opacity-40 grayscale-[0.5]" : "", leveled ? "card-leveled" : ""].join(" ")}
     >
       <div className="card-art absolute inset-0 bg-cover bg-center" style={{ backgroundImage: artBackground, backgroundPosition: artCrop ? `${Math.max(0, Math.min(1, Number(artCrop.x ?? .5))) * 100}% ${Math.max(0, Math.min(1, Number(artCrop.y ?? .5))) * 100}%` : undefined, backgroundSize: artCrop && Number(artCrop.scale) > 1 ? `${Math.min(250, Math.max(100, Number(artCrop.scale) * 100))}%` : undefined }}>
-        {artSource !== "editorial" && artSource !== "definition" && <div className="card-art-fallback"><i /><span>{def.emoji}</span><b>{style.sigil}</b></div>}
+        {artSource !== "editorial" && artSource !== "definition" && artSource !== "cosmetic" && <div className="card-art-fallback"><i /><span>{def.emoji}</span><b>{style.sigil}</b></div>}
       </div>
+      {appearance.animationUrl && <video className="card-cosmetic-video absolute inset-0 h-full w-full object-cover" src={appearance.animationUrl} autoPlay loop muted playsInline aria-hidden="true" />}
       {regions.length > 1 && <div className="card-region-spectrum" style={{ background: spectrum }} aria-hidden="true" />}
       <div className="card-vignette absolute inset-0" />
       <div className="card-sheen absolute inset-0" />
@@ -151,6 +159,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
         </div>
       </div>
 
+      {appearance.serialNumber && <span className="card-cosmetic-serial" title={`Cópia serializada ${appearance.serialNumber}${appearance.serialLimit ? `/${appearance.serialLimit}` : ""}`}>#{appearance.serialNumber}{appearance.serialLimit ? `/${appearance.serialLimit}` : ""}</span>}
       {unit && unit.equipment.length > 0 && <div className="absolute left-1 top-8 z-20 flex gap-0.5">{unit.equipment.map((eq, i) => <span key={`${eq.instanceId}_${i}`} className="card-equip" title={getCard(eq.defId).name}>{getCard(eq.defId).emoji}</span>)}</div>}
       {(def.type === "Enchantment" || def.type === "Artifact") && <span className="card-badge card-badge-relic">✦</span>}
       {def.type === "Equipment" && <span className="card-badge card-badge-equip">⚙</span>}

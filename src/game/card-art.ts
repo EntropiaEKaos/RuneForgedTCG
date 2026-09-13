@@ -1,4 +1,5 @@
 import { getCustomCardArtCached } from "./catalog";
+import { resolveCardAppearance } from "./card-cosmetics";
 import { flagshipChampionArtUrl } from "./flagship-champion-art";
 import { flagshipStructureArtUrl } from "./flagship-structure-art";
 import { flagshipRitualArtUrl } from "./flagship-ritual-art";
@@ -14,6 +15,8 @@ export function replaceRegisteredCardArt(rows: CardArtAssignment[]) {
 }
 
 export function getCardArt(defId: string) {
+  const cosmetic = resolveCardAppearance(defId);
+  if (cosmetic.artUrl) return { url: cosmetic.artUrl, crop: cosmetic.artCrop || undefined, cosmetic: true as const };
   const editorial = browserArt[defId] ?? getCustomCardArtCached(defId);
   if (editorial) return editorial;
   const flagshipUrl =
