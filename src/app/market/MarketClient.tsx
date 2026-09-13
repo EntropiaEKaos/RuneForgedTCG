@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getCardCosmetic } from "@/game/card-cosmetics";
+import { useCatalogRevision } from "@/components/CatalogContext";
 
 type CardSummary = { defId: string; name: string; rarity?: string; region?: string | string[]; emoji?: string };
 type PublicCatalogCard = { defId: string; name: string; rarity?: string; region?: string; regions?: string[] };
@@ -11,6 +13,7 @@ type Asset = {
   variantId: string;
   frameId: string;
   finish: string;
+  serialNumber?: number | null;
   tradable: boolean;
   locked?: boolean;
   lockKind?: string | null;
@@ -19,6 +22,7 @@ type Asset = {
 type Listing = {
   id: number;
   assetId: number;
+  defId: string;
   priceGold: number;
   feeGold: number;
   sellerPlayerId?: number;
@@ -28,9 +32,10 @@ type Listing = {
   variantId: string;
   frameId: string;
   finish: string;
+  serialNumber?: number | null;
   card: CardSummary;
 };
-type TradeAsset = { assetId?: number; defId: string; variantId?: string; frameId?: string; finish?: string; card: CardSummary };
+type TradeAsset = { assetId?: number; defId: string; variantId?: string; frameId?: string; finish?: string; serialNumber?: number | null; card: CardSummary };
 type Trade = {
   id: number;
   proposerName: string;
@@ -48,8 +53,14 @@ function operationId(prefix: string) {
   return `${prefix}:${crypto.randomUUID()}`;
 }
 
-function collectibleLabel(item: { variantId?: string; frameId?: string; finish?: string }) {
-  return [item.variantId && item.variantId !== "standard" ? item.variantId : null, item.frameId && item.frameId !== "default" ? item.frameId : null, item.finish && item.finish !== "normal" ? item.finish : null].filter(Boolean).join(" · ") || "Padrão";
+function collectibleLabel(item: { defId: string; variantId?: string; frameId?: string; finish?: string; serialNumber?: number | null }) {
+  const cosmetic = item.variantId && item.variantId !== "standard" ? getCardCosmetic(item.defId, item.variantId) : undefined;
+  const printing = cosmetic?.name || (item.variantId && item.variantId !== "standard" ? item.variantId : null);
+  const edition = cosmetic?.edition || null;
+  const frame = item.frameId && item.frameId !== "default" ? item.frameId : null;
+  const finish = item.finish && item.finish !== "normal" ? item.finish : null;
+  const serial = item.serialNumber ? `#${item.serialNumber}${cosmetic?.serialLimit ? `/${cosmetic.serialLimit}` : ""}` : null;
+  return [printing, edition, frame, finish, serial].filter(Boolean).join(" · ") || "Padrão";
 }
 
 function catalogCardLabel(card: PublicCatalogCard) {
@@ -58,6 +69,7 @@ function catalogCardLabel(card: PublicCatalogCard) {
 }
 
 export default function MarketClient() {
+  useCatalogRevision();
   const [tab, setTab] = useState<Tab>("market");
   const [listings, setListings] = useState<Listing[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -198,7 +210,7 @@ export default function MarketClient() {
       {tab === "market" && (
         <section className="mt-6">
           <div className="mb-4 flex gap-2">
-            <input className="rf-input min-w-0 flex-1" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar carta, vendedor, frame ou acabamento…" />
+            <input className="rf-input min-w-0 flex-1" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar carta, vendedor, variante, serial ou acabamento…" />
             <button className="rf-button rf-button-primary" disabled={busy} onClick={() => void loadMarket("listings")}>Buscar</button>
           </div>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -239,7 +251,7 @@ export default function MarketClient() {
         <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {listings.map((listing) => (
             <article key={listing.id} className="rf-panel p-5">
-              <div className="flex justify-between gap-3"><h2 className="font-bold">{listing.card.name}</h2><b>¤ {listing.priceGold}</b></div>
+              <div className="flex justify-between gap-3"><div><h2 className="font-bold">{listing.card.name}</h2><small className="opacity-60">{collectibleLabel(listing)}</small></div><b>¤ {listing.priceGold}</b></div>
               <p className="mt-2 text-sm opacity-70">Status: {listing.status}</p>
               {listing.status === "active" && <button className="rf-button rf-button-secondary mt-4" disabled={busy} onClick={() => void post("/api/market", { action: "cancel", listingId: listing.id }, "market-cancel")}>Cancelar anúncio</button>}
             </article>
@@ -272,8 +284,8 @@ export default function MarketClient() {
               <article key={trade.id} className="rf-panel p-5">
                 <div className="flex items-start justify-between gap-4"><div><small className="opacity-60">Troca #{trade.id}</small><h3 className="font-bold">{trade.proposerName} → {trade.recipientName}</h3></div><b>{trade.effectiveStatus}</b></div>
                 <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                  <div><small className="opacity-60">OFERECE</small>{trade.offeredAssets.map((asset, index) => <p key={`${asset.assetId || index}`}>{asset.card.name}</p>)}</div>
-                  <div><small className="opacity-60">PEDE</small>{trade.requestedAssets.map((asset, index) => <p key={`${asset.defId}:${index}`}>{asset.card.name}</p>)}</div>
+                  <div><small className="opacity-60">OFERECE</small>{trade.offeredAssets.map((asset, index) => <p key={`${asset.assetId || index}`}>{asset.card.name}<small className="ml-1 opacity-60">({collectibleLabel(asset)})</small></p>)}</div>
+                  <div><small className="opacity-60">PEDE</small>{trade.requestedAssets.map((asset, index) => <p key={`${asset.defId}:${index}`}>{asset.card.name}{(asset.variantId || asset.frameId || asset.finish || asset.serialNumber) && <small className="ml-1 opacity-60">({collectibleLabel(asset)})</small>}</p>)}</div>
                 </div>
                 {trade.note && <p className="mt-3 text-sm opacity-70">“{trade.note}”</p>}
                 {trade.effectiveStatus === "active" && trade.direction === "incoming" && <div className="mt-4 flex gap-2"><button className="rf-button rf-button-primary" disabled={busy} onClick={() => void post("/api/trades", { action: "accept", tradeId: trade.id }, "trade-accept")}>Aceitar</button><button className="rf-button rf-button-secondary" disabled={busy} onClick={() => void post("/api/trades", { action: "decline", tradeId: trade.id }, "trade-decline")}>Recusar</button></div>}
