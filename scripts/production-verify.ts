@@ -3,6 +3,7 @@ import { Pool, type PoolClient } from "pg";
 import { runPooledWorkers } from "../src/lib/pool-workers";
 import { processMercadoPagoPayment } from "../src/lib/payment-fulfillment";
 import { getMercadoPagoSettings } from "../src/lib/payment-settings";
+import { certificationDbConnectionTimeoutMs } from "./db-certification-config";
 
 type Check = { name: string; ok: boolean; detail: string };
 const databaseUrl = process.env.DATABASE_URL?.trim();
@@ -14,7 +15,7 @@ if (!databaseUrl) {
 const pool = new Pool({
   connectionString: databaseUrl,
   max: 24,
-  connectionTimeoutMillis: 5_000,
+  connectionTimeoutMillis: certificationDbConnectionTimeoutMs(),
   statement_timeout: 15_000,
   application_name: "runeforge-production-verify",
 });
@@ -161,7 +162,6 @@ async function serializedMutation(client: PoolClient, probeId: string, delta: nu
   }
 }
 
-
 async function economyIdempotencyProbe() {
   const client = await pool.connect();
   const probeName = `__rf_verify_${randomUUID()}`;
@@ -190,8 +190,6 @@ async function economyIdempotencyProbe() {
     client.release();
   }
 }
-
-
 
 async function paymentGatewayConfigurationProbe() {
   const settings = await getMercadoPagoSettings(true);
@@ -240,9 +238,6 @@ async function concurrencyProbe() {
   await pool.query("create table if not exists rf_concurrency_probe(probe_id text primary key, balance integer not null)");
   await pool.query("insert into rf_concurrency_probe(probe_id,balance) values($1,0)", [probeId]);
   try {
-    // Acquire inside each worker. Acquiring every client first deadlocks when
-    // worker count exceeds pool.max because no acquired client can be released
-    // until the outer Promise.all resolves.
     await runPooledWorkers(100, async (index) => {
       const client = await pool.connect();
       await serializedMutation(client, probeId, index % 2 === 0 ? 1 : -1);

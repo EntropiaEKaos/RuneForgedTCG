@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
 import { processMercadoPagoPayment, type MercadoPagoPaymentLike } from "../src/lib/payment-fulfillment";
+import { certificationDbConnectionTimeoutMs } from "./db-certification-config";
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) {
@@ -12,7 +13,7 @@ if (!databaseUrl) {
 const pool = new Pool({
   connectionString: databaseUrl,
   max: 16,
-  connectionTimeoutMillis: 5_000,
+  connectionTimeoutMillis: certificationDbConnectionTimeoutMs(),
   statement_timeout: 15_000,
   application_name: "runeforge-mercadopago-certification",
 });
