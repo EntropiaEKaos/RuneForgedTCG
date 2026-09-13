@@ -20,47 +20,52 @@ Only `production` and `preview` are accepted by the deploy adapter. The adapter 
 
 The SHA must be exactly 40 hexadecimal characters. Missing or malformed identity stops the build.
 
-## Certified build path
+## Certified build paths
 
-`vercel.json` routes the platform build through:
+`vercel.json` routes every Vercel build through:
 
 ```text
 node scripts/vercel-certified-build.mjs
 ```
 
-The adapter then executes:
+The adapter selects the gate from the actual Vercel deploy context:
 
-```text
-npm run production:verify
-```
+- `VERCEL_ENV=production` → `npm run production:verify`;
+- `VERCEL_ENV=preview` → `npm run alpha:verify`.
 
-That gate includes release runtime/preflight checks, Ranked fail-closed verification, source/schema audits, typecheck, lint, the behavioral suite, PostgreSQL production probes and the real Next.js production build.
+Production remains fail-closed on the complete release path: release runtime/preflight checks, Ranked fail-closed verification, source/schema audits, typecheck, lint, the behavioral suite, PostgreSQL production probes and the real Next.js production build.
+
+Preview deliberately uses the non-production Alpha verification path. It still certifies runtime/lock integrity, source/schema contracts, typecheck, lint, the behavioral suite and the production Next.js build, but it does not require production secrets or a production PostgreSQL database to be copied into pull-request environments.
 
 The explicit RuneForge deploy identity is present while `next build` runs, so `next.config.ts` embeds only the non-secret fallback identity (`RUNEFORGE_BUILD_SHA` / `RUNEFORGE_BUILD_ENV`) for runtime provenance.
 
-## Required Vercel configuration
+## Required Vercel production configuration
 
-Production and any Preview environment intended to pass this gate must provide the same required runtime configuration documented by `.env.production.example`, including:
+Production must provide the runtime configuration documented by `.env.production.example`, including:
 
 - a reachable PostgreSQL `DATABASE_URL`;
 - player/admin session secrets;
 - MFA and payment encryption keys;
-- an HTTPS `NEXT_PUBLIC_APP_URL` appropriate for the environment;
+- an HTTPS `NEXT_PUBLIC_APP_URL`;
 - proxy policy;
 - Ranked certification flag;
 - durable asset storage configuration for serverless production.
+
+Preview may use its own isolated runtime resources when interactive preview behavior is desired, but the build gate never requires production credentials to be exposed to a PR deployment.
 
 Secrets remain in Vercel environment configuration and are never committed to the repository.
 
 ## Public proof after deploy
 
-A deploy is not considered publicly certified until the live host satisfies all of the following:
+A production deploy is not considered publicly certified until the live host satisfies all of the following:
 
 1. `GET /api/health` succeeds over HTTPS.
 2. `GET /api/public/game/alpha/readiness` returns HTTP 200 with Alpha state `ready`.
 3. `GET /api/public/game/deployment/provenance` returns HTTP 200 and `Cache-Control: no-store`.
 4. The provenance `commitSha` equals the exact Git SHA that Vercel deployed.
-5. The provenance environment equals the expected `production` or `preview` context.
+5. The provenance environment equals `production`.
 6. A persistence smoke proves that the runtime is connected to the intended durable PostgreSQL database rather than ephemeral process state.
+
+Preview provenance, when the preview runtime is configured, must similarly report the exact preview SHA with environment `preview`.
 
 If deployment identity is unavailable or invalid, the provenance endpoint remains fail-closed with HTTP 503.
