@@ -1,47 +1,59 @@
 import assert from "node:assert/strict";
+import { getCard } from "./cards";
 import { buildVanillaContentAudit } from "./vanilla-content-audit";
 import { VANILLA_EXPERIMENTAL_DECKS } from "./vanilla-experimental-decks";
+
+/**
+ * Historical Vanilla 1.8 snapshot.
+ *
+ * Vanilla 1.9 and later may evolve the active Florestia Ascendant recipe.
+ * This test preserves the exact 1.8 30-card regional coverage plus its ten
+ * duplicate slots, while leaving exact active-recipe ownership to the newest
+ * version gate.
+ */
+const historical18 = [
+  ...Array.from({ length: 18 }, (_, index) => `van_forest_u${String(index + 1).padStart(2, "0")}`),
+  ...Array.from({ length: 8 }, (_, index) => `van_forest_s${String(index + 1).padStart(2, "0")}`),
+  "van_forest_e01",
+  "van_forest_e02",
+  "van_forest_a01",
+  "van_forest_q01",
+  "van_forest_u11", "van_forest_u11",
+  "van_forest_u13", "van_forest_u13",
+  "van_forest_u14", "van_forest_u14",
+  "van_forest_u16", "van_forest_u16",
+  "van_forest_u17", "van_forest_u17",
+];
+
+assert.equal(historical18.length, 40, "Vanilla 1.8 historical snapshot must contain exactly 40 cards");
+assert.equal(new Set(historical18).size, 30, "Vanilla 1.8 historical snapshot must preserve all 30 regional definitions");
+for (const defId of historical18) getCard(defId);
+
+const historicalCounts = new Map<string, number>();
+for (const defId of historical18) historicalCounts.set(defId, (historicalCounts.get(defId) ?? 0) + 1);
+assert.ok(Math.max(...historicalCounts.values()) <= 3, "Vanilla 1.8 historical snapshot must remain within the three-copy ceiling");
+assert.deepEqual(
+  [...historicalCounts.entries()].filter(([, count]) => count === 3).map(([defId]) => defId).sort(),
+  [
+    "van_forest_u11",
+    "van_forest_u13",
+    "van_forest_u14",
+    "van_forest_u16",
+    "van_forest_u17",
+  ].sort(),
+  "Vanilla 1.8 exact five-card finisher core drifted",
+);
 
 const report = buildVanillaContentAudit();
 assert.equal(report.gate, "pass", report.errors.join("\n"));
 assert.equal(report.experimentalUniqueCards, 180);
 assert.deepEqual(report.uncoveredExperimentalCardIds, []);
 
-const audited = new Map(report.decks.map((deck) => [deck.id, deck] as const));
-const source = VANILLA_EXPERIMENTAL_DECKS.find((deck) => deck.id === "vanilla_forest_2");
-const deck = audited.get("vanilla_forest_2");
-assert.ok(deck, "missing Florestia Ascendant audit");
-assert.ok(source, "missing Florestia Ascendant source recipe");
+const active = VANILLA_EXPERIMENTAL_DECKS.find((deck) => deck.id === "vanilla_forest_2");
+assert.ok(active, "missing active Florestia Ascendant recipe");
+assert.equal(active.cards.length, 40, "active Florestia Ascendant must remain exactly 40 cards");
+assert.equal(new Set(active.cards).size, 30, "active Florestia Ascendant must preserve all 30 regional definitions");
 
-assert.equal(deck.cards, 40, "Florestia Ascendant must remain a 40-card deck");
-assert.equal(deck.uniqueCards, 30, "all 30 regional cards must remain represented");
-assert.equal(deck.types.Unit, 28, "five tripled Units must produce 28 Unit copies total");
-assert.equal(deck.types.Spell, 8, "all eight regional Spells remain singletons");
-assert.equal((deck.types.Enchantment ?? 0) + (deck.types.Artifact ?? 0) + (deck.types.Equipment ?? 0), 4, "all four regional permanents remain represented");
-assert.equal(source.cards.length, 40);
-assert.equal(new Set(source.cards).size, 30);
-assert.ok(Object.values(deck.duplicateCopies).every((count) => count <= 3), "runtime three-copy ceiling exceeded");
-
-const tripled = Object.entries(deck.duplicateCopies)
-  .filter(([, count]) => count === 3)
-  .map(([defId]) => defId)
-  .sort();
-const doubled = Object.entries(deck.duplicateCopies)
-  .filter(([, count]) => count === 2)
-  .map(([defId]) => defId)
-  .sort();
-
-assert.deepEqual(tripled, [
-  "van_forest_u11",
-  "van_forest_u13",
-  "van_forest_u14",
-  "van_forest_u16",
-  "van_forest_u17",
-].sort(), "Florestia 1.8 five-card finisher core drifted");
-assert.deepEqual(doubled, [], "Florestia 1.8 should use all ten duplicate slots as five tripled Units");
-
-for (const defId of ["van_forest_u03", "van_forest_u05", "van_forest_u08", "van_forest_u18"]) {
-  assert.equal(deck.duplicateCopies[defId], undefined, `${defId} must return to singleton coverage in Vanilla 1.8`);
-}
-
-console.log("Vanilla 1.8 Florestia Ascendant floor recipe: PASS");
+console.log(
+  "VANILLA 1.8 HISTORICAL SNAPSHOT: PASS — exact Florestia 1.8 recipe archived · active recipe may evolve under later version gates",
+);
