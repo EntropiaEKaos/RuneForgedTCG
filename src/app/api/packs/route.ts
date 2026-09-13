@@ -15,7 +15,7 @@ import { CONTENT_VERSION } from "@/game/content-version";
 import { getRuntimePacks } from "@/lib/control-plane";
 import { loadGameConfig } from "@/game/settings";
 import { economyOperationId, runIdempotentEconomyAction } from "@/lib/economy-idempotency";
-import { createStandardAssets } from "@/lib/marketplace-service";
+import { createPackCollectibleAsset } from "@/lib/card-cosmetic-service";
 
 export const dynamic = "force-dynamic";
 
@@ -75,8 +75,6 @@ export async function POST(req: NextRequest) {
         const [pack] = await tx.select().from(playerPacks).where(and(eq(playerPacks.playerId, fresh.id), eq(playerPacks.packType, packId))).limit(1);
         if (!pack || pack.count < 1) return { error: "No packs to open" };
         if (pack.count === 1) {
-          // The schema requires positive pack counts. Deleting the final row
-          // directly avoids ever persisting the forbidden intermediate value 0.
           const removed = await tx.delete(playerPacks).where(and(eq(playerPacks.id, pack.id), sql`${playerPacks.count} = 1`)).returning({ id: playerPacks.id });
           if (!removed.length) return { error: "No packs to open" };
         } else {
@@ -107,6 +105,7 @@ export async function POST(req: NextRequest) {
           if (pool.length) received.push(pool[Math.floor(randomValue() * pool.length)].defId);
         }
 
+        const mintedAssets: Array<{ assetId: number; defId: string; variantId: string; frameId: string; finish: string; serialNumber: number | null }> = [];
         for (const defId of received) {
           const [card] = await tx.select().from(playerCards).where(and(eq(playerCards.playerId, fresh.id), eq(playerCards.defId, defId))).limit(1);
           if (card) {
@@ -115,11 +114,13 @@ export async function POST(req: NextRequest) {
               if (definition) dustBonus += DUST_VALUES[definition.rarity];
             } else {
               await tx.update(playerCards).set({ count: sql`${playerCards.count} + 1` }).where(eq(playerCards.id, card.id));
-              await createStandardAssets(tx, fresh.id, defId, 1, `pack:${packId}`);
+              const asset = await createPackCollectibleAsset(tx, fresh.id, defId, `pack:${packId}`, randomValue());
+              mintedAssets.push({ assetId: asset.id, defId, variantId: asset.variantId, frameId: asset.frameId, finish: asset.finish, serialNumber: asset.serialNumber });
             }
           } else {
             await tx.insert(playerCards).values({ playerId: fresh.id, defId, count: 1 });
-            await createStandardAssets(tx, fresh.id, defId, 1, `pack:${packId}`);
+            const asset = await createPackCollectibleAsset(tx, fresh.id, defId, `pack:${packId}`, randomValue());
+            mintedAssets.push({ assetId: asset.id, defId, variantId: asset.variantId, frameId: asset.frameId, finish: asset.finish, serialNumber: asset.serialNumber });
           }
         }
         let newDust = fresh.dust;
@@ -129,7 +130,7 @@ export async function POST(req: NextRequest) {
           await recordEconomyTransaction(tx, { playerId: fresh.id, currency: "dust", amount: dustBonus, balanceAfter: newDust, reason: "pack_opening", referenceType: "pack", referenceId: `${packId}:${operationId}` });
         }
         await tx.insert(packOpenings).values({ playerId: fresh.id, packType: packId, cardsReceived: JSON.stringify(received), dustBonus, packSeed, contentVersion: CONTENT_VERSION });
-        return { received, dustBonus, newDust, packSeed };
+        return { received, mintedAssets, dustBonus, newDust, packSeed };
       });
       return { ...operation.response, duplicate: operation.duplicate };
     });
@@ -137,7 +138,15 @@ export async function POST(req: NextRequest) {
     if (!result) return Response.json({ ok: false, error: "Player not found" }, { status: 404 });
     if ("error" in result) return Response.json({ ok: false, error: result.error }, { status: 400 });
     if ("received" in result) {
-      return Response.json({ ok: true, cards: (result.received ?? []).map((defId) => { const c = allCards().find((x) => x.defId === defId); return { defId, rarity: c?.rarity, name: c?.name, region: c?.region, emoji: c?.emoji, cost: c?.cost }; }), dustBonus: result.dustBonus, newDust: result.newDust, packSeed: result.packSeed, duplicate: result.duplicate });
+      return Response.json({
+        ok: true,
+        cards: (result.received ?? []).map((defId) => { const c = allCards().find((x) => x.defId === defId); return { defId, rarity: c?.rarity, name: c?.name, region: c?.region, emoji: c?.emoji, cost: c?.cost }; }),
+        cosmetics: result.mintedAssets ?? [],
+        dustBonus: result.dustBonus,
+        newDust: result.newDust,
+        packSeed: result.packSeed,
+        duplicate: result.duplicate,
+      });
     }
     return Response.json({ ok: true, newGold: result.newGold, duplicate: result.duplicate });
   } catch (error) {
