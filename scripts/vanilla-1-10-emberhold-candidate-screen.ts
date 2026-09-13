@@ -78,8 +78,8 @@ function doubled(...suffixes: string[]): string[] {
 const candidates: CandidateSpec[] = [
   {
     id: "baseline",
-    label: "Current 1.9 floor",
-    rationale: "Current Emberhold Ascendant recipe; control arm for paired deterministic comparison.",
+    label: "Current product recipe",
+    rationale: "Current Emberhold Ascendant product recipe; control arm for paired deterministic comparison.",
     extras: baselineExtras,
   },
   {
