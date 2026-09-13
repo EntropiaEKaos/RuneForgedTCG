@@ -1,4 +1,4 @@
-name: Vanilla 1.11 Global Floor Diagnostic
+name: Vanilla 1.11 Florestia Floor Evidence
 
 on:
   push:
@@ -10,9 +10,9 @@ permissions:
   contents: read
 
 jobs:
-  diagnose-global-floor:
+  diagnose-florestia-floor:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: npm run ci:install
 
-      - name: Typecheck diagnostic
+      - name: Typecheck evidence
         run: npm run typecheck
 
       - name: Run current-product 13,200-game Vanilla matrix
@@ -37,10 +37,17 @@ jobs:
           node --import tsx scripts/vanilla-balance-audit.ts 40 5 --enforce \
             --write artifacts/vanilla-1-11/VANILLA_1.11_GLOBAL_DIAGNOSTIC.json
 
-      - name: Upload global diagnostic evidence
+      - name: Run 2,200-game Florestia Ascendant utilization diagnostic
+        run: |
+          node --import tsx scripts/vanilla-1-11-florestia-diagnostic.ts \
+            --write artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_DIAGNOSTIC.json
+
+      - name: Upload Vanilla 1.11 evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: vanilla-1-11-global-diagnostic-${{ github.sha }}
-          path: artifacts/vanilla-1-11/VANILLA_1.11_GLOBAL_DIAGNOSTIC.json
+          name: vanilla-1-11-florestia-floor-${{ github.sha }}
+          path: |
+            artifacts/vanilla-1-11/VANILLA_1.11_GLOBAL_DIAGNOSTIC.json
+            artifacts/vanilla-1-11/VANILLA_1.11_FLORESTIA_DIAGNOSTIC.json
           if-no-files-found: error
           retention-days: 14
