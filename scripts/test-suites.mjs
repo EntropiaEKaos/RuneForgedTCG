@@ -77,6 +77,7 @@ export const behavioralTests = [
   "src/game/vanilla-tempestade-vanguard-ceiling-1-6.test.ts",
   "src/game/vanilla-regional-recipes-1-7.test.ts",
   "src/game/vanilla-florestia-ascendant-floor-1-8.test.ts",
+  "src/game/vanilla-floor-convergence-1-9.test.ts",
   "src/lib/admin-multiuser.test.ts",
   "src/lib/alpha-onboarding.test.ts",
   "src/lib/brawl-rule-authority.test.ts",
