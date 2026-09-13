@@ -3,7 +3,7 @@ name: Vanilla 1.11 Global Floor Diagnostic
 on:
   push:
     branches:
-      - engineering/vanilla-1-11-tide-control-floor
+      - engineering/vanilla-1-11-florestia-ascendant-floor
   workflow_dispatch:
 
 permissions:
