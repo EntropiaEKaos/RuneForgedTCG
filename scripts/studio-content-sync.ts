@@ -1,8 +1,13 @@
+import { pool } from "@/db";
 import { syncStudioBaseline } from "@/lib/studio-baseline-sync";
 
 async function main() {
-  const result = await syncStudioBaseline();
-  console.log("STUDIO BASELINE SYNC: PASS", JSON.stringify(result));
+  try {
+    const result = await syncStudioBaseline();
+    console.log("STUDIO BASELINE SYNC: PASS", JSON.stringify(result));
+  } finally {
+    await pool.end();
+  }
 }
 
 main().catch((error) => {
