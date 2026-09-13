@@ -196,8 +196,9 @@ function runCandidate(candidate: (typeof candidates)[number]) {
 const rawResults = candidates.map(runCandidate);
 const baseline = rawResults.find((row) => row.id === "baseline_current");
 if (!baseline) throw new Error("Missing CardDef lab baseline");
-const baselineRows = new Map(
-  baseline.affectedRows.map((row) => [`${row.leftId}__${row.rightId}`, row] as const),
+type AffectedRow = (typeof baseline.affectedRows)[number];
+const baselineRows = new Map<string, AffectedRow>(
+  baseline.affectedRows.map((row) => [`${row.leftId}__${row.rightId}`, row]),
 );
 
 const results = rawResults.map((row) => {
