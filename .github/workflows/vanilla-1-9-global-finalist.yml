@@ -1,0 +1,56 @@
+name: Vanilla 1.9 Global Finalist
+
+on:
+  push:
+    branches:
+      - engineering/vanilla-1-9-floor-convergence
+    paths:
+      - "scripts/vanilla-1-9-global-candidate.ts"
+      - ".github/workflows/vanilla-1-9-global-finalist.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vanilla-1-9-global-finalist-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    name: certify full 66-matchup finalist matrix
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm run ci:install
+
+      - name: Typecheck global finalist lab
+        run: npm run typecheck
+
+      - name: Run 13,200-game global matrix
+        run: |
+          mkdir -p artifacts/vanilla-1-9
+          node --import tsx scripts/vanilla-1-9-global-candidate.ts \
+            --write artifacts/vanilla-1-9/VANILLA_1.9_GLOBAL_FINALIST.json
+
+      - name: Upload global finalist evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: vanilla-1-9-global-finalist-${{ github.sha }}
+          path: artifacts/vanilla-1-9/VANILLA_1.9_GLOBAL_FINALIST.json
+          if-no-files-found: error
+          retention-days: 14
