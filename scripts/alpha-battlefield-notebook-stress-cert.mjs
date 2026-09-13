@@ -181,8 +181,8 @@ async function installDensityStressFixture(cdp) {
 }
 
 async function hoverRealHandCard(cdp) {
-  const point = await evaluate(cdp, `(()=>{const target=document.querySelector('#player-hand-cards [data-card-tip-def-id]');if(!target)return null;const rect=target.getBoundingClientRect();return{x:rect.left+rect.width/2,y:rect.top+Math.min(rect.height/2,36)}})()`);
-  assert.ok(point, "stress certification requires at least one real hand card");
+  const point = await evaluate(cdp, `(async()=>{const target=document.querySelector('#player-hand-cards [data-card-tip-def-id]');if(!target)return null;target.scrollIntoView({block:'nearest',inline:'center'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const rect=target.getBoundingClientRect();return{x:rect.left+rect.width/2,y:rect.top+rect.height/2}})()`);
+  assert.ok(point && Number.isFinite(point.x) && Number.isFinite(point.y), "stress certification requires at least one real hand card");
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
   await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-tooltip-panel="true"]'))`), "card intelligence tooltip");
 }
