@@ -6,6 +6,7 @@ on:
       - engineering/vanilla-1-9-floor-convergence
     paths:
       - "scripts/vanilla-1-9-floor-diagnostic.ts"
+      - "scripts/vanilla-1-9-florestia-recipe-screen.ts"
       - ".github/workflows/vanilla-1-9-floor-diagnostic.yml"
   workflow_dispatch:
 
@@ -18,9 +19,9 @@ concurrency:
 
 jobs:
   diagnose:
-    name: compare Florestia and Emberhold floors
+    name: compare floors and screen Florestia recipes
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 50
 
     steps:
       - name: Checkout
@@ -37,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: npm run ci:install
 
-      - name: Typecheck diagnostic
+      - name: Typecheck diagnostics
         run: npm run typecheck
 
       - name: Run 4,200-game floor diagnostic
@@ -46,11 +47,16 @@ jobs:
           node --import tsx scripts/vanilla-1-9-floor-diagnostic.ts 40 5 \
             --write artifacts/vanilla-1-9/VANILLA_1.9_FLOOR_DIAGNOSTIC.json
 
-      - name: Upload diagnostic evidence
+      - name: Run 7,920-game Florestia recipe screen
+        run: |
+          node --import tsx scripts/vanilla-1-9-florestia-recipe-screen.ts 20 3 \
+            --write artifacts/vanilla-1-9/VANILLA_1.9_FLORESTIA_SCREEN.json
+
+      - name: Upload Vanilla 1.9 evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: vanilla-1-9-floor-diagnostic-${{ github.sha }}
-          path: artifacts/vanilla-1-9/VANILLA_1.9_FLOOR_DIAGNOSTIC.json
+          name: vanilla-1-9-floor-evidence-${{ github.sha }}
+          path: artifacts/vanilla-1-9/*.json
           if-no-files-found: error
           retention-days: 14
