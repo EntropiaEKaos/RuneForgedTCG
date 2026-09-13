@@ -1,0 +1,103 @@
+name: Visual 4.2 Notebook Density Cert
+
+on:
+  push:
+    branches: [main, 'visual/**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-4-2-density-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+        env:
+          POSTGRES_DB: runeforge_ci
+          POSTGRES_USER: runeforge
+          POSTGRES_PASSWORD: runeforge_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U runeforge -d runeforge_ci"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      DATABASE_URL: postgresql://runeforge:runeforge_ci_only@localhost:5432/runeforge_ci
+      NODE_ENV: test
+      PLAYER_SESSION_SECRET: ci-player-session-secret-github-actions-0001
+      ADMIN_SESSION_SECRET: ci-admin-session-secret-github-actions-0002
+      MFA_ENCRYPTION_KEY: ci-mfa-encryption-key-github-actions-000003
+      PAYMENT_ENCRYPTION_KEY: ci-payment-encryption-key-github-actions-0004
+      ADMIN_PASSWORD: ci-only-admin-password-not-for-prod-use
+      TRUST_PROXY: "false"
+      ALLOW_LEGACY_PLAYER_IDENTITY: "false"
+      RANKED_RELEASE_CERTIFIED: "false"
+      RUNEFORGE_DEPLOY_SHA: ${{ github.sha }}
+      RUNEFORGE_DEPLOY_ENV: ci
+      E2E_BASE_URL: http://127.0.0.1:3000
+      ALPHA_VISUAL_DIR: artifacts/alpha-visual-4-2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.23.2
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm run ci:install
+
+      - name: Local import integrity
+        run: npm run test:local-imports
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
+
+      - name: Bootstrap PostgreSQL
+        run: npm run db:bootstrap
+
+      - name: Production build
+        env:
+          NEXT_PUBLIC_APP_URL: https://ci.placeholder.invalid
+        run: npm run build
+
+      - name: Browser density stress at 1280x720
+        run: |
+          npm start > /tmp/runeforge-next.log 2>&1 &
+          NEXT_PID=$!
+          trap 'status=$?; if [ "$status" -ne 0 ]; then echo "--- Next server log ---"; cat /tmp/runeforge-next.log; fi; kill $NEXT_PID 2>/dev/null || true; exit "$status"' EXIT
+          for i in $(seq 1 45); do
+            if curl --fail --silent http://127.0.0.1:3000/api/health >/dev/null; then break; fi
+            if [ "$i" = "45" ]; then cat /tmp/runeforge-next.log; exit 1; fi
+            sleep 1
+          done
+          node scripts/alpha-battlefield-notebook-stress-cert.mjs
+
+      - name: Upload Visual 4.2 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visual-4-2-notebook-density-${{ github.sha }}
+          path: artifacts/alpha-visual-4-2
+          if-no-files-found: error
+          retention-days: 14
