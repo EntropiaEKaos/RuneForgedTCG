@@ -15,7 +15,11 @@ assert.deepEqual(baseline.keywords.map((row) => row.key), [...CANONICAL_KEYWORDS
 assert.deepEqual(baseline.effects.map((row) => row.kind), [...CARD_EFFECT_KINDS]);
 assert.deepEqual(baseline.races.map((row) => row.key), [...CARD_RACES]);
 assert.equal(new Set(baseline.classes.map((row) => row.key)).size, baseline.classes.length, "class baseline must be unique");
-assert.ok(baseline.classes.length > 0, "certified base cards must project at least one class into Studio");
+assert.deepEqual(
+  baseline.classes.map((row) => row.key),
+  [...new Set(baseCards.flatMap((card) => Array.isArray(card.classes) ? card.classes : []))].sort((a, b) => a.localeCompare(b)),
+  "Studio classes must reflect the certified card baseline exactly; no synthetic class vocabulary may be invented",
+);
 
 assert.equal(baseline.cards.length, baseCards.length, "Studio baseline must cover every code-authored card");
 assert.equal(new Set(baseline.cards.map((card) => card.defId)).size, baseline.cards.length, "base card defIds must be unique");
