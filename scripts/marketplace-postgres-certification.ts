@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Pool } from "pg";
+import { certificationDbConnectionTimeoutMs } from "./db-certification-config";
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
-const pool = new Pool({ connectionString: databaseUrl, max: 4, connectionTimeoutMillis: 5_000 });
+const pool = new Pool({ connectionString: databaseUrl, max: 4, connectionTimeoutMillis: certificationDbConnectionTimeoutMs() });
 
 async function count(query: string, values: unknown[] = []) {
   const result = await pool.query(query, values);
