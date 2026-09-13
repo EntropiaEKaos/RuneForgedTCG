@@ -18,9 +18,16 @@ import { readFileSync } from "node:fs";
  * recertified for the collectible printing layer. Gameplay identity, arena
  * geometry, engine/reducer/replay state and Visual 3.x structural styles remain
  * unchanged. Full CI plus browser/visual artifacts are mandatory before merge.
+ *
+ * Responsive battlefield break-glass 2026-09-13: layout.tsx is intentionally
+ * recertified only to load Visual 4.0 as the final presentation layer. The new
+ * layer bounds short notebook/tablet arenas to the viewport; engine, rules,
+ * BattleView state/DOM contracts and frozen Visual 3.x files remain unchanged.
+ * Full CI plus the dedicated 1366x768 browser screenshot/geometry certificate
+ * are mandatory before merge.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "c0743de70bd5cb1e44593e7ffcbc1b7650b95410",
+  "src/app/layout.tsx": "e2d9551348d4d24d411de7fa4ee8574dde29452d",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
