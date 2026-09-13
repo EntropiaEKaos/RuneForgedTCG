@@ -4,7 +4,7 @@ import { canCounterPendingAction, canReactWithResponse, hasReactionOpportunity }
 import { resolveReactionActivatedAbility, type ReactionActivatedAbilityAction } from "../reaction-activated-abilities";
 import { isStructureCard } from "../semantic-card-types";
 import type { GameState, PlayerId } from "../types";
-import { activateAbility } from "./activated-actions";
+import { activateAbility, commitActivatedAbilityCosts } from "./activated-actions";
 import { castSpell, effectiveCost, playUnit } from "./semantic-actions";
 import { checkLevelUps } from "./effects";
 import { recomputeContinuousAuras } from "./state";
@@ -44,17 +44,42 @@ function canRespondTo(state: GameState, playerId: PlayerId, action: CardAction):
 }
 
 /**
- * A counter prevents resolution; it does not rewind the fact that the target
- * card was committed to the stack. The paid physical card therefore moves
- * from hand into its owner's public graveyard with reason `counter`.
+ * `kind: "sentinela"` is also the reaction-contract kind for a proactive
+ * battlefield activation. `abilityIndex` is the stable discriminator: a
+ * physical Sentinela card in hand has no ability index, while an activation
+ * always carries the exact authored ability index.
  */
-function consumeNegatedCard(state: GameState, item: StackFrame): void {
-  // Battlefield abilities are not hand cards and therefore have nothing to
-  // consume from hand if a future nested reaction negates their stack frame.
-  if (item.responseKind === "activatedAbility") return;
+function isProactiveActivatedAbility(item: CardAction): boolean {
+  return item.kind === "sentinela" && item.responseKind !== "activatedAbility" && item.abilityIndex !== undefined;
+}
+
+/**
+ * A counter prevents resolution; it does not rewind a committed stack action.
+ * Physical cards still pay their card/mana cost. Proactive battlefield
+ * activations commit their activation costs and usage budget but skip the
+ * effect itself.
+ */
+function consumeNegatedAction(state: GameState, item: StackFrame): GameState {
+  // Reaction-context activated abilities are resolved through their own
+  // contract. Nested priority is not certified, so there is no proactive cost
+  // to commit through this branch for such a response frame.
+  if (item.responseKind === "activatedAbility") return state;
+
+  if (isProactiveActivatedAbility(item)) {
+    return commitActivatedAbilityCosts(
+      state,
+      item.player,
+      item.instanceId,
+      item.abilityIndex!,
+      item.targetInstanceId,
+      item.modeId,
+      item.costDiscardInstanceIds,
+    );
+  }
+
   const player = state.players[item.player];
   const instance = player.hand.find((card) => card.instanceId === item.instanceId);
-  if (!instance) return;
+  if (!instance) return state;
 
   const def = getCard(instance.defId);
   const cost = effectiveCost(state, item.player, def);
@@ -71,6 +96,7 @@ function consumeNegatedCard(state: GameState, item: StackFrame): void {
   discardHandInstancesToGraveyard(state, item.player, [item.instanceId], "counter", item.instanceId);
   checkLevelUps(state);
   recomputeContinuousAuras(state);
+  return state;
 }
 
 function pushLegalResponse(
@@ -144,17 +170,20 @@ function resolveBaseAction(state: GameState, item: StackFrame): GameState {
   if (item.kind === "spell") {
     return castSpell(state, item.player, item.instanceId, item.targetInstanceId);
   }
-  if (item.kind === "sentinela") {
+  if (isProactiveActivatedAbility(item)) {
     return activateAbility(
       state,
       item.player,
       item.instanceId,
-      item.abilityIndex ?? 0,
+      item.abilityIndex!,
       item.targetInstanceId,
       item.modeId,
       item.costDiscardInstanceIds,
     );
   }
+  // Physical Units, Structures, Equipment and Sentinelas all use the normal
+  // card-play path. In particular, a `kind: "sentinela"` frame without an
+  // abilityIndex is a Sentinela card from hand, not a battlefield activation.
   return playUnit(state, item.player, item.instanceId, item.targetInstanceId);
 }
 
@@ -166,7 +195,7 @@ function resolveStack(state: GameState, stack: StackFrame[]): StackResolution {
     if (s.phase === "gameover") break;
 
     if (negated.has(item.instanceId)) {
-      consumeNegatedCard(s, item);
+      s = consumeNegatedAction(s, item);
       const name = getCard(item.defId).name;
       s.log.push(`✨ ${name} was negated and did not resolve.`);
       continue;
