@@ -11,7 +11,7 @@ permissions:
 jobs:
   diagnose-emberhold-ascendant:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -41,6 +41,11 @@ jobs:
           node --import tsx scripts/vanilla-1-10-emberhold-candidate-screen.ts \
             --write artifacts/vanilla-1-10/VANILLA_1.10_EMBERHOLD_CANDIDATE_SCREEN.json
 
+      - name: Validate screen winner across full matrix
+        run: |
+          node --import tsx scripts/vanilla-1-10-emberhold-winner-validation.ts \
+            --write artifacts/vanilla-1-10/VANILLA_1.10_EMBERHOLD_WINNER_VALIDATION.json
+
       - name: Upload diagnostic evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -48,5 +53,6 @@ jobs:
           path: |
             artifacts/vanilla-1-10/VANILLA_1.10_EMBERHOLD_DIAGNOSTIC.json
             artifacts/vanilla-1-10/VANILLA_1.10_EMBERHOLD_CANDIDATE_SCREEN.json
+            artifacts/vanilla-1-10/VANILLA_1.10_EMBERHOLD_WINNER_VALIDATION.json
           if-no-files-found: error
           retention-days: 14
