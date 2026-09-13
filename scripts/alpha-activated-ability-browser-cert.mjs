@@ -252,6 +252,15 @@ async function hoverSelector(cdp, selector) {
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   })()`);
   assert.ok(point, `Could not locate hover target: ${selector}`);
+  // Tooltip opens from React onMouseMove. A headless pointer can already sit at
+  // the same coordinates after a rerender, so force a real leave/re-enter path.
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+  await sleep(40);
+  await cdp.call("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: Math.max(1, point.x - 3),
+    y: point.y,
+  });
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
 }
 
