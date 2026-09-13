@@ -12,6 +12,7 @@ const notebookViewport = { width: 1366, height: 768, deviceScaleFactor: 1, mobil
 const notebookViewportMatrix = [
   notebookViewport,
   { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false },
+  { width: 1366, height: 640, deviceScaleFactor: 1, mobile: false },
   { width: 1536, height: 864, deviceScaleFactor: 1, mobile: false },
 ];
 
