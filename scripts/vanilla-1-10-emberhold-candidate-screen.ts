@@ -14,6 +14,19 @@ import {
 } from "../src/lib/balance-simulator";
 
 const TARGET_ID = "vanilla_ember_2";
+const PRE_PROMOTION_BASE_SHA = "40675729a78e5f16c11becdb7871f752002e012c";
+const PRE_PROMOTION_BASELINE_EXTRAS = [
+  "van_ember_u03",
+  "van_ember_u02",
+  "van_ember_u05",
+  "van_ember_u08",
+  "van_ember_u04",
+  "van_ember_u01",
+  "van_ember_u13",
+  "van_ember_u11",
+  "van_ember_u14",
+  "van_ember_u06",
+] as const;
 const CRITICAL_OPPONENT_IDS = [
   "vanilla_storm_1",
   "vanilla_tide_1",
@@ -47,22 +60,22 @@ function emberId(suffix: string): string {
   return `van_ember_${suffix}`;
 }
 
-const baselineDeck = VANILLA_EXPERIMENTAL_DECKS.find((deck) => deck.id === TARGET_ID);
-if (!baselineDeck) throw new Error(`Missing ${TARGET_ID}`);
+const productDeck = VANILLA_EXPERIMENTAL_DECKS.find((deck) => deck.id === TARGET_ID);
+if (!productDeck) throw new Error(`Missing ${TARGET_ID}`);
 
 const floorCards: string[] = [];
 const floorSet = new Set<string>();
-const baselineExtras: string[] = [];
-for (const defId of baselineDeck.cards) {
-  if (floorSet.has(defId)) baselineExtras.push(defId);
-  else {
+for (const defId of productDeck.cards) {
+  if (!floorSet.has(defId)) {
     floorSet.add(defId);
     floorCards.push(defId);
   }
 }
 
 if (floorCards.length !== 30) throw new Error(`Expected Emberhold 30-card regional floor, found ${floorCards.length}`);
-if (baselineExtras.length !== 10) throw new Error(`Expected Emberhold 10 extra slots, found ${baselineExtras.length}`);
+for (const defId of PRE_PROMOTION_BASELINE_EXTRAS) {
+  if (!floorSet.has(defId)) throw new Error(`Frozen pre-promotion baseline contains non-Emberhold-floor card ${defId}`);
+}
 
 interface CandidateSpec {
   id: string;
@@ -78,9 +91,9 @@ function doubled(...suffixes: string[]): string[] {
 const candidates: CandidateSpec[] = [
   {
     id: "baseline",
-    label: "Current product recipe",
-    rationale: "Current Emberhold Ascendant product recipe; control arm for paired deterministic comparison.",
-    extras: baselineExtras,
+    label: "Pre-promotion product baseline",
+    rationale: `Frozen Emberhold Ascendant recipe from ${PRE_PROMOTION_BASE_SHA}; control arm for paired deterministic comparison.`,
+    extras: [...PRE_PROMOTION_BASELINE_EXTRAS],
   },
   {
     id: "low-curve-pressure",
@@ -159,7 +172,7 @@ let incompleteStrata = 0;
 for (const candidate of candidates) {
   const cards = buildCandidateCards(candidate.extras);
   const overrides = vanillaExperimentalOverrides();
-  overrides[TARGET_ID] = { id: TARGET_ID, name: baselineDeck.name, cards };
+  overrides[TARGET_ID] = { id: TARGET_ID, name: productDeck.name, cards };
   const telemetryParts = [];
   const matchupRows = [];
 
@@ -256,8 +269,13 @@ const qualityGate = poolErrors.length === 0 && screenErrors.length === 0 ? "pass
 const report = {
   version: "1.10-candidate-screen-1",
   methodology:
-    "Read-only Emberhold Ascendant recipe screen. Candidate overrides mutate only the in-memory 40-card recipe, never CardDefs, rules, AI or product recipes. Each candidate uses the same five certified deterministic strata against the four Vanguards classified critical by the preceding 2,200-game diagnostic.",
-  target: { id: TARGET_ID, name: baselineDeck.name },
+    "Read-only Emberhold Ascendant recipe screen against the frozen pre-promotion product baseline. Candidate overrides mutate only the in-memory 40-card recipe, never CardDefs, rules, AI or product recipes. Each candidate uses the same five certified deterministic strata against the four Vanguards classified critical by the pre-promotion 2,200-game diagnostic.",
+  target: { id: TARGET_ID, name: productDeck.name },
+  baselineReference: {
+    label: "Pre-promotion Emberhold Ascendant product baseline",
+    sourceCommit: PRE_PROMOTION_BASE_SHA,
+    extras: PRE_PROMOTION_BASELINE_EXTRAS,
+  },
   criticalOpponents: CRITICAL_OPPONENT_IDS,
   simulation: {
     candidates: candidates.length,
