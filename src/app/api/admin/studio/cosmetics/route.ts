@@ -69,6 +69,8 @@ export async function POST(req: NextRequest) {
   const [row] = await db.transaction(async (tx) => {
     const inserted = await tx.insert(cardCosmeticVariants).values({
       ...normalized.value!,
+      artCrop: normalized.value!.artCrop || {},
+      metadata: normalized.value!.metadata || {},
       status: "draft",
       enabled: false,
       createdBy: actor.actorId,
