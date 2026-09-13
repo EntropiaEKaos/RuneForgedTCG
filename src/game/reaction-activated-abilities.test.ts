@@ -7,6 +7,7 @@ import {
   eligibleReactionActivatedAbilities,
   type CardAction,
 } from "./engine";
+import { applyGameAction } from "./reducer";
 import type { ReactionActivatedAbility } from "./activated-ability-types";
 import type { DeckInput } from "./types";
 
@@ -199,6 +200,84 @@ try {
     throw new Error(`AI failed to choose the battlefield negate response: ${JSON.stringify(aiResponseA)}`);
   }
   if (JSON.stringify(aiResponseA) !== JSON.stringify(aiResponseB)) throw new Error("AI reaction ability choice is not deterministic");
+
+  // Regression: proactive battlefield activated abilities selected by the AI also
+  // travel through the reaction stack. Before this contract, resolving a skipped
+  // window treated every non-spell action as playUnit(), so a battlefield source
+  // no-oped and immediately reopened the same reaction window until the Alpha
+  // action budget was exhausted.
+  const stackedState = createCustomGame("Stacked Activated AI", deck, deck, {
+    skipMulligan: true,
+    playerGoesFirst: false,
+    aiBench: ["van_tide_u15"],
+    playerStartingHand: 0,
+    aiStartingHand: 0,
+    playerStartingMana: 10,
+    aiStartingMana: 10,
+    seed: 979797,
+  });
+  stackedState.phase = "main";
+  stackedState.activePlayer = "ai";
+  stackedState.players.player.mana = 10;
+  stackedState.players.player.maxMana = 10;
+  stackedState.players.player.hand = [{ instanceId: "stacked-player-deny", defId: "tide_deny" }];
+  stackedState.players.ai.mana = 10;
+  stackedState.players.ai.maxMana = 10;
+
+  const stackedSource = stackedState.players.ai.bench.find((unit) => unit.defId === "van_tide_u15");
+  if (!stackedSource) throw new Error("Stacked activation fixture lost van_tide_u15");
+  if (stackedSource.hasAttackedThisTurn) throw new Error("Stacked activation source must begin ready to pay its exhaust cost");
+
+  const stackedOpened = applyGameAction(stackedState, { type: "aiStep" });
+  if (!stackedOpened.awaitingReaction) {
+    throw new Error("AI proactive activated ability failed to open the player's Tide Deny reaction window");
+  }
+  if (stackedOpened.awaitingReaction.action.kind !== "sentinela") {
+    throw new Error(`Proactive activated ability lost its stack kind: ${stackedOpened.awaitingReaction.action.kind}`);
+  }
+  if (stackedOpened.awaitingReaction.action.instanceId !== stackedSource.instanceId) {
+    throw new Error("Proactive activated ability reaction window lost the battlefield source instance");
+  }
+  if (stackedOpened.awaitingReaction.action.abilityIndex !== 0) {
+    throw new Error(`Proactive activated ability lost its ability index: ${String(stackedOpened.awaitingReaction.action.abilityIndex)}`);
+  }
+
+  const stackedHandBefore = stackedOpened.next.players.ai.hand.length;
+  const stackedManaBefore = stackedOpened.next.players.ai.mana;
+  const stackedResolved = applyStackedActionWithAi(
+    stackedOpened.next,
+    stackedOpened.awaitingReaction.action,
+    "skip",
+    null,
+    aiChooseReaction,
+  );
+  if (stackedResolved.awaitingReaction) {
+    throw new Error("Explicit skip reopened the proactive activated ability reaction window");
+  }
+  if (stackedResolved.next === stackedOpened.next) {
+    throw new Error("Skipped proactive activated ability resolved as a no-op");
+  }
+  if (stackedResolved.next.players.ai.mana !== stackedManaBefore - 2) {
+    throw new Error(`Stacked activated ability did not pay its mana cost: ${stackedResolved.next.players.ai.mana}`);
+  }
+  if (stackedResolved.next.players.ai.hand.length !== stackedHandBefore + 1) {
+    throw new Error("Stacked activated ability did not resolve its draw effect");
+  }
+  const stackedResolvedSource = stackedResolved.next.players.ai.bench.find((unit) => unit.instanceId === stackedSource.instanceId);
+  if (!stackedResolvedSource?.hasAttackedThisTurn) {
+    throw new Error("Stacked activated ability did not pay its exhaust cost");
+  }
+  if ((stackedResolvedSource.activatedAbilityUses?.["0"]?.count ?? 0) !== 1) {
+    throw new Error("Stacked activated ability did not consume exactly one per-round use");
+  }
+
+  const stackedContinued = applyGameAction(stackedResolved.next, { type: "aiStep" });
+  if (stackedContinued.awaitingReaction?.action.instanceId === stackedSource.instanceId) {
+    throw new Error("Resolved exhausted ability reopened the same reaction window");
+  }
+  if (stackedContinued.next === stackedResolved.next && !stackedContinued.awaitingReaction) {
+    throw new Error("AI failed to make authoritative progress after stacked activated ability resolution");
+  }
 
   console.log("REACTION ACTIVATED ABILITIES: PASS");
 } finally {

@@ -4,6 +4,7 @@ import { canCounterPendingAction, canReactWithResponse, hasReactionOpportunity }
 import { resolveReactionActivatedAbility, type ReactionActivatedAbilityAction } from "../reaction-activated-abilities";
 import { isStructureCard } from "../semantic-card-types";
 import type { GameState, PlayerId } from "../types";
+import { activateAbility } from "./activated-actions";
 import { castSpell, effectiveCost, playUnit } from "./semantic-actions";
 import { checkLevelUps } from "./effects";
 import { recomputeContinuousAuras } from "./state";
@@ -139,6 +140,24 @@ export function applyStackedAction(
   return resolveStack(baseState, stack);
 }
 
+function resolveBaseAction(state: GameState, item: StackFrame): GameState {
+  if (item.kind === "spell") {
+    return castSpell(state, item.player, item.instanceId, item.targetInstanceId);
+  }
+  if (item.kind === "sentinela") {
+    return activateAbility(
+      state,
+      item.player,
+      item.instanceId,
+      item.abilityIndex ?? 0,
+      item.targetInstanceId,
+      item.modeId,
+      item.costDiscardInstanceIds,
+    );
+  }
+  return playUnit(state, item.player, item.instanceId, item.targetInstanceId);
+}
+
 /** Finalize the stack: resolve from top to bottom, applying counters. */
 function resolveStack(state: GameState, stack: StackFrame[]): StackResolution {
   let s = state;
@@ -186,13 +205,7 @@ function resolveStack(state: GameState, stack: StackFrame[]): StackResolution {
       continue;
     }
 
-    if (item.player === "player") {
-      if (item.kind === "spell") s = castSpell(s, "player", item.instanceId, item.targetInstanceId);
-      else s = playUnit(s, "player", item.instanceId, item.targetInstanceId);
-    } else {
-      if (item.kind === "spell") s = castSpell(s, "ai", item.instanceId, item.targetInstanceId);
-      else s = playUnit(s, "ai", item.instanceId, item.targetInstanceId);
-    }
+    s = resolveBaseAction(s, item);
   }
   return { next: s };
 }
