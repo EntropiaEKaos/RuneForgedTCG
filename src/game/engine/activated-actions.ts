@@ -477,6 +477,93 @@ function paySourceCosts(
   }
 }
 
+interface CommittedActivatedAbility {
+  next: GameState;
+  source: ActivatedAbilitySource;
+  effect: CardEffect;
+}
+
+function commitActivatedAbility(
+  state: GameState,
+  playerId: PlayerId,
+  instanceId: string,
+  abilityIndex: number,
+  targetInstanceId?: string,
+  modeId?: string,
+  costDiscardInstanceIds?: readonly string[],
+): CommittedActivatedAbility | null {
+  const validation = validateActivatedAbilityActivation(
+    state,
+    playerId,
+    instanceId,
+    abilityIndex,
+    targetInstanceId,
+    modeId,
+    costDiscardInstanceIds,
+  );
+  if (!validation.ok || !validation.ability || !validation.source || !validation.effect) return null;
+
+  const next = clone(state);
+  const source = findActivatedAbilitySource(next, playerId, instanceId);
+  if (!source) return null;
+  const def = getCard(sourceInstance(source).defId);
+  const ability = activatedAbilitiesForDef(def)[abilityIndex];
+  if (!ability) return null;
+  const resolved = resolveActivatedAbilityChoice(ability, modeId);
+  if (!resolved.ok) return null;
+  const legacySentinela = source.kind === "sentinela" && isLegacySentinelaAbility(def, abilityIndex);
+
+  if (source.kind === "sentinela") source.sen.activatedThisTurn = true;
+  if (!legacySentinela) recordAbilityUsage(source, abilityIndex, next.round);
+
+  paySourceCosts(next, source, ability, costDiscardInstanceIds);
+  const modalSuffix = resolved.choice.modeId ? ` — ${resolved.choice.description}` : "";
+  next.log.push(`${def.name} ativa "${ability.description}${modalSuffix}".`);
+
+  // Costs are committed before effect resolution. In particular, sacrifice
+  // and selected discard must leave their zones before either the effect or a
+  // counter finalizes the stack frame.
+  if (ability.cost?.sacrificeSelf) {
+    cleanupDead(next);
+    cleanupSentinelas(next);
+  }
+
+  return { next, source, effect: resolved.choice.effect };
+}
+
+/**
+ * Commit a legal activation's costs/usage without resolving its effect.
+ * Used when a proactive battlefield activation is countered on the stack:
+ * counters prevent the effect, not mana, exhaust, discard, loyalty, sacrifice,
+ * Barrier consumption, Nexus-health cost, or the per-round usage budget.
+ */
+export function commitActivatedAbilityCosts(
+  state: GameState,
+  playerId: PlayerId,
+  instanceId: string,
+  abilityIndex: number,
+  targetInstanceId?: string,
+  modeId?: string,
+  costDiscardInstanceIds?: readonly string[],
+): GameState {
+  const committed = commitActivatedAbility(
+    state,
+    playerId,
+    instanceId,
+    abilityIndex,
+    targetInstanceId,
+    modeId,
+    costDiscardInstanceIds,
+  );
+  if (!committed) return state;
+
+  cleanupDead(committed.next);
+  cleanupSentinelas(committed.next);
+  checkLevelUps(committed.next);
+  checkWin(committed.next);
+  return committed.next;
+}
+
 /**
  * Resolve one generic activated ability. Invalid attempts are strict no-ops,
  * matching the rest of the deterministic engine surface.
@@ -490,7 +577,7 @@ export function activateAbility(
   modeId?: string,
   costDiscardInstanceIds?: readonly string[],
 ): GameState {
-  const validation = validateActivatedAbilityActivation(
+  const committed = commitActivatedAbility(
     state,
     playerId,
     instanceId,
@@ -499,34 +586,9 @@ export function activateAbility(
     modeId,
     costDiscardInstanceIds,
   );
-  if (!validation.ok || !validation.ability || !validation.source || !validation.effect) return state;
+  if (!committed) return state;
 
-  const next = clone(state);
-  const source = findActivatedAbilitySource(next, playerId, instanceId);
-  if (!source) return state;
-  const def = getCard(sourceInstance(source).defId);
-  const ability = activatedAbilitiesForDef(def)[abilityIndex];
-  if (!ability) return state;
-  const resolved = resolveActivatedAbilityChoice(ability, modeId);
-  if (!resolved.ok) return state;
-  const effect = resolved.choice.effect;
-  const legacySentinela = source.kind === "sentinela" && isLegacySentinelaAbility(def, abilityIndex);
-
-  if (source.kind === "sentinela") source.sen.activatedThisTurn = true;
-  if (!legacySentinela) recordAbilityUsage(source, abilityIndex, next.round);
-
-  paySourceCosts(next, source, ability, costDiscardInstanceIds);
-  const modalSuffix = resolved.choice.modeId ? ` — ${resolved.choice.description}` : "";
-  next.log.push(`${def.name} ativa "${ability.description}${modalSuffix}".`);
-
-  // Sacrifice and selected discard are real costs: they leave their zones
-  // before the effect resolves, so draw/recall/follow-up effects observe the
-  // post-payment state deterministically.
-  if (ability.cost?.sacrificeSelf) {
-    cleanupDead(next);
-    cleanupSentinelas(next);
-  }
-
+  const { next, source, effect } = committed;
   const self = source.kind === "unit" ? source.unit : undefined;
   const explicitTarget = requiresBoardTarget(effect.target) ? targetInstanceId : undefined;
   applyEffect(next, playerId, effect, explicitTarget, self);
