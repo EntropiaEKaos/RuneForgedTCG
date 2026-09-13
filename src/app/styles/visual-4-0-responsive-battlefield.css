@@ -11,9 +11,9 @@
 @media (min-width: 901px) and (max-height: 900px) {
   .tcg-arena {
     --rf-v4-board-card-w: clamp(70px, 9.45dvh, 82px);
-    --rf-v4-board-card-h: calc(var(--rf-v4-board-card-w) * 1.414);
+    --rf-v4-board-card-h: clamp(99px, 13.36dvh, 116px);
     --rf-v4-hand-card-w: clamp(86px, 11.6dvh, 104px);
-    --rf-v4-hand-card-h: calc(var(--rf-v4-hand-card-w) * 1.414);
+    --rf-v4-hand-card-h: clamp(122px, 16.4dvh, 147px);
     box-sizing: border-box;
     height: 100dvh;
     min-height: 100dvh;
@@ -278,7 +278,9 @@
 @media (min-width: 901px) and (max-height: 760px) {
   .tcg-arena {
     --rf-v4-board-card-w: clamp(66px, 9.2dvh, 72px);
+    --rf-v4-board-card-h: clamp(93px, 13dvh, 102px);
     --rf-v4-hand-card-w: clamp(80px, 11.2dvh, 88px);
+    --rf-v4-hand-card-h: clamp(113px, 15.8dvh, 124px);
   }
 
   .tcg-arena .tcg-match-header {
