@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
           if (offered.length !== offeredAssetIds.length) return { error: "One or more offered card copies are unavailable", status: 409 };
           const existingLocks = await tx.select().from(cardAssetLocks).where(inArray(cardAssetLocks.assetId, offeredAssetIds));
           if (existingLocks.length) return { error: "One or more offered card copies are already in escrow", status: 409 };
-          const offeredSnapshot = offered.map((asset) => ({ assetId: asset.id, defId: asset.defId, variantId: asset.variantId, frameId: asset.frameId, finish: asset.finish }));
+          const offeredSnapshot = offered.map((asset) => ({ assetId: asset.id, defId: asset.defId, variantId: asset.variantId, frameId: asset.frameId, finish: asset.finish, serialNumber: asset.serialNumber }));
           const expiresAt = new Date(now.getTime() + settings.tradeDurationHours * 60 * 60 * 1000);
           const [offer] = await tx.insert(tradeOffers).values({ proposerPlayerId: actor.id, recipientPlayerId: recipient.id, offeredAssets: offeredSnapshot, requestedAssets, note, expiresAt }).returning();
           await tx.insert(cardAssetLocks).values(offered.map((asset) => ({ assetId: asset.id, ownerPlayerId: actor.id, kind: "trade", referenceId: offer.id, expiresAt })));

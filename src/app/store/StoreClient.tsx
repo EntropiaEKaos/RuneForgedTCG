@@ -8,6 +8,7 @@ import type { Rarity } from "@/game/types";
 import type { LoginReward, PackDef } from "@/lib/packs";
 import { ensurePlayerSession } from "@/lib/client-player-session";
 import { pendingEconomyOperationId, settleEconomyOperation } from "@/lib/client-economy-operation";
+import PackCosmeticHighlights, { type PackCosmeticPull } from "./PackCosmeticHighlights";
 
 interface PacksData {
   player: { gold: number; dust: number };
@@ -74,6 +75,7 @@ export default function StoreClient() {
   const [loginData, setLoginData] = useState<LoginData | null>(null);
   const [message, setMessage] = useState("");
   const [reveal, setReveal] = useState<RevealedCard[] | null>(null);
+  const [cosmeticPulls, setCosmeticPulls] = useState<PackCosmeticPull[]>([]);
   const [dustBonus, setDustBonus] = useState(0);
   const [busy, setBusy] = useState(false);
   const [paid, setPaid] = useState<PaidData>({ gateway: { enabled: false }, products: [] });
@@ -185,6 +187,7 @@ export default function StoreClient() {
       const data = await res.json();
       if (data.ok) {
         setReveal(data.cards);
+        setCosmeticPulls(Array.isArray(data.cosmetics) ? data.cosmetics : []);
         setDustBonus(data.dustBonus);
         if (data.duplicate) setMessage("✅ Abertura já confirmada; resultado recuperado sem consumir outro pacote.");
         await load(playerName);
@@ -255,6 +258,11 @@ export default function StoreClient() {
     } finally {
       setBusy(false);
     }
+  };
+
+  const closeReveal = () => {
+    setReveal(null);
+    setCosmeticPulls([]);
   };
 
   return (
@@ -417,7 +425,7 @@ export default function StoreClient() {
       </div>
 
       {reveal && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-sm" onClick={() => setReveal(null)}>
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-sm" onClick={closeReveal}>
           <section
             className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-amber-300/20 bg-[#090d14] p-5 shadow-[0_40px_120px_rgba(0,0,0,.65)] sm:p-7"
             role="dialog"
@@ -430,8 +438,10 @@ export default function StoreClient() {
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-300/65">ABERTURA CONFIRMADA</p>
                 <h2 id="pack-reveal-heading" className="mt-1 text-2xl font-black text-amber-100">Cartas reveladas</h2>
               </div>
-              <button className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-slate-300 hover:bg-white/[0.08]" onClick={() => setReveal(null)} aria-label="Fechar cartas reveladas">✕</button>
+              <button className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-slate-300 hover:bg-white/[0.08]" onClick={closeReveal} aria-label="Fechar cartas reveladas">✕</button>
             </div>
+
+            <PackCosmeticHighlights pulls={cosmeticPulls} cards={reveal} />
 
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
               {reveal.map((card, index) => (
@@ -445,7 +455,7 @@ export default function StoreClient() {
             </div>
 
             {dustBonus > 0 && <p className="mt-5 rounded-xl border border-cyan-300/15 bg-cyan-500/[0.06] px-4 py-3 text-center text-sm font-bold text-cyan-200">💠 +{dustBonus} pó arcano de duplicatas convertidas</p>}
-            <button onClick={() => setReveal(null)} className="rf-button rf-button-primary mx-auto mt-5">CONTINUAR</button>
+            <button onClick={closeReveal} className="rf-button rf-button-primary mx-auto mt-5">CONTINUAR</button>
           </section>
         </div>
       )}

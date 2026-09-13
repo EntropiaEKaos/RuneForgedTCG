@@ -36,6 +36,8 @@ function main() {
   assert.match(market, /FOR UPDATE|\.for\("update"\)/, "market purchase must serialize ownership");
   assert.match(market, /market_purchase/, "buyer Gold movement must be written to the economy ledger");
   assert.match(market, /market_sale/, "seller Gold movement must be written to the economy ledger");
+  assert.match(market, /serialNumber: cardAssets\.serialNumber/, "marketplace DTOs must preserve serialized collectible identity");
+  assert.match(market, /row\.serialNumber \?\? ""/, "market search must allow players to locate a known serial number");
   assert.doesNotMatch(market, /currency:\s*["']dust["']/, "Dust must not be transferable through P2P sales");
 
   const marketService = read("src/lib/marketplace-service.ts");
@@ -46,11 +48,15 @@ function main() {
   assert.match(trades, /playerCanUseMarketplace\(player, settings, now\)/, "trade reads must enforce the same level/account-age eligibility gate as trade mutations");
   assert.match(trades, /cardAssetLocks/, "direct trades must escrow offered collectible copies");
   assert.match(trades, /duplicateCap/, "direct trades must preserve the collection copy cap");
+  assert.match(trades, /serialNumber: asset\.serialNumber/, "direct trade snapshots must preserve the exact offered serial number");
   assert.doesNotMatch(trades, /proposerGold|recipientGold/, "Marketplace 1.0 direct trades are card-for-card only; Gold moves through sales");
 
   const marketClient = read("src/app/market/MarketClient.tsx");
   assert.match(marketClient, /\/api\/public\/game\/cards/, "direct trades must resolve requested cards from the safe public catalog");
   assert.match(marketClient, /Carta que você deseja receber/, "direct trade UI must expose a player-facing card picker");
+  assert.match(marketClient, /getCardCosmetic/, "marketplace labels must resolve player-facing cosmetic names instead of exposing only internal variant ids");
+  assert.match(marketClient, /serialNumber/, "marketplace UI must surface serialized copy identity");
+  assert.match(marketClient, /useCatalogRevision/, "marketplace cosmetic labels must refresh when the public cosmetic catalog hydrates");
   assert.doesNotMatch(marketClient, /placeholder=["']defId da carta desejada["']/, "players must never be asked for an internal card defId");
 
   const collection = read("src/app/api/collection/route.ts");
@@ -59,6 +65,13 @@ function main() {
   assert.match(packs, /createPackCollectibleAsset/, "pack openings must materialize a gameplay-equivalent collectible copy with an optional cosmetic printing");
   assert.match(packs, /const received: string\[\] = \[\]/, "pack gameplay card identities must still be selected independently of cosmetic minting");
   assert.match(packs, /cosmetics: result\.mintedAssets/, "pack response must expose pulled collectible appearances to the client without altering card rules");
+  const storeClient = read("src/app/store/StoreClient.tsx");
+  assert.match(storeClient, /setCosmeticPulls\(Array\.isArray\(data\.cosmetics\)/, "pack reveal must consume the authoritative cosmetic mint result");
+  assert.match(storeClient, /PackCosmeticHighlights/, "pack reveal must visibly celebrate special cosmetic pulls");
+  const packHighlights = read("src/app/store/PackCosmeticHighlights.tsx");
+  assert.match(packHighlights, /variantId !== "standard"/, "pack reveal must celebrate only non-standard appearances");
+  assert.match(packHighlights, /serialLimit/, "serialized pack reveals must show number and print-run limit when available");
+  assert.match(packHighlights, /100% COSMÉTICO/, "pack reveal must communicate that rarity cosmetics do not change gameplay");
   const cosmeticService = read("src/lib/card-cosmetic-service.ts");
   assert.match(cosmeticService, /dropWeight is parts-per-million/, "cosmetic pack odds must have an explicit deterministic unit");
   assert.match(cosmeticService, /fall back to a normal gameplay copy/, "exhausted serialized runs must preserve the rolled gameplay card as Standard");
