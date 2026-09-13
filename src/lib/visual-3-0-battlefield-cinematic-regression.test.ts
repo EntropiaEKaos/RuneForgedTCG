@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 
 const layout = readFileSync("src/app/layout.tsx", "utf8");
 const css = readFileSync("src/app/styles/visual-3-0-battlefield-cinematic.css", "utf8");
+const responsiveCss = readFileSync("src/app/styles/visual-4-0-responsive-battlefield.css", "utf8");
+const visualJourney = readFileSync("scripts/alpha-visual-journey.mjs", "utf8");
 const battle = readFileSync("src/app/play/BattleView.tsx", "utf8");
 const arena = readFileSync("src/components/game/ArenaIdentity.tsx", "utf8");
 
@@ -45,9 +47,72 @@ assert.ok(css.includes("prefers-reduced-motion: reduce"), "reduced-motion fallba
 assert.ok(css.includes('data-performance="low"'), "low-performance fallback missing");
 assert.ok(css.includes('data-fx="reduced"'), "reduced-FX fallback missing");
 
-// Presentation-only boundary: no gameplay/network/storage behavior belongs in this stylesheet or gate.
-for (const forbidden of ["fetch(", "dispatch(", "castSpell(", "playUnit(", "localStorage", "sessionStorage"]) {
-  assert.equal(css.includes(forbidden), false, `presentation layer must not contain ${forbidden}`);
+// Visual 4.0 is deliberately loaded last so short desktop/notebook geometry can
+// override every earlier cinematic/polish layer without touching game logic.
+const responsiveImport = 'import "./styles/visual-4-0-responsive-battlefield.css";';
+assert.ok(layout.includes(responsiveImport), "Visual 4.0 responsive battlefield layer must be loaded");
+assert.ok(
+  layout.indexOf(responsiveImport) > layout.indexOf('import "./styles/card-cosmetics.css";'),
+  "Visual 4.0 must load after the existing visual stack so viewport geometry wins deterministically",
+);
+assert.ok(
+  responsiveCss.includes("@media (min-width: 901px) and (max-height: 900px)"),
+  "short desktop/notebook breakpoint must exist",
+);
+assert.ok(
+  responsiveCss.includes("@media (min-width: 901px) and (max-height: 760px)"),
+  "720p-class notebook density floor must exist",
+);
+assert.ok(responsiveCss.includes("height: 100dvh"), "responsive arena must bind itself to the dynamic viewport height");
+assert.ok(responsiveCss.includes("max-height: 100dvh"), "responsive arena must not grow below the viewport");
+
+for (const selector of [
+  ".tcg-arena .tcg-row",
+  ".tcg-arena .tcg-row .card-shell",
+  ".tcg-arena .player-hand-shell",
+  ".tcg-arena .tcg-hand .tcg-hand-card .card-shell",
+  ".tcg-arena .tcg-actions",
+  '.tcg-arena .tcg-row[data-bench-side="ai"] + .relative.flex-1',
+]) {
+  assert.ok(responsiveCss.includes(selector), `responsive tactical surface missing selector: ${selector}`);
 }
 
-console.log("RUNE FORGE VISUAL 3.0 BATTLEFIELD CINEMATIC PASS: source contract PASS");
+assert.ok(responsiveCss.includes("--rf-v4-board-card-w: clamp("), "board cards must scale against viewport height");
+assert.ok(responsiveCss.includes("--rf-v4-board-card-h: clamp("), "board card height must use a portable clamp");
+assert.ok(responsiveCss.includes("--rf-v4-hand-card-w: clamp("), "hand cards must scale against viewport height");
+assert.ok(responsiveCss.includes("--rf-v4-hand-card-h: clamp("), "hand card height must use a portable clamp");
+assert.equal(responsiveCss.includes("* 1.414"), false, "Visual 4.0 must not depend on unsupported CSS calc multiplication");
+assert.ok(
+  responsiveCss.includes(".tcg-arena .board-status-strip") && responsiveCss.includes(".tcg-arena .archetype-tracker"),
+  "secondary notebook chrome must yield height to the actual battlefield",
+);
+assert.ok(responsiveCss.includes("aside[data-mode-mission]"), "special-mode briefing must remain available as an overlay on short viewports");
+assert.ok(responsiveCss.includes(".tcg-arena .tcg-log[open]"), "battle log must remain accessible as an overlay drawer");
+assert.ok(responsiveCss.includes("overscroll-behavior: contain"), "internal tactical scrollers must contain overscroll instead of moving the page");
+
+// Real browser evidence must reproduce the exact notebook failure that motivated
+// Visual 4.0, not merely prove that the source contains responsive selectors.
+assert.ok(
+  visualJourney.includes("const notebookViewport = { width: 1366, height: 768"),
+  "real-browser visual certification must include the common 1366x768 notebook viewport",
+);
+assert.ok(visualJourney.includes("assertBattlefieldNotebookFit"), "visual journey must certify notebook battlefield geometry");
+assert.ok(
+  visualJourney.includes("notebook battlefield requires vertical page scrolling"),
+  "browser certification must fail when the page needs vertical scrolling",
+);
+assert.ok(
+  visualJourney.includes("05a-battlefield-notebook-1366x768.png"),
+  "notebook certification must emit reviewable screenshot evidence",
+);
+for (const selector of ["rivalField", "playerField", "hand", "actions"]) {
+  assert.ok(visualJourney.includes(`${selector}: rectOf(`), `notebook browser evidence must measure ${selector}`);
+}
+
+// Presentation-only boundary: no gameplay/network/storage behavior belongs in these stylesheets or gate.
+for (const forbidden of ["fetch(", "dispatch(", "castSpell(", "playUnit(", "localStorage", "sessionStorage"]) {
+  assert.equal(css.includes(forbidden), false, `presentation layer must not contain ${forbidden}`);
+  assert.equal(responsiveCss.includes(forbidden), false, `responsive presentation layer must not contain ${forbidden}`);
+}
+
+console.log("RUNE FORGE VISUAL 3.0 + 4.0 BATTLEFIELD CONTRACT: source contract PASS");

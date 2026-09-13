@@ -8,6 +8,7 @@ import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrom
 const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
+const notebookViewport = { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false };
 
 function sleep(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
@@ -272,6 +273,47 @@ async function assertViewportIntegrity(cdp, stage) {
   return metrics;
 }
 
+async function assertBattlefieldNotebookFit(cdp) {
+  const evidence = await evaluate(cdp, `(() => {
+    const rectOf = (selector) => {
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right, width: rect.width, height: rect.height };
+    };
+    return {
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight,
+      scrollWidth: document.documentElement.scrollWidth,
+      scrollHeight: document.documentElement.scrollHeight,
+      arena: rectOf('.tcg-arena'),
+      rivalField: rectOf('.tcg-row[data-bench-side="ai"]'),
+      playerField: rectOf('.tcg-row[data-bench-side="player"]'),
+      hand: rectOf('.player-hand-shell'),
+      actions: rectOf('.tcg-actions'),
+    };
+  })()`);
+
+  assert.equal(evidence.innerWidth, notebookViewport.width, "notebook certification must run at 1366px width");
+  assert.equal(evidence.innerHeight, notebookViewport.height, "notebook certification must run at 768px height");
+  assert.ok(evidence.scrollWidth <= evidence.innerWidth + 2, `notebook battlefield has horizontal page overflow: ${evidence.scrollWidth}px > ${evidence.innerWidth}px`);
+  assert.ok(evidence.scrollHeight <= evidence.innerHeight + 2, `notebook battlefield requires vertical page scrolling: ${evidence.scrollHeight}px > ${evidence.innerHeight}px`);
+
+  for (const [label, rect] of Object.entries({
+    arena: evidence.arena,
+    rivalField: evidence.rivalField,
+    playerField: evidence.playerField,
+    hand: evidence.hand,
+    actions: evidence.actions,
+  })) {
+    assert.ok(rect, `notebook battlefield is missing ${label}`);
+    assert.ok(rect.top >= -1, `notebook battlefield clips ${label} above viewport: top=${rect.top}`);
+    assert.ok(rect.bottom <= evidence.innerHeight + 1, `notebook battlefield clips ${label} below viewport: bottom=${rect.bottom}, viewport=${evidence.innerHeight}`);
+  }
+
+  return evidence;
+}
+
 async function capture(cdp, filename, stage, manifest, resetScroll = true) {
   await settle(cdp);
   if (resetScroll) await evaluate(cdp, "window.scrollTo(0, 0)");
@@ -349,6 +391,14 @@ async function main() {
     await clickText(cdp, "Pular guia");
     await waitUntil(() => evaluate(cdp, "!document.querySelector('.match-guide-backdrop')"), "first match guide to close");
     await capture(cdp, "05-battlefield.png", "live battlefield", manifest);
+
+    await cdp.call("Emulation.setDeviceMetricsOverride", notebookViewport);
+    await settle(cdp);
+    const notebookEvidence = await assertBattlefieldNotebookFit(cdp);
+    await capture(cdp, "05a-battlefield-notebook-1366x768.png", "live battlefield notebook fit 1366x768", manifest);
+    console.log(`ALPHA VISUAL: notebook battlefield fit PASS — ${JSON.stringify(notebookEvidence)}`);
+    await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
+    await settle(cdp);
 
     await hoverSelector(cdp, "#player-hand-cards [data-card-tip-def-id]");
     await waitForSelector(cdp, '[data-card-intelligence-panel="true"]', 10_000);
@@ -430,6 +480,7 @@ async function main() {
       baseUrl,
       chrome: chromePath,
       viewport,
+      notebookViewport,
       gitSha: process.env.GITHUB_SHA || null,
       capturedAt: new Date().toISOString(),
       screenshots: manifest,
