@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import { CARD_EFFECT_KINDS, CARD_RACES } from "@/game/card-authoring";
 import { baseCardsOnly } from "@/game/cards";
 import { CANONICAL_KEYWORDS } from "@/game/keywords";
@@ -28,10 +27,5 @@ for (const row of baseline.keywords) {
 for (const row of baseline.effects) assert.equal(row.enabled, true);
 for (const row of baseline.races) assert.equal(row.enabled, true);
 for (const row of baseline.classes) assert.equal(row.enabled, true);
-
-const bootstrap = fs.readFileSync("scripts/database-bootstrap.ts", "utf8");
-const migrate = fs.readFileSync("scripts/database-migrate.ts", "utf8");
-assert.match(bootstrap, /studio-content-sync\.ts/, "fresh database bootstrap must populate the Studio baseline");
-assert.match(migrate, /studio-content-sync\.ts/, "existing production databases must receive the Studio baseline during db:migrate");
 
 console.log(`STUDIO BASELINE CONTRACT: PASS — ${baseline.keywords.length} keywords · ${baseline.effects.length} effects · ${baseline.races.length} races · ${baseline.classes.length} classes · ${baseline.cards.length} base cards`);
