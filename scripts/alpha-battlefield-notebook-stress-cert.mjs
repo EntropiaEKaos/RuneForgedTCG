@@ -181,12 +181,14 @@ async function installDensityStressFixture(cdp) {
 }
 
 async function hoverRealHandCard(cdp) {
-  const point = await evaluate(cdp, `(async()=>{const target=document.querySelector('#player-hand-cards [data-card-tip-def-id]');if(!target)return null;target.scrollIntoView({block:'center',inline:'center'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const rect=target.getBoundingClientRect();return{x:rect.left+rect.width/2,y:rect.top+rect.height/2}})()`);
-  assert.ok(point && Number.isFinite(point.x) && Number.isFinite(point.y), "stress certification requires at least one real hand card");
+  const point = await evaluate(cdp, `(async()=>{const cards=[...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')].reverse();const fractions=[[.5,.5],[.5,.25],[.5,.75],[.25,.5],[.75,.5],[.2,.2],[.8,.2],[.2,.8],[.8,.8]];for(const target of cards){target.scrollIntoView({block:'nearest',inline:'center'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const rect=target.getBoundingClientRect();for(const [fx,fy] of fractions){const x=rect.left+rect.width*fx;const y=rect.top+rect.height*fy;if(x<1||y<1||x>innerWidth-2||y>innerHeight-2)continue;const hit=document.elementFromPoint(x,y);const host=hit?.closest?.('[data-card-tip-def-id]');if(host===target||target.contains(hit)){return{ok:true,x,y,defId:target.dataset.cardTipDefId,hitTag:hit?.tagName||null}}}}return{ok:false,cards:cards.map(card=>{const rect=card.getBoundingClientRect();return{defId:card.dataset.cardTipDefId,left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom}})}})()`);
+  assert.equal(point?.ok, true, `stress certification requires a physically hit-testable real hand card: ${JSON.stringify(point)}`);
+  assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y), "stress certification hover point must be finite");
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
   await sleep(120);
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
-  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-tooltip-panel="true"]'))`), "card intelligence tooltip");
+  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-tooltip-panel="true"]'))`), `card intelligence tooltip for ${point.defId}`);
+  return point;
 }
 
 async function collectStressEvidence(cdp) {
@@ -245,14 +247,14 @@ async function main() {
       const fixture = await installDensityStressFixture(cdp);
       assert.equal(fixture.ok, true, `could not install notebook density stress fixture: ${JSON.stringify(fixture)}`);
       await settle(cdp);
-      await hoverRealHandCard(cdp);
+      const hoverTarget = await hoverRealHandCard(cdp);
       await settle(cdp);
       const evidence = await collectStressEvidence(cdp);
       assertStressEvidence(evidence);
       await capture(cdp, "battlefield-density-stress-1280x720.png");
-      const report = { ok: true, viewport, fixture, evidence, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() };
+      const report = { ok: true, viewport, fixture, hoverTarget, evidence, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() };
       await writeFile(join(outputDir, "battlefield-density-stress-1280x720.json"), `${JSON.stringify(report, null, 2)}\n`);
-      console.log(`VISUAL 4.2 NOTEBOOK DENSITY STRESS: PASS — ${JSON.stringify(evidence)}`);
+      console.log(`VISUAL 4.2 NOTEBOOK DENSITY STRESS: PASS — ${JSON.stringify({ hoverTarget, evidence })}`);
     } catch (error) {
       await writeFailureEvidence(cdp, error);
       throw error;
