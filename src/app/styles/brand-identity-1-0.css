@@ -1,0 +1,149 @@
+/* Brand Identity 1.0 — proprietary region crests and compact card identity. */
+
+.card-shell {
+  --brand-region-mask: url("/brand/regions/emberhold-crest.svg");
+  --brand-region-fill: linear-gradient(145deg, #ffd28a, #f97316 48%, #7c2d12);
+  --brand-region-glow: rgba(249, 115, 22, .45);
+  --brand-convergence-fill: var(--brand-region-fill);
+}
+
+.card-shell[data-card-region="emberhold"] {
+  --brand-region-mask: url("/brand/regions/emberhold-crest.svg");
+  --brand-region-fill: linear-gradient(145deg, #ffe0a6, #f97316 48%, #991b1b);
+  --brand-region-glow: rgba(249, 115, 22, .5);
+}
+.card-shell[data-card-region="tidecall"] {
+  --brand-region-mask: url("/brand/regions/tidecall-crest.svg");
+  --brand-region-fill: linear-gradient(145deg, #d8fbff, #22d3ee 44%, #1d4ed8);
+  --brand-region-glow: rgba(34, 211, 238, .48);
+}
+.card-shell[data-card-region="ironwood"] {
+  --brand-region-mask: url("/brand/regions/ironwood-crest.svg");
+  --brand-region-fill: linear-gradient(145deg, #c9fff0, #2dd4bf 44%, #065f46);
+  --brand-region-glow: rgba(45, 212, 191, .45);
+}
+.card-shell[data-card-region="voidborn"] {
+  --brand-region-mask: url("/brand/regions/voidborn-crest.svg");
+  --brand-region-fill: linear-gradient(145deg, #f5d0fe, #d946ef 42%, #581c87);
+  --brand-region-glow: rgba(217, 70, 239, .48);
+}
+.card-shell[data-card-region="florestia"] {
+  --brand-region-mask: url("/brand/regions/florestia-crest.svg");
+  --brand-region-fill: linear-gradient(145deg, #fff2b6, #fbbf24 45%, #92400e);
+  --brand-region-glow: rgba(251, 191, 36, .45);
+}
+.card-shell[data-card-region="tempestade"] {
+  --brand-region-mask: url("/brand/regions/tempestade-crest.svg");
+  --brand-region-fill: linear-gradient(145deg, #e0ecff, #60a5fa 42%, #3730a3);
+  --brand-region-glow: rgba(96, 165, 250, .5);
+}
+
+/* The region name remains available through title/accessibility, but the compact
+   card face is now carried by heraldry rather than repeated text. */
+.card-shell .card-region {
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  padding: 2px !important;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255,255,255,.18), transparent 38%),
+    linear-gradient(145deg, rgba(9,12,18,.94), rgba(2,4,8,.98));
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.5), 0 0 10px var(--brand-region-glow);
+  font-size: 0 !important;
+  line-height: 0;
+  letter-spacing: 0;
+  overflow: hidden;
+}
+
+.card-shell .card-region-sigil {
+  display: block;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 17px;
+  font-size: 0 !important;
+  line-height: 0;
+  color: transparent !important;
+  background: var(--brand-region-fill);
+  -webkit-mask: var(--brand-region-mask) center / contain no-repeat;
+  mask: var(--brand-region-mask) center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.9));
+}
+
+.card-shell[data-card-region-count="2"],
+.card-shell[data-card-region-count="3"] {
+  --brand-region-mask: url("/brand/regions/convergence-crest.svg");
+}
+.card-shell[data-card-region-count="2"] .card-region,
+.card-shell[data-card-region-count="3"] .card-region {
+  width: 27px;
+  min-width: 27px;
+  height: 27px;
+  border-color: rgba(238, 203, 132, .5);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.68), 0 0 12px rgba(220,178,88,.34);
+}
+.card-shell[data-card-region-count="2"] .card-region-sigil,
+.card-shell[data-card-region-count="3"] .card-region-sigil {
+  width: 20px;
+  height: 20px;
+  flex-basis: 20px;
+  background: var(--brand-convergence-fill);
+}
+
+/* Dual Convergence palettes. The geometry is shared; the fused material tells
+   which forces are meeting without reverting to emoji pairs. */
+.card-shell[data-card-identity="emberhold-tidecall"] { --brand-convergence-fill: linear-gradient(135deg,#f97316 0 43%,#f4d38a 49% 51%,#22d3ee 57% 100%); }
+.card-shell[data-card-identity="emberhold-ironwood"] { --brand-convergence-fill: linear-gradient(135deg,#f97316 0 43%,#f4d38a 49% 51%,#2dd4bf 57% 100%); }
+.card-shell[data-card-identity="emberhold-voidborn"] { --brand-convergence-fill: linear-gradient(135deg,#f97316 0 43%,#f4d38a 49% 51%,#d946ef 57% 100%); }
+.card-shell[data-card-identity="emberhold-florestia"] { --brand-convergence-fill: linear-gradient(135deg,#f97316 0 43%,#f4d38a 49% 51%,#fbbf24 57% 100%); }
+.card-shell[data-card-identity="emberhold-tempestade"] { --brand-convergence-fill: linear-gradient(135deg,#f97316 0 43%,#ffe09a 49% 51%,#60a5fa 57% 100%); }
+.card-shell[data-card-identity="tidecall-ironwood"] { --brand-convergence-fill: linear-gradient(135deg,#22d3ee 0 43%,#d9fff6 49% 51%,#2dd4bf 57% 100%); }
+.card-shell[data-card-identity="tidecall-voidborn"] { --brand-convergence-fill: linear-gradient(135deg,#22d3ee 0 43%,#dfd7ff 49% 51%,#d946ef 57% 100%); }
+.card-shell[data-card-identity="tidecall-florestia"] { --brand-convergence-fill: linear-gradient(135deg,#22d3ee 0 43%,#f4edb0 49% 51%,#fbbf24 57% 100%); }
+.card-shell[data-card-identity="tidecall-tempestade"] { --brand-convergence-fill: linear-gradient(135deg,#22d3ee 0 43%,#dbeafe 49% 51%,#60a5fa 57% 100%); }
+.card-shell[data-card-identity="ironwood-voidborn"] { --brand-convergence-fill: linear-gradient(135deg,#2dd4bf 0 43%,#e9d5ff 49% 51%,#d946ef 57% 100%); }
+.card-shell[data-card-identity="ironwood-florestia"] { --brand-convergence-fill: linear-gradient(135deg,#2dd4bf 0 43%,#dcfce7 49% 51%,#fbbf24 57% 100%); }
+.card-shell[data-card-identity="ironwood-tempestade"] { --brand-convergence-fill: linear-gradient(135deg,#2dd4bf 0 43%,#dbeafe 49% 51%,#60a5fa 57% 100%); }
+.card-shell[data-card-identity="voidborn-florestia"] { --brand-convergence-fill: linear-gradient(135deg,#d946ef 0 43%,#f5d0fe 49% 51%,#fbbf24 57% 100%); }
+.card-shell[data-card-identity="voidborn-tempestade"] { --brand-convergence-fill: linear-gradient(135deg,#d946ef 0 43%,#ddd6fe 49% 51%,#60a5fa 57% 100%); }
+.card-shell[data-card-identity="florestia-tempestade"] { --brand-convergence-fill: linear-gradient(135deg,#fbbf24 0 43%,#fef3c7 49% 51%,#60a5fa 57% 100%); }
+
+/* Triad Convergence palettes keep one shared crest and three material sectors. */
+.card-shell[data-card-identity="emberhold-tidecall-ironwood"] { --brand-convergence-fill: conic-gradient(#f97316 0 33%,#22d3ee 33% 66%,#2dd4bf 66% 100%); }
+.card-shell[data-card-identity="emberhold-ironwood-florestia"] { --brand-convergence-fill: conic-gradient(#f97316 0 33%,#2dd4bf 33% 66%,#fbbf24 66% 100%); }
+.card-shell[data-card-identity="emberhold-voidborn-tempestade"] { --brand-convergence-fill: conic-gradient(#f97316 0 33%,#d946ef 33% 66%,#60a5fa 66% 100%); }
+.card-shell[data-card-identity="tidecall-ironwood-voidborn"] { --brand-convergence-fill: conic-gradient(#22d3ee 0 33%,#2dd4bf 33% 66%,#d946ef 66% 100%); }
+.card-shell[data-card-identity="tidecall-florestia-tempestade"] { --brand-convergence-fill: conic-gradient(#22d3ee 0 33%,#fbbf24 33% 66%,#60a5fa 66% 100%); }
+.card-shell[data-card-identity="ironwood-voidborn-florestia"] { --brand-convergence-fill: conic-gradient(#2dd4bf 0 33%,#d946ef 33% 66%,#fbbf24 66% 100%); }
+
+/* Replace the old emoji fallback sigil with the same official crest language. */
+.card-shell .card-art-fallback b {
+  display: block;
+  width: 34px;
+  height: 34px;
+  font-size: 0 !important;
+  color: transparent !important;
+  background: var(--brand-region-fill);
+  -webkit-mask: var(--brand-region-mask) center / contain no-repeat;
+  mask: var(--brand-region-mask) center / contain no-repeat;
+  filter: drop-shadow(0 4px 7px rgba(0,0,0,.7)) drop-shadow(0 0 8px var(--brand-region-glow));
+}
+.card-shell[data-card-region-count="2"] .card-art-fallback b,
+.card-shell[data-card-region-count="3"] .card-art-fallback b {
+  background: var(--brand-convergence-fill);
+}
+
+/* Give the freed top-line width back to collection/champion information. */
+.card-shell .card-topline { gap: 3px; }
+.card-shell .card-collection { max-width: calc(100% - 58px); }
+
+@media (max-width: 700px) {
+  .card-shell .card-region { width: 22px; min-width: 22px; height: 22px; }
+  .card-shell .card-region-sigil { width: 15px; height: 15px; flex-basis: 15px; }
+  .card-shell[data-card-region-count="2"] .card-region,
+  .card-shell[data-card-region-count="3"] .card-region { width: 24px; min-width: 24px; height: 24px; }
+}
