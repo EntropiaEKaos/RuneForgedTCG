@@ -6,19 +6,20 @@ This folder contains the certified Alpha release reports for the RuneForge proje
 
 - Repository: `EntropiaEKaos/RuneForgedTCG`
 - Branch: `main`
-- Certified SHA: `cb0274f86da146e8079037dfaf51ef58c6d2671c`
+- Certified SHA: `c9153d38255692eb4cde1fbcdc7f105d3d917dc8`
 - Release: `2.97.0`
-- Latest product milestone: `#176 — Visual 5.1: premium metagame surfaces`
-- Post-merge CI: `#1116 — success`
-- Alpha Release Candidate: `#24 — success`
+- Latest product milestone: `#184 — Visual 5.8: premium deck builder workbench`
+- Post-merge CI: `#1154 — success`
+- Alpha Release Candidate: `#31 — success`
 - Post-merge certification matrix: `9/9 workflows — success`
 - Vercel status on certified SHA: `success — Deployment has completed`
 - Report date: `2026-09-14`
 
 ## Current reports
 
-1. [`2026-09-14-alpha-engineering-report.md`](./2026-09-14-alpha-engineering-report.md) — exact-main engineering, deployment and release-candidate certification.
-2. [`2026-09-14-alpha-executive-go-no-go.md`](./2026-09-14-alpha-executive-go-no-go.md) — current executive GO / NO-GO decision and rollout posture.
+1. [`2026-09-14-visual-5-8-certification.md`](./2026-09-14-visual-5-8-certification.md) — exact-main Visual 5.8 promotion, post-merge matrix, RC manifest and deployment-provider evidence.
+2. [`2026-09-14-alpha-engineering-report.md`](./2026-09-14-alpha-engineering-report.md) — engineering, deployment and release-candidate certification at the earlier 2026-09-14 baseline.
+3. [`2026-09-14-alpha-executive-go-no-go.md`](./2026-09-14-alpha-executive-go-no-go.md) — executive GO / NO-GO decision and rollout posture at the earlier 2026-09-14 baseline.
 
 ## Historical reports
 
@@ -27,9 +28,9 @@ This folder contains the certified Alpha release reports for the RuneForge proje
 
 ## Current release interpretation
 
-The codebase and production deployment pipeline are certified for a **controlled / closed Alpha** on the current SHA. Public Ranked remains intentionally fail-closed and is not an initial Alpha requirement.
+The codebase and deployment pipeline are certified for a **controlled / closed Alpha** on `c9153d38255692eb4cde1fbcdc7f105d3d917dc8`. Public Ranked remains intentionally fail-closed and is not an initial Alpha requirement.
 
-Before a broad public announcement, perform one fresh external-network smoke against the current public hostname and verify health, Alpha readiness and deployment provenance for `cb0274f86da146e8079037dfaf51ef58c6d2671c`. The certification environment used for the 2026-09-14 review could not resolve that hostname through its own DNS path, so the reports preserve this operational confirmation instead of inventing an external HTTP success.
+Before a broad public announcement, perform one fresh external-network smoke against the current public hostname and verify health, Alpha readiness, exact deployment provenance and durable persistence for `c9153d38255692eb4cde1fbcdc7f105d3d917dc8`. The hostname is intentionally not committed to the repository, so repository-only evidence cannot substitute for this operational proof.
 
 ## Audit policy
 
