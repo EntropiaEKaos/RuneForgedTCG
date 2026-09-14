@@ -1,0 +1,271 @@
+/* ========================================================================== 
+   RuneForge Visual 5.0 — Cinematic Identity
+   Presentation-only world pass. Existing deck identity, ArenaIdentity artwork,
+   convergence, player plates, Nexus and MatchCinematics provide all authority.
+   No new gameplay state or geometry is introduced here.
+   ========================================================================== */
+
+.tcg-arena {
+  --rf-v50-accent: 235, 199, 126;
+  --rf-v50-accent-soft: 235, 199, 126;
+  --rf-v50-atmosphere: rgba(235, 199, 126, .08);
+}
+
+.tcg-arena[data-deck-identity*="emberhold"] {
+  --rf-v50-accent: 251, 113, 133;
+  --rf-v50-accent-soft: 251, 146, 60;
+  --rf-v50-atmosphere: rgba(190, 55, 35, .14);
+}
+
+.tcg-arena[data-deck-identity*="tidecall"] {
+  --rf-v50-accent: 103, 232, 249;
+  --rf-v50-accent-soft: 96, 165, 250;
+  --rf-v50-atmosphere: rgba(14, 116, 144, .13);
+}
+
+.tcg-arena[data-deck-identity*="ironwood"] {
+  --rf-v50-accent: 134, 239, 172;
+  --rf-v50-accent-soft: 163, 230, 53;
+  --rf-v50-atmosphere: rgba(34, 120, 72, .13);
+}
+
+.tcg-arena[data-deck-identity*="voidborn"] {
+  --rf-v50-accent: 196, 181, 253;
+  --rf-v50-accent-soft: 167, 139, 250;
+  --rf-v50-atmosphere: rgba(91, 33, 182, .15);
+}
+
+.tcg-arena[data-deck-identity*="florestia"] {
+  --rf-v50-accent: 110, 231, 183;
+  --rf-v50-accent-soft: 74, 222, 128;
+  --rf-v50-atmosphere: rgba(22, 101, 52, .14);
+}
+
+.tcg-arena[data-deck-identity*="tempestade"] {
+  --rf-v50-accent: 125, 211, 252;
+  --rf-v50-accent-soft: 129, 140, 248;
+  --rf-v50-atmosphere: rgba(37, 99, 235, .14);
+}
+
+/* The existing region art is promoted into scenery, not replaced. */
+.tcg-arena > .arena-identity {
+  opacity: 1;
+}
+
+.tcg-arena .arena-backdrop {
+  opacity: .58;
+  filter: saturate(1.14) brightness(.74) contrast(1.08);
+  transform: scale(1.015);
+  transform-origin: 50% 44%;
+}
+
+.tcg-arena .arena-convergence {
+  opacity: .64;
+  mix-blend-mode: screen;
+  filter: saturate(1.16) contrast(1.04);
+}
+
+/* Atmospheric light is tied to deck identity but never intercepts input. */
+.tcg-arena > .arena-identity::before,
+.tcg-arena > .arena-identity::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tcg-arena > .arena-identity::before {
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(var(--rf-v50-accent), .10), transparent 43%),
+    linear-gradient(180deg, rgba(var(--rf-v50-accent-soft), .055), transparent 36%, rgba(0, 0, 0, .18) 100%);
+  mix-blend-mode: screen;
+  opacity: .9;
+}
+
+.tcg-arena > .arena-identity::after {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, .34), transparent 18%, transparent 82%, rgba(0, 0, 0, .34)),
+    radial-gradient(ellipse at center, transparent 36%, rgba(0, 0, 0, .34) 100%);
+}
+
+/* Crest becomes a subtle world signature rather than UI chrome. */
+.tcg-arena .arena-crest {
+  opacity: .58;
+  filter: saturate(.95);
+  text-shadow: 0 0 18px rgba(var(--rf-v50-accent), .22);
+}
+
+.tcg-arena .arena-crest > span {
+  color: rgb(var(--rf-v50-accent));
+  filter: drop-shadow(0 0 10px rgba(var(--rf-v50-accent), .34));
+}
+
+.tcg-arena .arena-motes {
+  opacity: .5;
+  color: rgb(var(--rf-v50-accent-soft));
+  filter: drop-shadow(0 0 6px rgba(var(--rf-v50-accent), .22));
+}
+
+/* The inner battlefield receives a restrained region light field. */
+.tcg-arena > .mx-auto {
+  box-shadow:
+    inset 0 1px rgba(var(--rf-v50-accent), .08),
+    inset 0 0 100px var(--rf-v50-atmosphere),
+    inset 0 -70px 100px rgba(0, 0, 0, .22);
+}
+
+.tcg-arena .tcg-match-header {
+  border-bottom-color: rgba(var(--rf-v50-accent), .13);
+}
+
+.tcg-arena .tcg-match-brand {
+  text-shadow: 0 0 18px rgba(var(--rf-v50-accent), .18);
+}
+
+/* Player/Nexus surfaces inherit the world without changing their geometry. */
+.tcg-arena .tcg-playerbar {
+  box-shadow:
+    inset 0 1px rgba(var(--rf-v50-accent), .06),
+    0 8px 26px rgba(0, 0, 0, .16);
+}
+
+.tcg-arena .tcg-nexus {
+  border-color: rgba(var(--rf-v50-accent), .17);
+  box-shadow:
+    inset 0 0 18px rgba(var(--rf-v50-accent), .045),
+    0 0 18px rgba(var(--rf-v50-accent), .035);
+}
+
+.tcg-arena .tcg-nexus-gem {
+  filter:
+    drop-shadow(0 0 8px rgba(var(--rf-v50-accent), .22))
+    saturate(1.05);
+}
+
+/* Deployment lanes and conflict altar gain depth without added height. */
+.tcg-arena .tcg-row {
+  background:
+    linear-gradient(90deg, transparent, rgba(var(--rf-v50-accent), .025) 50%, transparent),
+    rgba(2, 5, 9, .08);
+}
+
+.tcg-arena .tcg-row::after {
+  border-color: rgba(var(--rf-v50-accent), .08);
+}
+
+.tcg-arena .tcg-row[data-bench-side="ai"] + .relative.flex-1 {
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(var(--rf-v50-accent), .055), transparent 56%),
+    linear-gradient(180deg, rgba(2, 5, 9, .12), rgba(2, 5, 9, .04));
+}
+
+/* Existing turn/round cinematic now belongs to the current world identity. */
+.tcg-arena .match-cinematic {
+  border-color: rgba(var(--rf-v50-accent), .30);
+  background:
+    linear-gradient(135deg, rgba(var(--rf-v50-accent), .11), rgba(3, 7, 12, .92) 38%, rgba(3, 7, 12, .96));
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, .48),
+    0 0 42px rgba(var(--rf-v50-accent), .12),
+    inset 0 1px rgba(255, 255, 255, .055);
+}
+
+.tcg-arena .match-cinematic > span {
+  color: rgb(var(--rf-v50-accent));
+  text-shadow: 0 0 18px rgba(var(--rf-v50-accent), .45);
+}
+
+.tcg-arena .match-cinematic small {
+  color: rgba(var(--rf-v50-accent-soft), .88);
+}
+
+.tcg-arena .match-cinematic b {
+  text-shadow: 0 0 22px rgba(var(--rf-v50-accent), .18);
+}
+
+/* Combat/response intensify the same identity instead of switching universes. */
+.tcg-arena[data-match-phase="combat"] > .arena-identity::before {
+  opacity: 1;
+  background:
+    radial-gradient(ellipse at 50% 47%, rgba(var(--rf-v50-accent), .15), transparent 42%),
+    linear-gradient(180deg, rgba(var(--rf-v50-accent-soft), .06), transparent 38%);
+}
+
+.tcg-arena[data-match-phase="response"] > .arena-identity::before {
+  opacity: .92;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(167, 139, 250, .12), transparent 43%),
+    radial-gradient(ellipse at 50% 56%, rgba(var(--rf-v50-accent), .075), transparent 55%);
+}
+
+/* Touch composition keeps atmosphere subordinate to readability. */
+@media (max-width: 900px) {
+  .tcg-arena .arena-backdrop {
+    opacity: .39;
+    filter: saturate(1.02) brightness(.62) contrast(1.05);
+    transform: none;
+  }
+
+  .tcg-arena .arena-convergence {
+    opacity: .42;
+  }
+
+  .tcg-arena .arena-crest {
+    opacity: .34;
+  }
+
+  .tcg-arena .arena-motes {
+    opacity: .3;
+  }
+
+  .tcg-arena > .arena-identity::before {
+    opacity: .66;
+  }
+
+  .tcg-arena > .mx-auto {
+    box-shadow: inset 0 0 46px var(--rf-v50-atmosphere);
+  }
+}
+
+/* Short notebooks preserve the certified tactical geometry. */
+@media (min-width: 901px) and (max-height: 760px) {
+  .tcg-arena .arena-backdrop {
+    opacity: .45;
+  }
+
+  .tcg-arena .arena-crest {
+    opacity: .4;
+  }
+
+  .tcg-arena .arena-motes {
+    opacity: .34;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena .arena-backdrop,
+  .tcg-arena .arena-motes,
+  .tcg-arena .match-cinematic {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+.tcg-arena[data-performance="low"] .arena-backdrop,
+.tcg-arena[data-fx="reduced"] .arena-backdrop {
+  transform: none;
+  filter: saturate(.9) brightness(.66);
+}
+
+.tcg-arena[data-performance="low"] > .arena-identity::before,
+.tcg-arena[data-performance="low"] > .arena-identity::after,
+.tcg-arena[data-fx="reduced"] > .arena-identity::before {
+  opacity: .32;
+  mix-blend-mode: normal;
+}
+
+.tcg-arena[data-performance="low"] > .mx-auto,
+.tcg-arena[data-fx="reduced"] > .mx-auto,
+.tcg-arena[data-performance="low"] .match-cinematic {
+  box-shadow: none;
+}

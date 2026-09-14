@@ -32,9 +32,16 @@ import { readFileSync } from "node:fs";
  * it does not change engine authority, rules, BattleView DOM, or frozen Visual
  * 3.x files. Full CI, notebook density, mobile responsive and browser E2E
  * evidence remain mandatory before promotion.
+ *
+ * Cinematic identity break-glass 2026-09-14: layout.tsx is intentionally
+ * recertified only to load Visual 5.0 after Visual 4.4. Visual 5.0 consumes the
+ * existing data-deck-identity, ArenaIdentity artwork/convergence and cinematic
+ * surfaces to deepen world identity. BattleView, ArenaIdentity and all frozen
+ * Visual 3.x structural blobs remain byte-for-byte unchanged. Full CI and the
+ * established notebook/mobile/browser evidence remain mandatory before merge.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "42d41dd86764d6873ff7b4b3a9be2ca1c084a350",
+  "src/app/layout.tsx": "dfdf4cf2123ffd73fdbf68312657a6f242ec50ad",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
@@ -72,11 +79,17 @@ for (const layer of orderedLayers) {
 
 const responsiveLayer = 'import "./styles/visual-4-0-responsive-battlefield.css";';
 const battlefieldUxLayer = 'import "./styles/visual-4-4-battlefield-ux.css";';
+const cinematicIdentityLayer = 'import "./styles/visual-5-0-cinematic-identity.css";';
 assert.ok(layout.includes(responsiveLayer), "Visual 4.0 responsive battlefield layer must stay mounted");
-assert.ok(layout.includes(battlefieldUxLayer), "Visual 4.4 battlefield UX layer must be mounted");
+assert.ok(layout.includes(battlefieldUxLayer), "Visual 4.4 battlefield UX layer must stay mounted");
+assert.ok(layout.includes(cinematicIdentityLayer), "Visual 5.0 cinematic identity layer must be mounted");
 assert.ok(
   layout.indexOf(battlefieldUxLayer) > layout.indexOf(responsiveLayer),
   "Visual 4.4 battlefield UX must load after the responsive battlefield layer",
+);
+assert.ok(
+  layout.indexOf(cinematicIdentityLayer) > layout.indexOf(battlefieldUxLayer),
+  "Visual 5.0 cinematic identity must load after Visual 4.4 battlefield UX",
 );
 
 assert.equal(
@@ -85,4 +98,4 @@ assert.equal(
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
 
-console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Visual 4.4 layout break-glass recorded");
+console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Visual 5.0 cinematic identity break-glass recorded");
