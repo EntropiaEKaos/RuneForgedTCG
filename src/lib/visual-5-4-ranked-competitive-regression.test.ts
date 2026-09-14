@@ -6,6 +6,8 @@ const layout = readFileSync("src/app/layout.tsx", "utf8");
 const css = readFileSync("src/app/styles/visual-5-4-ranked-competitive.css", "utf8");
 const rankedClientPath = "src/app/ranked/RankedClient.tsx";
 const rankedClient = readFileSync(rankedClientPath, "utf8");
+const rankedVisualCert = readFileSync("scripts/alpha-ranked-visual-cert.mjs", "utf8");
+const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
 const suites = readFileSync("scripts/test-suites.mjs", "utf8");
 
 const previousLayer = 'import "./styles/visual-5-3-pvp-lobby.css";';
@@ -79,9 +81,33 @@ for (const authorityContract of [
   assert.ok(rankedClient.includes(authorityContract), `Existing Ranked authority contract disappeared: ${authorityContract}`);
 }
 
+for (const evidenceContract of [
+  'Gate competitivo fechado',
+  '[aria-label="Estado do competitivo"]',
+  '[aria-labelledby="rank-card-heading"]',
+  '[aria-labelledby="ranked-history-heading"]',
+  '[aria-labelledby="ranked-leaderboard-heading"]',
+  '[aria-labelledby="rank-tiers-heading"]',
+  'queueDisabled',
+  '29-ranked-fail-closed.png',
+  '30-ranked-progression.png',
+  'ranked-visual-manifest.json',
+]) {
+  assert.ok(rankedVisualCert.includes(evidenceContract), `Visual 5.4 browser evidence is missing contract: ${evidenceContract}`);
+}
+
+assert.ok(
+  ciWorkflow.includes("node scripts/alpha-ranked-visual-cert.mjs"),
+  "Visual 5.4 Ranked browser evidence must run inside the full CI browser gate",
+);
+assert.ok(
+  ciWorkflow.indexOf("node scripts/alpha-ranked-visual-cert.mjs") > ciWorkflow.indexOf("node scripts/alpha-visual-journey.mjs"),
+  "Ranked evidence must run after the Alpha visual journey so it appends to the same artifact instead of being deleted",
+);
+
 assert.ok(
   suites.includes('"src/lib/visual-5-4-ranked-competitive-regression.test.ts"'),
   "Visual 5.4 regression contract must be registered as a source-contract test",
 );
 
-console.log("RUNE FORGE VISUAL 5.4 RANKED COMPETITIVE: CSS-only authority-preserving contracts PASS");
+console.log("RUNE FORGE VISUAL 5.4 RANKED COMPETITIVE: CSS-only authority-preserving + direct browser evidence contracts PASS");
