@@ -87,7 +87,7 @@ for (const evidenceContract of [
   "fetch('/api/ranked'",
   'rankedReleaseCertified, false',
   'rankedEnabled, false',
-  'Gate competitivo fechado',
+  'assert.match(top.bodyText, /gate competitivo fechado/i)',
   '[aria-label="Estado do competitivo"]',
   '[aria-labelledby="rank-card-heading"]',
   '[aria-labelledby="ranked-history-heading"]',
