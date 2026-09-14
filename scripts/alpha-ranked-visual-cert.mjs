@@ -271,7 +271,7 @@ async function main() {
       assert.ok(top.href.endsWith("/ranked"), `expected /ranked, got ${top.href}`);
       assert.ok(top.scrollWidth <= top.innerWidth + 2, `Ranked has horizontal overflow: ${top.scrollWidth}px > ${top.innerWidth}px`);
       assert.match(top.bodyText, /Ranked do Nexus/);
-      assert.match(top.bodyText, /Gate competitivo fechado/);
+      assert.match(top.bodyText, /gate competitivo fechado/i);
       assert.match(top.operationText, /Operação\s*Bloqueado\s*fail-closed/);
       assert.ok(top.status && top.hero && top.deck && top.history && top.leaderboard && top.tiers, `Ranked semantic surface incomplete: ${JSON.stringify(top)}`);
       assert.equal(top.queuePresent, true, "Ranked matchmaking CTA must be rendered in the decision zone");
