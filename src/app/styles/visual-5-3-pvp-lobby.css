@@ -1,0 +1,285 @@
+/* ========================================================================== 
+   RuneForge Visual 5.3 — PvP Lobby Premium
+   Presentation-only pass for the certified Casual PvP lobby.
+   No protocol, polling, room lifecycle, matchmaking or game authority changes.
+   ========================================================================== */
+
+:root {
+  --rf-pvp-gold: 218 178 92;
+  --rf-pvp-cyan: 103 232 249;
+  --rf-pvp-emerald: 110 231 183;
+  --rf-pvp-violet: 167 139 250;
+  --rf-pvp-line: rgba(255, 255, 255, .09);
+  --rf-pvp-surface: rgba(7, 11, 20, .82);
+  --rf-pvp-surface-strong: rgba(4, 7, 14, .95);
+}
+
+/* Route scope is derived entirely from an existing accessibility contract. */
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(var(--rf-pvp-cyan), .075), transparent 34rem),
+    radial-gradient(circle at 92% 34%, rgba(var(--rf-pvp-violet), .045), transparent 28rem),
+    radial-gradient(circle at 8% 58%, rgba(var(--rf-pvp-gold), .045), transparent 26rem),
+    #030508;
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell {
+  max-width: 1180px;
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-heading {
+  position: relative;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom-color: rgba(var(--rf-pvp-cyan), .13);
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-heading::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(var(--rf-pvp-cyan), .65), rgba(var(--rf-pvp-gold), .2) 34%, transparent 78%);
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-heading h1 {
+  text-shadow: 0 14px 38px rgba(0, 0, 0, .42);
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-eyebrow {
+  color: rgba(var(--rf-pvp-cyan), .72);
+}
+
+/* Lobby telemetry cards. */
+[aria-label="Estado do lobby PvP"] {
+  position: relative;
+  isolation: isolate;
+}
+
+[aria-label="Estado do lobby PvP"] > div {
+  position: relative;
+  overflow: hidden;
+  min-height: 112px;
+  border-color: rgba(255,255,255,.105) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.04), rgba(2,5,11,.72)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 14px 38px rgba(0,0,0,.18);
+}
+
+[aria-label="Estado do lobby PvP"] > div::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  opacity: .75;
+  background: rgb(var(--rf-pvp-gold));
+}
+
+[aria-label="Estado do lobby PvP"] > div:nth-child(2)::after { background: rgb(var(--rf-pvp-emerald)); }
+[aria-label="Estado do lobby PvP"] > div:nth-child(3)::after { background: rgb(var(--rf-pvp-cyan)); }
+
+[aria-label="Estado do lobby PvP"] small {
+  letter-spacing: .2em;
+}
+
+[aria-label="Estado do lobby PvP"] strong {
+  font-family: var(--font-display), serif;
+  letter-spacing: -.02em;
+}
+
+/* Product feedback banner. */
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) [role="status"] {
+  border-color: rgba(var(--rf-pvp-gold), .22) !important;
+  background: linear-gradient(90deg, rgba(var(--rf-pvp-gold),.075), rgba(255,255,255,.025)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+/* Shared major lobby panels. */
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell > section:not([aria-label="Estado do lobby PvP"]) {
+  position: relative;
+  border-color: rgba(255,255,255,.105) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--rf-pvp-cyan), .035), transparent 22rem),
+    linear-gradient(145deg, rgba(255,255,255,.035), rgba(3,6,12,.72)) !important;
+  box-shadow: 0 22px 58px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+/* Waiting/active room — identified by the nested certified chat surface. */
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell > section:has([aria-label="Chat da sala"]) {
+  overflow: hidden;
+  border-color: rgba(var(--rf-pvp-gold), .24) !important;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(var(--rf-pvp-gold), .105), transparent 28rem),
+    radial-gradient(circle at 100% 25%, rgba(var(--rf-pvp-cyan), .055), transparent 24rem),
+    linear-gradient(145deg, rgba(12,15,22,.96), rgba(4,7,13,.94)) !important;
+  box-shadow:
+    0 28px 80px rgba(0,0,0,.34),
+    0 0 52px rgba(var(--rf-pvp-gold),.035),
+    inset 0 1px 0 rgba(255,255,255,.045);
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell > section:has([aria-label="Chat da sala"])::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .18;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell > section:has([aria-label="Chat da sala"]) > * {
+  position: relative;
+}
+
+.rf-app-page:has([aria-label="Chat da sala"]) h2.font-mono {
+  color: rgb(255 225 158) !important;
+  text-shadow: 0 0 28px rgba(var(--rf-pvp-gold), .14);
+}
+
+.rf-app-page:has([aria-label="Chat da sala"]) article {
+  border-color: rgba(255,255,255,.1) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.035), rgba(0,0,0,.3)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+/* Chat becomes a deliberate communications console rather than a generic box. */
+[aria-label="Chat da sala"] {
+  border-color: rgba(var(--rf-pvp-cyan), .14) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--rf-pvp-cyan),.055), transparent 18rem),
+    rgba(2,6,12,.52) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+[aria-label="Chat da sala"] > div:nth-of-type(2) {
+  scrollbar-color: rgba(var(--rf-pvp-cyan), .28) rgba(0,0,0,.18);
+}
+
+[aria-label="Mensagem do chat PvP"],
+[aria-label="Código da sala PvP"] {
+  border-color: rgba(var(--rf-pvp-cyan), .19) !important;
+  background: rgba(1,5,11,.72) !important;
+  box-shadow: inset 0 0 24px rgba(var(--rf-pvp-cyan), .025);
+}
+
+[aria-label="Código da sala PvP"] {
+  min-height: 44px;
+  letter-spacing: .18em !important;
+}
+
+/* Loadout gate. */
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell > section:has(select.input) {
+  border-color: rgba(var(--rf-pvp-violet), .14) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--rf-pvp-violet), .07), transparent 22rem),
+    linear-gradient(145deg, rgba(255,255,255,.035), rgba(3,6,12,.7)) !important;
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) select.input {
+  min-height: 44px;
+  border-color: rgba(var(--rf-pvp-violet), .18) !important;
+  background-color: rgba(2,5,11,.82) !important;
+}
+
+/* Host / invite decision pair. */
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has(> .btn-primary),
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has([aria-label="Código da sala PvP"]) {
+  position: relative;
+  overflow: hidden;
+  min-height: 220px;
+  border-color: rgba(255,255,255,.105) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.035), rgba(3,6,12,.76)) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.035);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has(> .btn-primary)::before,
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has([aria-label="Código da sala PvP"])::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .55;
+  background: radial-gradient(circle at 0 0, rgba(var(--rf-pvp-emerald), .1), transparent 19rem);
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has([aria-label="Código da sala PvP"])::before {
+  background: radial-gradient(circle at 100% 0, rgba(var(--rf-pvp-cyan), .1), transparent 19rem);
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has(> .btn-primary) > *,
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has([aria-label="Código da sala PvP"]) > * {
+  position: relative;
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has(> .btn-primary):hover,
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has([aria-label="Código da sala PvP"]):hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--rf-pvp-cyan), .22) !important;
+  box-shadow: 0 26px 64px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.045);
+}
+
+/* Public room browser cards. */
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell > section ~ section article,
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell > div + section article {
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has(> .btn-ghost.w-full):hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--rf-pvp-emerald), .19) !important;
+  background: linear-gradient(145deg, rgba(var(--rf-pvp-emerald),.035), rgba(3,6,12,.74)) !important;
+}
+
+/* CTA material consistency. */
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) .btn-primary {
+  box-shadow: 0 12px 30px rgba(var(--rf-pvp-gold), .08), inset 0 1px 0 rgba(255,255,255,.28);
+}
+
+.rf-app-page:has([aria-label="Estado do lobby PvP"]) button:disabled {
+  filter: saturate(.55);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell > section {
+    background-color: rgb(5 8 15) !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .rf-app-page:has([aria-label="Estado do lobby PvP"]) .rf-app-shell {
+    width: calc(100% - 24px);
+    padding-top: 28px;
+  }
+
+  [aria-label="Estado do lobby PvP"] > div {
+    min-height: 96px;
+  }
+
+  .rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has(> .btn-primary),
+  .rf-app-page:has([aria-label="Estado do lobby PvP"]) article:has([aria-label="Código da sala PvP"]) {
+    min-height: auto;
+  }
+
+  [aria-label="Chat da sala"] > div:last-of-type,
+  .rf-app-page:has([aria-label="Código da sala PvP"]) article > div:last-child {
+    align-items: stretch;
+  }
+
+  [aria-label="Mensagem do chat PvP"],
+  [aria-label="Código da sala PvP"] {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-app-page:has([aria-label="Estado do lobby PvP"]) article,
+  .rf-app-page:has([aria-label="Estado do lobby PvP"]) button,
+  .rf-app-page:has([aria-label="Estado do lobby PvP"]) a {
+    transition-duration: .01ms !important;
+  }
+}
