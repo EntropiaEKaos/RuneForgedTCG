@@ -5,6 +5,7 @@ import SiteNav from "@/components/SiteNav";
 import { REGION_STYLE } from "@/components/CardView";
 import { DECKS } from "@/game/decks";
 import type { Region } from "@/game/types";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,13 @@ export default function HomePage() {
         <div className="rf-hero-shade" aria-hidden="true" />
         <div className="rf-hero-content">
           <div className="rf-hero-copy">
+            <div className="forged-hero-lockup" aria-label={PRODUCT_BRAND.fullName}>
+              <span className="forged-hero-mark" aria-hidden="true" />
+              <span className="forged-hero-wordmark">
+                <strong>{PRODUCT_BRAND.displayName}</strong>
+                <small>{PRODUCT_BRAND.subtitle}</small>
+              </span>
+            </div>
             <p className="rf-eyebrow"><span /> ALPHA JOGÁVEL · COLEÇÃO VANILLA</p>
             <h1>Forje sua lenda.<br /><em>Domine o Nexus.</em></h1>
             <p className="rf-hero-lead">
@@ -159,7 +167,13 @@ export default function HomePage() {
         <Link href="/play" className="rf-button rf-button-primary">JOGAR AGORA <b>→</b></Link>
       </section>
 
-      <footer className="rf-footer"><b>RUNE<span>FORGE</span></b><p>Legends of the Nexus · Alpha 2.97</p><nav><Link href="/codex">Codex</Link><Link href="/community">Comunidade</Link><Link href="/admin">Studio</Link></nav></footer>
+      <footer className="rf-footer">
+        <div className="forged-footer-brand" aria-label={PRODUCT_BRAND.fullName}>
+          <span><strong>{PRODUCT_BRAND.displayName}</strong><small>{PRODUCT_BRAND.subtitle}</small></span>
+        </div>
+        <p>{PRODUCT_BRAND.subtitle} · Alpha 2.97</p>
+        <nav><Link href="/codex">Codex</Link><Link href="/community">Comunidade</Link><Link href="/admin">Studio</Link></nav>
+      </footer>
     </main>
   );
 }
