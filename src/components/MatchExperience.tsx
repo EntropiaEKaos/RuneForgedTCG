@@ -15,10 +15,15 @@ const PHASES: ReadonlyArray<{ id: MatchPhase; icon: string; label: string }> = [
 
 export function TurnRail({ phase, guidance }: { phase: MatchPhase; guidance: string }) {
   return (
-    <div className="match-command-rail" aria-live="polite">
+    <div className="match-command-rail" data-phase={phase} aria-live="polite">
       <div className="match-phase-track" aria-label="Estado atual da partida">
         {PHASES.map((item) => (
-          <span key={item.id} className={item.id === phase ? "active" : ""}>
+          <span
+            key={item.id}
+            data-phase-id={item.id}
+            className={item.id === phase ? "active" : ""}
+            aria-current={item.id === phase ? "step" : undefined}
+          >
             <b>{item.icon}</b>{item.label}
           </span>
         ))}
@@ -31,8 +36,9 @@ export function TurnRail({ phase, guidance }: { phase: MatchPhase; guidance: str
 export function AttackForecast({ state, selectedIds }: { state: GameState; selectedIds: string[] }) {
   if (!selectedIds.length) return null;
   const pressure = potentialAttackPressure(state.players.player.bench, selectedIds);
+  const pressureBand = pressure >= 10 ? "critical" : pressure >= 6 ? "high" : pressure >= 3 ? "medium" : "low";
   return (
-    <div className="attack-forecast" role="status">
+    <div className="attack-forecast" data-pressure-band={pressureBand} role="status">
       <span>PRESSÃO POTENCIAL</span>
       <strong>{pressure}</strong>
       <small>{selectedIds.length} atacante(s) · antes dos bloqueios</small>

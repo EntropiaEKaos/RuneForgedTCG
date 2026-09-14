@@ -25,9 +25,16 @@ import { readFileSync } from "node:fs";
  * BattleView state/DOM contracts and frozen Visual 3.x files remain unchanged.
  * Full CI plus the dedicated 1366x768 browser screenshot/geometry certificate
  * are mandatory before merge.
+ *
+ * Battlefield UX break-glass 2026-09-14: layout.tsx is intentionally recertified
+ * only to load Visual 4.4 after the responsive Visual 4.0/4.3 layer. Visual 4.4
+ * reads existing phase/priority/targeting/ability/forecast presentation state;
+ * it does not change engine authority, rules, BattleView DOM, or frozen Visual
+ * 3.x files. Full CI, notebook density, mobile responsive and browser E2E
+ * evidence remain mandatory before promotion.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "e2d9551348d4d24d411de7fa4ee8574dde29452d",
+  "src/app/layout.tsx": "42d41dd86764d6873ff7b4b3a9be2ca1c084a350",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
@@ -63,10 +70,19 @@ for (const layer of orderedLayers) {
   previous = index;
 }
 
+const responsiveLayer = 'import "./styles/visual-4-0-responsive-battlefield.css";';
+const battlefieldUxLayer = 'import "./styles/visual-4-4-battlefield-ux.css";';
+assert.ok(layout.includes(responsiveLayer), "Visual 4.0 responsive battlefield layer must stay mounted");
+assert.ok(layout.includes(battlefieldUxLayer), "Visual 4.4 battlefield UX layer must be mounted");
+assert.ok(
+  layout.indexOf(battlefieldUxLayer) > layout.indexOf(responsiveLayer),
+  "Visual 4.4 battlefield UX must load after the responsive battlefield layer",
+);
+
 assert.equal(
   /visual-3-[3-9][^\n]*\.css/.test(layout),
   false,
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
 
-console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS");
+console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Visual 4.4 layout break-glass recorded");

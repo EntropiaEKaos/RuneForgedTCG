@@ -1,0 +1,248 @@
+/* ========================================================================== 
+   RuneForge Visual 4.4 — Battlefield UX
+   Presentation-only clarity pass. Reuses authoritative match phase, targeting,
+   reaction, activated-ability and forecast state already projected by the UI.
+   No gameplay geometry, engine authority or rules are changed here.
+   ========================================================================== */
+
+.tcg-arena {
+  --rf-v44-main: 106, 232, 190;
+  --rf-v44-combat: 251, 146, 60;
+  --rf-v44-response: 167, 139, 250;
+  --rf-v44-opponent: 148, 163, 184;
+  --rf-v44-danger: 251, 113, 133;
+  --rf-v44-phase: var(--rf-v44-opponent);
+}
+
+/* Phase ownership --------------------------------------------------------- */
+.tcg-arena .match-command-rail {
+  position: relative;
+  isolation: isolate;
+  border-color: rgba(255, 255, 255, .09);
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, .025), rgba(255, 255, 255, .01)),
+    rgba(3, 7, 12, .76);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .035);
+}
+
+.tcg-arena .match-command-rail::after {
+  content: "";
+  position: absolute;
+  inset: auto 10px 0;
+  height: 1px;
+  opacity: .72;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(var(--rf-v44-phase), .9), transparent);
+}
+
+.tcg-arena .match-command-rail[data-phase="main"] { --rf-v44-phase: var(--rf-v44-main); }
+.tcg-arena .match-command-rail[data-phase="combat"] { --rf-v44-phase: var(--rf-v44-combat); }
+.tcg-arena .match-command-rail[data-phase="response"] { --rf-v44-phase: var(--rf-v44-response); }
+.tcg-arena .match-command-rail[data-phase="opponent"] { --rf-v44-phase: var(--rf-v44-opponent); }
+.tcg-arena .match-command-rail[data-phase="gameover"] { --rf-v44-phase: 235, 199, 126; }
+
+.tcg-arena .match-phase-track span {
+  position: relative;
+  opacity: .48;
+  filter: saturate(.65);
+  transition:
+    opacity .18s ease,
+    background-color .18s ease,
+    border-color .18s ease,
+    color .18s ease,
+    filter .18s ease;
+}
+
+.tcg-arena .match-phase-track span[aria-current="step"] {
+  opacity: 1;
+  filter: none;
+  color: rgb(var(--rf-v44-phase));
+  background: rgba(var(--rf-v44-phase), .1);
+  border-color: rgba(var(--rf-v44-phase), .28);
+  text-shadow: 0 0 14px rgba(var(--rf-v44-phase), .28);
+}
+
+.tcg-arena .match-phase-track span[aria-current="step"]::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  flex: 0 0 5px;
+  border-radius: 999px;
+  background: rgb(var(--rf-v44-phase));
+  box-shadow: 0 0 10px rgba(var(--rf-v44-phase), .85);
+}
+
+.tcg-arena .match-command-rail > p {
+  color: rgba(241, 245, 249, .88);
+}
+
+/* Action ownership -------------------------------------------------------- */
+.tcg-arena[data-match-phase="main"] .tcg-actions :is(.btn-primary, .btn-attack):not(:disabled) {
+  border-color: rgba(var(--rf-v44-main), .38);
+  box-shadow:
+    0 0 0 1px rgba(var(--rf-v44-main), .08),
+    0 0 18px rgba(var(--rf-v44-main), .09);
+}
+
+.tcg-arena[data-match-phase="combat"] .tcg-actions :is(.btn-primary, .btn-attack):not(:disabled) {
+  border-color: rgba(var(--rf-v44-combat), .46);
+  box-shadow:
+    0 0 0 1px rgba(var(--rf-v44-combat), .08),
+    0 0 20px rgba(var(--rf-v44-combat), .11);
+}
+
+.tcg-arena[data-match-phase="opponent"] .tcg-actions button:disabled {
+  opacity: .55;
+  filter: saturate(.65);
+}
+
+/* Priority / reaction stack ---------------------------------------------- */
+.tcg-arena[data-match-phase="response"] .reaction-stack {
+  border-color: rgba(var(--rf-v44-response), .45);
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, .38),
+    0 0 28px rgba(var(--rf-v44-response), .12);
+}
+
+.tcg-arena[data-match-phase="response"] .reaction-stack-heading > div > span {
+  color: rgb(var(--rf-v44-response));
+  text-shadow: 0 0 12px rgba(var(--rf-v44-response), .34);
+}
+
+.tcg-arena[data-match-phase="response"] .reaction-frames .top {
+  outline: 1px solid rgba(var(--rf-v44-response), .5);
+  outline-offset: 1px;
+  box-shadow: 0 0 24px rgba(var(--rf-v44-response), .17);
+}
+
+.tcg-arena[data-match-phase="response"] .reaction-stack > .btn-primary:not(:disabled) {
+  border-color: rgba(var(--rf-v44-response), .5);
+  box-shadow:
+    0 0 0 1px rgba(var(--rf-v44-response), .18),
+    0 0 24px rgba(var(--rf-v44-response), .18);
+  animation: rf-v44-priority-pulse 1.8s ease-in-out infinite;
+}
+
+/* Target selection -------------------------------------------------------- */
+.tcg-arena .targeting-hud {
+  --rf-v44-target: 244, 199, 91;
+  border-color: rgba(var(--rf-v44-target), .44);
+  box-shadow:
+    0 18px 48px rgba(0, 0, 0, .38),
+    0 0 26px rgba(var(--rf-v44-target), .13);
+}
+
+.tcg-arena .targeting-hud[data-targeting-mode="reaction"] { --rf-v44-target: var(--rf-v44-response); }
+.tcg-arena .targeting-hud[data-targeting-mode="challenge"] { --rf-v44-target: var(--rf-v44-combat); }
+.tcg-arena .targeting-hud[data-targeting-mode="block"] { --rf-v44-target: 96, 165, 250; }
+.tcg-arena .targeting-hud[data-targeting-mode="sentinela"] { --rf-v44-target: 103, 232, 249; }
+
+.tcg-arena .targeting-hud-icon {
+  filter: drop-shadow(0 0 8px rgba(var(--rf-v44-target), .6));
+}
+
+.tcg-arena .targeting-hud b {
+  color: rgb(var(--rf-v44-target));
+}
+
+/* Activated abilities ----------------------------------------------------- */
+.tcg-arena [data-activated-ability-tray] button:not(:disabled) {
+  border-color: rgba(var(--rf-v44-main), .42);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--rf-v44-main), .05),
+    0 0 14px rgba(var(--rf-v44-main), .08);
+}
+
+.tcg-arena [data-activated-ability-tray] button:disabled {
+  opacity: .62;
+  filter: saturate(.62);
+}
+
+.tcg-arena [data-activated-ability-tray] button:not(:disabled):hover,
+.tcg-arena [data-activated-ability-tray] button:not(:disabled):focus-visible {
+  border-color: rgba(var(--rf-v44-main), .66);
+  box-shadow: 0 0 18px rgba(var(--rf-v44-main), .16);
+}
+
+/* Attack forecast --------------------------------------------------------- */
+.tcg-arena .attack-forecast {
+  border-color: rgba(148, 163, 184, .22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .025);
+}
+
+.tcg-arena .attack-forecast[data-pressure-band="medium"] {
+  border-color: rgba(250, 204, 21, .29);
+}
+
+.tcg-arena .attack-forecast[data-pressure-band="high"] {
+  border-color: rgba(var(--rf-v44-combat), .4);
+  box-shadow: 0 0 20px rgba(var(--rf-v44-combat), .09);
+}
+
+.tcg-arena .attack-forecast[data-pressure-band="critical"] {
+  border-color: rgba(var(--rf-v44-danger), .48);
+  box-shadow: 0 0 24px rgba(var(--rf-v44-danger), .13);
+}
+
+.tcg-arena .attack-forecast[data-pressure-band="high"] strong {
+  color: rgb(var(--rf-v44-combat));
+}
+
+.tcg-arena .attack-forecast[data-pressure-band="critical"] strong {
+  color: rgb(var(--rf-v44-danger));
+  text-shadow: 0 0 14px rgba(var(--rf-v44-danger), .28);
+}
+
+/* Keyboard and accessibility --------------------------------------------- */
+.tcg-arena :is(button, select, [role="button"]):focus-visible {
+  outline: 2px solid rgba(125, 211, 252, .95);
+  outline-offset: 2px;
+}
+
+@keyframes rf-v44-priority-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.12); }
+}
+
+/* Responsive containment: clarity may never grow the page. */
+@media (max-width: 900px) {
+  .tcg-arena .match-command-rail > p {
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tcg-arena .reaction-stack,
+  .tcg-arena .targeting-hud {
+    max-width: calc(100vw - 12px);
+  }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .tcg-arena .match-phase-track span:not([aria-current="step"]) {
+    opacity: .32;
+  }
+
+  .tcg-arena .match-phase-track span[aria-current="step"] {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena[data-match-phase="response"] .reaction-stack > .btn-primary:not(:disabled) {
+    animation: none;
+  }
+
+  .tcg-arena .match-phase-track span {
+    transition: none;
+  }
+}
+
+.tcg-arena[data-performance="low"] .reaction-stack,
+.tcg-arena[data-performance="low"] .targeting-hud,
+.tcg-arena[data-performance="low"] .attack-forecast,
+.tcg-arena[data-fx="reduced"] .reaction-stack,
+.tcg-arena[data-fx="reduced"] .targeting-hud {
+  box-shadow: none;
+}
