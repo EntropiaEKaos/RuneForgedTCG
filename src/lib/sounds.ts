@@ -1,3 +1,9 @@
+import {
+  BRAND_STORAGE_KEYS,
+  LEGACY_BRAND_STORAGE_KEYS,
+  readMigratedLocalSetting,
+} from "@/lib/product-brand";
+
 /**
  * Simple sound effects using Web Audio API - no external files needed.
  * Generates procedural sounds on-the-fly.
@@ -29,39 +35,39 @@ function getCtx(): AudioContext | null {
 export function setSoundEnabled(v: boolean): void {
   enabled = v;
   if (typeof window !== "undefined") {
-    localStorage.setItem("runeforge_sound", v ? "1" : "0");
+    localStorage.setItem(BRAND_STORAGE_KEYS.sound, v ? "1" : "0");
   }
 }
 
 export function isSoundEnabled(): boolean {
   if (typeof window === "undefined") return true;
-  const saved = localStorage.getItem("runeforge_sound");
+  const saved = readMigratedLocalSetting(localStorage, BRAND_STORAGE_KEYS.sound, LEGACY_BRAND_STORAGE_KEYS.sound);
   if (saved !== null) enabled = saved === "1";
   return enabled;
 }
 
 export function setMusicEnabled(value: boolean): void {
   musicEnabled = value;
-  if (typeof window !== "undefined") localStorage.setItem("runeforge_music", value ? "1" : "0");
+  if (typeof window !== "undefined") localStorage.setItem(BRAND_STORAGE_KEYS.music, value ? "1" : "0");
   if (!value) stopAmbience();
 }
 
 export function isMusicEnabled(): boolean {
   if (typeof window === "undefined") return false;
-  const saved = localStorage.getItem("runeforge_music");
+  const saved = readMigratedLocalSetting(localStorage, BRAND_STORAGE_KEYS.music, LEGACY_BRAND_STORAGE_KEYS.music);
   if (saved !== null) musicEnabled = saved === "1";
   return musicEnabled;
 }
 
 export function setMasterVolume(value: number): void {
   masterVolume = Math.max(0, Math.min(1, value));
-  if (typeof window !== "undefined") localStorage.setItem("runeforge_volume", String(masterVolume));
+  if (typeof window !== "undefined") localStorage.setItem(BRAND_STORAGE_KEYS.volume, String(masterVolume));
   if (ambientGain && audioCtx) ambientGain.gain.setTargetAtTime(ambientLevel * masterVolume, audioCtx.currentTime, 0.08);
 }
 
 export function getMasterVolume(): number {
   if (typeof window === "undefined") return masterVolume;
-  const raw = localStorage.getItem("runeforge_volume");
+  const raw = readMigratedLocalSetting(localStorage, BRAND_STORAGE_KEYS.volume, LEGACY_BRAND_STORAGE_KEYS.volume);
   if (raw !== null) {
     const saved = Number(raw);
     if (Number.isFinite(saved) && saved >= 0 && saved <= 1) masterVolume = saved;
