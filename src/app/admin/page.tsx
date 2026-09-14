@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 
 export const metadata = {
-  title: "Admin — Runeforge",
+  title: `Admin — ${PRODUCT_BRAND.fullName}`,
 };
 
 // The standalone Card Creator panel (AdminClient/AdminCreator) was retired:
