@@ -35,6 +35,16 @@ for (const accessibilityContract of [
   assert.ok(css.includes(accessibilityContract), `Visual 5.2 is missing accessibility/fallback contract: ${accessibilityContract}`);
 }
 
+assert.ok(
+  css.includes(".deck-select-page .deck-choice::before"),
+  "Visual 5.2 deck-card sheen must use ::before",
+);
+assert.equal(
+  css.includes(".deck-select-page .deck-choice::after"),
+  false,
+  "Visual 5.2 must leave deck-choice::after free for the legacy SELECIONADO badge",
+);
+
 for (const forbidden of [
   '.tcg-arena',
   '.player-hand-shell',
