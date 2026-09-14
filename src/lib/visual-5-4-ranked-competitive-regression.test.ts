@@ -82,18 +82,39 @@ for (const authorityContract of [
 }
 
 for (const evidenceContract of [
+  "bootstrapPlayerSession",
+  "fetch('/api/player'",
+  "fetch('/api/ranked'",
+  'rankedReleaseCertified, false',
+  'rankedEnabled, false',
   'Gate competitivo fechado',
   '[aria-label="Estado do competitivo"]',
   '[aria-labelledby="rank-card-heading"]',
   '[aria-labelledby="ranked-history-heading"]',
   '[aria-labelledby="ranked-leaderboard-heading"]',
   '[aria-labelledby="rank-tiers-heading"]',
+  'operationText',
+  'queuePresent',
   'queueDisabled',
   '29-ranked-fail-closed.png',
   '30-ranked-progression.png',
+  '29-ranked-diagnostic.png',
   'ranked-visual-manifest.json',
 ]) {
   assert.ok(rankedVisualCert.includes(evidenceContract), `Visual 5.4 browser evidence is missing contract: ${evidenceContract}`);
+}
+
+for (const forbiddenEvidenceMutation of [
+  "fetch('/api/matchmaking'",
+  'mode: \'ranked\'',
+  'method: \'DELETE\'',
+  '/api/admin',
+]) {
+  assert.equal(
+    rankedVisualCert.includes(forbiddenEvidenceMutation),
+    false,
+    `Visual 5.4 browser evidence must observe Ranked without mutating competitive authority: ${forbiddenEvidenceMutation}`,
+  );
 }
 
 assert.ok(
@@ -110,4 +131,4 @@ assert.ok(
   "Visual 5.4 regression contract must be registered as a source-contract test",
 );
 
-console.log("RUNE FORGE VISUAL 5.4 RANKED COMPETITIVE: CSS-only authority-preserving + direct browser evidence contracts PASS");
+console.log("RUNE FORGE VISUAL 5.4 RANKED COMPETITIVE: CSS-only authority-preserving + direct read-only browser evidence contracts PASS");
