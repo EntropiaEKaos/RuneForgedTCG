@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import type { GameState } from "@/game/types";
+import {
+  BRAND_STORAGE_KEYS,
+  LEGACY_BRAND_STORAGE_KEYS,
+  writeMirroredLocalSetting,
+} from "@/lib/product-brand";
 import { matchGuidance, potentialAttackPressure, type MatchPhase } from "./match-experience-model";
 export { matchGuidance, potentialAttackPressure, type MatchPhase } from "./match-experience-model";
 
@@ -59,7 +64,12 @@ export function FirstMatchGuide({ open, onClose }: { open: boolean; onClose: () 
   if (!open) return null;
   const item = GUIDE[step];
   const finish = () => {
-    localStorage.setItem("runeforge_first_match_guide", "complete");
+    writeMirroredLocalSetting(
+      localStorage,
+      BRAND_STORAGE_KEYS.firstMatchGuide,
+      LEGACY_BRAND_STORAGE_KEYS.firstMatchGuide,
+      "complete",
+    );
     setStep(0);
     onClose();
   };
