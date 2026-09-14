@@ -2,12 +2,13 @@ import Link from "next/link";
 import SiteNav from "@/components/SiteNav";
 import { db } from "@/db";
 import { matches, replays } from "@/db/schema";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 import { desc, sql } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Leaderboard — RuneForge",
+  title: `Leaderboard — ${PRODUCT_BRAND.fullName}`,
   description: "Classificação, atividade recente e replays registrados do Nexus.",
 };
 
