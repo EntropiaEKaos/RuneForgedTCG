@@ -63,9 +63,17 @@ import { readFileSync } from "node:fs";
  * No engine, reducer, matchmaking, protocol, API or persistence authority changes.
  * Full CI and manual inspection of PvP journey screenshots 15/16 and downstream
  * 17-23 remain mandatory before promotion.
+ *
+ * Ranked competitive premium break-glass 2026-09-14: layout.tsx is intentionally
+ * recertified only to load Visual 5.4 after Visual 5.3. Visual 5.4 is CSS-only
+ * and styles the existing Ranked operational snapshot, current-rank hero, certified
+ * deck decision, queue state, history, leaderboard and tier progression through
+ * semantic selectors already present in RankedClient.tsx. RankedClient.tsx stays
+ * byte-for-byte unchanged; matchmaking, MMR, season, release certification, pool,
+ * API and PvP authority remain untouched. Full CI/browser evidence is mandatory.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "b9c749b39ad4b9bf05ae609c2b6648cb603c00d3",
+  "src/app/layout.tsx": "dc00fc338341ece8a9e4a0b85201d19922eea582",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
@@ -107,12 +115,14 @@ const cinematicIdentityLayer = 'import "./styles/visual-5-0-cinematic-identity.c
 const metagamePremiumLayer = 'import "./styles/visual-5-1-metagame-premium.css";';
 const playerJourneyLayer = 'import "./styles/visual-5-2-player-journey.css";';
 const pvpLobbyLayer = 'import "./styles/visual-5-3-pvp-lobby.css";';
+const rankedCompetitiveLayer = 'import "./styles/visual-5-4-ranked-competitive.css";';
 assert.ok(layout.includes(responsiveLayer), "Visual 4.0 responsive battlefield layer must stay mounted");
 assert.ok(layout.includes(battlefieldUxLayer), "Visual 4.4 battlefield UX layer must stay mounted");
 assert.ok(layout.includes(cinematicIdentityLayer), "Visual 5.0 cinematic identity layer must be mounted");
 assert.ok(layout.includes(metagamePremiumLayer), "Visual 5.1 metagame premium layer must be mounted");
 assert.ok(layout.includes(playerJourneyLayer), "Visual 5.2 player journey premium layer must be mounted");
 assert.ok(layout.includes(pvpLobbyLayer), "Visual 5.3 PvP lobby premium layer must be mounted");
+assert.ok(layout.includes(rankedCompetitiveLayer), "Visual 5.4 Ranked competitive premium layer must be mounted");
 assert.ok(
   layout.indexOf(battlefieldUxLayer) > layout.indexOf(responsiveLayer),
   "Visual 4.4 battlefield UX must load after the responsive battlefield layer",
@@ -133,6 +143,10 @@ assert.ok(
   layout.indexOf(pvpLobbyLayer) > layout.indexOf(playerJourneyLayer),
   "Visual 5.3 PvP lobby premium must load after Visual 5.2 player journey premium",
 );
+assert.ok(
+  layout.indexOf(rankedCompetitiveLayer) > layout.indexOf(pvpLobbyLayer),
+  "Visual 5.4 Ranked competitive premium must load after Visual 5.3 PvP lobby premium",
+);
 
 assert.equal(
   /visual-3-[3-9][^\n]*\.css/.test(layout),
@@ -140,4 +154,4 @@ assert.equal(
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
 
-console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Visual 5.3 PvP lobby premium break-glass recorded");
+console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Visual 5.4 Ranked competitive premium break-glass recorded");
