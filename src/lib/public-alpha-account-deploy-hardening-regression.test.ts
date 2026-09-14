@@ -30,7 +30,9 @@ assert.match(client, /publishRecoveryCode\(created\.payload\.recoveryCode\)/);
 assert.match(layout, /RecoveryKeyNotice/);
 assert.match(notice, /consumePendingRecoveryCode/);
 assert.match(notice, /navigator\.clipboard\.writeText/);
-assert.match(notice, /runeforge-recovery-key\.txt/);
+assert.match(notice, /PRODUCT_BRAND\.fullName/);
+assert.match(notice, /forged-recovery-key\.txt/);
+assert.doesNotMatch(notice, /runeforge-recovery-key\.txt/);
 assert.match(notice, /URL\.createObjectURL/);
 
 // Explicit recovery must run before ordinary current-session mutations so a
@@ -65,4 +67,4 @@ assert.match(e2e, /explicit recovery must replace an already-authenticated tempo
 assert.match(alpha, /temporary recovery account failed/);
 assert.match(alpha, /recovery test must begin on a different authenticated player/);
 
-console.log("PUBLIC ALPHA ACCOUNT/DEPLOY HARDENING: PASS — one-time recovery keys + explicit session migration + certified Netlify gate");
+console.log("PUBLIC ALPHA ACCOUNT/DEPLOY HARDENING: PASS — branded one-time recovery export + explicit session migration + certified Netlify gate");
