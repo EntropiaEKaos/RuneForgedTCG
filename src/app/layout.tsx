@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Cinzel, Manrope } from "next/font/google";
 import CatalogBootstrap from "@/components/CatalogBootstrap";
 import RecoveryKeyNotice from "@/components/RecoveryKeyNotice";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 import "./globals.css";
 import "./styles/tcg-visual.css";
 import "./styles/site-polish.css";
@@ -61,8 +62,8 @@ const bodyFont = Manrope({
 
 export const metadata: Metadata = {
   title: {
-    default: "RuneForge — Legends of the Nexus",
-    template: "%s · RuneForge",
+    default: PRODUCT_BRAND.fullName,
+    template: `%s · ${PRODUCT_BRAND.displayName}`,
   },
   description:
     "Um card battler tático de fantasia sombria. Forje seu deck, domine o Token de Ataque e destrua o Nexus rival.",
