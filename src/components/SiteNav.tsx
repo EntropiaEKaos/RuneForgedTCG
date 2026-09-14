@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 
 type MetaLink = { href: string; label: string; icon?: string };
 type MetaSection = {
@@ -119,7 +120,7 @@ export default function SiteNav() {
   const context = activeSection ?? {
     ...SYSTEM_SECTION,
     id: "home",
-    contextLabel: "LEGENDS OF THE NEXUS",
+    contextLabel: PRODUCT_BRAND.subtitle,
     links: [
       { href: "/play", label: "Jogar" },
       { href: "/profile", label: "Perfil" },
@@ -130,9 +131,12 @@ export default function SiteNav() {
   return (
     <header className="rf-chrome" data-meta-section={activeSection?.id ?? "home"}>
       <div className="rf-chrome-primary mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-3 sm:px-6">
-        <Link href="/" className="rf-brand" aria-label="RuneForge — início">
+        <Link href="/" className="rf-brand" aria-label={`${PRODUCT_BRAND.fullName} — início`}>
           <span className="rf-brand-mark" aria-hidden="true"><i /></span>
-          <span><b>RUNE</b>FORGE<small>LEGENDS OF THE NEXUS</small></span>
+          <span className="rf-brand-wordmark">
+            <strong>{PRODUCT_BRAND.displayName}</strong>
+            <small>{PRODUCT_BRAND.subtitle}</small>
+          </span>
         </Link>
 
         <nav className="rf-nav" aria-label="Navegação principal">
