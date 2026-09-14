@@ -5,11 +5,12 @@ import {
   consumePendingRecoveryCode,
   PLAYER_RECOVERY_KEY_EVENT,
 } from "@/lib/client-player-session";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 
 function saveRecoveryFile(code: string) {
   const blob = new Blob([
     [
-      "RuneForge — Chave de recuperação",
+      `${PRODUCT_BRAND.fullName} — Chave de recuperação`,
       "",
       code,
       "",
@@ -21,7 +22,7 @@ function saveRecoveryFile(code: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = "runeforge-recovery-key.txt";
+  anchor.download = "forged-recovery-key.txt";
   anchor.click();
   URL.revokeObjectURL(url);
 }
@@ -73,7 +74,7 @@ export default function RecoveryKeyNotice() {
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300/70">SEGURANÇA DA CONTA</p>
         <h2 id="recovery-key-title" className="mt-2 text-2xl font-black text-slate-50">SALVE SUA CHAVE DE RECUPERAÇÃO</h2>
         <p className="mt-3 text-sm leading-6 text-slate-400">
-          Ela não fica armazenada automaticamente no navegador. Copie ou baixe agora e guarde fora do RuneForge.
+          Ela não fica armazenada automaticamente no navegador. Copie ou baixe agora e guarde fora de {PRODUCT_BRAND.displayName}.
           Ao recuperar a conta ou gerar uma nova chave, a anterior deixa de funcionar.
         </p>
 
