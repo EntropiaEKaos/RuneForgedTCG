@@ -212,6 +212,207 @@
 .card-shell[data-card-region-count="2"] .card-collection,
 .card-shell[data-card-region-count="3"] .card-collection { max-width: calc(100% - 68px); }
 
+/* --------------------------------------------------------------------------
+   REGION FRAME LANGUAGE
+   The crest is no longer an icon sitting on top of a generic frame. The same
+   regional geometry now shapes the medallion, frame rails and corner grammar.
+   CardView DOM and gameplay authority remain untouched.
+   -------------------------------------------------------------------------- */
+.card-shell {
+  --brand-frame-accent: #f97316;
+  --brand-frame-secondary: #ffd28a;
+  --brand-frame-radius: 7px;
+  --brand-frame-clip: polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+  --brand-frame-pattern:
+    linear-gradient(135deg, transparent 0 43%, rgba(249,115,22,.62) 44% 51%, transparent 52%) top left / 25px 25px no-repeat,
+    linear-gradient(315deg, transparent 0 43%, rgba(249,115,22,.48) 44% 51%, transparent 52%) bottom right / 25px 25px no-repeat;
+}
+
+.card-shell[data-card-region="emberhold"] {
+  --brand-frame-accent: #f97316;
+  --brand-frame-secondary: #ffd28a;
+  --brand-frame-radius: 4px;
+  --brand-frame-clip: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+  --brand-frame-pattern:
+    linear-gradient(135deg, transparent 0 43%, rgba(249,115,22,.76) 44% 52%, transparent 53%) top left / 28px 28px no-repeat,
+    linear-gradient(315deg, transparent 0 43%, rgba(153,27,27,.72) 44% 52%, transparent 53%) bottom right / 28px 28px no-repeat;
+}
+
+.card-shell[data-card-region="tidecall"] {
+  --brand-frame-accent: #22d3ee;
+  --brand-frame-secondary: #d8fbff;
+  --brand-frame-radius: 15px 7px 15px 7px;
+  --brand-frame-clip: inset(0 round 15px 7px 15px 7px);
+  --brand-frame-pattern:
+    radial-gradient(circle at 0 0, transparent 0 11px, rgba(34,211,238,.72) 12px 13px, transparent 14px) top left / 36px 36px no-repeat,
+    radial-gradient(circle at 100% 100%, transparent 0 11px, rgba(29,78,216,.62) 12px 13px, transparent 14px) bottom right / 36px 36px no-repeat;
+}
+
+.card-shell[data-card-region="ironwood"] {
+  --brand-frame-accent: #2dd4bf;
+  --brand-frame-secondary: #c9fff0;
+  --brand-frame-radius: 5px;
+  --brand-frame-clip: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 10px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 10px), 0 4px);
+  --brand-frame-pattern:
+    linear-gradient(90deg, rgba(45,212,191,.52), transparent 75%) left top / 5px 100% no-repeat,
+    linear-gradient(270deg, rgba(6,95,70,.66), transparent 75%) right top / 5px 100% no-repeat,
+    linear-gradient(145deg, transparent 0 44%, rgba(201,255,240,.38) 45% 50%, transparent 51%) bottom left / 30px 24px no-repeat,
+    linear-gradient(215deg, transparent 0 44%, rgba(45,212,191,.4) 45% 50%, transparent 51%) bottom right / 30px 24px no-repeat;
+}
+
+.card-shell[data-card-region="voidborn"] {
+  --brand-frame-accent: #d946ef;
+  --brand-frame-secondary: #f5d0fe;
+  --brand-frame-radius: 12px 12px 6px 6px;
+  --brand-frame-clip: inset(0 round 12px 12px 6px 6px);
+  --brand-frame-pattern:
+    radial-gradient(circle at 50% -7px, transparent 0 19px, rgba(217,70,239,.72) 20px 21px, transparent 22px) top center / 78px 39px no-repeat,
+    linear-gradient(90deg, transparent 0 12%, rgba(88,28,135,.48) 13% 20%, transparent 21% 79%, rgba(217,70,239,.42) 80% 87%, transparent 88%) bottom center / 100% 2px no-repeat;
+}
+
+.card-shell[data-card-region="florestia"] {
+  --brand-frame-accent: #fbbf24;
+  --brand-frame-secondary: #fff2b6;
+  --brand-frame-radius: 6px;
+  --brand-frame-clip: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
+  --brand-frame-pattern:
+    repeating-linear-gradient(135deg, transparent 0 5px, rgba(251,191,36,.7) 6px 7px, transparent 8px 12px) top right / 31px 31px no-repeat,
+    repeating-linear-gradient(315deg, transparent 0 5px, rgba(146,64,14,.56) 6px 7px, transparent 8px 12px) bottom left / 31px 31px no-repeat;
+}
+
+.card-shell[data-card-region="tempestade"] {
+  --brand-frame-accent: #60a5fa;
+  --brand-frame-secondary: #e0ecff;
+  --brand-frame-radius: 3px;
+  --brand-frame-clip: polygon(6px 0, 74% 0, 70% 5px, 100% 5px, 100% calc(100% - 6px), 76% calc(100% - 6px), 72% 100%, 5px 100%, 0 calc(100% - 6px), 0 6px);
+  --brand-frame-pattern:
+    linear-gradient(118deg, transparent 0 37%, rgba(96,165,250,.78) 38% 44%, transparent 45% 54%, rgba(224,236,255,.66) 55% 61%, transparent 62%) top right / 38px 28px no-repeat,
+    linear-gradient(298deg, transparent 0 37%, rgba(55,48,163,.72) 38% 44%, transparent 45% 54%, rgba(96,165,250,.58) 55% 61%, transparent 62%) bottom left / 38px 28px no-repeat;
+}
+
+.card-shell .card-frame-ornament {
+  inset: 2px;
+  border: 1px solid color-mix(in srgb, var(--brand-frame-accent) 58%, rgba(255,255,255,.16));
+  border-radius: var(--brand-frame-radius);
+  clip-path: var(--brand-frame-clip);
+  opacity: .96;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.48),
+    inset 0 0 16px rgba(0,0,0,.18),
+    0 0 7px color-mix(in srgb, var(--brand-frame-accent) 20%, transparent);
+}
+
+.card-shell .card-frame-ornament::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--brand-frame-pattern);
+  opacity: .9;
+}
+
+.card-shell .card-frame-ornament::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--brand-frame-accent) 28%, var(--brand-frame-secondary) 50%, var(--brand-frame-accent) 72%, transparent);
+  box-shadow: 0 0 6px var(--brand-region-glow);
+  opacity: .84;
+}
+
+.card-shell .card-frame-ornament > i {
+  border-color: var(--brand-frame-accent) !important;
+  filter: drop-shadow(0 0 3px var(--brand-region-glow));
+}
+
+/* The medallion inherits the same geometry as its region. */
+.card-shell[data-card-region="emberhold"] .card-region {
+  border-radius: 4px;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 5px);
+}
+.card-shell[data-card-region="tidecall"] .card-region { border-radius: 50%; }
+.card-shell[data-card-region="ironwood"] .card-region {
+  border-radius: 3px 3px 8px 8px;
+  border-bottom-width: 2px;
+}
+.card-shell[data-card-region="voidborn"] .card-region { border-radius: 50% 50% 42% 42%; }
+.card-shell[data-card-region="florestia"] .card-region {
+  border-radius: 4px;
+  clip-path: polygon(0 0, 100% 0, 100% 72%, 76% 100%, 0 100%);
+}
+.card-shell[data-card-region="tempestade"] .card-region {
+  border-radius: 3px;
+  clip-path: polygon(18% 0, 100% 0, 82% 34%, 100% 34%, 72% 100%, 0 100%, 18% 64%, 0 64%);
+}
+
+/* Convergence is fused heraldry: its frame gets an actual multiregion rail and
+   the Convergence crest is stamped into the top edge rather than merely shown
+   as a colored utility badge. */
+.card-shell[data-card-region-count="2"] .card-frame-ornament,
+.card-shell[data-card-region-count="3"] .card-frame-ornament {
+  border-color: rgba(236,205,139,.68);
+  border-radius: 8px;
+  clip-path: polygon(7px 0, calc(50% - 18px) 0, calc(50% - 13px) 5px, calc(50% + 13px) 5px, calc(50% + 18px) 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.62),
+    inset 0 0 18px rgba(224,188,105,.05),
+    0 0 9px rgba(224,188,105,.2);
+}
+
+.card-shell[data-card-region-count="2"] .card-frame-ornament::before,
+.card-shell[data-card-region-count="3"] .card-frame-ornament::before {
+  inset: auto 3px 1px;
+  height: 2px;
+  background: var(--brand-convergence-fill);
+  opacity: .9;
+  box-shadow: 0 0 8px rgba(229,190,102,.26);
+}
+
+.card-shell[data-card-region-count="2"] .card-frame-ornament::after,
+.card-shell[data-card-region-count="3"] .card-frame-ornament::after {
+  top: -1px;
+  left: 50%;
+  right: auto;
+  width: 28px;
+  height: 14px;
+  transform: translateX(-50%);
+  background: var(--brand-convergence-fill);
+  -webkit-mask: url("/brand/regions/convergence-crest.svg") center / contain no-repeat;
+  mask: url("/brand/regions/convergence-crest.svg") center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,.9)) drop-shadow(0 0 4px rgba(229,190,102,.45));
+  box-shadow: none;
+  opacity: .86;
+}
+
+.card-shell[data-card-region-count="3"] .card-frame-ornament {
+  border-color: rgba(255,224,157,.8);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.64),
+    inset 0 0 20px rgba(255,222,151,.07),
+    0 0 12px rgba(229,190,102,.26);
+}
+.card-shell[data-card-region-count="3"] .card-frame-ornament::before { height: 3px; }
+.card-shell[data-card-region-count="3"] .card-frame-ornament::after {
+  width: 31px;
+  height: 16px;
+  opacity: .96;
+}
+
+/* Preserve cosmetic rarity authority: identity changes geometry; cosmetic
+   prestige may still increase brightness/saturation through its later class. */
+.card-shell.card-cosmetic-premium-frame .card-frame-ornament,
+.card-shell.card-prestige-scarce .card-frame-ornament,
+.card-shell.card-prestige-exalted .card-frame-ornament,
+.card-shell.card-prestige-relic .card-frame-ornament,
+.card-shell.card-prestige-exclusive .card-frame-ornament {
+  opacity: 1;
+}
+
 @media (max-width: 700px) {
   .card-shell .card-region {
     width: 24px;
@@ -224,4 +425,17 @@
   .card-shell[data-card-region-count="3"] .card-region { width: 28px; min-width: 28px; height: 28px; }
   .card-shell[data-card-region-count="2"] .card-region-sigil { width: 20px; height: 20px; flex-basis: 20px; }
   .card-shell[data-card-region-count="3"] .card-region-sigil { width: 21px; height: 21px; flex-basis: 21px; }
+
+  .card-shell .card-frame-ornament::after { left: 24%; right: 24%; }
+  .card-shell[data-card-region-count="2"] .card-frame-ornament::after,
+  .card-shell[data-card-region-count="3"] .card-frame-ornament::after {
+    left: 50%;
+    right: auto;
+    width: 23px;
+    height: 12px;
+  }
+  .card-shell[data-card-region-count="3"] .card-frame-ornament::after {
+    width: 25px;
+    height: 13px;
+  }
 }
