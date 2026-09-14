@@ -177,12 +177,82 @@
 }
 
 /* --------------------------------------------------------------------------
+   BRAND IDENTITY 1.2 — GAMEPLAY SHELL
+   BattleView stays byte-for-byte frozen. This presentation layer replaces the
+   legacy arena wordmark without changing match state, events, DOM contracts or
+   authoritative gameplay. Lore terms such as Nexus remain intact.
+   -------------------------------------------------------------------------- */
+.tcg-match-brand {
+  min-width: 190px;
+  padding-left: 31px;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 1;
+  background: var(--forged-mark) left center / 24px 24px no-repeat;
+  filter: drop-shadow(0 0 10px rgba(223,173,82,.08));
+}
+
+.tcg-match-brand > b { display: none !important; }
+
+.tcg-match-brand::before {
+  content: 'FORGED';
+  display: block;
+  color: #f3eee4;
+  font-family: var(--font-display), serif;
+  font-size: 13px;
+  font-weight: 1000;
+  letter-spacing: .18em;
+  line-height: 1;
+}
+
+.tcg-match-brand > small {
+  display: flex !important;
+  align-items: center;
+  margin-top: 4px;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tcg-match-brand > small::before {
+  content: 'THE CONVERGENCE';
+  color: var(--forged-metal);
+  font-family: var(--font-body), sans-serif;
+  font-size: 5px;
+  font-weight: 1000;
+  letter-spacing: .25em;
+}
+
+.tcg-match-brand > small::after {
+  content: ' · ARENA DO NEXUS';
+  color: #647186;
+  font-family: var(--font-body), sans-serif;
+  font-size: 5px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.match-result-seal strong {
+  display: block;
+  width: 42px;
+  height: 42px;
+  color: transparent !important;
+  font-size: 0 !important;
+  background: var(--forged-mark) center / contain no-repeat;
+  filter: drop-shadow(0 0 13px rgba(223,173,82,.24));
+}
+
+/* --------------------------------------------------------------------------
    RESPONSIVE LOCKUP
    -------------------------------------------------------------------------- */
 @media (max-width: 900px) {
   .forged-hero-mark { width: 60px; height: 60px; flex-basis: 60px; }
   .forged-hero-wordmark strong { font-size: clamp(25px, 6vw, 36px); }
   .forged-hero-wordmark small { font-size: 7px; letter-spacing: .37em; }
+  .tcg-match-brand { min-width: 162px; padding-left: 27px; background-size: 21px 21px; }
+  .tcg-match-brand::before { font-size: 11px; }
+  .tcg-match-brand > small::after { display: none; }
 }
 
 @media (max-width: 560px) {
@@ -193,9 +263,13 @@
   .forged-hero-mark { width: 52px; height: 52px; flex-basis: 52px; }
   .forged-hero-wordmark strong { font-size: clamp(23px, 8.5vw, 32px); letter-spacing: .12em; }
   .forged-hero-wordmark small { font-size: 6px; letter-spacing: .26em; }
+  .tcg-match-brand { min-width: 112px; padding-left: 24px; background-size: 18px 18px; }
+  .tcg-match-brand::before { font-size: 10px; letter-spacing: .12em; }
+  .tcg-match-brand > small::before { font-size: 4px; letter-spacing: .16em; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .forged-hero-mark,
-  .rf-brand .rf-brand-mark { filter: none; }
+  .rf-brand .rf-brand-mark,
+  .match-result-seal strong { filter: none; }
 }
