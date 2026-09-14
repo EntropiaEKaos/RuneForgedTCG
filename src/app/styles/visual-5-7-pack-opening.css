@@ -195,7 +195,12 @@ section[role="dialog"][aria-labelledby="pack-reveal-heading"] p[class*="border-c
 section[role="dialog"][aria-labelledby="pack-reveal-heading"] > button.rf-button-primary {
   position: relative;
   z-index: 6;
+  display: flex;
+  width: min(240px, 100%);
   min-width: 190px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  justify-content: center;
   box-shadow: 0 12px 30px rgba(251,191,36,.1), inset 0 0 0 1px rgba(255,255,255,.035);
 }
 
