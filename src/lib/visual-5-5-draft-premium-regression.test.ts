@@ -6,6 +6,8 @@ const layout = readFileSync("src/app/layout.tsx", "utf8");
 const css = readFileSync("src/app/styles/visual-5-5-draft-premium.css", "utf8");
 const draftClientPath = "src/app/draft/DraftClient.tsx";
 const draftClient = readFileSync(draftClientPath, "utf8");
+const draftVisualCert = readFileSync("scripts/alpha-draft-visual-cert.mjs", "utf8");
+const ciWorkflow = readFileSync(".github/workflows/ci.yml", "utf8");
 const suites = readFileSync("scripts/test-suites.mjs", "utf8");
 
 const previousLayer = 'import "./styles/visual-5-4-ranked-competitive.css";';
@@ -78,9 +80,49 @@ for (const authorityContract of [
   assert.ok(draftClient.includes(authorityContract), `Existing Draft authority contract disappeared: ${authorityContract}`);
 }
 
+for (const evidenceContract of [
+  "bootstrapPlayerSession",
+  "fetch('/api/player'",
+  "fetch('/api/draft'",
+  "chooseFirstCard",
+  'initial.body?.step, 0',
+  'initial.body.pool.length === 3',
+  '[aria-label="Estado do Draft"]',
+  '[aria-labelledby="draft-pick-heading"]',
+  '[aria-label="Progresso do Draft"]',
+  '[aria-labelledby="draft-deck-heading"]',
+  '31-draft-pick-chamber.png',
+  '32-draft-forge-tray.png',
+  '31-draft-diagnostic.png',
+  'draft-visual-manifest.json',
+]) {
+  assert.ok(draftVisualCert.includes(evidenceContract), `Visual 5.5 browser evidence is missing contract: ${evidenceContract}`);
+}
+
+for (const forbiddenEvidenceMutation of [
+  '/api/admin',
+  '/api/matchmaking',
+  '/api/ranked',
+  'method: \'DELETE\'',
+]) {
+  assert.equal(
+    draftVisualCert.includes(forbiddenEvidenceMutation),
+    false,
+    `Visual 5.5 browser evidence must isolate itself to public Draft/session authority: ${forbiddenEvidenceMutation}`,
+  );
+}
+
+assert.ok(
+  ciWorkflow.includes("node scripts/alpha-draft-visual-cert.mjs"),
+  "Visual 5.5 Draft browser evidence must run inside the full CI browser gate",
+);
+assert.ok(
+  ciWorkflow.indexOf("node scripts/alpha-draft-visual-cert.mjs") > ciWorkflow.indexOf("node scripts/alpha-ranked-visual-cert.mjs"),
+  "Draft evidence must run after Ranked and after the Alpha visual journey so it appends to the same artifact",
+);
 assert.ok(
   suites.includes('"src/lib/visual-5-5-draft-premium-regression.test.ts"'),
   "Visual 5.5 regression contract must be registered as a source-contract test",
 );
 
-console.log("RUNE FORGE VISUAL 5.5 DRAFT PREMIUM: CSS-only authority-preserving contracts PASS");
+console.log("RUNE FORGE VISUAL 5.5 DRAFT PREMIUM: CSS-only authority-preserving + direct Draft browser evidence contracts PASS");
