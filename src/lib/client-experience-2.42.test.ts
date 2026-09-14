@@ -7,10 +7,36 @@ const gameplayBrandCss = readFileSync("src/app/styles/brand-identity-1-1-product
 const matchResult = readFileSync("src/components/game/MatchResult.tsx", "utf8");
 const onboarding = readFileSync("src/app/play/PlayEntryClient.tsx", "utf8");
 const journey = readFileSync("src/components/game/PlayerJourney.tsx", "utf8");
+const recoveryNotice = readFileSync("src/components/RecoveryKeyNotice.tsx", "utf8");
+const cardView = readFileSync("src/components/CardView.tsx", "utf8");
+const densityCert = readFileSync("scripts/alpha-battlefield-notebook-stress-cert.mjs", "utf8");
 const sounds = readFileSync("src/lib/sounds.ts", "utf8");
 const productBrand = readFileSync("src/lib/product-brand.ts", "utf8");
 const pvp = readFileSync("src/lib/pvp-client.ts", "utf8");
 const locale = readFileSync("src/game/client/i18n.ts", "utf8");
+const publicBrandSurfaces = [
+  "src/app/play/page.tsx",
+  "src/app/pvp/page.tsx",
+  "src/app/codex/page.tsx",
+  "src/app/forge/page.tsx",
+  "src/app/store/page.tsx",
+  "src/app/modes/page.tsx",
+  "src/app/album/page.tsx",
+  "src/app/draft/page.tsx",
+  "src/app/ranked/page.tsx",
+  "src/app/market/page.tsx",
+  "src/app/profile/page.tsx",
+  "src/app/friends/page.tsx",
+  "src/app/leaderboard/page.tsx",
+  "src/app/collection/page.tsx",
+  "src/app/collections/page.tsx",
+  "src/app/community/page.tsx",
+  "src/app/replay/[id]/page.tsx",
+  "src/app/replays/[id]/page.tsx",
+  "src/app/admin/page.tsx",
+  "src/app/admin/studio/page.tsx",
+  "src/components/RecoveryKeyNotice.tsx",
+].map((path) => readFileSync(path, "utf8")).join("\n");
 
 for (const component of ["ReactionStack", "MatchResult", "PlayerHand", "CombatOutcomePreview", "GameSettings", "TutorialChecklist", "PvpStatus"]) {
   assert.ok(game.includes(`<${component}`), `${component} must be integrated into the match client`);
@@ -50,7 +76,32 @@ assert.ok(
     && journey.includes("LEGACY_BRAND_STORAGE_KEYS.journeyProgress"),
   "player-facing gameplay journey must use the candidate brand while preserving legacy-compatible progress",
 );
+assert.ok(
+  publicBrandSurfaces.includes("PRODUCT_BRAND")
+    && recoveryNotice.includes("forged-recovery-key.txt"),
+  "Brand 1.3 public surfaces must source visible naming from PRODUCT_BRAND",
+);
+assert.doesNotMatch(
+  publicBrandSurfaces,
+  /\bRuneForge\b|\bRuneforge\b/,
+  "Brand 1.3 player-facing semantic surfaces must not expose the legacy commercial name",
+);
+assert.ok(
+  cardView.includes("data-card-art-source={artSource}")
+    && cardView.includes('className="card-art absolute inset-0 bg-cover bg-center"')
+    && cardView.includes("backgroundImage: artBackground")
+    && cardView.includes("card-art-fallback"),
+  "real CardView instances must retain art, an art-source marker and a regional fallback",
+);
+assert.ok(
+  densityCert.includes("data.visualStressFixture='true'")
+    && densityCert.includes("data.visualStressClone")
+    && densityCert.includes("rf-v4-density-probe")
+    && gameplayBrandCss.includes("BRAND IDENTITY 1.3 — CERTIFICATION CLARITY")
+    && gameplayBrandCss.includes("content: 'STRESS'"),
+  "notebook density screenshots must identify synthetic stress probes instead of resembling blank production cards",
+);
 assert.ok(pvp.includes("request.actionId") && pvp.includes("response.status === 409"));
 assert.ok(locale.includes("ptBR") && game.includes("PARTIDA AO VIVO"));
 assert.ok(game.includes('event.key === "Escape"') && game.includes('aria-keyshortcuts="?"'));
-console.log("CLIENT EXPERIENCE 2.42: PASS — Brand Identity 1.2 gameplay shell certified");
+console.log("CLIENT EXPERIENCE 2.42: PASS — Brand Identity 1.3 semantic + card-art contract certified");
