@@ -1,0 +1,375 @@
+/* ========================================================================== 
+   RuneForge Visual 5.5 — Draft Premium
+   Presentation-only pass for the existing authoritative Arena Draft journey.
+   No draft pool generation, pick validation, persistence or API authority changes.
+   ========================================================================== */
+
+:root {
+  --rf-draft-gold: 235 190 102;
+  --rf-draft-ember: 249 115 22;
+  --rf-draft-violet: 167 139 250;
+  --rf-draft-cyan: 103 232 249;
+  --rf-draft-emerald: 110 231 183;
+}
+
+/* Existing accessibility contract provides a route-local scope without DOM changes. */
+.rf-app-page:has([aria-label="Estado do Draft"]) {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(var(--rf-draft-gold), .085), transparent 33rem),
+    radial-gradient(circle at 7% 42%, rgba(var(--rf-draft-violet), .055), transparent 30rem),
+    radial-gradient(circle at 94% 58%, rgba(var(--rf-draft-ember), .045), transparent 28rem),
+    #030507;
+}
+
+.rf-app-page:has([aria-label="Estado do Draft"]) .rf-app-shell {
+  max-width: 1280px;
+}
+
+.rf-app-page:has([aria-label="Estado do Draft"]) .rf-app-heading {
+  position: relative;
+  margin-bottom: 24px;
+  padding-bottom: 22px;
+  border-bottom-color: rgba(var(--rf-draft-gold), .13);
+}
+
+.rf-app-page:has([aria-label="Estado do Draft"]) .rf-app-heading::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(var(--rf-draft-gold), .64), rgba(var(--rf-draft-ember), .25) 42%, transparent 82%);
+}
+
+.rf-app-page:has([aria-label="Estado do Draft"]) .rf-eyebrow {
+  color: rgba(var(--rf-draft-gold), .84);
+}
+
+.rf-app-page:has([aria-label="Estado do Draft"]) .rf-app-heading h1 {
+  font-family: var(--font-display), serif;
+  letter-spacing: -.035em;
+  text-shadow: 0 16px 42px rgba(0,0,0,.48);
+}
+
+/* Session command strip. */
+[aria-label="Estado do Draft"] {
+  position: relative;
+  isolation: isolate;
+}
+
+[aria-label="Estado do Draft"]::before {
+  content: "SESSÃO DE DRAFT";
+  position: absolute;
+  z-index: 2;
+  right: 12px;
+  top: -10px;
+  padding: 3px 8px;
+  border: 1px solid rgba(var(--rf-draft-gold), .16);
+  border-radius: 999px;
+  background: rgb(5 7 10 / .96);
+  color: rgba(var(--rf-draft-gold), .66);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+[aria-label="Estado do Draft"] > div {
+  position: relative;
+  overflow: hidden;
+  min-height: 112px;
+  border-color: rgba(255,255,255,.105) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.04), rgba(3,6,11,.82)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.034), 0 16px 38px rgba(0,0,0,.18);
+}
+
+[aria-label="Estado do Draft"] > div::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: rgb(var(--rf-draft-gold));
+  opacity: .85;
+}
+
+[aria-label="Estado do Draft"] > div:nth-child(1)::after { background: rgb(var(--rf-draft-cyan)); }
+[aria-label="Estado do Draft"] > div:nth-child(2)::after { background: rgb(var(--rf-draft-gold)); }
+[aria-label="Estado do Draft"] > div:nth-child(3)::after { background: rgb(var(--rf-draft-violet)); }
+[aria-label="Estado do Draft"] > div:nth-child(4)::after { background: rgb(var(--rf-draft-ember)); }
+
+[aria-label="Estado do Draft"] > div > p:nth-child(2) {
+  font-family: var(--font-display), serif;
+  letter-spacing: -.02em;
+}
+
+/* Authoritative message/status bar. */
+.rf-app-page:has([aria-label="Estado do Draft"]) [role="status"] {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 12px 34px rgba(0,0,0,.15);
+  backdrop-filter: blur(8px);
+}
+
+/* Pick chamber: the three server-provided choices are the visual protagonist. */
+[aria-labelledby="draft-pick-heading"] > div {
+  position: relative;
+  isolation: isolate;
+  border-color: rgba(var(--rf-draft-gold), .18) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(var(--rf-draft-gold), .065), transparent 26rem),
+    radial-gradient(circle at 100% 42%, rgba(var(--rf-draft-violet), .04), transparent 24rem),
+    linear-gradient(145deg, rgba(255,255,255,.042), rgba(2,5,10,.86)) !important;
+  box-shadow: 0 30px 86px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+[aria-labelledby="draft-pick-heading"] > div::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .18;
+  background-image:
+    linear-gradient(rgba(255,255,255,.024) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+
+#draft-pick-heading {
+  font-family: var(--font-display), serif;
+  letter-spacing: -.025em;
+  text-shadow: 0 12px 32px rgba(0,0,0,.42);
+}
+
+[aria-label="Regiões da identidade atual"] span {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 8px 24px rgba(0,0,0,.16);
+}
+
+/* Choice cards: add materiality without changing the CardTip component itself. */
+[aria-labelledby="draft-pick-heading"] button[aria-label^="Escolher "] {
+  position: relative;
+  overflow: hidden;
+  min-height: 392px !important;
+  border-color: rgba(255,255,255,.105) !important;
+  background:
+    radial-gradient(circle at 50% 14%, rgba(var(--rf-draft-gold), .035), transparent 14rem),
+    linear-gradient(165deg, rgba(255,255,255,.032), rgba(0,0,0,.22)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03), 0 14px 34px rgba(0,0,0,.14);
+  transform: translateY(0);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+[aria-labelledby="draft-pick-heading"] button[aria-label^="Escolher "]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 18%, rgba(255,255,255,.045) 42%, transparent 62%);
+  transform: translateX(-120%);
+  transition: transform 420ms ease;
+}
+
+[aria-labelledby="draft-pick-heading"] button[aria-label^="Escolher "]::after {
+  content: "PICK";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 3px 7px;
+  border: 1px solid rgba(var(--rf-draft-gold), .16);
+  border-radius: 999px;
+  background: rgba(2,5,10,.78);
+  color: rgba(var(--rf-draft-gold), .55);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+[aria-labelledby="draft-pick-heading"] button[aria-label^="Escolher "]:hover:not(:disabled) {
+  transform: translateY(-7px);
+  border-color: rgba(var(--rf-draft-gold), .32) !important;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(var(--rf-draft-gold), .075), transparent 14rem),
+    linear-gradient(165deg, rgba(255,255,255,.047), rgba(0,0,0,.21)) !important;
+  box-shadow: 0 26px 56px rgba(0,0,0,.28), 0 0 40px rgba(var(--rf-draft-gold), .045), inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+[aria-labelledby="draft-pick-heading"] button[aria-label^="Escolher "]:hover:not(:disabled)::before {
+  transform: translateX(120%);
+}
+
+[aria-labelledby="draft-pick-heading"] button[aria-label^="Escolher "]:focus-visible {
+  box-shadow: 0 0 0 2px rgba(var(--rf-draft-gold), .72), 0 22px 54px rgba(0,0,0,.3) !important;
+}
+
+[aria-labelledby="draft-pick-heading"] button[aria-label^="Escolher "]:disabled {
+  filter: saturate(.72);
+}
+
+/* Draft progress becomes a forge channel rather than a generic progress bar. */
+[aria-label="Progresso do Draft"] {
+  position: relative;
+  height: 11px !important;
+  border-color: rgba(var(--rf-draft-gold), .12) !important;
+  background: rgba(0,0,0,.4) !important;
+  box-shadow: inset 0 2px 7px rgba(0,0,0,.6);
+}
+
+[aria-label="Progresso do Draft"] > div {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgb(var(--rf-draft-ember)), rgb(var(--rf-draft-gold)) 55%, rgb(var(--rf-draft-cyan))) !important;
+  box-shadow: 0 0 18px rgba(var(--rf-draft-gold), .18) !important;
+}
+
+[aria-label="Progresso do Draft"] > div::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 25%, rgba(255,255,255,.3) 50%, transparent 75%);
+  transform: translateX(-100%);
+  animation: rf-draft-progress-sheen 2.8s ease-in-out infinite;
+}
+
+@keyframes rf-draft-progress-sheen {
+  0%, 45% { transform: translateX(-110%); }
+  72%, 100% { transform: translateX(110%); }
+}
+
+/* Current deck = forge tray. */
+[aria-labelledby="draft-deck-heading"] > div {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(var(--rf-draft-violet), .15) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(var(--rf-draft-violet), .07), transparent 17rem),
+    linear-gradient(155deg, rgba(255,255,255,.038), rgba(2,5,10,.88)) !important;
+  box-shadow: 0 26px 70px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.035) !important;
+}
+
+[aria-labelledby="draft-deck-heading"] > div::before {
+  content: "POOL FORJADO";
+  position: absolute;
+  top: 11px;
+  right: 12px;
+  color: rgba(var(--rf-draft-violet), .38);
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .18em;
+  pointer-events: none;
+}
+
+#draft-deck-heading {
+  font-family: var(--font-display), serif;
+  letter-spacing: -.02em;
+}
+
+[aria-labelledby="draft-deck-heading"] .max-h-\[560px\] > div {
+  border-color: rgba(255,255,255,.07) !important;
+  background: rgba(1,4,8,.35) !important;
+  transition: border-color 150ms ease, transform 150ms ease, background 150ms ease;
+}
+
+[aria-labelledby="draft-deck-heading"] .max-h-\[560px\] > div:hover {
+  transform: translateX(-2px);
+  border-color: rgba(var(--rf-draft-cyan), .16) !important;
+  background: rgba(var(--rf-draft-cyan), .025) !important;
+}
+
+/* Completion ceremony. */
+[aria-labelledby="draft-complete-heading"] {
+  isolation: isolate;
+  min-height: 430px;
+  display: grid;
+  align-content: center;
+  border-color: rgba(var(--rf-draft-emerald), .24) !important;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(var(--rf-draft-emerald), .13), transparent 18rem),
+    radial-gradient(circle at 18% 80%, rgba(var(--rf-draft-gold), .05), transparent 22rem),
+    linear-gradient(145deg, rgba(255,255,255,.035), rgba(2,7,8,.9)) !important;
+  box-shadow: 0 32px 90px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+[aria-labelledby="draft-complete-heading"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: .22;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgba(var(--rf-draft-emerald), .42) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: radial-gradient(circle at center, black, transparent 64%);
+}
+
+#draft-complete-heading {
+  font-family: var(--font-display), serif;
+  letter-spacing: -.035em;
+  text-shadow: 0 14px 38px rgba(0,0,0,.44);
+}
+
+/* Empty/loading surfaces stay part of the same material system. */
+.rf-app-page:has([aria-label="Estado do Draft"]) [aria-busy],
+.rf-app-page:has([aria-label="Estado do Draft"]) .border-dashed {
+  border-color: rgba(var(--rf-draft-gold), .13) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(var(--rf-draft-gold), .04), transparent 17rem),
+    rgba(255,255,255,.018) !important;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .rf-app-page:has([aria-label="Estado do Draft"]) [role="status"],
+  [aria-labelledby="draft-pick-heading"] > div,
+  [aria-labelledby="draft-deck-heading"] > div,
+  [aria-labelledby="draft-complete-heading"] {
+    background-color: rgb(5 8 12) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  [aria-label="Estado do Draft"] > div {
+    min-height: 102px;
+  }
+
+  [aria-labelledby="draft-pick-heading"] button[aria-label^="Escolher "] {
+    min-height: 360px !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .rf-app-page:has([aria-label="Estado do Draft"]) .rf-app-shell {
+    width: calc(100% - 24px);
+    padding-top: 28px;
+  }
+
+  [aria-label="Estado do Draft"]::before,
+  [aria-labelledby="draft-deck-heading"] > div::before {
+    display: none;
+  }
+
+  [aria-label="Estado do Draft"] > div {
+    min-height: 92px;
+  }
+
+  [aria-labelledby="draft-pick-heading"] > div {
+    padding: 18px !important;
+  }
+
+  [aria-labelledby="draft-pick-heading"] button[aria-label^="Escolher "] {
+    min-height: 340px !important;
+  }
+
+  [aria-labelledby="draft-complete-heading"] {
+    min-height: 390px;
+    padding: 28px 20px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [aria-label="Progresso do Draft"] > div::after {
+    animation: none !important;
+  }
+
+  .rf-app-page:has([aria-label="Estado do Draft"]) button,
+  .rf-app-page:has([aria-label="Estado do Draft"]) a,
+  [aria-labelledby="draft-deck-heading"] .max-h-\[560px\] > div {
+    transition-duration: .01ms !important;
+  }
+}
