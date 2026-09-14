@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import SiteNav from "@/components/SiteNav";
 import { ensurePlayerSession } from "@/lib/client-player-session";
+import { trackTelemetryOnce } from "@/lib/client-telemetry";
 import {
   ALPHA_FIRST_MATCH_DIFFICULTY,
   ALPHA_ONBOARDING_COMPLETE,
@@ -34,6 +35,7 @@ export default function PlayEntryClient() {
         const completed = localStorage.getItem(ALPHA_ONBOARDING_STORAGE_KEY) === ALPHA_ONBOARDING_COMPLETE;
         if (shouldShowAlphaOnboarding({ created: session.created, completed })) {
           localStorage.setItem("runeforge_ai_difficulty", ALPHA_FIRST_MATCH_DIFFICULTY);
+          trackTelemetryOnce("alpha.onboarding_shown", { entry: "play" });
           setState("welcome");
           return;
         }
@@ -61,6 +63,7 @@ export default function PlayEntryClient() {
   const begin = () => {
     localStorage.setItem(ALPHA_ONBOARDING_STORAGE_KEY, ALPHA_ONBOARDING_COMPLETE);
     localStorage.setItem("runeforge_ai_difficulty", ALPHA_FIRST_MATCH_DIFFICULTY);
+    trackTelemetryOnce("alpha.onboarding_completed", { entry: "play" });
     setState("ready");
   };
 
