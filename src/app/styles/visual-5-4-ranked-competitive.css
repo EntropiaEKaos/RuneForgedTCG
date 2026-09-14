@@ -1,0 +1,293 @@
+/* ========================================================================== 
+   RuneForge Visual 5.4 — Ranked Competitive Premium
+   Presentation-only pass for the existing Ranked lobby and progression shell.
+   No matchmaking, certification, season, MMR or PvP authority changes.
+   ========================================================================== */
+
+:root {
+  --rf-ranked-gold: 226 184 96;
+  --rf-ranked-cyan: 96 220 255;
+  --rf-ranked-emerald: 110 231 183;
+  --rf-ranked-red: 248 113 113;
+  --rf-ranked-violet: 167 139 250;
+  --rf-ranked-line: rgba(255, 255, 255, .095);
+}
+
+/* Route scope comes from the existing Ranked status accessibility contract. */
+.rf-app-page:has([aria-label="Estado do competitivo"]) {
+  background:
+    radial-gradient(circle at 50% -16%, rgba(var(--rf-ranked-violet), .085), transparent 34rem),
+    radial-gradient(circle at 92% 32%, rgba(var(--rf-ranked-cyan), .045), transparent 28rem),
+    radial-gradient(circle at 8% 56%, rgba(var(--rf-ranked-gold), .04), transparent 24rem),
+    #030508;
+}
+
+.rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-shell {
+  max-width: 1220px;
+}
+
+.rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-heading {
+  position: relative;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom-color: rgba(var(--rf-ranked-violet), .14);
+}
+
+.rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-heading::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(var(--rf-ranked-gold), .55), rgba(var(--rf-ranked-violet), .38) 36%, transparent 78%);
+}
+
+.rf-app-page:has([aria-label="Estado do competitivo"]) .rf-eyebrow {
+  color: rgba(var(--rf-ranked-violet), .82);
+}
+
+.rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-heading h1 {
+  text-shadow: 0 15px 42px rgba(0,0,0,.46);
+}
+
+/* Operational snapshot. */
+[aria-label="Estado do competitivo"] {
+  position: relative;
+  isolation: isolate;
+}
+
+[aria-label="Estado do competitivo"] > div {
+  position: relative;
+  overflow: hidden;
+  min-height: 116px;
+  border-color: rgba(255,255,255,.105) !important;
+  background: linear-gradient(145deg, rgba(255,255,255,.042), rgba(3,6,13,.78)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 14px 36px rgba(0,0,0,.18);
+}
+
+[aria-label="Estado do competitivo"] > div::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  opacity: .8;
+  background: rgb(var(--rf-ranked-gold));
+}
+
+[aria-label="Estado do competitivo"] > div:nth-child(1)::after { background: rgb(var(--rf-ranked-emerald)); }
+[aria-label="Estado do competitivo"] > div:nth-child(2)::after { background: rgb(var(--rf-ranked-violet)); }
+[aria-label="Estado do competitivo"] > div:nth-child(3)::after { background: rgb(var(--rf-ranked-gold)); }
+[aria-label="Estado do competitivo"] > div:nth-child(4)::after { background: rgb(var(--rf-ranked-cyan)); }
+[aria-label="Estado do competitivo"] > div:nth-child(5)::after { background: rgb(var(--rf-ranked-violet)); }
+
+[aria-label="Estado do competitivo"] > div > p:first-child {
+  letter-spacing: .2em;
+}
+
+[aria-label="Estado do competitivo"] > div > p:nth-child(2) {
+  font-family: var(--font-display), serif;
+  letter-spacing: -.02em;
+}
+
+/* Closed gate remains visually explicit instead of looking like a generic error. */
+.rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-shell > [role="status"] {
+  border-color: rgba(var(--rf-ranked-red), .26) !important;
+  background:
+    linear-gradient(90deg, rgba(var(--rf-ranked-red), .075), rgba(var(--rf-ranked-gold), .025)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+/* Current rank hero. */
+[aria-labelledby="rank-card-heading"] {
+  position: relative;
+  isolation: isolate;
+  border-color: rgba(var(--rf-ranked-gold), .21) !important;
+  box-shadow:
+    0 28px 84px rgba(0,0,0,.32),
+    0 0 58px rgba(var(--rf-ranked-violet), .035),
+    inset 0 1px 0 rgba(255,255,255,.045);
+}
+
+[aria-labelledby="rank-card-heading"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .26;
+  background-image:
+    linear-gradient(rgba(255,255,255,.026) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(to bottom, black, transparent 76%);
+}
+
+[aria-labelledby="rank-card-heading"]::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(var(--rf-ranked-gold), .7), rgba(var(--rf-ranked-violet), .38), transparent);
+}
+
+[aria-labelledby="rank-card-heading"] > div {
+  position: relative;
+  z-index: 1;
+  background:
+    radial-gradient(circle at 14% 0%, rgba(var(--rf-ranked-gold), .075), transparent 24rem),
+    radial-gradient(circle at 100% 0%, rgba(var(--rf-ranked-violet), .08), transparent 28rem),
+    rgba(2,5,11,.34) !important;
+}
+
+#rank-card-heading {
+  font-family: var(--font-display), serif;
+  letter-spacing: -.035em;
+  text-shadow: 0 12px 34px rgba(0,0,0,.42);
+}
+
+[aria-labelledby="rank-card-heading"] .grid.grid-cols-3 > div {
+  min-width: 92px;
+  border-color: rgba(255,255,255,.105) !important;
+  background: rgba(1,4,10,.38) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.028);
+}
+
+[aria-label="Deck ranqueado certificado"] {
+  min-height: 46px;
+  border-color: rgba(var(--rf-ranked-violet), .2) !important;
+  background-color: rgba(2,5,11,.84) !important;
+  box-shadow: inset 0 0 28px rgba(var(--rf-ranked-violet), .025);
+}
+
+[aria-labelledby="rank-card-heading"] .rf-button-primary {
+  min-height: 46px;
+  box-shadow: 0 14px 34px rgba(var(--rf-ranked-gold), .085), inset 0 1px 0 rgba(255,255,255,.25);
+}
+
+.ranked-queue-beacon {
+  animation: rf-ranked-queue-beacon 2.4s ease-in-out infinite;
+}
+
+@keyframes rf-ranked-queue-beacon {
+  0%, 100% { box-shadow: 0 28px 84px rgba(0,0,0,.32), 0 0 42px rgba(var(--rf-ranked-violet), .04), inset 0 1px 0 rgba(255,255,255,.045); }
+  50% { box-shadow: 0 28px 84px rgba(0,0,0,.32), 0 0 62px rgba(var(--rf-ranked-violet), .11), inset 0 1px 0 rgba(255,255,255,.055); }
+}
+
+/* Recent performance and public ladder become a paired command surface. */
+[aria-labelledby="ranked-history-heading"],
+[aria-labelledby="ranked-leaderboard-heading"] {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(255,255,255,.105) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--rf-ranked-violet), .045), transparent 22rem),
+    linear-gradient(145deg, rgba(255,255,255,.034), rgba(3,6,12,.76)) !important;
+  box-shadow: 0 22px 58px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+[aria-labelledby="ranked-history-heading"]::before,
+[aria-labelledby="ranked-leaderboard-heading"]::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(var(--rf-ranked-cyan), .32), transparent);
+}
+
+[aria-labelledby="ranked-history-heading"] article,
+[aria-labelledby="ranked-leaderboard-heading"] article {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+[aria-labelledby="ranked-history-heading"] article:hover,
+[aria-labelledby="ranked-leaderboard-heading"] article:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--rf-ranked-cyan), .18) !important;
+}
+
+/* Tier constellation. */
+[aria-labelledby="rank-tiers-heading"] {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(var(--rf-ranked-violet), .15) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(var(--rf-ranked-violet), .065), transparent 26rem),
+    linear-gradient(145deg, rgba(255,255,255,.03), rgba(3,6,12,.76)) !important;
+  box-shadow: 0 22px 58px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+[aria-labelledby="rank-tiers-heading"] > div:last-child > div {
+  min-height: 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+  transition: transform 160ms ease, opacity 160ms ease, border-color 160ms ease;
+}
+
+[aria-labelledby="rank-tiers-heading"] > div:last-child > div:hover {
+  transform: translateY(-2px);
+  opacity: 1;
+  border-color: rgba(var(--rf-ranked-gold), .24) !important;
+}
+
+/* Empty/loading states on the route stay consistent with the competitive material. */
+.rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-shell > div.rounded-2xl,
+.rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-shell > section.rounded-2xl {
+  backdrop-filter: blur(8px);
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-shell > section,
+  .rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-shell > div {
+    background-color: rgb(5 8 15) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  [aria-label="Estado do competitivo"] > div {
+    min-height: 104px;
+  }
+
+  [aria-labelledby="rank-card-heading"] .grid.grid-cols-3 > div {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .rf-app-page:has([aria-label="Estado do competitivo"]) .rf-app-shell {
+    width: calc(100% - 24px);
+    padding-top: 28px;
+  }
+
+  [aria-label="Estado do competitivo"] > div {
+    min-height: 94px;
+  }
+
+  [aria-labelledby="rank-card-heading"] > div {
+    padding: 20px !important;
+  }
+
+  [aria-labelledby="rank-card-heading"] .grid.grid-cols-3 {
+    width: 100%;
+  }
+
+  [aria-labelledby="rank-tiers-heading"] > div:last-child > div {
+    min-height: 96px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ranked-queue-beacon {
+    animation: none !important;
+  }
+
+  .rf-app-page:has([aria-label="Estado do competitivo"]) article,
+  .rf-app-page:has([aria-label="Estado do competitivo"]) button,
+  .rf-app-page:has([aria-label="Estado do competitivo"]) a,
+  [aria-labelledby="rank-tiers-heading"] > div:last-child > div {
+    transition-duration: .01ms !important;
+  }
+}
