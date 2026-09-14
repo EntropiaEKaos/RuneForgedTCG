@@ -80,9 +80,17 @@ import { readFileSync } from "node:fs";
  * unchanged; pool generation, pick validation, copy/region constraints, persistence,
  * session identity and /api/draft authority stay untouched. Full CI/browser evidence
  * and manual inspection are mandatory before promotion.
+ *
+ * Cosmetic prestige break-glass 2026-09-14: layout.tsx is intentionally
+ * recertified only to load Visual 5.6 after Visual 5.5. Visual 5.6 consumes the
+ * already-existing collectible cosmetic registry, published pack dropWeight PPM,
+ * Wardrobe and pack reveal surfaces. CardView.tsx, CardInstance, gameplay Rarity,
+ * pack card-definition rolls, engine, battle state and frozen Visual 3.x structural
+ * blobs remain unchanged. Cosmetic prestige is presentation-only and derives from
+ * existing cosmetic odds. Full CI/browser evidence is mandatory before promotion.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "a8f18fd73712dc61dc32aea8bab02b073b0fb42e",
+  "src/app/layout.tsx": "5ad70b2bd5c104efad7c9aced6284c1e2ab92131",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
@@ -126,6 +134,7 @@ const playerJourneyLayer = 'import "./styles/visual-5-2-player-journey.css";';
 const pvpLobbyLayer = 'import "./styles/visual-5-3-pvp-lobby.css";';
 const rankedCompetitiveLayer = 'import "./styles/visual-5-4-ranked-competitive.css";';
 const draftPremiumLayer = 'import "./styles/visual-5-5-draft-premium.css";';
+const cosmeticPrestigeLayer = 'import "./styles/visual-5-6-cosmetic-prestige.css";';
 assert.ok(layout.includes(responsiveLayer), "Visual 4.0 responsive battlefield layer must stay mounted");
 assert.ok(layout.includes(battlefieldUxLayer), "Visual 4.4 battlefield UX layer must stay mounted");
 assert.ok(layout.includes(cinematicIdentityLayer), "Visual 5.0 cinematic identity layer must be mounted");
@@ -134,6 +143,7 @@ assert.ok(layout.includes(playerJourneyLayer), "Visual 5.2 player journey premiu
 assert.ok(layout.includes(pvpLobbyLayer), "Visual 5.3 PvP lobby premium layer must be mounted");
 assert.ok(layout.includes(rankedCompetitiveLayer), "Visual 5.4 Ranked competitive premium layer must be mounted");
 assert.ok(layout.includes(draftPremiumLayer), "Visual 5.5 Draft premium layer must be mounted");
+assert.ok(layout.includes(cosmeticPrestigeLayer), "Visual 5.6 cosmetic prestige layer must be mounted");
 assert.ok(
   layout.indexOf(battlefieldUxLayer) > layout.indexOf(responsiveLayer),
   "Visual 4.4 battlefield UX must load after the responsive battlefield layer",
@@ -162,6 +172,10 @@ assert.ok(
   layout.indexOf(draftPremiumLayer) > layout.indexOf(rankedCompetitiveLayer),
   "Visual 5.5 Draft premium must load after Visual 5.4 Ranked competitive premium",
 );
+assert.ok(
+  layout.indexOf(cosmeticPrestigeLayer) > layout.indexOf(draftPremiumLayer),
+  "Visual 5.6 cosmetic prestige must load after Visual 5.5 Draft premium",
+);
 
 assert.equal(
   /visual-3-[3-9][^\n]*\.css/.test(layout),
@@ -169,4 +183,4 @@ assert.equal(
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
 
-console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Visual 5.5 Draft premium break-glass recorded");
+console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Visual 5.6 cosmetic prestige break-glass recorded");
