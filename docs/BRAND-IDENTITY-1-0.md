@@ -95,6 +95,44 @@ They should use a fused **Convergence crest**:
 
 The first concept direction is Emberhold + Tempestade: forged flame/metal crossed by storm lightning inside a runic convergence ring.
 
+## Brand Identity 1.3 — semantic/public surface audit
+
+Brand Identity 1.3 extends the candidate identity across player-facing semantic surfaces while deliberately preserving technical and historical compatibility contracts.
+
+The public-surface audit routes visible product naming through `PRODUCT_BRAND` for:
+
+- PvP, Codex, Forge, Store and Modes metadata;
+- Album, Draft, Ranked, Market and Profile metadata;
+- Friends, Leaderboard, Collection, Collections calendar and Community metadata;
+- replay and public-replay metadata;
+- Admin and Super Admin Studio metadata;
+- recovery-key explanatory copy and downloaded recovery-file branding.
+
+The source contract rejects a regression that reintroduces `RuneForge` or `Runeforge` into this audited player-facing surface set. This does **not** authorize renaming deployment variables, schema history, repository paths, old certification documents or other technical compatibility identifiers.
+
+### Battlefield card-art audit
+
+A manual inspection of the notebook-density evidence initially made some injected rectangles look like production cards without artwork. They are not real cards.
+
+`alpha-battlefield-notebook-stress-cert.mjs` intentionally creates synthetic `rf-v4-density-probe` elements to force local horizontal density in:
+
+- the rival battlefield row;
+- the player battlefield row;
+- the player hand.
+
+The fixture installs at least 38 synthetic nodes. They have no card definition, no `CardView`, no artwork and no rules content by design.
+
+Brand Identity 1.3 marks those nodes visibly as `STRESS` probes in certification screenshots so they cannot be mistaken for broken game cards.
+
+Real game cards remain protected by the `CardView` art contract:
+
+- every real card exposes `data-card-art-source`;
+- `.card-art` retains `backgroundImage: artBackground`;
+- configured/editorial/definition/cosmetic art continues to resolve before fallback;
+- the regional fallback remains available when dedicated art is absent.
+
+The regression suite now asserts both the real-card art contract and the synthetic density-probe distinction.
+
 ## Related gameplay presentation priorities
 
 This rebrand should align with, but not block, the future RuneForge/next-brand presentation work already identified:
