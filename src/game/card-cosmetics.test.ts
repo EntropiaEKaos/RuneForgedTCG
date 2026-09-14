@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import {
+  cosmeticClassNames,
+  cosmeticDropChancePercent,
   normalizeCardCosmeticInput,
   replacePlayerCardCosmeticPreferences,
   replaceRegisteredCardCosmetics,
   resolveCardAppearance,
+  resolveCardCosmeticPrestige,
 } from "./card-cosmetics";
 
 function valid(overrides: Record<string, unknown> = {}) {
@@ -33,6 +36,13 @@ function main() {
     assert.equal(result.value, null, `${gameplayField} must never be accepted by cosmetic authoring`);
     assert.ok(result.errors.some((error) => error.includes(gameplayField)), `${gameplayField} rejection must be explicit`);
   }
+
+  assert.equal(resolveCardCosmeticPrestige(valid({ dropWeight: 100_000 }) as any).id, "forged");
+  assert.equal(resolveCardCosmeticPrestige(valid({ dropWeight: 25_000 }) as any).id, "scarce");
+  assert.equal(resolveCardCosmeticPrestige(valid({ dropWeight: 5_000 }) as any).id, "exalted");
+  assert.equal(resolveCardCosmeticPrestige(valid({ dropWeight: 4_999 }) as any).id, "relic");
+  assert.equal(resolveCardCosmeticPrestige(valid({ acquisition: "event", packEligible: false, dropWeight: 0 }) as any).id, "exclusive");
+  assert.equal(cosmeticDropChancePercent(25_000), 2.5, "PPM must convert to nominal percentage without changing pack authority");
 
   assert.equal(normalizeCardCosmeticInput(valid({ variantId: "standard" })).value, null, "standard is reserved for implicit base appearance");
   assert.equal(normalizeCardCosmeticInput(valid({ kind: "animated", animationUrl: null })).value, null, "animated variants require animation media");
@@ -74,6 +84,7 @@ function main() {
   assert.equal(resolved.serialLimit, 500);
   assert.equal(resolved.assetId, 41, "equipped appearance must preserve exact collectible copy identity");
   assert.equal(resolved.artUrl, "/uploads/tide-first-forge.webp");
+  assert.ok(cosmeticClassNames(resolved).includes("card-prestige-exclusive"), "shared CardView class contract must surface cosmetic prestige without changing CardInstance");
 
   replaceRegisteredCardCosmetics([]);
   assert.equal(resolveCardAppearance(variant.defId).variantId, "standard", "missing/unpublished cosmetic definitions must fail closed to Standard even if a preference remains");
