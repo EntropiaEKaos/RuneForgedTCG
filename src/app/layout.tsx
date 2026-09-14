@@ -37,6 +37,7 @@ import "./styles/visual-5-6-cosmetic-prestige.css";
 import "./styles/visual-5-7-pack-opening.css";
 import "./styles/visual-5-8-deck-builder.css";
 import "./styles/brand-identity-1-0.css";
+import "./styles/brand-identity-1-1-product.css";
 
 // A strict nonce-based CSP requires request-time rendering so Next.js can
 // attach the request nonce to framework and page scripts.
