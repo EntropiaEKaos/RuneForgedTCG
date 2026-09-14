@@ -75,7 +75,7 @@ for (const authorityContract of [
   'applySnapshot(payload);',
   'setComplete(Boolean(payload.complete) || nextStep >= nextTotal);',
   'setPool(Array.isArray(payload.pool) ? payload.pool.filter(isCardDef) : []);',
-  'await ensurePlayerSession(localStorage.getItem("runeforge_playername") || "")',
+  'ensurePlayerSession(localStorage.getItem("runeforge_playername") || "")',
 ]) {
   assert.ok(draftClient.includes(authorityContract), `Existing Draft authority contract disappeared: ${authorityContract}`);
 }
