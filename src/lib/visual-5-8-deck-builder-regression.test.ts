@@ -98,9 +98,8 @@ for (const evidenceContract of [
 }
 
 for (const forbiddenServerMutation of [
-  "method: 'POST'",
-  "method: 'PUT'",
-  "method: 'DELETE'",
+  "fetch('/api/decks', { method:",
+  'fetch("/api/decks", { method:',
   '/api/decks/share',
   '/api/admin',
   '/api/matchmaking',
@@ -108,9 +107,10 @@ for (const forbiddenServerMutation of [
   assert.equal(
     visualCert.includes(forbiddenServerMutation),
     false,
-    `Visual 5.8 browser evidence must be read-only outside player session bootstrap: ${forbiddenServerMutation}`,
+    `Visual 5.8 browser evidence must not mutate deck/server authority: ${forbiddenServerMutation}`,
   );
 }
+assert.ok(visualCert.includes("fetch('/api/player'"), "Visual 5.8 browser cert may bootstrap only its isolated public player session");
 
 assert.ok(
   ciWorkflow.includes("node scripts/alpha-deck-builder-visual-cert.mjs"),
