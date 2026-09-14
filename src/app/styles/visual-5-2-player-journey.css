@@ -164,7 +164,8 @@
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-.deck-select-page .deck-choice::after {
+/* Keep ::after free for the legacy selected-state badge. */
+.deck-select-page .deck-choice::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -180,8 +181,8 @@
   box-shadow: 0 24px 58px rgba(0,0,0,.3), 0 0 32px rgba(var(--rf-journey-gold),.035);
 }
 
-.deck-select-page .deck-choice:hover::after,
-.deck-select-page .deck-choice.is-selected::after {
+.deck-select-page .deck-choice:hover::before,
+.deck-select-page .deck-choice.is-selected::before {
   opacity: 1;
 }
 
