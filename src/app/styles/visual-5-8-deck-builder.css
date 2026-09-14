@@ -1,0 +1,323 @@
+/* ========================================================================== 
+   RuneForge Visual 5.8 — Deck Builder Premium
+   Presentation-only pass for the existing authoritative Forge deck workflow.
+   No deck validation, persistence, format legality, sharing or gameplay authority changes.
+   ========================================================================== */
+
+:root {
+  --rf-forge-gold: rgba(251, 191, 36, .9);
+  --rf-forge-cyan: rgba(103, 232, 249, .78);
+  --rf-forge-violet: rgba(196, 181, 253, .76);
+  --rf-forge-emerald: rgba(52, 211, 153, .72);
+}
+
+[aria-label="Resumo da Forja"] > div {
+  position: relative;
+  overflow: hidden;
+  min-height: 118px;
+  background: linear-gradient(145deg, rgba(15, 23, 42, .9), rgba(2, 6, 23, .78)) !important;
+  border-color: rgba(255,255,255,.09) !important;
+  box-shadow: 0 18px 42px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.018);
+}
+
+[aria-label="Resumo da Forja"] > div::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--rf-forge-gold), rgba(103,232,249,.16));
+}
+
+[aria-label="Resumo da Forja"] > div::after {
+  content: "";
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  right: -58px;
+  top: -64px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(251,191,36,.075), transparent 68%);
+  pointer-events: none;
+}
+
+[aria-labelledby="forge-editor-heading"] {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(251,191,36,.18) !important;
+  background:
+    linear-gradient(135deg, rgba(24,18,8,.34), transparent 42%),
+    linear-gradient(180deg, rgba(6,11,20,.94), rgba(3,7,14,.92)) !important;
+  box-shadow: 0 24px 60px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.02);
+}
+
+[aria-labelledby="forge-editor-heading"]::after {
+  content: "";
+  position: absolute;
+  inset: -140px -100px auto 48%;
+  height: 290px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(251,191,36,.09), transparent 68%);
+}
+
+[aria-labelledby="forge-editor-heading"] input,
+[aria-labelledby="forge-editor-heading"] select {
+  border-color: rgba(255,255,255,.11);
+  background: rgba(2,6,23,.72);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.015);
+}
+
+[aria-labelledby="forge-editor-heading"] [role="progressbar"] {
+  height: 9px;
+  background: rgba(255,255,255,.07) !important;
+  box-shadow: inset 0 1px 4px rgba(0,0,0,.35);
+}
+
+[aria-labelledby="forge-editor-heading"] [role="progressbar"] > div {
+  background: linear-gradient(90deg, rgba(251,191,36,.72), rgba(253,224,71,.95), rgba(103,232,249,.72)) !important;
+  box-shadow: 0 0 18px rgba(251,191,36,.2);
+}
+
+[aria-label="Identidade regional do deck"] {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(103,232,249,.26) !important;
+  background: linear-gradient(110deg, rgba(8,47,73,.22), rgba(2,6,23,.76) 62%) !important;
+  box-shadow: 0 14px 38px rgba(0,0,0,.2), inset 0 0 0 1px rgba(103,232,249,.025);
+}
+
+[aria-label="Identidade regional do deck"]::after {
+  content: "IDENTIDADE FORJADA";
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .22em;
+  color: rgba(103,232,249,.22);
+}
+
+[aria-labelledby="saved-decks-heading"] {
+  border-color: rgba(196,181,253,.14) !important;
+  background: linear-gradient(180deg, rgba(10,13,24,.9), rgba(3,7,14,.9)) !important;
+}
+
+[aria-labelledby="saved-decks-heading"] article {
+  position: relative;
+  overflow: hidden;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+[aria-labelledby="saved-decks-heading"] article:hover {
+  transform: translateY(-2px);
+  border-color: rgba(196,181,253,.28) !important;
+  box-shadow: 0 16px 34px rgba(0,0,0,.24);
+}
+
+[aria-labelledby="forge-catalog-heading"] {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  border-color: rgba(103,232,249,.14) !important;
+  background: rgba(3,7,14,.9) !important;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 14px 34px rgba(0,0,0,.2);
+}
+
+[aria-labelledby="forge-catalog-heading"] button {
+  transition: transform .16s ease, border-color .16s ease, background-color .16s ease;
+}
+
+[aria-labelledby="forge-catalog-heading"] button:hover {
+  transform: translateY(-1px);
+}
+
+[aria-label="Catálogo de cartas para o deck"] {
+  position: relative;
+  min-width: 0;
+  padding: 4px 2px 24px;
+}
+
+[aria-label="Catálogo de cartas para o deck"] [data-card-tip-def-id] {
+  filter: drop-shadow(0 15px 22px rgba(0,0,0,.26));
+}
+
+[aria-label="Catálogo de cartas para o deck"] .card-shell[data-card-state="playable"] {
+  transition: transform .18s ease, filter .18s ease, box-shadow .18s ease;
+}
+
+[aria-label="Catálogo de cartas para o deck"] .card-shell[data-card-state="playable"]:hover {
+  transform: translateY(-5px) scale(1.018);
+  filter: saturate(1.08) brightness(1.04);
+  box-shadow: 0 24px 52px rgba(0,0,0,.44), 0 0 30px rgba(103,232,249,.08);
+}
+
+aside[aria-label="Deck em construção"] {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgba(251,191,36,.24) !important;
+  background:
+    linear-gradient(150deg, rgba(46,34,6,.16), transparent 28%),
+    linear-gradient(180deg, rgba(7,11,20,.98), rgba(2,6,13,.97)) !important;
+  box-shadow: 0 28px 70px rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.025);
+}
+
+aside[aria-label="Deck em construção"]::before {
+  content: "";
+  position: absolute;
+  inset: -120px -80px auto 34%;
+  height: 260px;
+  z-index: -1;
+  background: radial-gradient(circle, rgba(251,191,36,.1), transparent 66%);
+  pointer-events: none;
+}
+
+aside[aria-label="Deck em construção"] > div:first-child {
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,.07);
+}
+
+aside[aria-label="Deck em construção"] > ul {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(251,191,36,.26) rgba(255,255,255,.03);
+}
+
+aside[aria-label="Deck em construção"] > ul li button {
+  border-color: rgba(255,255,255,.035);
+  background: linear-gradient(90deg, rgba(255,255,255,.018), transparent);
+}
+
+aside[aria-label="Deck em construção"] > ul li button:hover {
+  border-color: rgba(251,191,36,.17) !important;
+  background: rgba(251,191,36,.045) !important;
+}
+
+.forge-insight {
+  margin-top: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(103,232,249,.16);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(8,47,73,.12), rgba(15,23,42,.42));
+  padding: 12px;
+}
+
+.forge-insight > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.forge-insight > header > strong {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border: 1px solid rgba(103,232,249,.28);
+  border-radius: 999px;
+  background: rgba(8,47,73,.26);
+  color: rgb(165,243,252);
+  font-family: var(--font-display), serif;
+  font-size: 18px;
+  box-shadow: 0 0 22px rgba(34,211,238,.08);
+}
+
+.forge-insight > header div {
+  min-width: 0;
+}
+
+.forge-insight > header small,
+.forge-insight > header span,
+.forge-insight > p small {
+  display: block;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  color: rgb(100,116,139);
+}
+
+.forge-insight > header b {
+  display: block;
+  margin-top: 1px;
+  color: rgb(241,245,249);
+  font-size: 12px;
+}
+
+.forge-role-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.forge-role-grid span {
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px;
+  background: rgba(2,6,23,.45);
+  padding: 6px 3px;
+  text-align: center;
+  color: rgb(100,116,139);
+  font-size: 8px;
+}
+
+.forge-role-grid b {
+  display: block;
+  color: rgb(226,232,240);
+  font-size: 12px;
+}
+
+.forge-strengths,
+.forge-warnings {
+  margin-top: 8px;
+  display: grid;
+  gap: 3px;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+.forge-strengths { color: rgb(110,231,183); }
+.forge-warnings { color: rgb(253,186,116); }
+
+.forge-insight > p {
+  margin-top: 9px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  padding-top: 8px;
+  color: rgb(203,213,225);
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+aside[aria-label="Deck em construção"] section:not(.forge-insight) {
+  border-color: rgba(196,181,253,.22) !important;
+  background: linear-gradient(135deg, rgba(76,29,149,.12), rgba(2,6,23,.42)) !important;
+}
+
+aside[aria-label="Deck em construção"] > div:last-child .rf-button-primary {
+  box-shadow: 0 12px 30px rgba(251,191,36,.12), inset 0 0 0 1px rgba(255,255,255,.025);
+}
+
+@supports not ((backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px))) {
+  [aria-labelledby="forge-catalog-heading"] { background: rgba(3,7,14,.98) !important; }
+}
+
+@media (max-width: 1023px) {
+  [aria-labelledby="forge-catalog-heading"] { position: relative; top: auto; }
+  aside[aria-label="Deck em construção"] { position: relative !important; top: auto !important; }
+}
+
+@media (max-width: 720px) {
+  [aria-label="Resumo da Forja"] > div { min-height: 102px; }
+  [aria-label="Identidade regional do deck"]::after { display: none; }
+  [aria-label="Catálogo de cartas para o deck"] .card-shell[data-card-state="playable"]:hover,
+  [aria-labelledby="saved-decks-heading"] article:hover { transform: none; }
+  .forge-role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [aria-labelledby="saved-decks-heading"] article,
+  [aria-labelledby="forge-catalog-heading"] button,
+  [aria-label="Catálogo de cartas para o deck"] .card-shell[data-card-state="playable"] {
+    transition: none !important;
+  }
+}
