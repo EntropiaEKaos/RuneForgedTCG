@@ -189,5 +189,6 @@ export const sourceContractTests = [
   "src/lib/visual-3-1-card-presentation-regression.test.ts",
   "src/lib/visual-3-2-meta-world-regression.test.ts",
   "src/lib/visual-5-1-metagame-premium-regression.test.ts",
-  "src/lib/visual-5-2-player-journey-regression.test.ts"
+  "src/lib/visual-5-2-player-journey-regression.test.ts",
+  "src/lib/visual-5-3-pvp-lobby-regression.test.ts"
 ];

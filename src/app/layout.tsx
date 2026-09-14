@@ -29,6 +29,7 @@ import "./styles/visual-4-4-battlefield-ux.css";
 import "./styles/visual-5-0-cinematic-identity.css";
 import "./styles/visual-5-1-metagame-premium.css";
 import "./styles/visual-5-2-player-journey.css";
+import "./styles/visual-5-3-pvp-lobby.css";
 
 // A strict nonce-based CSP requires request-time rendering so Next.js can
 // attach the request nonce to framework and page scripts.
