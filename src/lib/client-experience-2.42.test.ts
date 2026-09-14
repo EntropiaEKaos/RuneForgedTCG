@@ -94,8 +94,8 @@ assert.ok(
   "real CardView instances must retain art, an art-source marker and a regional fallback",
 );
 assert.ok(
-  densityCert.includes("data.visualStressFixture='true'")
-    && densityCert.includes("data.visualStressClone")
+  densityCert.includes("style.dataset.visualStressFixture='true'")
+    && densityCert.includes("node.dataset.visualStressClone")
     && densityCert.includes("rf-v4-density-probe")
     && gameplayBrandCss.includes("BRAND IDENTITY 1.3 — CERTIFICATION CLARITY")
     && gameplayBrandCss.includes("content: 'STRESS'"),
