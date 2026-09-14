@@ -7,6 +7,7 @@ const responsiveCss = readFileSync("src/app/styles/visual-4-0-responsive-battlef
 const visualJourney = readFileSync("scripts/alpha-visual-journey.mjs", "utf8");
 const battle = readFileSync("src/app/play/BattleView.tsx", "utf8");
 const arena = readFileSync("src/components/game/ArenaIdentity.tsx", "utf8");
+const hand = readFileSync("src/components/game/PlayerHand.tsx", "utf8");
 
 assert.ok(
   layout.includes('import "./styles/visual-3-0-battlefield-cinematic.css";'),
@@ -90,6 +91,25 @@ assert.ok(responsiveCss.includes("aside[data-mode-mission]"), "special-mode brie
 assert.ok(responsiveCss.includes(".tcg-arena .tcg-log[open]"), "battle log must remain accessible as an overlay drawer");
 assert.ok(responsiveCss.includes("overscroll-behavior: contain"), "internal tactical scrollers must contain overscroll instead of moving the page");
 
+// Visual 4.3 turns tablet/mobile into an intentional touch composition rather
+// than a scaled desktop: bounded viewport, local board scrollers and hand drawer.
+assert.ok(responsiveCss.includes("RuneForge Visual 4.3 — Adaptive Touch Battlefield"), "Visual 4.3 touch layer marker missing");
+assert.ok(responsiveCss.includes("@media (max-width: 900px)"), "Visual 4.3 tablet/mobile composition breakpoint missing");
+assert.ok(responsiveCss.includes("@media (max-width: 600px) and (orientation: portrait)"), "Visual 4.3 portrait composition missing");
+assert.ok(responsiveCss.includes("@media (max-width: 900px) and (orientation: landscape) and (max-height: 700px)"), "Visual 4.3 short-landscape composition missing");
+assert.ok(responsiveCss.includes("--rf-v43-board-card-w: clamp("), "Visual 4.3 board cards must remain fluid");
+assert.ok(responsiveCss.includes("--rf-v43-hand-card-w: clamp("), "Visual 4.3 hand cards must remain fluid");
+assert.ok(responsiveCss.includes("scroll-snap-type: x proximity"), "touch rows and hand must use local snap-assisted horizontal navigation");
+assert.ok(responsiveCss.includes("touch-action: pan-x"), "touch surfaces must declare horizontal gesture intent");
+assert.ok(responsiveCss.includes("env(safe-area-inset-bottom)"), "touch composition must respect device safe areas");
+assert.ok(responsiveCss.includes(".player-hand-shell:not(.expanded) .tcg-hand"), "collapsed mobile hand must not consume battlefield height");
+assert.ok(responsiveCss.includes(".tcg-arena .player-hand-shell.expanded"), "mobile hand must expose an explicit overlay drawer state");
+assert.ok(responsiveCss.includes("bottom: calc(50px + env(safe-area-inset-bottom))"), "portrait/tablet hand drawer must clear the action rail");
+assert.ok(responsiveCss.includes("min-width: 44px") && responsiveCss.includes("min-height: 44px"), "touch controls must preserve a 44px interaction floor");
+assert.ok(responsiveCss.includes("@media (hover: none) and (pointer: coarse)"), "coarse-pointer behavior must not depend on hover");
+assert.ok(hand.includes('className={`player-hand-shell ${expanded ? "expanded" : ""}`}'), "Visual 4.3 must reuse the authoritative existing hand expansion state");
+assert.ok(hand.includes('aria-expanded={expanded}'), "mobile hand drawer must retain its accessible expansion state");
+
 // Real browser evidence must reproduce the notebook failure that motivated
 // Visual 4.0 and now certify the common short-laptop viewport matrix in 4.1.
 assert.ok(
@@ -140,4 +160,4 @@ for (const forbidden of ["fetch(", "dispatch(", "castSpell(", "playUnit(", "loca
   assert.equal(responsiveCss.includes(forbidden), false, `responsive presentation layer must not contain ${forbidden}`);
 }
 
-console.log("RUNE FORGE VISUAL 3.0 + 4.0 + 4.1 BATTLEFIELD CONTRACT: source contract PASS");
+console.log("RUNE FORGE VISUAL 3.0 + 4.0 + 4.1 + 4.3 BATTLEFIELD CONTRACT: source contract PASS");

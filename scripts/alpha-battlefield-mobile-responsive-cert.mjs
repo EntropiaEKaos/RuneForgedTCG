@@ -6,8 +6,11 @@ import { spawn, spawnSync } from "node:child_process";
 import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
 
 const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
-const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual-4-2");
-const viewport = { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false };
+const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual-4-3-mobile");
+const viewports = [
+  { name: "portrait", width: 390, height: 844, deviceScaleFactor: 1, mobile: true, touch: true, minAction: 44 },
+  { name: "landscape", width: 844, height: 390, deviceScaleFactor: 1, mobile: true, touch: true, minAction: 38 },
+];
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 
 function findChrome() {
@@ -92,7 +95,7 @@ async function evaluate(cdp, expression) {
   return result.result?.value;
 }
 
-async function waitUntil(check, label, timeoutMs = 25_000) {
+async function waitUntil(check, label, timeoutMs = 30_000) {
   const deadline = Date.now() + timeoutMs;
   let last;
   while (Date.now() < deadline) {
@@ -166,7 +169,7 @@ async function enterTrainingBattle(cdp) {
   }
   if (stage === "mulligan") {
     await clickText(cdp, "Manter mão inicial");
-    stage = await waitForStage(cdp, ["battle"], "battlefield arena", 30_000);
+    stage = await waitForStage(cdp, ["battle"], "battlefield arena");
   }
   assert.equal(stage, "battle", `unexpected final Alpha entry stage: ${stage}`);
   if (await evaluate(cdp, `Boolean(document.querySelector('.match-guide-backdrop'))`)) {
@@ -176,43 +179,55 @@ async function enterTrainingBattle(cdp) {
   await settle(cdp);
 }
 
-async function installDensityStressFixture(cdp) {
-  return evaluate(cdp, `(()=>{const style=document.createElement('style');style.dataset.visualStressFixture='true';style.textContent='.rf-v4-density-probe{flex:0 0 84px;width:84px;height:104px;border:1px solid rgba(255,255,255,.12);border-radius:10px;background:rgba(15,23,42,.62);box-sizing:border-box}.rf-v4-hand-probe{height:118px;flex-basis:78px;width:78px}';document.head.appendChild(style);const makeProbe=(className,index)=>{const node=document.createElement('div');node.className=className;node.dataset.visualStressClone=String(index);node.setAttribute('aria-hidden','true');return node};const rows=[...document.querySelectorAll('.tcg-row[data-bench-side]')];for(const row of rows)for(let i=0;i<12;i+=1)row.appendChild(makeProbe('rf-v4-density-probe',i));const hand=document.querySelector('#player-hand-cards');if(!hand)return{ok:false,reason:'missing hand container'};for(let i=0;i<14;i+=1)hand.appendChild(makeProbe('rf-v4-density-probe rf-v4-hand-probe',i));return{ok:rows.length===2,rows:rows.length,handChildren:hand.children.length}})()`);
+async function setViewport(cdp, viewport) {
+  await cdp.call("Emulation.setDeviceMetricsOverride", {
+    width: viewport.width,
+    height: viewport.height,
+    deviceScaleFactor: viewport.deviceScaleFactor,
+    mobile: viewport.mobile,
+    screenWidth: viewport.width,
+    screenHeight: viewport.height,
+  });
+  await cdp.call("Emulation.setTouchEmulationEnabled", { enabled: viewport.touch, maxTouchPoints: viewport.touch ? 5 : 1 });
+  await settle(cdp);
 }
 
-async function hoverRealHandCard(cdp) {
-  const point = await evaluate(cdp, `(async()=>{const cards=[...document.querySelectorAll('#player-hand-cards [data-card-tip-def-id]')].reverse();const fractions=[[.5,.5],[.5,.25],[.5,.75],[.25,.5],[.75,.5],[.2,.2],[.8,.2],[.2,.8],[.8,.8]];for(const target of cards){target.scrollIntoView({block:'nearest',inline:'center'});await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const rect=target.getBoundingClientRect();for(const [fx,fy] of fractions){const x=rect.left+rect.width*fx;const y=rect.top+rect.height*fy;if(x<1||y<1||x>innerWidth-2||y>innerHeight-2)continue;const hit=document.elementFromPoint(x,y);const host=hit?.closest?.('[data-card-tip-def-id]');if(host===target||target.contains(hit)){return{ok:true,x,y,defId:target.dataset.cardTipDefId,hitTag:hit?.tagName||null}}}}return{ok:false,cards:cards.map(card=>{const rect=card.getBoundingClientRect();return{defId:card.dataset.cardTipDefId,left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom}})}})()`);
-  assert.equal(point?.ok, true, `stress certification requires a physically hit-testable real hand card: ${JSON.stringify(point)}`);
-  assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y), "stress certification hover point must be finite");
-  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
-  await sleep(120);
-  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
-  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-tooltip-panel="true"]'))`), `card intelligence tooltip for ${point.defId}`);
-  return point;
+async function ensureHandState(cdp, expanded) {
+  await waitUntil(
+    () => evaluate(cdp, `(()=>{const shell=document.querySelector('.player-hand-shell');const button=document.querySelector('.mobile-hand-toggle');if(!shell||!button)return false;const current=shell.classList.contains('expanded');if(current===${expanded})return true;button.click();return false;})()`),
+    `mobile hand ${expanded ? "expanded" : "collapsed"}`,
+  );
+  await settle(cdp);
 }
 
-async function collectStressEvidence(cdp) {
-  return evaluate(cdp, `(()=>{const rect=selector=>{const e=document.querySelector(selector);if(!e)return null;const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}};const scroll=selector=>{const e=document.querySelector(selector);return e?{clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,clientHeight:e.clientHeight,scrollHeight:e.scrollHeight}:null};const actionButtons=[...document.querySelectorAll('.tcg-actions button:not(:disabled), .reaction-stack button:not(:disabled), .targeting-hud button:not(:disabled)')].map(button=>{const r=button.getBoundingClientRect();const x=Math.max(0,Math.min(innerWidth-1,r.left+r.width/2));const y=Math.max(0,Math.min(innerHeight-1,r.top+r.height/2));const hit=document.elementFromPoint(x,y);return{text:(button.textContent||'').trim(),surface:button.closest('.reaction-stack')?'reaction':button.closest('.targeting-hud')?'targeting':'primary',rect:{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height},hitTestable:hit===button||button.contains(hit)}});return{innerWidth,innerHeight,document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},arena:rect('.tcg-arena'),rivalField:rect('.tcg-row[data-bench-side="ai"]'),playerField:rect('.tcg-row[data-bench-side="player"]'),hand:rect('.player-hand-shell'),actions:rect('.tcg-actions'),tooltip:rect('[data-tooltip-panel="true"]'),rivalScroll:scroll('.tcg-row[data-bench-side="ai"]'),playerScroll:scroll('.tcg-row[data-bench-side="player"]'),handScroll:scroll('#player-hand-cards'),actionButtons,probeCount:document.querySelectorAll('[data-visual-stress-clone]').length}})()`);
+async function collectEvidence(cdp) {
+  return evaluate(cdp, `(()=>{const rect=selector=>{const e=document.querySelector(selector);if(!e)return null;const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}};const hit=selector=>{const e=document.querySelector(selector);if(!e)return false;const r=e.getBoundingClientRect();const x=Math.max(0,Math.min(innerWidth-1,r.left+r.width/2));const y=Math.max(0,Math.min(innerHeight-1,r.top+r.height/2));const h=document.elementFromPoint(x,y);return h===e||e.contains(h)};const actions=[...document.querySelectorAll('.tcg-actions button:not(:disabled)')].map(button=>{const r=button.getBoundingClientRect();return{text:(button.textContent||'').trim(),width:r.width,height:r.height,top:r.top,bottom:r.bottom}});const handShell=document.querySelector('.player-hand-shell');const handCards=document.querySelector('#player-hand-cards');return{innerWidth,innerHeight,document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},arena:rect('.tcg-arena'),rivalField:rect('.tcg-row[data-bench-side="ai"]'),playerField:rect('.tcg-row[data-bench-side="player"]'),hand:rect('.player-hand-shell'),actionsRect:rect('.tcg-actions'),toggle:rect('.mobile-hand-toggle'),toggleHit:hit('.mobile-hand-toggle'),handExpanded:Boolean(handShell?.classList.contains('expanded')),handCardsDisplay:handCards?getComputedStyle(handCards).display:null,actions}})()`);
 }
 
-function assertStressEvidence(evidence) {
-  assert.equal(evidence.innerWidth, viewport.width, "stress viewport width mismatch");
-  assert.equal(evidence.innerHeight, viewport.height, "stress viewport height mismatch");
-  assert.ok(evidence.document.scrollWidth <= evidence.innerWidth + 2, `density stress created horizontal page overflow: ${evidence.document.scrollWidth}px > ${evidence.innerWidth}px`);
-  assert.ok(evidence.document.scrollHeight <= evidence.innerHeight + 2, `density stress created vertical page overflow: ${evidence.document.scrollHeight}px > ${evidence.innerHeight}px`);
-  for (const [label, box] of Object.entries({ arena: evidence.arena, rivalField: evidence.rivalField, playerField: evidence.playerField, hand: evidence.hand, actions: evidence.actions })) {
-    assert.ok(box, `density stress is missing ${label}`);
-    assert.ok(box.top >= -1, `density stress clips ${label} above viewport: ${box.top}`);
-    assert.ok(box.bottom <= evidence.innerHeight + 1, `density stress clips ${label} below viewport: ${box.bottom}`);
+function assertCollapsedEvidence(evidence, viewport) {
+  assert.equal(evidence.innerWidth, viewport.width, `${viewport.name}: viewport width mismatch`);
+  assert.equal(evidence.innerHeight, viewport.height, `${viewport.name}: viewport height mismatch`);
+  assert.ok(evidence.document.scrollWidth <= evidence.innerWidth + 2, `${viewport.name}: horizontal document overflow`);
+  assert.ok(evidence.document.scrollHeight <= evidence.innerHeight + 2, `${viewport.name}: vertical document overflow`);
+  for (const [label, box] of Object.entries({ arena: evidence.arena, rivalField: evidence.rivalField, playerField: evidence.playerField, hand: evidence.hand, actions: evidence.actionsRect, toggle: evidence.toggle })) {
+    assert.ok(box, `${viewport.name}: missing ${label}`);
+    assert.ok(box.top >= -1, `${viewport.name}: ${label} clips above viewport (${box.top})`);
+    assert.ok(box.bottom <= evidence.innerHeight + 1, `${viewport.name}: ${label} clips below viewport (${box.bottom})`);
   }
-  assert.ok(evidence.rivalScroll.scrollWidth > evidence.rivalScroll.clientWidth + 20, "rival row stress did not create local horizontal density");
-  assert.ok(evidence.playerScroll.scrollWidth > evidence.playerScroll.clientWidth + 20, "player row stress did not create local horizontal density");
-  assert.ok(evidence.handScroll.scrollWidth > evidence.handScroll.clientWidth + 20, "hand stress did not create local horizontal density");
-  assert.ok(evidence.probeCount >= 38, `density stress fixture did not install enough probes: ${evidence.probeCount}`);
-  assert.ok(evidence.tooltip, "card intelligence tooltip disappeared under density stress");
-  assert.ok(evidence.tooltip.left >= 0 && evidence.tooltip.top >= 0 && evidence.tooltip.right <= evidence.innerWidth + 1 && evidence.tooltip.bottom <= evidence.innerHeight + 1, "stress tooltip escapes viewport bounds");
-  assert.ok(evidence.actionButtons.length > 0, "stress certification requires an enabled current-phase action");
-  assert.ok(evidence.actionButtons.some((button) => button.hitTestable), "no enabled current-phase battlefield action remains hit-testable under density stress");
+  assert.equal(evidence.handExpanded, false, `${viewport.name}: hand must start collapsed`);
+  assert.equal(evidence.handCardsDisplay, "none", `${viewport.name}: collapsed hand must remove card shelf from layout`);
+  assert.equal(evidence.toggleHit, true, `${viewport.name}: hand toggle must be physically hit-testable`);
+  assert.ok(evidence.actions.length > 0, `${viewport.name}: expected an enabled battlefield action`);
+  assert.ok(evidence.actions.some((action) => action.height >= viewport.minAction - 1), `${viewport.name}: no action reaches the touch-height floor ${viewport.minAction}px`);
+}
+
+function assertExpandedEvidence(evidence, viewport) {
+  assert.ok(evidence.document.scrollWidth <= evidence.innerWidth + 2, `${viewport.name} expanded: horizontal document overflow`);
+  assert.ok(evidence.document.scrollHeight <= evidence.innerHeight + 2, `${viewport.name} expanded: vertical document overflow`);
+  assert.equal(evidence.handExpanded, true, `${viewport.name}: hand drawer did not expand`);
+  assert.notEqual(evidence.handCardsDisplay, "none", `${viewport.name}: expanded drawer must expose cards`);
+  assert.ok(evidence.hand && evidence.hand.top >= -1 && evidence.hand.bottom <= evidence.innerHeight + 1, `${viewport.name}: expanded hand drawer must stay inside viewport`);
+  assert.ok(evidence.actionsRect && evidence.actionsRect.top >= -1 && evidence.actionsRect.bottom <= evidence.innerHeight + 1, `${viewport.name}: action rail must remain visible with drawer open`);
 }
 
 async function capture(cdp, filename) {
@@ -231,8 +246,8 @@ async function writeFailureEvidence(cdp, error) {
 async function main() {
   await rm(outputDir, { recursive: true, force: true });
   await mkdir(outputDir, { recursive: true });
-  const profileDir = await mkdtemp(join(tmpdir(), "runeforge-v4-2-density-"));
-  const chrome = spawn(findChrome(), ["--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage", "--hide-scrollbars", "--mute-audio", CHROME_REMOTE_DEBUGGING_FLAG, `--user-data-dir=${profileDir}`, `--window-size=${viewport.width},${viewport.height}`, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  const profileDir = await mkdtemp(join(tmpdir(), "runeforge-v4-3-mobile-"));
+  const chrome = spawn(findChrome(), ["--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage", "--hide-scrollbars", "--mute-audio", CHROME_REMOTE_DEBUGGING_FLAG, `--user-data-dir=${profileDir}`, "--window-size=920,920", "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
   let browserStderr = "";
   chrome.stderr.on("data", (chunk) => { browserStderr += String(chunk); });
   let cdp;
@@ -241,20 +256,26 @@ async function main() {
     cdp = await CdpClient.connect(await waitForChrome(port));
     await cdp.call("Page.enable");
     await cdp.call("Runtime.enable");
-    await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
+    await setViewport(cdp, viewports[0]);
     try {
       await enterTrainingBattle(cdp);
-      const fixture = await installDensityStressFixture(cdp);
-      assert.equal(fixture.ok, true, `could not install notebook density stress fixture: ${JSON.stringify(fixture)}`);
-      await settle(cdp);
-      const hoverTarget = await hoverRealHandCard(cdp);
-      await settle(cdp);
-      const evidence = await collectStressEvidence(cdp);
-      assertStressEvidence(evidence);
-      await capture(cdp, "battlefield-density-stress-1280x720.png");
-      const report = { ok: true, viewport, fixture, hoverTarget, evidence, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() };
-      await writeFile(join(outputDir, "battlefield-density-stress-1280x720.json"), `${JSON.stringify(report, null, 2)}\n`);
-      console.log(`VISUAL 4.2 NOTEBOOK DENSITY STRESS: PASS — ${JSON.stringify({ hoverTarget, evidence })}`);
+      const report = [];
+      for (const viewport of viewports) {
+        await setViewport(cdp, viewport);
+        await ensureHandState(cdp, false);
+        const collapsed = await collectEvidence(cdp);
+        assertCollapsedEvidence(collapsed, viewport);
+        await capture(cdp, `battlefield-mobile-${viewport.name}-${viewport.width}x${viewport.height}.png`);
+
+        await ensureHandState(cdp, true);
+        const expanded = await collectEvidence(cdp);
+        assertExpandedEvidence(expanded, viewport);
+        await capture(cdp, `battlefield-mobile-${viewport.name}-hand-open-${viewport.width}x${viewport.height}.png`);
+        report.push({ viewport, collapsed, expanded });
+        await ensureHandState(cdp, false);
+      }
+      await writeFile(join(outputDir, "visual-4-3-mobile-report.json"), `${JSON.stringify({ ok: true, report, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() }, null, 2)}\n`);
+      console.log(`VISUAL 4.3 MOBILE RESPONSIVE: PASS — ${JSON.stringify(report.map((entry) => ({ viewport: entry.viewport.name, document: entry.collapsed.document, hand: entry.collapsed.hand, actions: entry.collapsed.actionsRect })))}`);
     } catch (error) {
       await writeFailureEvidence(cdp, error);
       throw error;
@@ -266,6 +287,6 @@ async function main() {
 }
 
 void main().catch((error) => {
-  console.error("VISUAL 4.2 NOTEBOOK DENSITY STRESS: FAIL", error);
+  console.error("VISUAL 4.3 MOBILE RESPONSIVE: FAIL", error);
   process.exitCode = 1;
 });
