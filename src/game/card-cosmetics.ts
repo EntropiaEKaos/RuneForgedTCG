@@ -1,8 +1,18 @@
 export const CARD_COSMETIC_KINDS = ["premium_frame", "full_art", "foil", "animated", "serialized"] as const;
 export const CARD_COSMETIC_ACQUISITIONS = ["pack", "event", "promotion", "market", "grant"] as const;
+export const CARD_COSMETIC_PRESTIGE_TIERS = ["forged", "scarce", "exalted", "relic", "exclusive"] as const;
 
 export type CardCosmeticKind = typeof CARD_COSMETIC_KINDS[number];
 export type CardCosmeticAcquisition = typeof CARD_COSMETIC_ACQUISITIONS[number];
+export type CardCosmeticPrestigeId = typeof CARD_COSMETIC_PRESTIGE_TIERS[number];
+
+export interface CardCosmeticPrestige {
+  id: CardCosmeticPrestigeId;
+  label: string;
+  shortLabel: string;
+  description: string;
+  rank: number;
+}
 
 export interface CardCosmeticVariant {
   id?: number;
@@ -59,6 +69,70 @@ export const CARD_COSMETIC_FORBIDDEN_KEYS = new Set([
 
 const variantsByCard: Record<string, Record<string, CardCosmeticVariant>> = {};
 const preferenceByCard: Record<string, PlayerCardCosmeticPreference> = {};
+
+const COSMETIC_PRESTIGE: Record<CardCosmeticPrestigeId, CardCosmeticPrestige> = {
+  forged: {
+    id: "forged",
+    label: "Forjada",
+    shortLabel: "FORJADA",
+    description: "Variante de pack com presença recorrente, mas ainda separada da impressão Standard.",
+    rank: 1,
+  },
+  scarce: {
+    id: "scarce",
+    label: "Escassa",
+    shortLabel: "ESCASSA",
+    description: "Variante cosmética incomum, com chance nominal abaixo de 10% por cópia elegível.",
+    rank: 2,
+  },
+  exalted: {
+    id: "exalted",
+    label: "Exaltada",
+    shortLabel: "EXALTADA",
+    description: "Variante cosmética premium, com chance nominal abaixo de 2,5% por cópia elegível.",
+    rank: 3,
+  },
+  relic: {
+    id: "relic",
+    label: "Relíquia",
+    shortLabel: "RELÍQUIA",
+    description: "Variante cosmética extremamente rara, com chance nominal abaixo de 0,5% por cópia elegível.",
+    rank: 4,
+  },
+  exclusive: {
+    id: "exclusive",
+    label: "Exclusiva",
+    shortLabel: "EXCLUSIVA",
+    description: "Variante distribuída fora da tabela normal de drops de pack.",
+    rank: 5,
+  },
+};
+
+/**
+ * Cosmetic prestige is presentation-only and is derived from the already-authoritative
+ * pack probability. It never reads or mutates gameplay rarity. dropWeight is PPM:
+ * - Forjada: >= 100,000 PPM (>= 10%)
+ * - Escassa: 25,000-99,999 PPM (2.5%-9.9999%)
+ * - Exaltada: 5,000-24,999 PPM (0.5%-2.4999%)
+ * - Relíquia: 1-4,999 PPM (< 0.5%)
+ * - Exclusiva: event/promotion/market/grant or not pack-eligible.
+ */
+export function resolveCardCosmeticPrestige(
+  variant: Pick<CardCosmeticVariant, "acquisition" | "packEligible" | "dropWeight"> | null | undefined,
+): CardCosmeticPrestige {
+  if (!variant || variant.acquisition !== "pack" || !variant.packEligible || variant.dropWeight <= 0) {
+    return COSMETIC_PRESTIGE.exclusive;
+  }
+  if (variant.dropWeight >= 100_000) return COSMETIC_PRESTIGE.forged;
+  if (variant.dropWeight >= 25_000) return COSMETIC_PRESTIGE.scarce;
+  if (variant.dropWeight >= 5_000) return COSMETIC_PRESTIGE.exalted;
+  return COSMETIC_PRESTIGE.relic;
+}
+
+export function cosmeticDropChancePercent(dropWeight: number): number {
+  const ppm = Math.max(0, Math.min(1_000_000, Math.trunc(Number(dropWeight) || 0)));
+  return ppm / 10_000;
+}
 
 function safeUrl(value: unknown): string | null {
   const url = typeof value === "string" ? value.trim() : "";
@@ -173,9 +247,11 @@ export function resolveCardAppearance(defId: string, explicitVariantId?: string 
 
 export function cosmeticClassNames(appearance: ResolvedCardAppearance): string[] {
   if (appearance.kind === "standard") return [];
+  const prestige = resolveCardCosmeticPrestige(getCardCosmetic(appearance.defId, appearance.variantId));
   return [
     `card-cosmetic-${appearance.kind.replaceAll("_", "-")}`,
     `card-finish-${appearance.finish.replace(/[^a-z0-9_-]+/gi, "-").toLowerCase()}`,
     `card-frame-${appearance.frameId.replace(/[^a-z0-9_-]+/gi, "-").toLowerCase()}`,
+    `card-prestige-${prestige.id}`,
   ];
 }

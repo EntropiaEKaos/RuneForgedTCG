@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { adminAuditLogs, cardAssets, cardCosmeticVariants, playerCardCosmeticPreferences } from "@/db/schema";
-import { allCards } from "@/game/cards";
-import { ensureCustomCardsLoaded } from "@/game/catalog";
+import { adminAuditLogs, cardAssets, cardCosmeticVariants, customCards, playerCardCosmeticPreferences } from "@/db/schema";
+import { baseCardsOnly } from "@/game/cards";
 import { normalizeCardCosmeticInput } from "@/game/card-cosmetics";
 import { adminRoleAllowed, getAdminSessionContext, unauthorized } from "@/lib/admin-auth";
 
@@ -13,6 +12,12 @@ async function actorFor(req: NextRequest, role: "designer" | "publisher") {
   const actor = await getAdminSessionContext(req);
   if (!actor || !adminRoleAllowed(actor.role, role)) return null;
   return actor;
+}
+
+async function cardExistsForCosmeticAuthoring(defId: string): Promise<boolean> {
+  if (baseCardsOnly().some((card) => card.defId === defId)) return true;
+  const [saved] = await db.select({ id: customCards.id }).from(customCards).where(eq(customCards.defId, defId)).limit(1);
+  return Boolean(saved);
 }
 
 async function clearPreferencesForVariant(tx: any, defId: string, variantId: string) {
@@ -56,11 +61,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const actor = await actorFor(req, "designer");
   if (!actor) return unauthorized();
-  await ensureCustomCardsLoaded();
   const body = await req.json() as Record<string, unknown>;
   const normalized = normalizeCardCosmeticInput(body);
   if (!normalized.value) return Response.json({ ok: false, error: normalized.errors.join("; ") }, { status: 400 });
-  if (!allCards().some((card) => card.defId === normalized.value!.defId)) return Response.json({ ok: false, error: "Unknown card" }, { status: 404 });
+  if (!(await cardExistsForCosmeticAuthoring(normalized.value.defId))) return Response.json({ ok: false, error: "Unknown card" }, { status: 404 });
   const existing = await db.select({ id: cardCosmeticVariants.id }).from(cardCosmeticVariants).where(and(
     eq(cardCosmeticVariants.defId, normalized.value.defId),
     eq(cardCosmeticVariants.variantId, normalized.value.variantId),
@@ -85,7 +89,6 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const actor = await actorFor(req, "designer");
   if (!actor) return unauthorized();
-  await ensureCustomCardsLoaded();
   const body = await req.json() as Record<string, unknown>;
   const id = Number(body.id);
   if (!Number.isInteger(id) || id < 1) return Response.json({ ok: false, error: "Valid id is required" }, { status: 400 });

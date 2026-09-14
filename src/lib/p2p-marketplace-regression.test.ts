@@ -91,6 +91,10 @@ function main() {
   const studioApi = read("src/app/api/admin/studio/cosmetics/route.ts");
   assert.match(studioApi, /Publisher role required to change a live cosmetic/, "live cosmetic publication must remain publisher-gated");
   assert.match(studioApi, /exceed 1,000,000 PPM/, "Studio must reject cosmetic pack pools above 100%");
+  assert.match(studioApi, /cardExistsForCosmeticAuthoring/, "cosmetic drafts must validate persisted authoring identity separately from runtime publication");
+  assert.match(studioApi, /baseCardsOnly\(\)/, "base cards must remain valid cosmetic authoring targets");
+  assert.match(studioApi, /customCards\.defId/, "saved custom-card drafts must be valid cosmetic authoring targets before gameplay publication");
+  assert.doesNotMatch(studioApi, /allCards\(\)/, "cosmetic draft authoring must not require a card to be runtime-enabled");
   const studio = read("src/app/admin/studio/cards/CardAuthoringStudio.tsx");
   assert.match(studio, /CardCosmeticsTab/, "Card Studio must own cosmetic authoring as an extension, not a parallel admin tool");
   const wardrobe = read("src/app/collection/variants/CosmeticWardrobeClient.tsx");

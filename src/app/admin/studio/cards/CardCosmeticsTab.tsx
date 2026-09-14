@@ -3,7 +3,14 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
-import { CARD_COSMETIC_ACQUISITIONS, CARD_COSMETIC_KINDS, type CardCosmeticAcquisition, type CardCosmeticKind } from "@/game/card-cosmetics";
+import {
+  CARD_COSMETIC_ACQUISITIONS,
+  CARD_COSMETIC_KINDS,
+  cosmeticDropChancePercent,
+  resolveCardCosmeticPrestige,
+  type CardCosmeticAcquisition,
+  type CardCosmeticKind,
+} from "@/game/card-cosmetics";
 import { hasStudioUiCapability } from "@/lib/admin-studio-access";
 import { Panel } from "./CardAuthoringFields";
 
@@ -96,6 +103,10 @@ function toForm(row: VariantRow): FormState {
   };
 }
 
+function prestigeFor(acquisition: CardCosmeticAcquisition, packEligible: boolean, dropWeight: number) {
+  return resolveCardCosmeticPrestige({ acquisition, packEligible, dropWeight });
+}
+
 export default function CardCosmeticsTab({ model, role }: { model: any; role: string }) {
   const defId = String(model.card?.defId || "").trim();
   const cardName = String(model.card?.name || defId || "Carta");
@@ -128,7 +139,9 @@ export default function CardCosmeticsTab({ model, role }: { model: any; role: st
   useDeferredEffect(() => { void load(); }, [load]);
 
   const previewStyle = useMemo(() => form.artUrl ? { backgroundImage: `linear-gradient(rgba(2,6,23,.08),rgba(2,6,23,.72)),url(${JSON.stringify(form.artUrl)})`, backgroundSize: "cover", backgroundPosition: "center" } : {}, [form.artUrl]);
-  const probability = Math.max(0, Math.min(100, Number(form.dropWeight || 0) / 10_000));
+  const dropWeight = Math.max(0, Math.min(1_000_000, Math.trunc(Number(form.dropWeight) || 0)));
+  const probability = cosmeticDropChancePercent(dropWeight);
+  const prestige = prestigeFor(form.acquisition, form.acquisition === "pack" && form.packEligible, dropWeight);
 
   const startNew = () => {
     setEditingId(null);
@@ -223,7 +236,7 @@ export default function CardCosmeticsTab({ model, role }: { model: any; role: st
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]" data-studio-cosmetics="true">
       <div className="space-y-4">
         <Panel title="Cosmetics & Printings" eyebrow="ONE GAMEPLAY ID · MANY APPEARANCES">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-400/15 bg-emerald-400/[.05] p-3 text-xs text-slate-300">
@@ -231,7 +244,7 @@ export default function CardCosmeticsTab({ model, role }: { model: any; role: st
             <button type="button" className="btn-secondary" onClick={startNew}>＋ Nova variante</button>
           </div>
 
-          {message && <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-slate-200">{message}</div>}
+          {message && <div className="mb-4 rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-slate-200" role="status">{message}</div>}
 
           <div className="grid gap-3 md:grid-cols-2">
             <Field label="Variant ID"><input className="input w-full" value={form.variantId} disabled={Boolean(editingId)} onChange={(e) => patch("variantId", e.target.value)} placeholder="andrea_full_art_01" /></Field>
@@ -253,11 +266,15 @@ export default function CardCosmeticsTab({ model, role }: { model: any; role: st
 
           <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
             <label className="flex items-center gap-2 text-xs font-bold text-slate-200"><input type="checkbox" checked={form.packEligible} disabled={form.acquisition !== "pack"} onChange={(e) => patch("packEligible", e.target.checked)} /> Elegível para drop em pack</label>
-            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_160px] sm:items-end">
+            <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_190px] sm:items-end">
               <div><div className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-500">Drop weight (PPM)</div><input type="number" min={0} max={1_000_000} className="input w-full" value={form.dropWeight} disabled={!form.packEligible || form.acquisition !== "pack"} onChange={(e) => patch("dropWeight", e.target.value)} /></div>
-              <div className="rounded-xl border border-cyan-400/15 bg-cyan-400/[.05] p-3 text-center"><div className="text-[10px] uppercase tracking-wider text-slate-500">chance nominal</div><div className="mt-1 text-xl font-black text-cyan-200">{probability.toFixed(probability < 1 ? 3 : 2)}%</div></div>
+              <div className="cosmetic-prestige-readout rounded-xl border border-cyan-400/15 bg-cyan-400/[.05] p-3 text-center" data-studio-cosmetic-prestige={prestige.id} data-cosmetic-prestige={prestige.id}>
+                <div className="text-[10px] uppercase tracking-wider text-slate-500">chance nominal</div>
+                <div className="mt-1 text-xl font-black text-cyan-200">{probability.toFixed(probability < 1 ? 3 : 2)}%</div>
+                <span className="cosmetic-prestige-badge mt-2 inline-flex rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-[.12em]">{prestige.shortLabel}</span>
+              </div>
             </div>
-            <p className="mt-2 text-[10px] leading-4 text-slate-500">O restante até 1.000.000 PPM é Standard. Se várias variantes da mesma carta somarem mais de 100%, a ordem de publicação limita o pool sem alterar o defId sorteado.</p>
+            <p className="mt-2 text-[10px] leading-4 text-slate-500">{prestige.description} O restante até 1.000.000 PPM é Standard; a classificação é cosmética e nunca altera a raridade de gameplay.</p>
           </div>
 
           <div className="mt-4 flex flex-wrap justify-end gap-2">
@@ -267,24 +284,29 @@ export default function CardCosmeticsTab({ model, role }: { model: any; role: st
         </Panel>
 
         <Panel title={`Variantes de ${cardName}`} eyebrow={`${rows.length} PRINTING(S)`}>
-          {rows.length === 0 ? <p className="text-sm text-slate-500">Nenhuma variante criada. A aparência Standard continua implícita e não precisa de registro.</p> : <div className="grid gap-3 md:grid-cols-2">{rows.map((row) => (
-            <article key={row.id} className={`rounded-2xl border p-4 ${editingId === row.id ? "border-amber-300/45 bg-amber-300/[.05]" : "border-white/10 bg-black/20"}`}>
-              <div className="flex items-start justify-between gap-3"><div><div className="font-black text-white">{row.name}</div><div className="mt-1 font-mono text-[10px] text-slate-500">{row.variantId}</div></div><span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase ${row.enabled ? "bg-emerald-400/15 text-emerald-300" : row.status === "published" ? "bg-sky-400/15 text-sky-300" : row.status === "archived" ? "bg-slate-500/20 text-slate-400" : "bg-amber-400/15 text-amber-300"}`}>{row.enabled ? "LIVE" : row.status}</span></div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-slate-400"><span>{KIND_LABEL[row.kind]}</span><span>{row.frameId}</span><span>{row.finish}</span><span>{ACQUISITION_LABEL[row.acquisition]}</span>{row.serialLimit && <span>#{row.serialLimit} máx.</span>}{row.packEligible && <span>{(row.dropWeight / 10_000).toFixed(3)}% pack</span>}</div>
-              <div className="mt-3 flex flex-wrap gap-2"><button type="button" className="btn-ghost text-[10px]" onClick={() => edit(row)}>Editar</button>{canPublish && row.status === "published" && <button type="button" className="btn-ghost text-[10px]" onClick={() => void toggleLive(row)}>{row.enabled ? "Desabilitar" : "Habilitar"}</button>}{canPublish && <button type="button" className="btn-ghost text-[10px] text-rose-300" onClick={() => void archive(row)}>Arquivar</button>}</div>
-            </article>
-          ))}</div>}
+          {rows.length === 0 ? <p className="text-sm text-slate-500">Nenhuma variante criada. A aparência Standard continua implícita e não precisa de registro.</p> : <div className="grid gap-3 md:grid-cols-2">{rows.map((row) => {
+            const rowPrestige = prestigeFor(row.acquisition, row.packEligible, row.dropWeight);
+            return (
+              <article key={row.id} data-cosmetic-prestige={rowPrestige.id} className={`rounded-2xl border p-4 ${editingId === row.id ? "border-amber-300/45 bg-amber-300/[.05]" : "border-white/10 bg-black/20"}`}>
+                <div className="flex items-start justify-between gap-3"><div><div className="font-black text-white">{row.name}</div><div className="mt-1 font-mono text-[10px] text-slate-500">{row.variantId}</div></div><span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase ${row.enabled ? "bg-emerald-400/15 text-emerald-300" : row.status === "published" ? "bg-sky-400/15 text-sky-300" : row.status === "archived" ? "bg-slate-500/20 text-slate-400" : "bg-amber-400/15 text-amber-300"}`}>{row.enabled ? "LIVE" : row.status}</span></div>
+                <div className="mt-3 flex flex-wrap items-center gap-2"><span className="cosmetic-prestige-badge rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-[.12em]">{rowPrestige.shortLabel}</span>{row.packEligible && <span className="text-[10px] font-bold text-slate-400">{cosmeticDropChancePercent(row.dropWeight).toFixed(3)}% pack</span>}</div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-slate-400"><span>{KIND_LABEL[row.kind]}</span><span>{row.frameId}</span><span>{row.finish}</span><span>{ACQUISITION_LABEL[row.acquisition]}</span>{row.serialLimit && <span>#{row.serialLimit} máx.</span>}</div>
+                <div className="mt-3 flex flex-wrap gap-2"><button type="button" className="btn-ghost text-[10px]" onClick={() => edit(row)}>Editar</button>{canPublish && row.status === "published" && <button type="button" className="btn-ghost text-[10px]" onClick={() => void toggleLive(row)}>{row.enabled ? "Desabilitar" : "Habilitar"}</button>}{canPublish && <button type="button" className="btn-ghost text-[10px] text-rose-300" onClick={() => void archive(row)}>Arquivar</button>}</div>
+              </article>
+            );
+          })}</div>}
         </Panel>
       </div>
 
       <aside className="space-y-4">
         <Panel title="Cosmetic Preview" eyebrow="VISUAL ONLY">
-          <div className={`relative mx-auto aspect-[2/3] w-full max-w-[280px] overflow-hidden rounded-[24px] border-2 bg-slate-900 shadow-2xl ${form.kind === "foil" ? "border-cyan-200/70" : form.kind === "serialized" ? "border-amber-200/80" : "border-white/25"}`} style={previewStyle}>
+          <div className={`relative mx-auto aspect-[2/3] w-full max-w-[280px] overflow-hidden rounded-[24px] border-2 bg-slate-900 shadow-2xl ${form.kind === "foil" ? "border-cyan-200/70" : form.kind === "serialized" ? "border-amber-200/80" : "border-white/25"}`} style={previewStyle} data-studio-cosmetic-preview="true" data-cosmetic-prestige={prestige.id}>
             {!form.artUrl && <div className="grid h-full place-items-center text-center text-slate-600"><div><div className="text-5xl">◇</div><div className="mt-2 text-xs">Selecione uma arte do pipeline</div></div></div>}
+            <span className="cosmetic-prestige-badge absolute left-3 top-3 z-20 rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-[.12em]">{prestige.shortLabel}</span>
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/85 to-transparent p-5 pt-16"><div className="text-[10px] font-black uppercase tracking-[.2em] text-amber-300">{form.name || "Cosmetic Draft"}</div><div className="mt-1 text-xl font-black text-white">{cardName}</div><div className="mt-2 flex flex-wrap gap-1 text-[9px] uppercase text-slate-300"><span className="rounded-full bg-white/10 px-2 py-1">{KIND_LABEL[form.kind]}</span><span className="rounded-full bg-white/10 px-2 py-1">{form.finish}</span>{form.edition && <span className="rounded-full bg-white/10 px-2 py-1">{form.edition}</span>}</div></div>
             {form.kind === "serialized" && form.serialLimit && <span className="absolute right-3 top-3 rounded-full border border-amber-200/40 bg-black/70 px-2 py-1 text-[10px] font-black text-amber-200">#—/{form.serialLimit}</span>}
           </div>
-          <p className="mt-4 text-xs leading-5 text-slate-500">Preview editorial. O renderer real usa o mesmo <code>defId</code> e aplica apenas art/frame/finish/animação/serial.</p>
+          <p className="mt-4 text-xs leading-5 text-slate-500">Preview editorial · <b className="text-slate-300">{prestige.label}</b>. O renderer real usa o mesmo <code>defId</code> e aplica apenas art/frame/finish/animação/serial; prestígio é derivado do PPM já publicado.</p>
         </Panel>
       </aside>
     </div>
@@ -292,5 +314,5 @@ export default function CardCosmeticsTab({ model, role }: { model: any; role: st
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-1 block text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</span>{children}</label>;
+  return <label className="block"><span className="label mb-1 block text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</span>{children}</label>;
 }
