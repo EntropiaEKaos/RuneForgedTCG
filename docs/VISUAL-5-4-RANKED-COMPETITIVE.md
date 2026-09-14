@@ -45,15 +45,38 @@ Continuam fora do escopo:
 - redirecionamento para sala PvP;
 - engine, API, banco de dados e contratos de partida.
 
+## Evidência visual direta
+
+O Visual 5.4 adiciona `scripts/alpha-ranked-visual-cert.mjs` ao gate HTTP/browser do CI. O script usa Chrome real contra o servidor de produção buildado pelo CI e mantém `RANKED_RELEASE_CERTIFIED=false`, isto é, a prova visual acontece no mesmo estado fail-closed esperado para o Alpha.
+
+O cert cria/recupera a sessão normal pelo próprio front-end, fecha o handoff da chave quando necessário, navega para `/ranked` e exige:
+
+- `Gate competitivo fechado` visível;
+- status operacional `Bloqueado`;
+- CTA `BUSCAR PARTIDA RANQUEADA` desabilitado;
+- presença do snapshot competitivo, hero de rank, deck certificado, histórico, leaderboard e ligas;
+- ausência de overflow horizontal.
+
+As capturas são anexadas ao artifact `alpha-visual-journey-*` já existente:
+
+- `29-ranked-fail-closed.png` — topo, gate, snapshot e hero competitivo;
+- `30-ranked-progression.png` — histórico, ranking global e progressão de ligas;
+- `ranked-visual-manifest.json` — geometria, contratos observados e SHA da execução.
+
+Esse harness observa a UI; ele não ativa Ranked, não escreve MMR e não chama matchmaking para alterar estado competitivo.
+
 ## Arquivos
 
 - `src/app/styles/visual-5-4-ranked-competitive.css` — camada CSS-only;
 - `src/app/layout.tsx` — import da camada, depois do Visual 5.3;
-- `src/lib/visual-5-4-ranked-competitive-regression.test.ts` — contrato de fonte e congelamento de autoridade;
+- `src/lib/visual-5-4-ranked-competitive-regression.test.ts` — contrato de fonte, congelamento de autoridade e presença da evidência browser;
+- `src/lib/alpha-visual-feature-freeze-regression.test.ts` — break-glass documentado somente para o novo import no layout;
+- `scripts/alpha-ranked-visual-cert.mjs` — cert browser direto do Ranked fail-closed;
+- `.github/workflows/ci.yml` — executa o cert logo após o Alpha Visual Journey para preservar as capturas no mesmo artifact;
 - `scripts/test-suites.mjs` — registro do source-contract test.
 
 ## Certificação esperada
 
-O PR deve passar os mesmos oito gates usados nas fases 5.x anteriores. O merge só deve ocorrer com o head exato certificado. Após o merge, o `main` deve ser revalidado pelos nove workflows de push, incluindo Alpha Release Candidate.
+O PR deve passar os mesmos oito gates usados nas fases 5.x anteriores. O merge só deve ocorrer com o head exato certificado e após inspeção manual das duas capturas Ranked. Após o merge, o `main` deve ser revalidado pelos nove workflows de push, incluindo Alpha Release Candidate.
 
 A camada inclui fallback sem `backdrop-filter`, ajuste móvel e redução de movimento. Qualquer falha no cert Mobile com `expected an enabled battlefield action` deve ser diagnosticada pelo artifact antes de atribuição causal, porque o harness possui a flutuação conhecida quando a IA recebe o primeiro turno.
