@@ -26,8 +26,8 @@ const browserScripts = walk(scriptsRoot)
 
 assert.equal(
   browserScripts.length,
-  21,
-  `expected the 21 certified headless Chrome scripts to share the bootstrap contract, found ${browserScripts.length}`,
+  22,
+  `expected the 22 certified headless Chrome scripts to share the bootstrap contract, found ${browserScripts.length}`,
 );
 
 for (const { file, source } of browserScripts) {
