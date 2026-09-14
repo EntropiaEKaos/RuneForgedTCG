@@ -1,0 +1,256 @@
+/* ==========================================================================
+   RuneForge Visual 5.7 — Pack Opening Premium
+   Presentation-only ceremony for the existing authoritative pack reveal.
+   No pack odds, inventory mutation, operation behavior or card identity changes.
+   ========================================================================== */
+
+:root {
+  --rf-pack-gold: rgba(251, 191, 36, .92);
+  --rf-pack-cyan: rgba(103, 232, 249, .78);
+  --rf-pack-violet: rgba(196, 181, 253, .8);
+  --rf-pack-ink: rgba(3, 7, 14, .96);
+}
+
+/* The existing overlay remains the behavioral owner; :has only upgrades its atmosphere. */
+div:has(> section[role="dialog"][aria-labelledby="pack-reveal-heading"]) {
+  background:
+    radial-gradient(circle at 50% 12%, rgba(251, 191, 36, .12), transparent 30%),
+    radial-gradient(circle at 18% 84%, rgba(34, 211, 238, .08), transparent 28%),
+    radial-gradient(circle at 82% 82%, rgba(168, 85, 247, .09), transparent 30%),
+    rgba(0, 0, 0, .9);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  border-color: rgba(251, 191, 36, .34) !important;
+  background:
+    linear-gradient(180deg, rgba(17, 18, 23, .98), rgba(4, 8, 15, .98) 42%, rgba(3, 7, 13, .99)),
+    #05080d !important;
+  box-shadow:
+    0 54px 150px rgba(0, 0, 0, .78),
+    0 0 0 1px rgba(255, 255, 255, .025),
+    0 0 72px rgba(251, 191, 36, .08) !important;
+  animation: rf-pack-stage-in .38s cubic-bezier(.2,.8,.2,1) both;
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"]::before {
+  content: "";
+  position: absolute;
+  inset: -180px -120px auto;
+  height: 390px;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(251, 191, 36, .16), transparent 38%),
+    conic-gradient(from 0deg at 50% 52%, transparent 0 8%, rgba(251,191,36,.035) 9% 10%, transparent 11% 23%, rgba(103,232,249,.025) 24% 25%, transparent 26% 100%);
+  filter: blur(.2px);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 58px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.035);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] > div:first-child {
+  position: relative;
+  z-index: 6;
+  border-bottom-color: rgba(251, 191, 36, .18) !important;
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] > div:first-child::after {
+  content: "FORJA DE REVELAÇÃO";
+  position: absolute;
+  right: 52px;
+  top: 4px;
+  color: rgba(251, 191, 36, .34);
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .24em;
+  pointer-events: none;
+}
+
+#pack-reveal-heading {
+  font-family: var(--font-display), serif;
+  letter-spacing: .015em;
+  text-shadow: 0 0 28px rgba(251, 191, 36, .12);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] > div.grid[class*="grid-cols-2"] {
+  position: relative;
+  z-index: 2;
+  align-items: stretch;
+  perspective: 900px;
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"] {
+  --rf-pack-rarity-edge: rgba(148, 163, 184, .35);
+  --rf-pack-rarity-glow: rgba(148, 163, 184, .08);
+  position: relative;
+  isolation: isolate;
+  min-height: 156px;
+  overflow: hidden;
+  border-color: var(--rf-pack-rarity-edge) !important;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.055), transparent 34%),
+    linear-gradient(180deg, rgba(15, 23, 42, .9), rgba(3, 7, 14, .94)) !important;
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, .34),
+    0 0 0 1px rgba(255,255,255,.02),
+    0 0 24px var(--rf-pack-rarity-glow) !important;
+  transform-style: preserve-3d;
+  transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"]::before {
+  content: "";
+  position: absolute;
+  inset: -20% -70%;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 36%, rgba(255,255,255,.025) 44%, rgba(255,255,255,.14) 49%, rgba(255,255,255,.025) 54%, transparent 62%);
+  transform: translateX(-36%);
+  animation: rf-pack-card-sweep 4.8s ease-in-out infinite;
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"]::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent 4%, var(--rf-pack-rarity-edge) 28%, var(--rf-pack-rarity-edge) 72%, transparent 96%);
+  box-shadow: 0 0 18px var(--rf-pack-rarity-glow);
+  pointer-events: none;
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"]:hover {
+  transform: translateY(-4px) rotateX(1.2deg);
+  box-shadow:
+    0 24px 46px rgba(0,0,0,.44),
+    0 0 0 1px rgba(255,255,255,.03),
+    0 0 34px var(--rf-pack-rarity-glow) !important;
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"] > div:first-child {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  margin: 2px auto 0;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--rf-pack-rarity-edge) 65%, transparent);
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--rf-pack-rarity-glow), rgba(2,6,23,.58) 68%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025), 0 0 24px var(--rf-pack-rarity-glow);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"][class*="border-slate-500"] {
+  --rf-pack-rarity-edge: rgba(148, 163, 184, .42);
+  --rf-pack-rarity-glow: rgba(148, 163, 184, .1);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"][class*="border-blue-400"] {
+  --rf-pack-rarity-edge: rgba(96, 165, 250, .72);
+  --rf-pack-rarity-glow: rgba(59, 130, 246, .2);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"][class*="border-purple-400"] {
+  --rf-pack-rarity-edge: rgba(192, 132, 252, .78);
+  --rf-pack-rarity-glow: rgba(168, 85, 247, .28);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"][class*="border-amber-400"] {
+  --rf-pack-rarity-edge: rgba(251, 191, 36, .9);
+  --rf-pack-rarity-glow: rgba(245, 158, 11, .34);
+  background:
+    linear-gradient(160deg, rgba(251,191,36,.1), transparent 34%),
+    linear-gradient(180deg, rgba(29, 22, 8, .96), rgba(6, 8, 12, .96)) !important;
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"][class*="border-amber-400"]::after {
+  width: 3px;
+  animation: rf-pack-legend-pulse 2.2s ease-in-out infinite;
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] .pack-cosmetic-highlights {
+  position: relative;
+  z-index: 3;
+  border-color: rgba(251, 191, 36, .42);
+  box-shadow: 0 18px 48px rgba(0,0,0,.32), 0 0 44px rgba(251,191,36,.07);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] p[class*="border-cyan-300"] {
+  position: relative;
+  z-index: 2;
+  border-color: rgba(103, 232, 249, .24) !important;
+  background: linear-gradient(90deg, rgba(34,211,238,.04), rgba(34,211,238,.1), rgba(34,211,238,.04)) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.015), 0 0 34px rgba(34,211,238,.045);
+}
+
+section[role="dialog"][aria-labelledby="pack-reveal-heading"] > button.rf-button-primary {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  width: min(240px, 100%);
+  min-width: 190px;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  justify-content: center;
+  box-shadow: 0 12px 30px rgba(251,191,36,.1), inset 0 0 0 1px rgba(255,255,255,.035);
+}
+
+@keyframes rf-pack-stage-in {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes rf-pack-card-sweep {
+  0%, 46% { transform: translateX(-42%); opacity: 0; }
+  52% { opacity: .8; }
+  64%, 100% { transform: translateX(42%); opacity: 0; }
+}
+
+@keyframes rf-pack-legend-pulse {
+  0%, 100% { opacity: .7; filter: brightness(.92); }
+  50% { opacity: 1; filter: brightness(1.28); }
+}
+
+@supports not ((backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px))) {
+  div:has(> section[role="dialog"][aria-labelledby="pack-reveal-heading"]) {
+    background: rgba(0,0,0,.94);
+  }
+}
+
+@media (max-width: 720px) {
+  section[role="dialog"][aria-labelledby="pack-reveal-heading"] {
+    max-height: 94vh !important;
+    padding: 18px !important;
+  }
+
+  section[role="dialog"][aria-labelledby="pack-reveal-heading"] > div:first-child::after {
+    display: none;
+  }
+
+  section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"] {
+    min-height: 144px;
+  }
+
+  section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"]:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  section[role="dialog"][aria-labelledby="pack-reveal-heading"],
+  section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"],
+  section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"]::before,
+  section[role="dialog"][aria-labelledby="pack-reveal-heading"] article[style*="animation-delay"][class*="border-amber-400"]::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

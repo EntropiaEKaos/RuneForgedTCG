@@ -192,5 +192,6 @@ export const sourceContractTests = [
   "src/lib/visual-5-2-player-journey-regression.test.ts",
   "src/lib/visual-5-3-pvp-lobby-regression.test.ts",
   "src/lib/visual-5-4-ranked-competitive-regression.test.ts",
-  "src/lib/visual-5-5-draft-premium-regression.test.ts"
+  "src/lib/visual-5-5-draft-premium-regression.test.ts",
+  "src/lib/visual-5-7-pack-opening-regression.test.ts"
 ];
