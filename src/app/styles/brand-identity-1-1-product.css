@@ -244,6 +244,35 @@
 }
 
 /* --------------------------------------------------------------------------
+   BRAND IDENTITY 1.3 — CERTIFICATION CLARITY
+   Visual 4.2 deliberately injects synthetic empty nodes to force local density.
+   Mark them unmistakably as stress probes so certification screenshots cannot
+   be confused with real cards whose art/content failed to render.
+   -------------------------------------------------------------------------- */
+.rf-v4-density-probe {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 1px dashed rgba(103,232,249,.38) !important;
+  background:
+    repeating-linear-gradient(135deg, rgba(34,211,238,.07) 0 7px, rgba(15,23,42,.22) 7px 14px),
+    rgba(4,10,18,.72) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025) !important;
+}
+
+.rf-v4-density-probe::after {
+  content: 'STRESS';
+  color: rgba(165,243,252,.58);
+  font-size: 7px;
+  font-weight: 1000;
+  letter-spacing: .16em;
+  line-height: 1;
+  text-transform: uppercase;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
    RESPONSIVE LOCKUP
    -------------------------------------------------------------------------- */
 @media (max-width: 900px) {
