@@ -104,9 +104,19 @@ import { readFileSync } from "node:fs";
  * remains byte-for-byte unchanged; deck validation, format legality, save/delete,
  * sharing, deck codes, runtime rules and APIs retain existing authority. Full CI
  * plus browser screenshots 36/37 and manifest evidence are mandatory before promotion.
+ *
+ * Brand Identity 1.0 break-glass 2026-09-14: layout.tsx is intentionally
+ * recertified to route public metadata through the reversible product-brand module
+ * and to load brand-identity-1-0.css after Visual 5.8. The new layer replaces
+ * compact card-region emoji/text presentation with proprietary SVG crests and a
+ * fused Convergence crest using existing data-card-region/data-card-identity
+ * attributes. CardView.tsx, BattleView.tsx, engine/rules/APIs/persistence and every
+ * frozen Visual 3.x structural blob remain byte-for-byte unchanged. Full CI,
+ * notebook/mobile browser certificates and manual screenshot review are mandatory
+ * before this candidate branding can be promoted.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "5da2999ab6e28576176b1f8edf3cc7a9e4e9a8bf",
+  "src/app/layout.tsx": "51fa6023c497d9345be395dae28c749718622b11",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
@@ -153,6 +163,7 @@ const draftPremiumLayer = 'import "./styles/visual-5-5-draft-premium.css";';
 const cosmeticPrestigeLayer = 'import "./styles/visual-5-6-cosmetic-prestige.css";';
 const packOpeningLayer = 'import "./styles/visual-5-7-pack-opening.css";';
 const deckBuilderLayer = 'import "./styles/visual-5-8-deck-builder.css";';
+const brandIdentityLayer = 'import "./styles/brand-identity-1-0.css";';
 assert.ok(layout.includes(responsiveLayer), "Visual 4.0 responsive battlefield layer must stay mounted");
 assert.ok(layout.includes(battlefieldUxLayer), "Visual 4.4 battlefield UX layer must stay mounted");
 assert.ok(layout.includes(cinematicIdentityLayer), "Visual 5.0 cinematic identity layer must be mounted");
@@ -164,6 +175,7 @@ assert.ok(layout.includes(draftPremiumLayer), "Visual 5.5 Draft premium layer mu
 assert.ok(layout.includes(cosmeticPrestigeLayer), "Visual 5.6 cosmetic prestige layer must be mounted");
 assert.ok(layout.includes(packOpeningLayer), "Visual 5.7 Pack Opening premium layer must be mounted");
 assert.ok(layout.includes(deckBuilderLayer), "Visual 5.8 Deck Builder premium layer must be mounted");
+assert.ok(layout.includes(brandIdentityLayer), "Brand Identity 1.0 layer must be mounted");
 assert.ok(layout.indexOf(battlefieldUxLayer) > layout.indexOf(responsiveLayer), "Visual 4.4 battlefield UX must load after the responsive battlefield layer");
 assert.ok(layout.indexOf(cinematicIdentityLayer) > layout.indexOf(battlefieldUxLayer), "Visual 5.0 cinematic identity must load after Visual 4.4 battlefield UX");
 assert.ok(layout.indexOf(metagamePremiumLayer) > layout.indexOf(cinematicIdentityLayer), "Visual 5.1 metagame premium must load after Visual 5.0 cinematic identity");
@@ -174,6 +186,7 @@ assert.ok(layout.indexOf(draftPremiumLayer) > layout.indexOf(rankedCompetitiveLa
 assert.ok(layout.indexOf(cosmeticPrestigeLayer) > layout.indexOf(draftPremiumLayer), "Visual 5.6 cosmetic prestige must load after Visual 5.5 Draft premium");
 assert.ok(layout.indexOf(packOpeningLayer) > layout.indexOf(cosmeticPrestigeLayer), "Visual 5.7 Pack Opening premium must load after Visual 5.6 cosmetic prestige");
 assert.ok(layout.indexOf(deckBuilderLayer) > layout.indexOf(packOpeningLayer), "Visual 5.8 Deck Builder premium must load after Visual 5.7 Pack Opening premium");
+assert.ok(layout.indexOf(brandIdentityLayer) > layout.indexOf(deckBuilderLayer), "Brand Identity 1.0 must load after Visual 5.8 so candidate branding stays reversible and isolated");
 
 assert.equal(
   /visual-3-[3-9][^\n]*\.css/.test(layout),
@@ -181,4 +194,4 @@ assert.equal(
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
 
-console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Visual 5.8 deck builder break-glass recorded");
+console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Brand Identity 1.0 break-glass recorded");
