@@ -36,7 +36,7 @@ A animação existente de busca recebe apenas um beacon visual e respeita `prefe
 
 Continuam fora do escopo:
 
-- `GET /api/ranked` e seu snapshot;
+- `GET /api/ranked` e seu snapshot de produto;
 - `POST/DELETE /api/matchmaking`;
 - expansão da faixa MMR;
 - certificação da release Ranked;
@@ -49,11 +49,13 @@ Continuam fora do escopo:
 
 O Visual 5.4 adiciona `scripts/alpha-ranked-visual-cert.mjs` ao gate HTTP/browser do CI. O script usa Chrome real contra o servidor de produção buildado pelo CI e mantém `RANKED_RELEASE_CERTIFIED=false`, isto é, a prova visual acontece no mesmo estado fail-closed esperado para o Alpha.
 
-O cert cria/recupera a sessão normal pelo próprio front-end, fecha o handoff da chave quando necessário, navega para `/ranked` e exige:
+Para não misturar o handoff da chave de recuperação — já certificado no Alpha Visual Journey — com a montagem do lobby competitivo, o cert primeiro estabelece uma sessão pública normal pelo endpoint `/api/player` no próprio Chrome. Só depois navega para `/ranked`. A partir dessa mesma sessão, ele lê `GET /api/ranked` apenas como prova read-only de autoridade e exige `rankedReleaseCertified=false` e `rankedEnabled=false`; nenhuma configuração é alterada.
+
+Na UI ele exige:
 
 - `Gate competitivo fechado` visível;
-- status operacional `Bloqueado`;
-- CTA `BUSCAR PARTIDA RANQUEADA` desabilitado;
+- card operacional com `Operação · Bloqueado · fail-closed`;
+- CTA `BUSCAR PARTIDA RANQUEADA` presente e desabilitado;
 - presença do snapshot competitivo, hero de rank, deck certificado, histórico, leaderboard e ligas;
 - ausência de overflow horizontal.
 
@@ -61,9 +63,11 @@ As capturas são anexadas ao artifact `alpha-visual-journey-*` já existente:
 
 - `29-ranked-fail-closed.png` — topo, gate, snapshot e hero competitivo;
 - `30-ranked-progression.png` — histórico, ranking global e progressão de ligas;
-- `ranked-visual-manifest.json` — geometria, contratos observados e SHA da execução.
+- `ranked-visual-manifest.json` — geometria, contratos observados, estado de autoridade e SHA da execução.
 
-Esse harness observa a UI; ele não ativa Ranked, não escreve MMR e não chama matchmaking para alterar estado competitivo.
+Se a certificação falhar antes das duas imagens finais, o harness tenta gravar `29-ranked-diagnostic.png` e um manifest com body text e snapshot read-only para impedir diagnóstico por suposição.
+
+Esse harness observa a UI e lê o snapshot; ele não ativa Ranked, não escreve MMR e não chama matchmaking para alterar estado competitivo.
 
 ## Arquivos
 
@@ -71,7 +75,8 @@ Esse harness observa a UI; ele não ativa Ranked, não escreve MMR e não chama 
 - `src/app/layout.tsx` — import da camada, depois do Visual 5.3;
 - `src/lib/visual-5-4-ranked-competitive-regression.test.ts` — contrato de fonte, congelamento de autoridade e presença da evidência browser;
 - `src/lib/alpha-visual-feature-freeze-regression.test.ts` — break-glass documentado somente para o novo import no layout;
-- `scripts/alpha-ranked-visual-cert.mjs` — cert browser direto do Ranked fail-closed;
+- `src/lib/ci-chrome-bootstrap-regression.test.ts` — inventário recertificado para 19 harnesses Chrome compartilhando o mesmo bootstrap;
+- `scripts/alpha-ranked-visual-cert.mjs` — cert browser direto e read-only do Ranked fail-closed;
 - `.github/workflows/ci.yml` — executa o cert logo após o Alpha Visual Journey para preservar as capturas no mesmo artifact;
 - `scripts/test-suites.mjs` — registro do source-contract test.
 
