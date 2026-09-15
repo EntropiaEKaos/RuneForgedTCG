@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { players } from "@/db/schema";
 import { getAdminSessionContext } from "@/lib/admin-auth";
-import { canAccessStudioAuthoring } from "@/lib/admin-studio-access";
 import { getPlayerSession } from "@/lib/player-session";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +33,7 @@ export async function GET(req: NextRequest) {
       ? {
           authenticated: true,
           role: admin.role,
-          canStudio: canAccessStudioAuthoring(admin.role),
+          canStudio: admin.role === "admin",
         }
       : { authenticated: false, role: null, canStudio: false },
   }, {
