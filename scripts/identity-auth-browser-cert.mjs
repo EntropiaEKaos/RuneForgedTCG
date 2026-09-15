@@ -83,8 +83,9 @@ async function main(){
     const entry=await capture(cdp,"57-identity-auth-entry.png","Player Identity/Auth → explicit entry");
     assert.ok(entry.bodyText.includes("Escolha como quer continuar"),"Auth entry must explain explicit identity choice");
     await clickText(cdp,"CONTINUAR COMO CONVIDADO");
+    await waitForText(cdp,"FORJE SUA IDENTIDADE");
     await dismissRecovery(cdp);
-    await waitForText(cdp,"FORJE SUA IDENTIDADE"); await waitForText(cdp,"FORJAR IDENTIDADE");
+    await waitForText(cdp,"FORJAR IDENTIDADE");
     await capture(cdp,"58-identity-auth-nickname.png","Player Identity/Auth → nickname forging");
     await fillNickname(cdp,"Identity Cert"); await clickText(cdp,"FORJAR IDENTIDADE"); await waitForText(cdp,"PRIMEIRO ACESSO · ALPHA JOGÁVEL");
 
