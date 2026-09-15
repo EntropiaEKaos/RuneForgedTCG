@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { StudioBreadcrumb, StudioCommandPalette } from "../StudioChrome";
 
@@ -33,7 +33,7 @@ function Stat({ label, value, hint, emphasis = false }: { label:string; value:st
   );
 }
 
-function Section({ eyebrow, title, children, action }: { eyebrow:string; title:string; children:React.ReactNode; action?:React.ReactNode }) {
+function Section({ eyebrow, title, children, action }: { eyebrow:string; title:string; children:ReactNode; action?:ReactNode }) {
   return (
     <section className="border border-white/8 bg-[#090e15]/80">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/8 px-5 py-4">
@@ -62,7 +62,10 @@ export default function CommandCenterClient({ username, role }: { username:strin
     finally { setBusy(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [load]);
   useEffect(() => {
     if (!autoRefresh) return;
     const id = window.setInterval(() => { void load(); }, 60_000);
@@ -81,7 +84,7 @@ export default function CommandCenterClient({ username, role }: { username:strin
           <div>
             <p className="text-[9px] font-bold uppercase tracking-[.3em] text-amber-200/48">FORGED LIVE INTELLIGENCE</p>
             <h1 className="mt-2 font-[var(--font-display)] text-3xl font-black text-[#f0e3c4]">Command Center</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-400">Jogadores, uso do client, gameplay, economia, monetização, conteúdo e Lore em uma única superfície administrativa. Dados reais do banco + telemetria first-party.</p>
+            <p className="mt-2 max-w-3xl text-sm text-slate-400">Jogadores, uso do client, gameplay, economia, monetização, conteúdo e Lore em uma única superfície administrativa. Dados reais do banco + telemetria first-party. Operador: {username}.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[9px] uppercase tracking-[.16em] text-slate-500">
             <label className="flex items-center gap-2 border border-white/8 px-3 py-2"><input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} /> Auto 60s</label>
