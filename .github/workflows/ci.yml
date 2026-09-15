@@ -97,6 +97,9 @@ jobs:
           node --import tsx scripts/site-cms-postgres-certification.ts
           npm run test:marketplace:postgres
 
+      - name: Identity/Auth PostgreSQL + encrypted vault certification
+        run: node --import tsx scripts/identity-auth-postgres-certification.ts
+
       - name: Mercado Pago PostgreSQL certification — exactly-once, financial state and rotation safety
         env:
           NODE_PATH: ${{ github.workspace }}/scripts/test-runtime
@@ -140,7 +143,7 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://ci.placeholder.invalid
         run: npm run build
 
-      - name: HTTP/browser E2E — alpha journey, Marketplace, Studio authoring, recovery, Ranked, Draft, cosmetic prestige, Pack Opening, Deck Builder, casual matchmaking, two-browser PvP and DTO isolation
+      - name: HTTP/browser E2E — alpha journey, Identity/Auth, Marketplace, Studio authoring, recovery, Ranked, Draft, cosmetic prestige, Pack Opening, Deck Builder, casual matchmaking, two-browser PvP and DTO isolation
         env:
           E2E_BASE_URL: http://127.0.0.1:3000
         run: |
@@ -152,6 +155,7 @@ jobs:
             if [ "$i" = "45" ]; then cat /tmp/runeforge-next.log; exit 1; fi
             sleep 1
           done
+          node scripts/identity-auth-browser-cert.mjs
           npm run test:e2e:alpha-journey
           npm run test:e2e:marketplace
           npm run test:e2e:http
