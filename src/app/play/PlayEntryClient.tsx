@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import SiteNav from "@/components/SiteNav";
 import { ensurePlayerSession, renamePlayerDisplayName } from "@/lib/client-player-session";
-import { PRODUCT_BRAND } from "@/lib/product-brand";
-import { ALPHA_FIRST_MATCH_DIFFICULTY, ALPHA_ONBOARDING_COMPLETE, ALPHA_ONBOARDING_STORAGE_KEY } from "@/lib/alpha-onboarding";
+import { ALPHA_FIRST_MATCH_DIFFICULTY, ALPHA_ONBOARDING_COMPLETE, ALPHA_ONBOARDING_STORAGE_KEY, shouldShowAlphaOnboarding } from "@/lib/alpha-onboarding";
 import GameClient from "./GameClient";
 
 type EntryState = "syncing" | "auth" | "nickname" | "welcome" | "ready" | "error";
@@ -19,7 +18,7 @@ export default function PlayEntryClient() {
     const sync=async()=>{setState("syncing");setError("");try{
       const current=await fetch("/api/player",{cache:"no-store",credentials:"include"});
       if(cancelled)return;
-      if(current.ok){const payload=await current.json();const name=String(payload.player?.name||"");if(!name)throw new Error("Perfil de jogador inválido.");setPlayerName(name);if(name.toLowerCase().startsWith("guest-")){setNickname("");setState("nickname");return;}const completed=localStorage.getItem(ALPHA_ONBOARDING_STORAGE_KEY)===ALPHA_ONBOARDING_COMPLETE;setState(completed?"ready":"ready");return;}
+      if(current.ok){const payload=await current.json();const name=String(payload.player?.name||"");if(!name)throw new Error("Perfil de jogador inválido.");setPlayerName(name);if(name.toLowerCase().startsWith("guest-")){setNickname("");setState("nickname");return;}const completed=localStorage.getItem(ALPHA_ONBOARDING_STORAGE_KEY)===ALPHA_ONBOARDING_COMPLETE;setState(shouldShowAlphaOnboarding({created:false,completed})?"welcome":"ready");return;}
       if(current.status!==401)throw new Error("Não foi possível consultar sua sessão RuneForge.");
       const r=await fetch("/api/auth/providers",{cache:"no-store"});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível carregar os métodos de entrada.");setProviders(d.providers||[]);const authError=new URLSearchParams(window.location.search).get("auth_error");if(authError)setMessage(authError==="identity_conflict"?"Esta identidade já pertence a outra conta RuneForge.":"Não foi possível concluir a autenticação. Tente novamente.");setState("auth");
     }catch(cause){if(cancelled)return;setError(cause instanceof Error?cause.message:"Não foi possível preparar sua sessão de jogador.");setState("error");}};void sync();return()=>{cancelled=true;};
@@ -29,7 +28,7 @@ export default function PlayEntryClient() {
   const oauth=(provider:"google"|"discord")=>{window.location.href=`/api/auth/oauth/${provider}/start?returnTo=${encodeURIComponent("/play")}`;};
   const magic=async(e:FormEvent)=>{e.preventDefault();setBusy(true);setMessage("");try{const r=await fetch("/api/auth/email/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,returnTo:"/play"})});const d=await r.json();setMessage(d.ok?"Link enviado. Abra seu e-mail para entrar na Forja.":d.error||"Não foi possível enviar o link.");}finally{setBusy(false);}};
   const guest=async()=>{setBusy(true);setMessage("");try{const session=await ensurePlayerSession();if(!session.ok||!session.player)throw new Error(session.error||"Não foi possível criar a sessão de convidado.");setPlayerName(String(session.player.name));setNickname("");setState("nickname");}catch(cause){setMessage(cause instanceof Error?cause.message:"Falha ao continuar como convidado.");}finally{setBusy(false);}};
-  const forgeName=async(e:FormEvent)=>{e.preventDefault();setBusy(true);setMessage("");try{const result=await renamePlayerDisplayName(nickname);if(!result.ok||!result.player){setMessage(result.error||"Nome indisponível.");return;}const name=String(result.player.name);setPlayerName(name);const completed=localStorage.getItem(ALPHA_ONBOARDING_STORAGE_KEY)===ALPHA_ONBOARDING_COMPLETE;if(!completed){localStorage.setItem("runeforge_ai_difficulty",ALPHA_FIRST_MATCH_DIFFICULTY);setState("welcome");}else setState("ready");}finally{setBusy(false);}};
+  const forgeName=async(e:FormEvent)=>{e.preventDefault();setBusy(true);setMessage("");try{const result=await renamePlayerDisplayName(nickname);if(!result.ok||!result.player){setMessage(result.error||"Nome indisponível.");return;}const name=String(result.player.name);setPlayerName(name);const completed=localStorage.getItem(ALPHA_ONBOARDING_STORAGE_KEY)===ALPHA_ONBOARDING_COMPLETE;if(shouldShowAlphaOnboarding({created:true,completed})){localStorage.setItem("runeforge_ai_difficulty",ALPHA_FIRST_MATCH_DIFFICULTY);setState("welcome");}else setState("ready");}finally{setBusy(false);}};
 
   if(state==="ready")return <GameClient/>;
   if(state==="syncing")return <main className="rf-app-page"><SiteNav/><div className="rf-app-shell max-w-4xl"><section className="rounded-2xl border border-white/10 bg-white/[.03] px-6 py-16 text-center" aria-busy="true"><div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-2 border-white/10 border-t-amber-300"/><p className="rf-eyebrow justify-center"><span/> PREPARANDO O NEXUS</p><h1 className="mt-3 text-3xl font-black text-white">Verificando sua identidade…</h1></section></div></main>;
