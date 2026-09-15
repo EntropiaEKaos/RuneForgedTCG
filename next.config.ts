@@ -1,14 +1,16 @@
 import { execFileSync } from "node:child_process";
 import type { NextConfig } from "next";
 
-// Flagship editorial assets are generated before Next resolves /public.
+// Editorial assets are generated before Next resolves /public.
 // Champion masters are already created by predev/prebuild; additive Flagship
-// batches are materialized here without changing frozen gameplay/card surfaces.
+// batches and certified Alpha P0 production batches are materialized here
+// without changing frozen gameplay/card surfaces.
 for (const script of [
   "scripts/generate-flagship-structure-art.mjs",
   "scripts/generate-flagship-ritual-art.mjs",
   "scripts/generate-flagship-trap-art.mjs",
   "scripts/generate-flagship-signature-art.mjs",
+  "scripts/generate-alpha-p0-batch-1-art.mjs",
 ]) {
   execFileSync(process.execPath, [script], {
     cwd: process.cwd(),
