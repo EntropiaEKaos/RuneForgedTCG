@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { alphaArtBacklogSnapshot, alphaArtExposure, alphaArtPriorityQueue } from "./alpha-art-priority";
 import { ARCHETYPES } from "./archetypes";
 import { getCard } from "./cards";
 import { DECKS } from "./decks";
@@ -44,8 +45,6 @@ for (const target of FLAGSHIP_ART_TARGETS) {
     assert.equal(card.isChampion, true, `${target.defId} must be a Champion`);
     assert.notEqual(card.collectible, false, `${target.defId} must be the collectible/base Champion form`);
 
-    // Alpha ships one master identity for the full Champion line. Verify the authored
-    // evolution chain is valid so future art assignment can safely reuse that master.
     const visited = new Set<string>();
     let cursor = card;
     while (cursor.levelUp?.toDefId) {
@@ -90,4 +89,26 @@ for (const region of REGIONS) {
   );
 }
 
-console.log("RUNE FORGE ALPHA FLAGSHIP ART ROSTER: 30 masters / 6 regions / complete semantic coverage PASS");
+const backlog = alphaArtBacklogSnapshot();
+assert.deepEqual(
+  backlog,
+  {
+    starterDecks: 6,
+    starterSlots: 240,
+    uniqueStarterCards: 140,
+    covered: 30,
+    missing: 110,
+    byPriority: { P0: 21, P1: 46, P2: 43 },
+  },
+  "Alpha art priority baseline must remain deterministic so Studio production queues cannot drift silently",
+);
+const priorityQueue = alphaArtPriorityQueue();
+assert.equal(priorityQueue.length, 110);
+assert.equal(alphaArtExposure("ember_bolt").priority, "P0");
+assert.equal(alphaArtExposure("ember_bolt").copies, 5);
+assert.equal(alphaArtExposure("wood_webweaver").copies, 5);
+assert.equal(alphaArtExposure("ember_ashguard").priority, "covered");
+assert.deepEqual(priorityQueue.slice(0, 2).map((row) => row.defId).sort(), ["ember_bolt", "wood_webweaver"]);
+assert.ok(priorityQueue.every((row, index) => index === 0 || priorityQueue[index - 1].score >= row.score));
+
+console.log("FORGED ALPHA FLAGSHIP ART + PRIORITY QUEUE: 30 masters / 110 starter backlog / PASS");
