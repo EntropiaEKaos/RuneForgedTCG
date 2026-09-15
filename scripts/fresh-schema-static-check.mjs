@@ -26,6 +26,7 @@ const files = [
   "drizzle/0042_site_portal_cms.sql",
   "drizzle/0043_p2p_marketplace.sql",
   "drizzle/0044_card_cosmetics.sql",
+  "drizzle/0045_identity_auth.sql",
 ];
 
 const tables = new Map();
