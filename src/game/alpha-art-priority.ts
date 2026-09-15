@@ -1,6 +1,7 @@
 import { DECKS } from "./decks";
 import { FLAGSHIP_ART_TARGETS } from "./flagship-art";
 import { ALPHA_P0_ACTIVE_IDS } from "./alpha-p0-art";
+import { ALPHA_P1_ACTIVE_IDS } from "./alpha-p1-art";
 
 export const ALPHA_ART_STARTER_IDS = [
   "ember_aggro",
@@ -28,6 +29,7 @@ const starterIds = new Set<string>(ALPHA_ART_STARTER_IDS);
 const knownDedicatedArt = new Set<string>([
   ...FLAGSHIP_ART_TARGETS.map((target) => target.defId),
   ...ALPHA_P0_ACTIVE_IDS,
+  ...ALPHA_P1_ACTIVE_IDS,
 ]);
 const exposure = new Map<string, { copies: number; deckIds: Set<string>; deckNames: Set<string> }>();
 

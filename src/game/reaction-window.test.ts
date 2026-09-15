@@ -1,6 +1,6 @@
 import { aiChooseAction, aiChooseReaction } from "./ai";
 import { replayAuthoritativeMatch } from "./authoritative";
-import { getCard } from "./cards";
+import { CARDS, getCard } from "./cards";
 import {
   applyStackedActionWithAi,
   canReactWithCard,
@@ -110,8 +110,10 @@ if (!canReactWithCard(contractState, "player", "contract-deny", spellAction)) {
 }
 denyDef.customKeywords = originalDenyRules;
 
-// `uncounterable` is the explicit exception to universal counters.
-const protectedDef = getCard("ember_whelp");
+// `uncounterable` is the explicit exception to universal counters. This fixture
+// intentionally mutates the canonical registry because runtime art overlays make
+// getCard() return a presentation clone for activated cards.
+const protectedDef = CARDS.ember_whelp;
 const originalProtectedRules = [...(protectedDef.customKeywords ?? [])];
 const protectedPresentation = {
   ...protectedDef,
