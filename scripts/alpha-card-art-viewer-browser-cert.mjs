@@ -141,6 +141,34 @@ async function dismissRecoveryHandoffIfPresent(cdp) {
   );
 }
 
+async function createExplicitGuestSession(cdp) {
+  await navigate(cdp, "/play");
+  await waitUntil(
+    () => evaluate(cdp, `[...document.querySelectorAll('button')].some((node) => !node.disabled && (node.textContent || '').includes('CONTINUAR COMO CONVIDADO'))`),
+    "explicit Guest entry control",
+  );
+  const preGuestStatus = await evaluate(cdp, `(async () => (await fetch('/api/player', { cache: 'no-store', credentials: 'include' })).status)()`);
+  assert.equal(preGuestStatus, 401, "Art viewer cert must remain anonymous before explicit Guest choice");
+
+  const clicked = await evaluate(cdp, `(() => {
+    const button = [...document.querySelectorAll('button')].find((node) => !node.disabled && (node.textContent || '').includes('CONTINUAR COMO CONVIDADO'));
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
+  assert.equal(clicked, true, "Could not choose Guest explicitly before Collection art certification");
+
+  await waitUntil(
+    () => evaluate(cdp, `(async () => (await fetch('/api/player', { cache: 'no-store', credentials: 'include' })).status === 200)()`),
+    "explicit Guest player session",
+  );
+  await waitUntil(
+    () => evaluate(cdp, `Boolean([...document.querySelectorAll('[role="dialog"]')].find((node) => (node.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))) || (document.body?.innerText || '').includes('FORJE SUA IDENTIDADE')`),
+    "explicit Guest handoff",
+  );
+  await dismissRecoveryHandoffIfPresent(cdp);
+}
+
 async function setSearchForCard(cdp, placeholderFragment, value, defId) {
   const selector = `[data-card-tip-def-id=${JSON.stringify(defId)}]`;
   const inputExpression = `[...document.querySelectorAll('input')].find((element) => (element.placeholder || '').includes(${JSON.stringify(placeholderFragment)}))`;
@@ -180,6 +208,8 @@ async function setSearchForCard(cdp, placeholderFragment, value, defId) {
   }
 
   const diagnostic = await evaluate(cdp, `(() => ({
+    href: location.href,
+    inputPlaceholder: (${inputExpression})?.placeholder || '',
     inputValue: (${inputExpression})?.value || '',
     visibleDefIds: [...document.querySelectorAll('[data-card-tip-def-id]')].slice(0, 20).map((node) => node.getAttribute('data-card-tip-def-id')),
     bodyText: (document.body?.innerText || '').slice(0, 1200),
@@ -324,6 +354,7 @@ async function main() {
     await capture(cdp, "45-alpha-p0-ember-bolt-art-viewer.png");
     await closeViewer(cdp, p0Subject);
 
+    await createExplicitGuestSession(cdp);
     await navigate(cdp, "/collection");
     await setSearchForCard(cdp, "Buscar nome", flagshipSubject.cardName, flagshipSubject.defId);
     await hoverCard(cdp, flagshipSubject);
@@ -331,7 +362,7 @@ async function main() {
     await capture(cdp, "10l-collection-art-viewer.png");
     await closeViewer(cdp, flagshipSubject);
 
-    console.log("CARD ART VIEWER BROWSER CERT: PASS — Flagship viewer preserved + five active P0 WebPs served + Scorching Bolt runtime viewer certified");
+    console.log("CARD ART VIEWER BROWSER CERT: PASS — anonymous Codex viewers + explicit-Guest Collection viewer + five active P0 WebPs certified");
   } finally {
     try { cdp?.close(); } catch {}
     if (chrome.exitCode == null && chrome.signalCode == null) chrome.kill("SIGTERM");
