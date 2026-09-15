@@ -9,7 +9,7 @@ import { ALPHA_P0_ACTIVE_IDS, ALPHA_P0_ART_FORMAT, ALPHA_P0_ART_TARGETS, alphaP0
 const batchIds = ["wood_cub"] as const;
 
 async function main() {
-  assert.equal(ALPHA_P0_ACTIVE_IDS.length, 15, "Batch 5 production must not activate additional P0 masters");
+  assert.equal(ALPHA_P0_ACTIVE_IDS.length, 21, "Final P0 activation must expose all twenty-one certified masters");
   assert.deepEqual(
     ALPHA_P0_ART_TARGETS.slice(20, 21).map((entry) => entry.defId),
     [...batchIds],
@@ -20,11 +20,11 @@ async function main() {
   const targets = batchIds.map((defId) => {
     const target = ALPHA_P0_ART_TARGETS.find((entry) => entry.defId === defId);
     assert.ok(target, `Missing Alpha P0 manifest target ${defId}`);
-    assert.equal(activeIds.has(defId), false, `${defId} must remain inactive in the physical-production PR`);
-    assert.equal(alphaP0ArtUrl(defId), undefined, `${defId} must remain fail-closed until a separate activation PR`);
+    assert.equal(activeIds.has(defId), true, `${defId} must be active after final P0 promotion`);
+    assert.equal(alphaP0ArtUrl(defId), target.assetPath, `${defId} must resolve its certified Batch 5 master`);
     const exposure = alphaArtExposure(defId);
-    assert.equal(exposure.priority, "P0", `${defId} must remain a pending P0 target`);
-    assert.equal(exposure.knownDedicatedArt, false, `${defId} must not be reported as covered before activation`);
+    assert.equal(exposure.priority, "covered", `${defId} must leave the P0 queue after activation`);
+    assert.equal(exposure.knownDedicatedArt, true, `${defId} must report dedicated art after activation`);
     return target;
   });
 
@@ -63,7 +63,7 @@ async function main() {
     .png()
     .toFile(evidencePath);
 
-  console.log("FORGED ALPHA P0 ART BATCH 5: 1/1 physical master · 1536x1920 WebP · inactive/fail-closed · final P0 target · contact sheet PASS");
+  console.log("FORGED ALPHA P0 ART BATCH 5: 1/1 physical master · 1536x1920 WebP · active registry match · final P0 target · contact sheet PASS");
 }
 
 void main().catch((error) => {
