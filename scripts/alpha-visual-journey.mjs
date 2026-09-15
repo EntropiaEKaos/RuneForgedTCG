@@ -19,7 +19,6 @@ function sleep(ms) {
   return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 }
 
-
 function findChrome() {
   const candidates = [
     process.env.CHROME_BIN,
@@ -188,6 +187,21 @@ async function clickText(cdp, text) {
     return true;
   })()`);
   assert.equal(clicked, true, `Could not click control containing text: ${text}`);
+}
+
+async function fillInputByPlaceholder(cdp, placeholder, value) {
+  const filled = await evaluate(cdp, `(() => {
+    const input = [...document.querySelectorAll('input')]
+      .find((element) => element.getAttribute('placeholder') === ${JSON.stringify(placeholder)});
+    if (!input) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!setter) return false;
+    setter.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(filled, true, `Could not fill input with placeholder: ${placeholder}`);
 }
 
 async function hoverSelector(cdp, selector) {
@@ -375,6 +389,15 @@ async function main() {
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
 
     await navigate(cdp, "/play");
+    const hasExplicitAuthEntry = await evaluate(cdp, "document.body?.innerText?.includes('CONTINUAR COMO CONVIDADO') === true");
+    if (hasExplicitAuthEntry) {
+      await clickText(cdp, "CONTINUAR COMO CONVIDADO");
+      await waitUntil(
+        () => evaluate(cdp, "document.body?.innerText?.includes('CONTINUAR COMO CONVIDADO') !== true"),
+        "explicit auth entry to advance",
+      );
+    }
+
     await waitForText(cdp, "SALVE SUA CHAVE DE RECUPERAÇÃO");
     await capture(cdp, "00-recovery-key-handoff.png", "one-time recovery key handoff", manifest);
     await clickText(cdp, "JÁ GUARDEI");
@@ -382,6 +405,14 @@ async function main() {
       () => evaluate(cdp, "document.body?.innerText?.includes('SALVE SUA CHAVE DE RECUPERAÇÃO') !== true"),
       "recovery key handoff to close",
     );
+
+    const needsNickname = await evaluate(cdp, "document.body?.innerText?.includes('FORJE SUA IDENTIDADE') === true");
+    if (needsNickname) {
+      await waitForText(cdp, "FORJAR IDENTIDADE");
+      await fillInputByPlaceholder(cdp, "Seu nome na Forja", "Alpha Visual Cert");
+      await clickText(cdp, "FORJAR IDENTIDADE");
+    }
+
     await waitForText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL");
     await capture(cdp, "01-first-run-onboarding.png", "first-run onboarding", manifest);
 
