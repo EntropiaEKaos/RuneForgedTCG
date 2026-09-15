@@ -3,8 +3,8 @@ import type { NextConfig } from "next";
 
 // Editorial assets are generated before Next resolves /public.
 // Champion masters are already created by predev/prebuild; additive Flagship
-// batches and certified Alpha P0 production batches are materialized here
-// without changing frozen gameplay/card surfaces.
+// and certified Alpha production batches are materialized here without changing
+// frozen gameplay/card surfaces or activating physical-only masters.
 for (const script of [
   "scripts/generate-flagship-structure-art.mjs",
   "scripts/generate-flagship-ritual-art.mjs",
@@ -15,6 +15,7 @@ for (const script of [
   "scripts/generate-alpha-p0-batch-3-art.mjs",
   "scripts/generate-alpha-p0-batch-4-art.mjs",
   "scripts/generate-alpha-p0-batch-5-art.mjs",
+  "scripts/generate-alpha-p1-batch-1-art.mjs",
 ]) {
   execFileSync(process.execPath, [script], {
     cwd: process.cwd(),
