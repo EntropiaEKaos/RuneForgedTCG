@@ -68,10 +68,15 @@ export async function PATCH(req: NextRequest) {
       return { row };
     }
     if (!Number.isInteger(expectedRevision)) return { error: "expectedRevision is required", status: 400 as const };
-    const updates: Partial<typeof authProviderSettings.$inferInsert> & { revision: ReturnType<typeof sql>; updatedAt: Date } = {
-      enabled, clientId, metadata: normalizedMetadata, updatedBy: actor.actorId, updatedAt: new Date(), revision: sql`${authProviderSettings.revision} + 1`,
+    const updates = {
+      enabled,
+      clientId,
+      metadata: normalizedMetadata,
+      updatedBy: actor.actorId,
+      updatedAt: new Date(),
+      revision: sql<number>`${authProviderSettings.revision} + 1`,
+      ...(secret ? { secretEncrypted: encryptAuthSecret(secret) } : {}),
     };
-    if (secret) updates.secretEncrypted = encryptAuthSecret(secret);
     const [row] = await tx.update(authProviderSettings).set(updates).where(and(eq(authProviderSettings.provider, provider), eq(authProviderSettings.revision, expectedRevision))).returning();
     if (!row) return { error: "Revision conflict; reload settings", status: 409 as const };
     await tx.insert(adminAuditLogs).values({ action: "auth.provider.update", resource: provider, actor: actor.actorId, details: { enabled, publicIdentifierConfigured: Boolean(clientId), rotatedSecret: Boolean(secret), stepUp: true } });
