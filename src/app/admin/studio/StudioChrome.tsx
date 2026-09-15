@@ -24,6 +24,7 @@ const routes: StudioCommand[] = [
   { href: "/admin/studio/control", label: "Total Game Control", desc: "Engine, AI, modes, economy and presentation", capability: "control" },
   { href: "/admin/studio/brawl-contract", label: "Brawl Contract Inspector", desc: "Preflight Brawl definitions against the canonical runtime validator", capability: "brawl" },
   { href: "/admin/studio/payments", label: "Payments", desc: "Mercado Pago credentials, webhooks and commerce", capability: "payments" },
+  { href: "/admin/studio/identity", label: "Identity & Auth", desc: "Google, Discord and e-mail login providers", capability: "payments" },
   { href: "/admin/studio/marketplace", label: "Marketplace", desc: "P2P Gold market, escrow and direct trades", capability: "payments" },
   { href: "/admin/studio/runtime", label: "Runtime Operations", desc: "Matches, replays, decks, chat and sessions", capability: "runtime" },
   { href: "/admin/studio/5", label: "Balance Lab", desc: "Matchups and outliers", capability: "balance" },
