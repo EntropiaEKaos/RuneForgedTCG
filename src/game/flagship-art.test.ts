@@ -96,14 +96,14 @@ assert.deepEqual(
     starterDecks: 6,
     starterSlots: 240,
     uniqueStarterCards: 140,
-    covered: 40,
-    missing: 100,
-    byPriority: { P0: 11, P1: 46, P2: 43 },
+    covered: 45,
+    missing: 95,
+    byPriority: { P0: 6, P1: 46, P2: 43 },
   },
   "Alpha art priority baseline must remain deterministic so Studio production queues cannot drift silently",
 );
 const priorityQueue = alphaArtPriorityQueue();
-assert.equal(priorityQueue.length, 100);
+assert.equal(priorityQueue.length, 95);
 assert.equal(alphaArtExposure("ember_bolt").priority, "covered");
 assert.equal(alphaArtExposure("ember_bolt").copies, 5);
 assert.equal(alphaArtExposure("wood_webweaver").priority, "covered");
@@ -113,8 +113,17 @@ assert.equal(alphaArtExposure("wood_ward").priority, "covered");
 assert.equal(alphaArtExposure("ember_face").priority, "covered");
 assert.equal(alphaArtExposure("ember_drake").priority, "covered");
 assert.equal(alphaArtExposure("ember_stun").priority, "covered");
+assert.equal(alphaArtExposure("forest_canopy_warden").priority, "covered");
+assert.equal(alphaArtExposure("forest_cub").priority, "covered");
+assert.equal(alphaArtExposure("storm_dashbolt").priority, "covered");
+assert.equal(alphaArtExposure("storm_eye").priority, "covered");
+assert.equal(alphaArtExposure("storm_herald").priority, "covered");
 assert.equal(alphaArtExposure("ember_ashguard").priority, "covered");
-assert.deepEqual(priorityQueue.slice(0, 2).map((row) => row.defId).sort(), ["forest_canopy_warden", "forest_cub"]);
+assert.deepEqual(
+  priorityQueue.filter((row) => row.priority === "P0").map((row) => row.defId).sort(),
+  ["storm_lightning", "storm_sky_sentinel", "storm_strikecaller", "tide_sprite", "void_drain", "wood_cub"].sort(),
+  "Only the final six canonical P0 targets may remain pending after Batch 3 activation",
+);
 assert.ok(priorityQueue.every((row, index) => index === 0 || priorityQueue[index - 1].score >= row.score));
 
-console.log("FORGED ALPHA FLAGSHIP + ACTIVE P0 ART PRIORITY: 40 covered / 100 starter backlog / PASS");
+console.log("FORGED ALPHA FLAGSHIP + ACTIVE P0 ART PRIORITY: 45 covered / 95 starter backlog / PASS");
