@@ -81,4 +81,17 @@ has("src/app/profile/security/SecurityClient.tsx", 'returnTo: "/profile/security
 has("src/app/profile/security/SecurityClient.tsx", 'encodeURIComponent("/profile/security")', "OAuth linking returns to player security workspace");
 has("src/components/SiteNav.tsx", "Acesso & Segurança", "player identity linking is discoverable from identity navigation");
 
+// FORGED Client 1.0 contracts.
+has("src/lib/product-brand.ts", 'displayName: "FORGED"', "FORGED is the authoritative player-facing brand");
+has("src/lib/product-brand.ts", 'fullName: "FORGED: THE CONVERGENCE"', "FORGED full product identity remains canonical");
+has("src/components/SiteNav.tsx", 'className="rf-client-shell"', "meta navigation renders as a persistent game client shell");
+has("src/components/SiteNav.tsx", 'href: "/lore", label: "Crônicas"', "Lore is a first-class client destination");
+has("src/app/api/client/context/route.ts", 'canStudio: admin.role === "admin"', "Studio visibility in the player client is admin-only");
+lacks("src/app/page.tsx", 'href="/admin"', "player home never exposes a public Studio link");
+has("src/app/lore/page.tsx", 'listPublishedSiteContent("lore"', "Lore hub consumes only admin-published CMS content");
+has("src/app/admin/studio/lore/LoreStudioClient.tsx", "/api/admin/site/lore", "Lore Studio writes through the versioned audited CMS API");
+has("src/app/api/admin/metrics/overview/route.ts", 'actor.role !== "admin"', "Command Center metrics are admin-only");
+has("src/lib/client-telemetry.ts", 'schemaVersion: 1', "client telemetry events carry a versioned schema contract");
+has("src/app/admin/studio/StudioChrome.tsx", "/admin/studio/command-center", "Command Center is discoverable in Studio for authorized admins");
+
 console.log(`SOURCE CONTRACT AUDIT 2.97: PASS (${checks.length} static contracts; NOT behavioral certification)`);

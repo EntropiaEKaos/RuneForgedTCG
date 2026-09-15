@@ -13,6 +13,8 @@ type StudioCommand = {
 
 const routes: StudioCommand[] = [
   { href: "/admin/studio", label: "Control Room", desc: "Overview", capability: "authoring" },
+  { href: "/admin/studio/command-center", label: "Command Center", desc: "Players, gameplay, economy, commerce and client metrics", capability: "control" },
+  { href: "/admin/studio/lore", label: "Lore Studio", desc: "Create and publish FORGED chronicles to the client", capability: "control" },
   { href: "/admin/studio/cards", label: "Card Studio", desc: "Create and edit cards", capability: "authoring" },
   { href: "/admin/studio/mechanics", label: "Mechanics Studio", desc: "Compose keywords, effects and card archetypes", capability: "authoring" },
   { href: "/admin/studio/dependencies", label: "Dependency Graph", desc: "Inspect content references and cycles", capability: "authoring" },
@@ -36,6 +38,8 @@ const routes: StudioCommand[] = [
 ];
 
 const quickActions: StudioCommand[] = [
+  { href: "/admin/studio/command-center", label: "Open Command Center", desc: "Inspect live product and client metrics", capability: "control" },
+  { href: "/admin/studio/lore", label: "Create lore entry", desc: "Write a FORGED chronicle for the client", capability: "control" },
   { href: "/admin/studio/cards?new=1", label: "Create card", desc: "Start a new card draft", capability: "authoring" },
   { href: "/admin/studio/mechanics", label: "Create mechanic", desc: "Compose a safe keyword, effect or card type", capability: "authoring" },
   { href: "/admin/studio/site", label: "Create portal content", desc: "Start a versioned site content draft", capability: "site" },

@@ -38,24 +38,16 @@ import "./styles/visual-5-7-pack-opening.css";
 import "./styles/visual-5-8-deck-builder.css";
 import "./styles/brand-identity-1-0.css";
 import "./styles/brand-identity-1-1-product.css";
+import "./styles/client-shell-1-0.css";
 
-// A strict nonce-based CSP requires request-time rendering so Next.js can
-// attach the request nonce to framework and page scripts.
 export const dynamic = "force-dynamic";
 
-// Fonte de destaque (nomes de carta, números, títulos) — o resto da UI já
-// tinha bastante capricho visual (gemas 3D, glow, sheen), mas o texto todo
-// caía na fonte padrão do sistema, o que destoava do acabamento "premium"
-// do resto do card-shell. Cinzel é a mesma família de fonte serifada que
-// jogos do gênero (Hearthstone, LoR, MTG Arena) usam para nome/números.
 const displayFont = Cinzel({
   subsets: ["latin"],
   weight: ["500", "700", "900"],
   variable: "--font-display",
   display: "swap",
 });
-// Fonte de corpo (texto de carta, UI geral) — mais legível em tamanhos
-// pequenos (6-7px no card-shell) do que a serifada de destaque.
 const bodyFont = Manrope({
   subsets: ["latin"],
   variable: "--font-body",

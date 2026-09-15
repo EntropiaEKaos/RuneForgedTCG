@@ -19,13 +19,17 @@ import { readFileSync } from "node:fs";
  * recertified only to load brand-identity-1-1-product.css after Brand Identity
  * 1.0. The new layer supplies the candidate FORGED: THE CONVERGENCE product
  * mark/wordmark, home/header/footer identity and candidate card-back override.
- * CardView.tsx, BattleView.tsx, ArenaIdentity.tsx, engine/rules/APIs/persistence,
- * ranked authority and every frozen Visual 3.x structural blob remain unchanged.
- * Full CI, notebook/mobile browser certificates and real Alpha Visual Journey
- * screenshots are mandatory before this candidate identity shell is promoted.
+ *
+ * FORGED Client 1.0 break-glass 2026-09-15: layout.tsx is intentionally
+ * recertified to mount client-shell-1-0.css after the certified product identity
+ * layer. This changes only meta/application chrome: persistent client topbar,
+ * desktop rail and responsive bottom dock. BattleView.tsx, CardView.tsx,
+ * ArenaIdentity.tsx, engine/rules/APIs/persistence and Ranked authority remain
+ * frozen. Full CI, notebook/mobile browser certificates and the complete Alpha
+ * Visual Journey are mandatory before this client-shell candidate is promoted.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "55277f4839bf93cc814f1ea49c666fdc8b786b80",
+  "src/app/layout.tsx": "830e771bd1aae2d5673f6d4918c258261455626d",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
@@ -74,6 +78,7 @@ const packOpeningLayer = 'import "./styles/visual-5-7-pack-opening.css";';
 const deckBuilderLayer = 'import "./styles/visual-5-8-deck-builder.css";';
 const brandIdentityLayer = 'import "./styles/brand-identity-1-0.css";';
 const productIdentityLayer = 'import "./styles/brand-identity-1-1-product.css";';
+const clientShellLayer = 'import "./styles/client-shell-1-0.css";';
 
 const requiredLayers = [
   responsiveLayer,
@@ -89,6 +94,7 @@ const requiredLayers = [
   deckBuilderLayer,
   brandIdentityLayer,
   productIdentityLayer,
+  clientShellLayer,
 ];
 for (const layer of requiredLayers) {
   assert.ok(layout.includes(layer), `certified visual layer must stay mounted: ${layer}`);
@@ -108,6 +114,7 @@ const orderedPresentationLayers = [
   deckBuilderLayer,
   brandIdentityLayer,
   productIdentityLayer,
+  clientShellLayer,
 ];
 previous = -1;
 for (const layer of orderedPresentationLayers) {
@@ -122,4 +129,4 @@ assert.equal(
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
 
-console.log("RUNE FORGE ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Brand Identity 1.1 product-shell break-glass recorded");
+console.log("FORGED ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Client 1.0 shell break-glass recorded");

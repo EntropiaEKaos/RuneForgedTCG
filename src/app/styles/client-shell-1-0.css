@@ -1,0 +1,314 @@
+/* FORGED Client 1.0 — persistent application chrome, intentionally not website navigation. */
+:root {
+  --forged-client-rail: 92px;
+  --forged-client-topbar: 62px;
+  --forged-client-panel: rgba(8, 12, 18, 0.96);
+  --forged-client-line: rgba(196, 162, 92, 0.22);
+  --forged-client-gold: #d7b66b;
+  --forged-client-ink: #071019;
+}
+
+body:has(.rf-client-shell) {
+  padding-left: var(--forged-client-rail);
+  padding-top: var(--forged-client-topbar);
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 55% -10%, rgba(83, 109, 143, 0.12), transparent 34rem),
+    linear-gradient(180deg, #071019 0%, #05080d 100%);
+}
+
+.rf-client-shell {
+  position: relative;
+  z-index: 140;
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+.rf-client-topbar {
+  position: fixed;
+  z-index: 145;
+  left: var(--forged-client-rail);
+  right: 0;
+  top: 0;
+  height: var(--forged-client-topbar);
+  display: grid;
+  grid-template-columns: minmax(230px, 1fr) auto minmax(230px, 1fr);
+  align-items: center;
+  gap: 20px;
+  padding: 0 22px;
+  border-bottom: 1px solid var(--forged-client-line);
+  background: linear-gradient(180deg, rgba(10, 15, 23, 0.98), rgba(6, 10, 16, 0.96));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(18px);
+}
+
+.rf-client-brand,
+.rf-client-profile-chip,
+.rf-client-resource,
+.rf-client-rail-link {
+  text-decoration: none;
+}
+
+.rf-client-brand {
+  display: inline-flex;
+  width: max-content;
+  align-items: center;
+  gap: 11px;
+  color: #f6edd8;
+}
+
+.rf-client-brand-sigil {
+  position: relative;
+  width: 31px;
+  height: 31px;
+  display: grid;
+  place-items: center;
+  transform: rotate(45deg);
+  border: 1px solid rgba(215, 182, 107, 0.7);
+  background: linear-gradient(135deg, rgba(215,182,107,.16), rgba(31,47,62,.3));
+  box-shadow: inset 0 0 18px rgba(215,182,107,.1), 0 0 20px rgba(83,109,143,.18);
+}
+
+.rf-client-brand-sigil i {
+  width: 11px;
+  height: 11px;
+  border: 1px solid rgba(255, 240, 196, 0.82);
+  background: rgba(215, 182, 107, 0.22);
+}
+
+.rf-client-brand-copy {
+  display: grid;
+  line-height: 1;
+}
+
+.rf-client-brand-copy strong {
+  font-family: var(--font-display), serif;
+  font-size: 17px;
+  letter-spacing: .16em;
+}
+
+.rf-client-brand-copy small {
+  margin-top: 5px;
+  color: rgba(222, 225, 230, 0.52);
+  font-size: 8px;
+  letter-spacing: .25em;
+}
+
+.rf-client-surface-title {
+  display: grid;
+  justify-items: center;
+  line-height: 1;
+}
+
+.rf-client-surface-title small {
+  color: rgba(215, 182, 107, 0.54);
+  font-size: 8px;
+  letter-spacing: .34em;
+}
+
+.rf-client-surface-title strong {
+  margin-top: 6px;
+  color: #f3ead5;
+  font-family: var(--font-display), serif;
+  font-size: 13px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.rf-client-top-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 11px;
+}
+
+.rf-client-resource {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(215, 182, 107, 0.18);
+  color: rgba(231, 218, 188, 0.76);
+  background: rgba(255,255,255,.025);
+  font-size: 9px;
+  letter-spacing: .14em;
+}
+
+.rf-client-resource span { color: var(--forged-client-gold); }
+
+.rf-client-profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 148px;
+  padding: 6px 9px 6px 6px;
+  border-left: 1px solid rgba(215, 182, 107, 0.2);
+  color: #f3ead5;
+}
+
+.rf-client-profile-chip > span:last-child { display: grid; line-height: 1.05; }
+.rf-client-profile-chip small { color: rgba(133, 205, 164, 0.72); font-size: 7px; letter-spacing: .18em; }
+.rf-client-profile-chip b { margin-top: 5px; max-width: 112px; overflow: hidden; text-overflow: ellipsis; font-size: 10px; letter-spacing: .09em; white-space: nowrap; }
+
+.rf-client-avatar {
+  width: 33px;
+  height: 33px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgba(215, 182, 107, 0.38);
+  background: radial-gradient(circle, rgba(71, 91, 113, .5), rgba(10, 14, 19, .9));
+  box-shadow: inset 0 0 12px rgba(215,182,107,.08);
+}
+
+.rf-client-rail {
+  position: fixed;
+  z-index: 146;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--forged-client-rail);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 7px 10px;
+  border-right: 1px solid var(--forged-client-line);
+  background:
+    linear-gradient(180deg, rgba(10, 15, 22, .99), rgba(4, 7, 11, .99)),
+    #070b10;
+  box-shadow: 18px 0 38px rgba(0,0,0,.24);
+}
+
+.rf-client-rail-primary,
+.rf-client-rail-utility {
+  display: grid;
+  gap: 4px;
+}
+
+.rf-client-rail-primary { padding-top: 51px; }
+.rf-client-rail-utility { padding-top: 10px; border-top: 1px solid rgba(215, 182, 107, .12); }
+
+.rf-client-rail-link {
+  position: relative;
+  min-height: 58px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  color: rgba(204, 211, 220, .58);
+  background: transparent;
+  transition: color .16s ease, background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+.rf-client-rail-link::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 13px;
+  bottom: 13px;
+  width: 2px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.rf-client-rail-link i {
+  font-style: normal;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.rf-client-rail-link span {
+  max-width: 76px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 8px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.rf-client-rail-link:hover,
+.rf-client-rail-link[data-active="true"] {
+  color: #f3ead5;
+  border-color: rgba(215, 182, 107, .14);
+  background: linear-gradient(90deg, rgba(215,182,107,.09), rgba(61,84,107,.08));
+}
+
+.rf-client-rail-link[data-active="true"]::before {
+  background: var(--forged-client-gold);
+  box-shadow: 0 0 10px rgba(215,182,107,.72);
+}
+
+.rf-client-rail-link[data-accent="true"] {
+  margin: 5px 0 6px;
+  border-color: rgba(215, 182, 107, .24);
+  color: #ead8ad;
+  background: radial-gradient(circle at 50% 10%, rgba(215,182,107,.13), rgba(215,182,107,.025));
+}
+
+.rf-client-admin-link {
+  color: rgba(139, 207, 255, .74);
+  border-color: rgba(83, 157, 209, .18);
+  background: rgba(35, 83, 118, .08);
+}
+
+@media (max-width: 900px) {
+  :root { --forged-client-rail: 0px; --forged-client-topbar: 56px; }
+  body:has(.rf-client-shell) {
+    padding-left: 0;
+    padding-top: var(--forged-client-topbar);
+    padding-bottom: 62px;
+  }
+  .rf-client-topbar { left: 0; grid-template-columns: 1fr auto; padding: 0 12px; }
+  .rf-client-surface-title { display: none; }
+  .rf-client-brand-copy small,
+  .rf-client-resource,
+  .rf-client-profile-chip small { display: none; }
+  .rf-client-profile-chip { min-width: 0; border-left: 0; padding-right: 0; }
+  .rf-client-profile-chip b { display: none; }
+  .rf-client-rail {
+    top: auto;
+    right: 0;
+    width: auto;
+    height: 62px;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 4px 5px;
+    border-right: 0;
+    border-top: 1px solid var(--forged-client-line);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .rf-client-rail-primary,
+  .rf-client-rail-utility {
+    display: flex;
+    gap: 2px;
+    padding: 0;
+    border: 0;
+  }
+  .rf-client-rail-utility { margin-left: auto; }
+  .rf-client-rail-link { min-width: 58px; min-height: 52px; }
+  .rf-client-rail-link span { font-size: 7px; max-width: 58px; }
+  .rf-client-rail-link i { font-size: 15px; }
+  .rf-client-rail-link::before { left: 14px; right: 14px; top: auto; bottom: -1px; width: auto; height: 2px; }
+  .rf-client-rail-link[data-accent="true"] { margin: 0; }
+}
+
+@media (max-width: 520px) {
+  .rf-client-brand-copy strong { font-size: 14px; }
+  .rf-client-brand-sigil { width: 27px; height: 27px; }
+  .rf-client-topbar { gap: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-client-shell *,
+  .rf-client-shell *::before,
+  .rf-client-shell *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
