@@ -200,6 +200,15 @@ async function ensureHandState(cdp, expanded) {
   await settle(cdp);
 }
 
+async function ensureEnabledBattlefieldAction(cdp) {
+  await waitUntil(
+    () => evaluate(cdp, `document.querySelector('.tcg-actions button:not(:disabled)') !== null`),
+    "player battlefield action after opponent turn",
+    30_000,
+  );
+  await settle(cdp);
+}
+
 async function collectEvidence(cdp) {
   return evaluate(cdp, `(()=>{const rect=selector=>{const e=document.querySelector(selector);if(!e)return null;const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}};const hit=selector=>{const e=document.querySelector(selector);if(!e)return false;const r=e.getBoundingClientRect();const x=Math.max(0,Math.min(innerWidth-1,r.left+r.width/2));const y=Math.max(0,Math.min(innerHeight-1,r.top+r.height/2));const h=document.elementFromPoint(x,y);return h===e||e.contains(h)};const actions=[...document.querySelectorAll('.tcg-actions button:not(:disabled)')].map(button=>{const r=button.getBoundingClientRect();return{text:(button.textContent||'').trim(),width:r.width,height:r.height,top:r.top,bottom:r.bottom}});const handShell=document.querySelector('.player-hand-shell');const handCards=document.querySelector('#player-hand-cards');return{innerWidth,innerHeight,document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},arena:rect('.tcg-arena'),rivalField:rect('.tcg-row[data-bench-side="ai"]'),playerField:rect('.tcg-row[data-bench-side="player"]'),hand:rect('.player-hand-shell'),actionsRect:rect('.tcg-actions'),toggle:rect('.mobile-hand-toggle'),toggleHit:hit('.mobile-hand-toggle'),handExpanded:Boolean(handShell?.classList.contains('expanded')),handCardsDisplay:handCards?getComputedStyle(handCards).display:null,actions}})()`);
 }
@@ -259,6 +268,7 @@ async function main() {
     await setViewport(cdp, viewports[0]);
     try {
       await enterTrainingBattle(cdp);
+      await ensureEnabledBattlefieldAction(cdp);
       const report = [];
       for (const viewport of viewports) {
         await setViewport(cdp, viewport);
