@@ -161,7 +161,7 @@ export default function FrameBuilderClient() {
   return <main className="min-h-screen bg-[#06101a] p-5 text-slate-100" data-studio-frame-builder="true">
     <div className="mx-auto max-w-[1500px]">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div><p className="text-[10px] font-black uppercase tracking-[.28em] text-amber-400">{PRODUCT_BRAND.displayName} // VISUAL AUTHORING 1.0</p><h1 className="text-3xl font-black">Frame Builder</h1><p className="mt-1 max-w-2xl text-sm text-slate-400">Crie molduras reutilizáveis sem alterar gameplay. Presets publicados entram no catálogo e são aplicados por <code>frameId</code>.</p></div>
+        <div><p className="text-[10px] font-black uppercase tracking-[.28em] text-amber-400">{PRODUCT_BRAND.displayName} · VISUAL AUTHORING 1.0</p><h1 className="text-3xl font-black">Frame Builder</h1><p className="mt-1 max-w-2xl text-sm text-slate-400">Crie molduras reutilizáveis sem alterar gameplay. Presets publicados entram no catálogo e são aplicados por <code>frameId</code>.</p></div>
         <div className="flex flex-wrap gap-2"><Link href="/admin/studio/art" className="btn-ghost">Art Pipeline</Link><Link href="/admin/studio/cards" className="btn-ghost">Card Studio</Link><button className="btn-primary" onClick={newPreset}>＋ Novo frame</button></div>
       </header>
       {notice&&<div className="mb-4 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-xs text-amber-100" role="status">{notice}</div>}
