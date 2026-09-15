@@ -180,6 +180,9 @@ jobs:
       - name: Alpha P0 Batch 2 physical art evidence
         run: node --import tsx src/game/alpha-p0-batch-2-art.test.ts
 
+      - name: Alpha P0 Batch 3 physical art evidence
+        run: node --import tsx src/game/alpha-p0-batch-3-art.test.ts
+
       - name: Upload Alpha visual journey
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
