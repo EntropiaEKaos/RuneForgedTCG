@@ -60,6 +60,8 @@ async function clickText(cdp,text){const clicked=await evaluate(cdp,`(() => { co
 async function capture(cdp,filename,stage){const metrics=await evaluate(cdp,`({innerWidth:window.innerWidth,scrollWidth:document.documentElement.scrollWidth,bodyText:(document.body?.innerText||'').replace(/\\s+/g,' ').trim()})`);assert.ok(metrics.scrollWidth<=metrics.innerWidth+2,`${stage} has horizontal overflow`);assert.ok(metrics.bodyText.length>50,`${stage} rendered suspiciously little text`);const shot=await cdp.call("Page.captureScreenshot",{format:"png",fromSurface:true,captureBeyondViewport:false});await writeFile(join(outputDir,filename),Buffer.from(shot.data,"base64"));console.log(`IDENTITY AUTH BROWSER CERT: captured ${filename} — ${stage}`);return metrics;}
 async function login(cdp){const password=process.env.ADMIN_PASSWORD?.trim();assert.ok(password,"ADMIN_PASSWORD is required");const payload=JSON.stringify({username:process.env.ADMIN_USERNAME?.trim()||"admin",password});const result=await evaluate(cdp,`(async()=>{const r=await fetch('/api/admin/login',{method:'POST',credentials:'include',headers:{'content-type':'application/json'},body:${JSON.stringify(payload)}});return {status:r.status,body:await r.json().catch(()=>null)}})()`);assert.equal(result?.status,200,`Admin login failed: ${JSON.stringify(result)}`);assert.equal(result?.body?.ok,true,"Admin login did not return ok=true");}
 async function logout(cdp){const status=await evaluate(cdp,`(async()=> (await fetch('/api/admin/login',{method:'DELETE',credentials:'include'})).status)()`);assert.equal(status,200,"Admin logout failed");}
+async function dismissRecovery(cdp){await waitUntil(()=>evaluate(cdp,`(()=>{const dialog=[...document.querySelectorAll('[role="dialog"]')].find(node=>(node.textContent||'').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'));if(!dialog)return true;const button=[...dialog.querySelectorAll('button')].find(node=>!node.disabled&&(node.textContent||'').replace(/\\s+/g,' ').trim()==='JÁ GUARDEI');if(button)button.click();return false;})()`),"recovery handoff dismissal",30_000);}
+async function fillNickname(cdp,name){const filled=await evaluate(cdp,`(()=>{const input=[...document.querySelectorAll('input')].find(node=>node.getAttribute('placeholder')==='Seu nome na Forja');if(!input)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(!setter)return false;setter.call(input,${JSON.stringify(name)});input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);assert.equal(filled,true,"Nickname input is required for Identity/Auth browser certification");}
 async function shutdown(chrome,profileDir){if(chrome.exitCode==null&&chrome.signalCode==null)chrome.kill("SIGTERM");await sleep(300);if(chrome.exitCode==null&&chrome.signalCode==null)chrome.kill("SIGKILL");await rm(profileDir,{recursive:true,force:true,maxRetries:5,retryDelay:200}).catch(()=>{});}
 
 async function main(){
@@ -80,14 +82,24 @@ async function main(){
     await navigate(cdp,"/play"); await waitForText(cdp,"Entre na"); await waitForText(cdp,"CONTINUAR COMO CONVIDADO");
     const entry=await capture(cdp,"57-identity-auth-entry.png","Player Identity/Auth → explicit entry");
     assert.ok(entry.bodyText.includes("Escolha como quer continuar"),"Auth entry must explain explicit identity choice");
-    await clickText(cdp,"CONTINUAR COMO CONVIDADO"); await waitForText(cdp,"FORJE SUA IDENTIDADE"); await waitForText(cdp,"FORJAR IDENTIDADE");
+    await clickText(cdp,"CONTINUAR COMO CONVIDADO");
+    await dismissRecovery(cdp);
+    await waitForText(cdp,"FORJE SUA IDENTIDADE"); await waitForText(cdp,"FORJAR IDENTIDADE");
     await capture(cdp,"58-identity-auth-nickname.png","Player Identity/Auth → nickname forging");
+    await fillNickname(cdp,"Identity Cert"); await clickText(cdp,"FORJAR IDENTIDADE"); await waitForText(cdp,"PRIMEIRO ACESSO · ALPHA JOGÁVEL");
+
+    await navigate(cdp,"/profile/security"); await waitForText(cdp,"Identidades vinculadas"); await waitForText(cdp,"Player ID"); await waitForText(cdp,"Contrato de segurança");
+    const security=await capture(cdp,"60-profile-access-security.png","Player profile → access and security linking workspace");
+    assert.ok(security.bodyText.includes("Google")&&security.bodyText.includes("Discord")&&security.bodyText.includes("E-mail"),"Player security workspace must expose all supported identity methods");
+    assert.ok(security.bodyText.includes("Segredos dos provedores ficam no Vault administrativo"),"Player security workspace must state secret isolation");
+
     const cleared=await evaluate(cdp,`(async()=> (await fetch('/api/player',{method:'DELETE',credentials:'include'})).status)()`); assert.equal(cleared,200,"Guest browser session cleanup failed");
 
     const severe=cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown"||(message.method==="Log.entryAdded"&&["error","assert"].includes(message.params?.entry?.level)));
     assert.equal(severe.length,0,`Browser emitted runtime errors: ${JSON.stringify(severe.slice(0,3))}`);
-    await writeFile(join(outputDir,"57-59-identity-auth-browser-cert.json"),`${JSON.stringify({ok:true,gitSha:process.env.GITHUB_SHA||null,screenshots:["57-identity-auth-entry.png","58-identity-auth-nickname.png","59-studio-identity-provider-vault.png"],guestFallback:true,providerControls:["google","discord","email"]},null,2)}\n`);
-    console.log("IDENTITY AUTH BROWSER CERT: PASS — explicit account entry + nickname forging + Studio provider vault certified in real browser");
+    const screenshots=["57-identity-auth-entry.png","58-identity-auth-nickname.png","59-studio-identity-provider-vault.png","60-profile-access-security.png"];
+    await writeFile(join(outputDir,"57-60-identity-auth-browser-cert.json"),`${JSON.stringify({ok:true,gitSha:process.env.GITHUB_SHA||null,screenshots,guestFallback:true,providerControls:["google","discord","email"],playerLinkingWorkspace:true},null,2)}\n`);
+    console.log("IDENTITY AUTH BROWSER CERT: PASS — explicit entry + nickname + Studio provider vault + player linking workspace certified in real browser");
   } catch(error) {
     if(cdp){try{console.error("--- Identity/Auth browser snapshot ---",await evaluate(cdp,`({href:location.href,title:document.title,bodyText:(document.body?.innerText||'').replace(/\\s+/g,' ').trim().slice(0,1200)})`));}catch{}}
     if(stderr.trim())console.error(stderr.slice(-5000)); throw error;
