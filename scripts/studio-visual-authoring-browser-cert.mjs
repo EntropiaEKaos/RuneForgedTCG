@@ -198,7 +198,8 @@ async function main() {
     await navigate(cdp, "/admin/studio/frames");
     await waitForText(cdp, "Frame Builder");
     await waitForText(cdp, frameName);
-    await clickText(cdp, frameName);
+    await clickText(cdp, "Editar");
+    await waitUntil(() => evaluate(cdp, `document.querySelector('[data-frame-preview]')?.getAttribute('data-frame-preview') === ${JSON.stringify(frameKey)}`), "Frame Builder selected preset");
     await waitForText(cdp, "Live preview");
     const frameMetrics = await capture(cdp, "41-studio-frame-builder.png", "Frame Builder");
     const frameEvidence = await evaluate(cdp, `(() => ({ builder:Boolean(document.querySelector('[data-studio-frame-builder="true"]')), preview:Boolean(document.querySelector('[data-frame-preview]')), primary:[...document.querySelectorAll('input[type="color"]')].map((x)=>x.value), ranges:document.querySelectorAll('input[type="range"]').length }))()`);
