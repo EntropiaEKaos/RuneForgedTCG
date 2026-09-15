@@ -127,12 +127,7 @@ async function navigate(cdp, path) {
 }
 
 async function dismissRecoveryHandoffIfPresent(cdp) {
-  await waitUntil(
-    () => evaluate(cdp, `fetch('/api/player', { cache: 'no-store' }).then((response) => response.status === 200).catch(() => false)`),
-    "global player session",
-  );
   await sleep(350);
-
   const handoff = await evaluate(cdp, `(() => {
     const dialogs = [...document.querySelectorAll('[role="dialog"]')];
     const dialog = dialogs.find((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'));
@@ -142,7 +137,9 @@ async function dismissRecoveryHandoffIfPresent(cdp) {
     button.click();
     return { present: true, dismissed: true };
   })()`);
-  if (handoff?.present) assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before final P0 certification");
+  if (!handoff?.present) return;
+  assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before final P0 certification");
+  await waitUntil(() => evaluate(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`), "recovery-key handoff dismissal", 5_000);
 }
 
 async function setSearch(cdp, value) {

@@ -118,10 +118,8 @@ async function navigate(cdp, path) {
 }
 
 async function dismissRecoveryHandoffIfPresent(cdp) {
-  await waitUntil(
-    () => evaluate(cdp, `fetch('/api/player', { cache: 'no-store' }).then((response) => response.status === 200).catch(() => false)`),
-    "global player session",
-  );
+  // Public catalog surfaces remain anonymous; only dismiss a handoff left by
+  // a prior explicit player session if one is actually present.
   await sleep(350);
 
   const handoff = await evaluate(cdp, `(() => {
@@ -134,9 +132,8 @@ async function dismissRecoveryHandoffIfPresent(cdp) {
     return { present: true, dismissed: true };
   })()`);
 
-  if (handoff?.present) {
-    assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before art viewer certification");
-  }
+  if (!handoff?.present) return;
+  assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before art viewer certification");
   await waitUntil(
     () => evaluate(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`),
     "recovery-key handoff dismissal",
