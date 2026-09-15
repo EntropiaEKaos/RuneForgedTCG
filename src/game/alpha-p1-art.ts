@@ -19,11 +19,9 @@ const target = (defId: string, region: Region, brief: string): AlphaP1ArtTarget 
 });
 
 /**
- * Physical production contract for the first Alpha P1 batch.
- *
- * These targets remain production-only until a separate activation PR promotes
- * them into ALPHA_P1_ACTIVE_IDS. This keeps runtime resolution and Studio
- * coverage fail-closed while physical masters are reviewed and certified.
+ * Certified physical production contract for the first Alpha P1 batch.
+ * Runtime promotion stays explicit through ALPHA_P1_ACTIVE_IDS so future P1
+ * batches can remain fail-closed until their own activation certification.
  */
 export const ALPHA_P1_ART_TARGETS: AlphaP1ArtTarget[] = [
   target("ember_duelist", "Emberhold", "Ash Duelist: a disciplined single-combat fighter in an obsidian dueling ring, twin forge blades held in a precise asymmetric stance, furnace rim light and sparks emphasizing control rather than a generic soldier."),
@@ -33,7 +31,13 @@ export const ALPHA_P1_ART_TARGETS: AlphaP1ArtTarget[] = [
   target("ember_zealot", "Emberhold", "Emberfang Zealot: a broad armored devotee advancing frontally with fang-shaped pauldrons and a glowing ritual weapon, controlled fanatic intensity, ember-red scars and forged-gold details without resembling the Raider."),
 ];
 
-export const ALPHA_P1_ACTIVE_IDS = [] as const;
+export const ALPHA_P1_ACTIVE_IDS = [
+  "ember_duelist",
+  "ember_raider",
+  "ember_herald",
+  "ember_whelp",
+  "ember_zealot",
+] as const;
 
 const activeIds = new Set<string>(ALPHA_P1_ACTIVE_IDS);
 
