@@ -12,6 +12,7 @@ for (const script of [
   "scripts/generate-flagship-signature-art.mjs",
   "scripts/generate-alpha-p0-batch-1-art.mjs",
   "scripts/generate-alpha-p0-batch-2-art.mjs",
+  "scripts/generate-alpha-p0-batch-3-art.mjs",
 ]) {
   execFileSync(process.execPath, [script], {
     cwd: process.cwd(),
