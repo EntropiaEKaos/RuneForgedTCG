@@ -1,5 +1,6 @@
 import { getCustomCardArtCached } from "./catalog";
 import { resolveCardAppearance } from "./card-cosmetics";
+import { alphaP0ArtUrl } from "./alpha-p0-art";
 import { flagshipChampionArtUrl } from "./flagship-champion-art";
 import { flagshipStructureArtUrl } from "./flagship-structure-art";
 import { flagshipRitualArtUrl } from "./flagship-ritual-art";
@@ -19,11 +20,12 @@ export function getCardArt(defId: string) {
   if (cosmetic.artUrl) return { url: cosmetic.artUrl, crop: cosmetic.artCrop || undefined, cosmetic: true as const };
   const editorial = browserArt[defId] ?? getCustomCardArtCached(defId);
   if (editorial) return editorial;
-  const flagshipUrl =
+  const builtInUrl =
+    alphaP0ArtUrl(defId) ??
     flagshipChampionArtUrl(defId) ??
     flagshipStructureArtUrl(defId) ??
     flagshipRitualArtUrl(defId) ??
     flagshipTrapArtUrl(defId) ??
     flagshipSignatureArtUrl(defId);
-  return flagshipUrl ? { url: flagshipUrl } : undefined;
+  return builtInUrl ? { url: builtInUrl } : undefined;
 }
