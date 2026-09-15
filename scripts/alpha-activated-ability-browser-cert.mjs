@@ -636,13 +636,18 @@ async function main() {
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
 
     await navigate(cdp, "/play");
-    const hasExplicitAuthEntry = await evaluate(cdp, "document.body?.innerText?.includes('CONTINUAR COMO CONVIDADO') === true");
-    if (hasExplicitAuthEntry) {
+    const entryStage = await waitUntil(
+      () => evaluate(cdp, `(() => {
+        const text = document.body?.innerText || '';
+        if (text.includes('CONTINUAR COMO CONVIDADO')) return 'auth';
+        if (text.includes('SALVE SUA CHAVE DE RECUPERAÇÃO')) return 'recovery';
+        return null;
+      })()`),
+      "explicit auth entry or recovery handoff",
+      30_000,
+    );
+    if (entryStage === "auth") {
       await clickText(cdp, "CONTINUAR COMO CONVIDADO");
-      await waitUntil(
-        () => evaluate(cdp, "document.body?.innerText?.includes('CONTINUAR COMO CONVIDADO') !== true"),
-        "explicit auth entry to advance",
-      );
     }
 
     await waitForText(cdp, "SALVE SUA CHAVE DE RECUPERAÇÃO", 30_000);
@@ -653,8 +658,17 @@ async function main() {
       5_000,
     );
 
-    const needsNickname = await evaluate(cdp, "document.body?.innerText?.includes('FORJE SUA IDENTIDADE') === true");
-    if (needsNickname) {
+    const identityStage = await waitUntil(
+      () => evaluate(cdp, `(() => {
+        const text = document.body?.innerText || '';
+        if (text.includes('FORJE SUA IDENTIDADE')) return 'nickname';
+        if (text.includes('PRIMEIRO ACESSO · ALPHA JOGÁVEL')) return 'onboarding';
+        return null;
+      })()`),
+      "nickname or onboarding after recovery handoff",
+      30_000,
+    );
+    if (identityStage === "nickname") {
       await waitForText(cdp, "FORJAR IDENTIDADE", 30_000);
       await fillInputByPlaceholder(cdp, "Seu nome na Forja", "Activated Ability Cert");
       await clickText(cdp, "FORJAR IDENTIDADE");
