@@ -1,12 +1,13 @@
 import { NextRequest } from "next/server";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { adminAuditLogs, cardAssets, cardCosmeticVariants, customCards, playerCardCosmeticPreferences } from "@/db/schema";
+import { adminAuditLogs, adminGameDefinitions, cardAssets, cardCosmeticVariants, customCards, playerCardCosmeticPreferences } from "@/db/schema";
 import { baseCardsOnly } from "@/game/cards";
 import { normalizeCardCosmeticInput } from "@/game/card-cosmetics";
 import { adminRoleAllowed, getAdminSessionContext, unauthorized } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
+const FRAME_PRESET_DOMAIN = "card-frame-presets";
 
 async function actorFor(req: NextRequest, role: "designer" | "publisher") {
   const actor = await getAdminSessionContext(req);
@@ -18,6 +19,17 @@ async function cardExistsForCosmeticAuthoring(defId: string): Promise<boolean> {
   if (baseCardsOnly().some((card) => card.defId === defId)) return true;
   const [saved] = await db.select({ id: customCards.id }).from(customCards).where(eq(customCards.defId, defId)).limit(1);
   return Boolean(saved);
+}
+
+async function frameAvailableForLiveCosmetic(frameId: string): Promise<boolean> {
+  if (frameId === "default") return true;
+  const [frame] = await db.select({ id: adminGameDefinitions.id }).from(adminGameDefinitions).where(and(
+    eq(adminGameDefinitions.domain, FRAME_PRESET_DOMAIN),
+    eq(adminGameDefinitions.key, frameId),
+    eq(adminGameDefinitions.status, "published"),
+    eq(adminGameDefinitions.enabled, true),
+  )).limit(1);
+  return Boolean(frame);
 }
 
 async function clearPreferencesForVariant(tx: any, defId: string, variantId: string) {
@@ -103,6 +115,9 @@ export async function PATCH(req: NextRequest) {
   const publishing = requestedStatus === "published" || requestedEnabled || current.status === "published" || current.enabled;
   if (publishing && !adminRoleAllowed(actor.role, "publisher")) return Response.json({ ok: false, error: "Publisher role required to change a live cosmetic" }, { status: 403 });
   if (requestedEnabled && requestedStatus !== "published") return Response.json({ ok: false, error: "Only published cosmetics may be enabled" }, { status: 400 });
+  if (requestedEnabled && !(await frameAvailableForLiveCosmetic(normalized.value.frameId))) {
+    return Response.json({ ok: false, error: "Frame preset must be published and enabled before a cosmetic can go LIVE" }, { status: 409 });
+  }
   if (requestedEnabled && normalized.value.packEligible && normalized.value.acquisition === "pack") {
     const poolValid = await validateLivePackPool(current.defId, id, normalized.value.dropWeight);
     if (!poolValid) return Response.json({ ok: false, error: "Enabled cosmetic drop weights for this card would exceed 1,000,000 PPM (100%)" }, { status: 409 });

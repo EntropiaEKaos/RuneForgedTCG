@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { GameState } from "@/game/types";
 import { evaluateMatchMastery } from "@/game/client/match-mastery";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 
 export interface MatchReward { xpGain: number; goldGain: number; dustGain: number; leveledUp?: boolean; newLevel?: number }
 
@@ -25,9 +26,9 @@ export function MatchResult({ state, reward, onReplay, onChangeDeck }: { state: 
         : victory ? "O adversário se rendeu. Vitória confirmada." : "Você se rendeu. Derrota confirmada.";
 
   const share = async () => {
-    const text = `${victory ? "Vitória" : "Batalha"} no Runeforge · Nota ${mastery.grade} · ${player.stats.nexusDamageDealt} de dano · ${state.round} rodadas.`;
+    const text = `${victory ? "Vitória" : "Batalha"} em ${PRODUCT_BRAND.fullName} · Nota ${mastery.grade} · ${player.stats.nexusDamageDealt} de dano · ${state.round} rodadas.`;
     try {
-      if (navigator.share) await navigator.share({ title: "Runeforge — Relatório de batalha", text });
+      if (navigator.share) await navigator.share({ title: `${PRODUCT_BRAND.fullName} — Relatório de batalha`, text });
       else await navigator.clipboard.writeText(text);
       setShared(true);
     } catch { setShared(false); }

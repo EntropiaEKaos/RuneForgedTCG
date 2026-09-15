@@ -2,19 +2,20 @@ import { ensureCustomCardsLoaded, getCustomCardCatalogRevision, listCustomCardsC
 import { baseCardsOnly } from "@/game/cards";
 import { loadGameConfig } from "@/game/settings";
 import { db } from "@/db";
-import { adminCollections, cardCatalogMeta, cardCosmeticVariants } from "@/db/schema";
+import { adminCollections, adminGameDefinitions, cardCatalogMeta, cardCosmeticVariants } from "@/db/schema";
 import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { getRuntimeDecks, getRuntimeDefinition, getRuntimeDoctrines } from "@/lib/control-plane";
 import { rankedOperational, rankedReleaseCertified } from "@/lib/runtime-gates";
 
 export const dynamic = "force-dynamic";
+const FRAME_PRESET_DOMAIN = "card-frame-presets";
 
 export async function GET() {
   try {
     await ensureCustomCardsLoaded();
     const config = await loadGameConfig();
     const [decks, doctrines, visualTheme, localization] = await Promise.all([getRuntimeDecks(), getRuntimeDoctrines(), getRuntimeDefinition("visual-themes", config.advanced.presentation.defaultTheme), getRuntimeDefinition("localizations", config.advanced.localization.defaultLocale.toLowerCase())]);
-    const [collectionRevisionRow, cardCollections, cardArt, cardCosmetics] = await Promise.all([
+    const [collectionRevisionRow, cardCollections, cardArt, cardCosmetics, framePresetRows] = await Promise.all([
       db.select({
         revision: sql<string>`concat(
           coalesce((select max(${cardCatalogMeta.updatedAt})::text from ${cardCatalogMeta}), ''), ':',
@@ -22,7 +23,9 @@ export async function GET() {
           coalesce((select max(${adminCollections.updatedAt})::text from ${adminCollections}), ''), ':',
           coalesce((select count(*)::text from ${adminCollections}), '0'), ':',
           coalesce((select max(${cardCosmeticVariants.updatedAt})::text from ${cardCosmeticVariants}), ''), ':',
-          coalesce((select count(*)::text from ${cardCosmeticVariants}), '0')
+          coalesce((select count(*)::text from ${cardCosmeticVariants}), '0'), ':',
+          coalesce((select max(${adminGameDefinitions.updatedAt})::text from ${adminGameDefinitions} where ${adminGameDefinitions.domain} = 'card-frame-presets'), ''), ':',
+          coalesce((select count(*)::text from ${adminGameDefinitions} where ${adminGameDefinitions.domain} = 'card-frame-presets'), '0')
         )`,
       }).from(cardCatalogMeta).limit(1),
       db.select({
@@ -60,7 +63,25 @@ export async function GET() {
         status: cardCosmeticVariants.status,
         enabled: cardCosmeticVariants.enabled,
       }).from(cardCosmeticVariants).where(and(eq(cardCosmeticVariants.status, "published"), eq(cardCosmeticVariants.enabled, true))),
+      db.select({
+        id: adminGameDefinitions.id,
+        key: adminGameDefinitions.key,
+        name: adminGameDefinitions.name,
+        description: adminGameDefinitions.description,
+        payload: adminGameDefinitions.payload,
+        status: adminGameDefinitions.status,
+        enabled: adminGameDefinitions.enabled,
+        revision: adminGameDefinitions.revision,
+      }).from(adminGameDefinitions).where(and(
+        eq(adminGameDefinitions.domain, FRAME_PRESET_DOMAIN),
+        eq(adminGameDefinitions.status, "published"),
+        eq(adminGameDefinitions.enabled, true),
+      )),
     ]);
+    const framePresets = framePresetRows.map((row) => {
+      const payload = row.payload && typeof row.payload === "object" && !Array.isArray(row.payload) ? row.payload as Record<string, unknown> : {};
+      return { id: row.id, key: row.key, name: row.name, description: row.description, config: payload.config || payload, status: row.status, enabled: row.enabled, revision: row.revision };
+    });
     return Response.json({
       ok: true,
       config: {
@@ -92,6 +113,7 @@ export async function GET() {
       cardCollections,
       cardArt: cardArt.filter((row) => typeof row.url === "string" && row.url),
       cardCosmetics,
+      framePresets,
       decks,
       doctrines,
       presentation: config.advanced.presentation,

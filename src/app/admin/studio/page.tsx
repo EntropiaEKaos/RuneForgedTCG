@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
 import { canAccessStudioAuthoring, studioLandingForRole } from "@/lib/admin-studio-access";
 import { getStudioPageSession } from "@/lib/admin-studio-page-access";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 import SuperAdminStudio from "./SuperAdminStudio";
 
-export const metadata = { title: "Runeforge Super Admin" };
+export const metadata = { title: `${PRODUCT_BRAND.displayName} Super Admin` };
 export const dynamic = "force-dynamic";
 
 export default async function Page() {

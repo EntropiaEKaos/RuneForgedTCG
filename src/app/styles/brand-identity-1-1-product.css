@@ -1,0 +1,304 @@
+/* Brand Identity 1.1 — FORGED: THE CONVERGENCE product lockup + card back.
+   Candidate identity only. Loaded after legacy visual layers so the public-facing
+   brand can evolve without renaming stable engine/database contracts. */
+
+:root {
+  --forged-metal-hi: #fff1b5;
+  --forged-metal: #dfad52;
+  --forged-metal-deep: #78420f;
+  --forged-obsidian: #030507;
+  --forged-mark: url('/brand/forged-convergence-mark.svg');
+}
+
+/* --------------------------------------------------------------------------
+   GLOBAL PRODUCT LOCKUP
+   -------------------------------------------------------------------------- */
+.rf-brand {
+  gap: 10px;
+  letter-spacing: .09em;
+}
+
+.rf-brand .rf-brand-mark {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border: 0;
+  border-radius: 50%;
+  transform: none;
+  background: var(--forged-mark) center / 100% 100% no-repeat;
+  box-shadow:
+    0 0 22px rgba(223,173,82,.2),
+    0 0 0 1px rgba(255,232,167,.06);
+}
+
+.rf-brand .rf-brand-mark::before,
+.rf-brand .rf-brand-mark::after,
+.rf-brand .rf-brand-mark i::before,
+.rf-brand .rf-brand-mark i::after { display: none; }
+
+.rf-brand-wordmark {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.rf-brand-wordmark strong {
+  color: #f2eee6;
+  font-family: var(--font-display), serif;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  line-height: .9;
+  text-shadow: 0 0 18px rgba(223,173,82,.1);
+}
+
+.rf-brand-wordmark strong::first-letter { color: var(--forged-metal-hi); }
+
+.rf-brand-wordmark small {
+  color: #b48a42;
+  font-family: var(--font-body), sans-serif;
+  font-size: 5px;
+  font-weight: 900;
+  letter-spacing: .32em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   HOME HERO — a real product signature above the campaign copy.
+   -------------------------------------------------------------------------- */
+.forged-hero-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 17px;
+  margin: 0 0 24px;
+  padding: 11px 17px 11px 11px;
+  border: 1px solid rgba(232,203,146,.16);
+  background:
+    linear-gradient(90deg, rgba(14,17,22,.78), rgba(5,7,10,.48)),
+    radial-gradient(circle at 16% 50%, rgba(223,173,82,.12), transparent 42%);
+  box-shadow: inset 0 1px rgba(255,255,255,.035), 0 18px 44px rgba(0,0,0,.18);
+  backdrop-filter: blur(10px);
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px);
+}
+
+.forged-hero-mark {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  background: var(--forged-mark) center / contain no-repeat;
+  filter: drop-shadow(0 0 16px rgba(225,174,82,.24));
+}
+
+.forged-hero-wordmark {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.forged-hero-wordmark strong {
+  color: #f5f0e6;
+  font-family: var(--font-display), serif;
+  font-size: clamp(28px, 3vw, 44px);
+  font-weight: 900;
+  letter-spacing: .17em;
+  line-height: .9;
+  text-shadow: 0 6px 28px rgba(0,0,0,.7);
+}
+
+.forged-hero-wordmark small {
+  margin-top: 8px;
+  color: var(--forged-metal);
+  font-family: var(--font-body), sans-serif;
+  font-size: 8px;
+  font-weight: 1000;
+  letter-spacing: .48em;
+  line-height: 1;
+}
+
+.rf-hero-copy > .forged-hero-lockup + .rf-eyebrow { margin-top: 0; }
+
+/* Make the status orb repeat the same product glyph rather than a generic diamond. */
+.rf-nexus-orb > span {
+  width: 58px;
+  height: 58px;
+  color: transparent;
+  font-size: 0;
+  background: var(--forged-mark) center / contain no-repeat;
+  filter: drop-shadow(0 0 11px rgba(255,215,120,.26));
+}
+
+/* --------------------------------------------------------------------------
+   FOOTER LOCKUP
+   -------------------------------------------------------------------------- */
+.forged-footer-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #eee8dc;
+}
+
+.forged-footer-brand::before {
+  content: '';
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  background: var(--forged-mark) center / contain no-repeat;
+}
+
+.forged-footer-brand > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.forged-footer-brand strong {
+  font-family: var(--font-display), serif;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .18em;
+}
+
+.forged-footer-brand small {
+  color: #9b773d;
+  font-size: 5px;
+  font-weight: 900;
+  letter-spacing: .3em;
+}
+
+/* --------------------------------------------------------------------------
+   OFFICIAL CARD BACK
+   Keep the old file in-repo for historical/regression compatibility, but the
+   candidate product layer visibly uses the new canonical FORGED back.
+   -------------------------------------------------------------------------- */
+.tcg-hand-card {
+  background-image: url('/brand/forged-card-back.svg') !important;
+}
+
+/* --------------------------------------------------------------------------
+   BRAND IDENTITY 1.2 — GAMEPLAY SHELL
+   BattleView stays byte-for-byte frozen. This presentation layer replaces the
+   legacy arena wordmark without changing match state, events, DOM contracts or
+   authoritative gameplay. Lore terms such as Nexus remain intact.
+   -------------------------------------------------------------------------- */
+.tcg-match-brand {
+  min-width: 190px;
+  padding-left: 31px;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 1;
+  background: var(--forged-mark) left center / 24px 24px no-repeat;
+  filter: drop-shadow(0 0 10px rgba(223,173,82,.08));
+}
+
+.tcg-match-brand > b { display: none !important; }
+
+.tcg-match-brand::before {
+  content: 'FORGED';
+  display: block;
+  color: #f3eee4;
+  font-family: var(--font-display), serif;
+  font-size: 13px;
+  font-weight: 1000;
+  letter-spacing: .18em;
+  line-height: 1;
+}
+
+.tcg-match-brand > small {
+  display: flex !important;
+  align-items: center;
+  margin-top: 4px;
+  color: transparent !important;
+  font-size: 0 !important;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tcg-match-brand > small::before {
+  content: 'THE CONVERGENCE';
+  color: var(--forged-metal);
+  font-family: var(--font-body), sans-serif;
+  font-size: 5px;
+  font-weight: 1000;
+  letter-spacing: .25em;
+}
+
+.tcg-match-brand > small::after {
+  content: ' · ARENA DO NEXUS';
+  color: #647186;
+  font-family: var(--font-body), sans-serif;
+  font-size: 5px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.match-result-seal strong {
+  display: block;
+  width: 42px;
+  height: 42px;
+  color: transparent !important;
+  font-size: 0 !important;
+  background: var(--forged-mark) center / contain no-repeat;
+  filter: drop-shadow(0 0 13px rgba(223,173,82,.24));
+}
+
+/* --------------------------------------------------------------------------
+   BRAND IDENTITY 1.3 — CERTIFICATION CLARITY
+   Visual 4.2 deliberately injects synthetic empty nodes to force local density.
+   Mark them unmistakably as stress probes so certification screenshots cannot
+   be confused with real cards whose art/content failed to render.
+   -------------------------------------------------------------------------- */
+.rf-v4-density-probe {
+  position: relative !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 1px dashed rgba(103,232,249,.38) !important;
+  background:
+    repeating-linear-gradient(135deg, rgba(34,211,238,.07) 0 7px, rgba(15,23,42,.22) 7px 14px),
+    rgba(4,10,18,.72) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.025) !important;
+}
+
+.rf-v4-density-probe::after {
+  content: 'STRESS';
+  color: rgba(165,243,252,.58);
+  font-size: 7px;
+  font-weight: 1000;
+  letter-spacing: .16em;
+  line-height: 1;
+  text-transform: uppercase;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE LOCKUP
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .forged-hero-mark { width: 60px; height: 60px; flex-basis: 60px; }
+  .forged-hero-wordmark strong { font-size: clamp(25px, 6vw, 36px); }
+  .forged-hero-wordmark small { font-size: 7px; letter-spacing: .37em; }
+  .tcg-match-brand { min-width: 162px; padding-left: 27px; background-size: 21px 21px; }
+  .tcg-match-brand::before { font-size: 11px; }
+  .tcg-match-brand > small::after { display: none; }
+}
+
+@media (max-width: 560px) {
+  .rf-brand .rf-brand-mark { width: 32px; height: 32px; flex-basis: 32px; }
+  .rf-brand-wordmark strong { font-size: 13px; }
+  .rf-brand-wordmark small { display: none; }
+  .forged-hero-lockup { gap: 11px; width: 100%; padding: 9px 12px 9px 8px; }
+  .forged-hero-mark { width: 52px; height: 52px; flex-basis: 52px; }
+  .forged-hero-wordmark strong { font-size: clamp(23px, 8.5vw, 32px); letter-spacing: .12em; }
+  .forged-hero-wordmark small { font-size: 6px; letter-spacing: .26em; }
+  .tcg-match-brand { min-width: 112px; padding-left: 24px; background-size: 18px 18px; }
+  .tcg-match-brand::before { font-size: 10px; letter-spacing: .12em; }
+  .tcg-match-brand > small::before { font-size: 4px; letter-spacing: .16em; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forged-hero-mark,
+  .rf-brand .rf-brand-mark,
+  .match-result-seal strong { filter: none; }
+}

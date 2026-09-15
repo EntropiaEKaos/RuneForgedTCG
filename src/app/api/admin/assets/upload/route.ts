@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { adminAuditLogs, adminGameDefinitions } from "@/db/schema";
-import { getAdminSessionContext, unauthorized } from "@/lib/admin-auth";
+import { adminRoleAllowed, getAdminSessionContext, unauthorized } from "@/lib/admin-auth";
 import { deleteAdminAsset, detectAssetType, storeAdminAsset, validateAssetPayload } from "@/lib/asset-storage";
 import { generateImageDerivatives } from "@/lib/image-derivatives";
 import { and, eq } from "drizzle-orm";
@@ -13,7 +13,7 @@ const MAX_ASSET_BYTES = 12_000_000;
 export async function POST(req: NextRequest) {
   const actor = await getAdminSessionContext(req);
   if (!actor) return unauthorized();
-  if (actor.role !== "admin") return Response.json({ ok: false, error: "Admin role required" }, { status: 403 });
+  if (!adminRoleAllowed(actor.role, "designer")) return Response.json({ ok: false, error: "Designer role required" }, { status: 403 });
 
   const form = await req.formData();
   const file = form.get("file");
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     row = await db.transaction(async (tx) => {
       const inserted = await tx.insert(adminGameDefinitions).values({
         domain: "asset-library", key, name: String(file.name || filename).slice(0, 120),
-        description: "Uploaded through Total Control", dangerLevel: "safe", schemaVersion: 1, payload, status: "draft", enabled: false,
+        description: "Uploaded through Studio Visual Authoring", dangerLevel: "safe", schemaVersion: 1, payload, status: "draft", enabled: false,
       }).onConflictDoNothing({ target: [adminGameDefinitions.domain, adminGameDefinitions.key] }).returning();
 
       let saved = inserted[0];

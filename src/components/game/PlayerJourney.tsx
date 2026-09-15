@@ -2,6 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { GameState } from "@/game/types";
+import {
+  BRAND_STORAGE_KEYS,
+  LEGACY_BRAND_STORAGE_KEYS,
+  readMigratedLocalSetting,
+  writeMirroredLocalSetting,
+} from "@/lib/product-brand";
 
 const JOURNEY = [
   { id: "summon", title: "Primeiro vínculo", test: (state: GameState) => state.players.player.stats.alliesSummoned > 0 },
@@ -14,7 +20,11 @@ const JOURNEY = [
 function readJourneyRecord(): string[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem("runeforge_journey_progress");
+    const raw = readMigratedLocalSetting(
+      localStorage,
+      BRAND_STORAGE_KEYS.journeyProgress,
+      LEGACY_BRAND_STORAGE_KEYS.journeyProgress,
+    );
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) return parsed.filter((id): id is string => JOURNEY.some((milestone) => milestone.id === id));
@@ -32,7 +42,14 @@ export function PlayerJourney({ state }: { state: GameState }) {
   const achievedList = useMemo(() => [...new Set([...record, ...achievedNow])], [record, achievedNow]);
   const achievedSnapshot = JSON.stringify(achievedList);
   useEffect(() => {
-    try { localStorage.setItem("runeforge_journey_progress", achievedSnapshot); } catch {}
+    try {
+      writeMirroredLocalSetting(
+        localStorage,
+        BRAND_STORAGE_KEYS.journeyProgress,
+        LEGACY_BRAND_STORAGE_KEYS.journeyProgress,
+        achievedSnapshot,
+      );
+    } catch {}
   }, [achievedSnapshot]);
   const achieved = new Set(achievedList);
   return (

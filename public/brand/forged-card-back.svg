@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 340" role="img" aria-labelledby="title desc">
+  <title id="title">FORGED: THE CONVERGENCE card back</title>
+  <desc id="desc">Obsidian forged-metal card back centered on the Convergence mark with six regional energy points.</desc>
+  <defs>
+    <linearGradient id="obsidian" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#171d24"/>
+      <stop offset=".22" stop-color="#070a0e"/>
+      <stop offset=".72" stop-color="#020406"/>
+      <stop offset="1" stop-color="#171008"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff0b0"/>
+      <stop offset=".34" stop-color="#dba84b"/>
+      <stop offset=".7" stop-color="#74400f"/>
+      <stop offset="1" stop-color="#f0cc75"/>
+    </linearGradient>
+    <radialGradient id="halo">
+      <stop offset="0" stop-color="#f6d37a" stop-opacity=".34"/>
+      <stop offset=".44" stop-color="#ba7223" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#020406" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="mesh" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <path d="M13 4v18M4 13h18" stroke="#f0c86c" stroke-opacity=".035" stroke-width="1"/>
+      <circle cx="13" cy="13" r="3" fill="none" stroke="#f0c86c" stroke-opacity=".028"/>
+    </pattern>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect x="3" y="3" width="234" height="334" rx="22" fill="url(#obsidian)" stroke="#080b0f" stroke-width="6"/>
+  <path d="M26 12h188l14 14v288l-14 14H26l-14-14V26z" fill="url(#mesh)" stroke="url(#metal)" stroke-width="3"/>
+  <path d="M36 23h168l12 12v270l-12 12H36l-12-12V35z" fill="none" stroke="#f1cf78" stroke-opacity=".19"/>
+
+  <path d="M120 42 189 80 205 158 177 249 120 298 63 249 35 158 51 80Z" fill="none" stroke="#e0ad50" stroke-opacity=".16" stroke-width="2"/>
+  <path d="M120 63 172 91 185 157 163 232 120 273 77 232 55 157 68 91Z" fill="none" stroke="#f4d986" stroke-opacity=".10"/>
+  <circle cx="120" cy="166" r="94" fill="url(#halo)"/>
+
+  <!-- Six regional convergence points: Emberhold, Tidecall, Ironwood, Voidborn, Florestia, Tempestade. -->
+  <g stroke="#06080b" stroke-width="2">
+    <path d="M120 53l7 11-7 11-7-11z" fill="#f97316"/>
+    <path d="M190 103l4 13-11 7-4-13z" fill="#22d3ee"/>
+    <path d="M188 220l-7 11-13-4 7-11z" fill="#2dd4bf"/>
+    <path d="M120 278l-7-11 7-11 7 11z" fill="#d946ef"/>
+    <path d="M50 220l7-11 13 4-7 11z" fill="#fbbf24"/>
+    <path d="M50 103l7 11-11 7-4-13z" fill="#60a5fa"/>
+  </g>
+
+  <!-- Master Convergence crest. -->
+  <g transform="translate(120 166) scale(.62)" filter="url(#glow)">
+    <g fill="none" stroke="url(#metal)" stroke-linecap="square" stroke-width="15">
+      <path d="M0-98a98 98 0 0 1 63 23"/>
+      <path d="M80-56a98 98 0 0 1 17 67"/>
+      <path d="M83 38a98 98 0 0 1-53 52"/>
+      <path d="M0 98a98 98 0 0 1-65-24"/>
+      <path d="M-82 55a98 98 0 0 1-16-66"/>
+      <path d="M-84-38a98 98 0 0 1 54-52"/>
+    </g>
+    <path d="M0-76 29-34 16-12 34 0 16 12 29 34 0 76-29 34-16 12-34 0-16-12-29-34z" fill="#030507" stroke="url(#metal)" stroke-width="7" stroke-linejoin="bevel"/>
+    <path d="M0-55 13-31 5-11 18 0 5 11 13 31 0 55-13 31-5 11-18 0-5-11-13-31z" fill="#e7ba5e"/>
+    <circle r="7" fill="#fff2b3"/>
+  </g>
+
+  <g opacity=".55" fill="#ddb05a">
+    <path d="M29 36h30l-6 6H35z"/><path d="M181 36h30l-6 6h-24z"/>
+    <path d="M29 304h24l6 6H29z"/><path d="M187 304h24v6h-30z"/>
+  </g>
+</svg>

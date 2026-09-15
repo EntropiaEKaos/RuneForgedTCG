@@ -6,6 +6,8 @@ const root = process.cwd();
 const page = fs.readFileSync(path.join(root, "src/app/play/page.tsx"), "utf8");
 const entry = fs.readFileSync(path.join(root, "src/app/play/PlayEntryClient.tsx"), "utf8");
 const presentation = fs.readFileSync(path.join(root, "src/app/play/hooks/useGamePresentation.ts"), "utf8");
+const productBrand = fs.readFileSync(path.join(root, "src/lib/product-brand.ts"), "utf8");
+const journey = fs.readFileSync(path.join(root, "src/components/game/PlayerJourney.tsx"), "utf8");
 
 assert.match(page, /PlayEntryClient/);
 assert.match(entry, /ensurePlayerSession/);
@@ -14,9 +16,17 @@ assert.match(entry, /runeforge_ai_difficulty/);
 assert.match(entry, /ALPHA_FIRST_MATCH_DIFFICULTY/);
 assert.match(entry, /COMEÇAR TREINAMENTO/);
 assert.match(entry, /\/profile/);
-assert.match(presentation, /runeforge_first_match_guide/);
+assert.match(presentation, /readMigratedLocalSetting/);
+assert.match(presentation, /BRAND_STORAGE_KEYS\.firstMatchGuide/);
+assert.match(presentation, /LEGACY_BRAND_STORAGE_KEYS\.firstMatchGuide/);
 assert.match(presentation, /runeforge_training_checklist/);
 assert.match(presentation, /runeforge_ai_difficulty/);
+assert.match(productBrand, /firstMatchGuide/);
+assert.match(productBrand, /journeyProgress/);
+assert.match(productBrand, /writeMirroredLocalSetting/);
+assert.match(journey, /writeMirroredLocalSetting/);
+assert.match(journey, /BRAND_STORAGE_KEYS\.journeyProgress/);
+assert.match(journey, /LEGACY_BRAND_STORAGE_KEYS\.journeyProgress/);
 assert.doesNotMatch(entry, /recoveryCode\s*[=:].*text/i, "first-run screen must not render the recovery secret directly");
 
-console.log("ALPHA FIRST-RUN ONBOARDING SOURCE CONTRACT: PASS");
+console.log("ALPHA FIRST-RUN ONBOARDING SOURCE CONTRACT: PASS — Brand 1.2 candidate storage remains legacy-compatible");

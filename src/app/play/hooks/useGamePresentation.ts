@@ -8,6 +8,11 @@ import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { useGameFx } from "@/hooks/useGameFx";
 import { useFrameHealth } from "@/hooks/useFrameHealth";
 import { getClientMasterVolume } from "@/game/client-game-config";
+import {
+  BRAND_STORAGE_KEYS,
+  LEGACY_BRAND_STORAGE_KEYS,
+  readMigratedLocalSetting,
+} from "@/lib/product-brand";
 
 export function useGamePresentation({
   state,
@@ -37,7 +42,12 @@ export function useGamePresentation({
   const performanceTier = useFrameHealth();
 
   useDeferredEffect(() => {
-    if (localStorage.getItem("runeforge_first_match_guide") !== "complete") setGuideOpen(true);
+    const firstMatchGuide = readMigratedLocalSetting(
+      localStorage,
+      BRAND_STORAGE_KEYS.firstMatchGuide,
+      LEGACY_BRAND_STORAGE_KEYS.firstMatchGuide,
+    );
+    if (firstMatchGuide !== "complete") setGuideOpen(true);
     if (localStorage.getItem("runeforge_training_checklist") !== "complete") setTrainingOpen(true);
     setFxMode(localStorage.getItem("runeforge_fx_mode") === "reduced" ? "reduced" : "full");
     setUiScale(localStorage.getItem("runeforge_ui_scale") === "compact" ? "compact" : "comfortable");

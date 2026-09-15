@@ -1,9 +1,10 @@
 import ModesClient from "./ModesClient";
 import { getRuntimeModes } from "@/lib/control-plane";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 
 export const metadata = {
-  title: "Modos de Jogo — RuneForge",
-  description: "Explore Expedições, Puzzles, Boss Battles e Brawls de RuneForge, com objetivos, regras especiais e recompensas próprias.",
+  title: `Modos de Jogo — ${PRODUCT_BRAND.fullName}`,
+  description: `Explore Expedições, Puzzles, Boss Battles e Brawls de ${PRODUCT_BRAND.displayName}, com objetivos, regras especiais e recompensas próprias.`,
 };
 
 export const dynamic = "force-dynamic";

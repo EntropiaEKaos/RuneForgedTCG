@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">FORGED: THE CONVERGENCE mark</title>
+  <desc id="desc">A fractured forged ring with six regional nodes converging around a vertical Nexus core.</desc>
+  <defs>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff1b8"/>
+      <stop offset=".34" stop-color="#e0ae52"/>
+      <stop offset=".68" stop-color="#8a531b"/>
+      <stop offset="1" stop-color="#f2cf78"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff7cf"/>
+      <stop offset=".44" stop-color="#eabf62"/>
+      <stop offset="1" stop-color="#6f3c12"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <g fill="none" stroke="url(#metal)" stroke-linecap="square" stroke-width="15">
+    <path d="M128 30a98 98 0 0 1 63 23"/>
+    <path d="M208 72a98 98 0 0 1 17 67"/>
+    <path d="M211 166a98 98 0 0 1-53 52"/>
+    <path d="M128 226a98 98 0 0 1-65-24"/>
+    <path d="M46 183a98 98 0 0 1-16-66"/>
+    <path d="M44 90a98 98 0 0 1 54-52"/>
+  </g>
+
+  <g fill="#05070a" stroke="url(#metal)" stroke-width="4">
+    <path d="M128 14l10 15-10 15-10-15z"/>
+    <path d="M213 56l4 18-16 9-4-18z"/>
+    <path d="M218 171l-9 16-18-5 9-16z"/>
+    <path d="M128 242l-10-15 10-15 10 15z"/>
+    <path d="M43 200l-4-18 16-9 4 18z"/>
+    <path d="M38 85l9-16 18 5-9 16z"/>
+  </g>
+
+  <path d="M128 52l29 42-13 22 18 12-18 12 13 22-29 42-29-42 13-22-18-12 18-12-13-22z"
+        fill="#05070a" stroke="url(#metal)" stroke-width="7" stroke-linejoin="bevel"/>
+  <path d="M128 73l13 24-8 20 13 11-13 11 8 20-13 24-13-24 8-20-13-11 13-11-8-20z"
+        fill="url(#core)" opacity=".96" filter="url(#glow)"/>
+  <path d="M128 89v78" stroke="#fff3b5" stroke-width="3" opacity=".72"/>
+  <circle cx="128" cy="128" r="7" fill="#fff4be" filter="url(#glow)"/>
+</svg>

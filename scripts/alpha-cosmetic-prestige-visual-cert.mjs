@@ -147,7 +147,7 @@ async function clickText(cdp, text) {
 async function setLabeledValue(cdp, label, value) {
   const result = await evaluate(cdp, `(() => {
     const host = [...document.querySelectorAll('label')].find((candidate) => (candidate.querySelector('.label')?.textContent || '').trim() === ${JSON.stringify(label)});
-    const input = host?.querySelector('input,textarea');
+    const input = host?.querySelector('input,textarea,select');
     if (!input) return false;
     const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value')?.set;
     if (setter) setter.call(input, ${JSON.stringify(value)}); else input.value = ${JSON.stringify(value)};
@@ -283,7 +283,7 @@ async function main() {
       await clickText(cdp, "＋ Nova variante");
       await setLabeledValue(cdp, "Variant ID", variantId);
       await setLabeledValue(cdp, "Display name", cosmeticName);
-      await setLabeledValue(cdp, "Frame ID", "relic_gold");
+      await setLabeledValue(cdp, "Frame preset", "default");
       await setLabeledValue(cdp, "Finish", "foil");
       await setPackEligible(cdp);
       await setDropWeight(cdp, "2500");
@@ -307,7 +307,7 @@ async function main() {
       assert.ok(row, "Authored cosmetic variant must persist through the real Studio API");
       assert.equal(row.dropWeight, 2500, "Persisted Relic printing must keep 2,500 PPM");
       assert.equal(row.packEligible, true, "Persisted Relic printing must remain pack-eligible");
-      assert.equal(row.frameId, "relic_gold", "Persisted Relic printing must keep frame identity");
+      assert.equal(row.frameId, "default", "Persisted Relic printing must keep the selected frame preset");
       assert.equal(row.finish, "foil", "Persisted Relic printing must keep finish identity");
       assert.equal(Object.prototype.hasOwnProperty.call(row, 'rarity'), false, "Cosmetic persistence must not create gameplay rarity");
 
@@ -345,7 +345,7 @@ async function main() {
         screenshots: ["33-cosmetic-relic-authoring.png", "34-cosmetic-relic-persisted.png"],
       };
       await writeFile(join(outputDir, "cosmetic-prestige-visual-manifest.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
-      console.log("ALPHA COSMETIC PRESTIGE VISUAL CERT: PASS — real Studio authoring persists 2,500 PPM Relic frame without gameplay rarity mutation");
+      console.log("ALPHA COSMETIC PRESTIGE VISUAL CERT: PASS — real Studio authoring persists 2,500 PPM Relic printing with the selected frame preset and no gameplay rarity mutation");
     } catch (error) {
       await writeDiagnostic(cdp, error);
       throw error;
