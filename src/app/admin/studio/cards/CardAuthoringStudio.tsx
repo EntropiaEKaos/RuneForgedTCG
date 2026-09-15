@@ -131,7 +131,7 @@ function VisualAuthoringStudioHeader({ production }: { production: boolean }) {
         <div className="studio-brand">
           <div className="studio-brand-mark">◇</div>
           <div>
-            <div className="studio-kicker">{PRODUCT_BRAND.displayName} // VISUAL AUTHORING</div>
+            <div className="studio-kicker">{PRODUCT_BRAND.displayName} · VISUAL AUTHORING</div>
             <div className="studio-title">Card Authoring Studio <span className="text-amber-300">4.2.1</span></div>
           </div>
         </div>
