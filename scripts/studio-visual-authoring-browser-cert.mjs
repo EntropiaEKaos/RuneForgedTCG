@@ -118,16 +118,19 @@ async function setLabeledValue(cdp, label, value) {
 }
 
 async function selectLabeled(cdp, label, value) {
-  const result = await evaluate(cdp, `(() => {
-    const host = [...document.querySelectorAll('label')].find((candidate) => ((candidate.querySelector('.label')?.textContent || candidate.querySelector('span')?.textContent || '').trim()) === ${JSON.stringify(label)});
-    const select = host?.querySelector('select');
-    if (!select) return { found:false, ok:false };
-    const option = [...select.options].find((item) => item.value === ${JSON.stringify(value)});
-    if (!option) return { found:true, ok:false, options:[...select.options].map((item)=>item.value) };
-    select.value = option.value;
-    select.dispatchEvent(new Event('input', { bubbles:true })); select.dispatchEvent(new Event('change', { bubbles:true }));
-    return { found:true, ok:select.value === option.value };
-  })()`);
+  const result = await waitUntil(
+    () => evaluate(cdp, `(() => {
+      const host = [...document.querySelectorAll('label')].find((candidate) => ((candidate.querySelector('.label')?.textContent || candidate.querySelector('span')?.textContent || '').trim()) === ${JSON.stringify(label)});
+      const select = host?.querySelector('select');
+      if (!select) return false;
+      const option = [...select.options].find((item) => item.value === ${JSON.stringify(value)});
+      if (!option) return false;
+      select.value = option.value;
+      select.dispatchEvent(new Event('input', { bubbles:true })); select.dispatchEvent(new Event('change', { bubbles:true }));
+      return select.value === option.value ? { found:true, ok:true } : false;
+    })()`),
+    `${label} option ${value}`,
+  );
   assert.equal(result?.found, true, `Missing labeled select ${label}`);
   assert.equal(result?.ok, true, `${label} did not switch to ${value}: ${JSON.stringify(result)}`);
 }
@@ -236,12 +239,13 @@ async function main() {
 
     await navigate(cdp, "/admin/studio/art");
     await waitForText(cdp, "Art Pipeline");
-    await waitForText(cdp, "Cobertura");
+    await waitForText(cdp, "P0 pendentes");
     const artMetrics = await capture(cdp, "43-studio-art-pipeline.png", "Art Pipeline");
-    const artEvidence = await evaluate(cdp, `(() => ({ mounted:document.querySelector('[data-studio-art-pipeline="visual-authoring-1.0"]') !== null, hasUpload:[...document.querySelectorAll('label')].some((x)=>(x.textContent||'').includes('Upload imagem')), hasFrameBuilder:(document.body?.innerText||'').includes('Frame Builder') }))()`);
+    const artEvidence = await evaluate(cdp, `(() => ({ mounted:document.querySelector('[data-studio-art-pipeline="visual-authoring-1.1"]') !== null, hasUpload:[...document.querySelectorAll('label')].some((x)=>(x.textContent||'').includes('Upload imagem')), hasFrameBuilder:(document.body?.innerText||'').includes('Frame Builder'), hasAlphaPriority:(document.body?.innerText||'').includes('P0 pendentes') && (document.body?.innerText||'').includes('Prioridade Alpha') }))()`);
     assert.equal(artEvidence.mounted, true);
     assert.equal(artEvidence.hasUpload, true);
     assert.equal(artEvidence.hasFrameBuilder, true);
+    assert.equal(artEvidence.hasAlphaPriority, true);
 
     const report = {
       ok:true,
@@ -254,7 +258,7 @@ async function main() {
       screenshots:["41-studio-frame-builder.png","42-studio-card-visual-authoring.png","43-studio-art-pipeline.png"],
     };
     await writeFile(join(outputDir, "studio-visual-authoring-manifest.json"), `${JSON.stringify(report,null,2)}\n`, "utf8");
-    console.log("STUDIO VISUAL AUTHORING BROWSER CERT: PASS — Frame Builder + card art/crop + Art Pipeline certified in real browser");
+    console.log("STUDIO VISUAL AUTHORING BROWSER CERT: PASS — Frame Builder + card art/crop + Alpha-priority Art Pipeline certified in real browser");
   } finally {
     cdp?.close(); await shutdown(chrome, profileDir);
     if (stderr && process.exitCode) console.error(stderr);
