@@ -33,6 +33,7 @@ const PRIMARY_LINKS: ClientLink[] = [
 
 const PROFILE_LINKS: ClientLink[] = [
   { href: "/profile", label: "Perfil", icon: "◉", routes: ["/profile"] },
+  { href: "/profile/security", label: "Acesso & Segurança", icon: "◇", routes: ["/profile/security"] },
 ];
 
 function routeMatches(pathname: string, route: string) {
