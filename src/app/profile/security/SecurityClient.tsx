@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useState } from "react";
 import SiteNav from "@/components/SiteNav";
+import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { PRODUCT_BRAND } from "@/lib/product-brand";
 
 type ProviderName = "google" | "discord" | "email";
@@ -85,7 +86,7 @@ export default function SecurityClient() {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useDeferredEffect(() => { void load(); }, [load]);
 
   const oauth = (provider: ProviderName) => {
     if (provider === "email") return;
