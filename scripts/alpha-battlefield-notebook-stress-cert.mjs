@@ -139,7 +139,7 @@ async function dismissRecoveryAfterHydration(cdp) {
 
 async function visibleStage(cdp) {
   if (await recoveryDialogPresent(cdp)) return "recovery";
-  return evaluate(cdp, `(()=>{const text=document.body?.innerText||'';if(text.includes('PRIMEIRO ACESSO · ALPHA JOGÁVEL'))return'onboarding';if(text.includes('Escolha seu deck'))return'deck';if(text.includes('Prepare sua mão inicial'))return'mulligan';if(document.querySelector('.tcg-arena'))return'battle';return null})()`);
+  return evaluate(cdp, `(()=>{const text=document.body?.innerText||'';if(text.includes('Entre na Forja.'))return'auth';if(text.includes('FORJE SUA IDENTIDADE'))return'nickname';if(text.includes('PRIMEIRO ACESSO · ALPHA JOGÁVEL'))return'onboarding';if(text.includes('Escolha seu deck'))return'deck';if(text.includes('Prepare sua mão inicial'))return'mulligan';if(document.querySelector('.tcg-arena'))return'battle';return null})()`);
 }
 
 async function waitForStage(cdp, allowed, label, timeoutMs = 30_000) {
@@ -149,12 +149,34 @@ async function waitForStage(cdp, allowed, label, timeoutMs = 30_000) {
   }, label, timeoutMs);
 }
 
+async function forgeCertificationNickname(cdp, name) {
+  const filled = await evaluate(cdp, `(()=>{const input=[...document.querySelectorAll('input')].find(element=>element.getAttribute('placeholder')==='Seu nome na Forja');if(!input)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(!setter)return false;setter.call(input,${JSON.stringify(name)});input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
+  assert.equal(filled, true, "Identity/Auth nickname input must be available to the notebook cert");
+  await clickText(cdp, "FORJAR IDENTIDADE");
+}
+
 async function enterTrainingBattle(cdp) {
   await navigate(cdp, "/play");
-  let stage = await waitForStage(cdp, ["recovery", "onboarding", "deck", "mulligan", "battle"], "Alpha entry stage");
+  let stage = await waitForStage(cdp, ["recovery", "auth", "nickname", "onboarding", "deck", "mulligan", "battle"], "Alpha entry stage");
+  for (let guard = 0; guard < 6 && ["recovery", "auth", "nickname"].includes(stage); guard += 1) {
+    if (stage === "recovery") {
+      await dismissRecoveryAfterHydration(cdp);
+      stage = await waitForStage(cdp, ["auth", "nickname", "onboarding", "deck", "mulligan", "battle"], "post-recovery identity stage");
+      continue;
+    }
+    if (stage === "auth") {
+      await clickText(cdp, "CONTINUAR COMO CONVIDADO");
+      stage = await waitForStage(cdp, ["recovery", "nickname", "onboarding", "deck", "mulligan", "battle"], "post-guest identity stage");
+      continue;
+    }
+    if (stage === "nickname") {
+      await forgeCertificationNickname(cdp, "Notebook Visual Cert");
+      stage = await waitForStage(cdp, ["recovery", "onboarding", "deck", "mulligan", "battle"], "post-nickname identity stage");
+    }
+  }
   if (stage === "recovery") {
     await dismissRecoveryAfterHydration(cdp);
-    stage = await waitForStage(cdp, ["onboarding", "deck", "mulligan", "battle"], "post-recovery stage");
+    stage = await waitForStage(cdp, ["onboarding", "deck", "mulligan", "battle"], "post-identity recovery stage");
   }
   if (stage === "onboarding") {
     await clickText(cdp, "COMEÇAR TREINAMENTO");
