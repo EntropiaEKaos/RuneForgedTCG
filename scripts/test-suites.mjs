@@ -51,6 +51,7 @@ export const behavioralTests = [
   "src/game/alpha-p0-batch-3-art.test.ts",
   "src/game/alpha-p0-batch-4-art.test.ts",
   "src/game/alpha-p0-batch-5-art.test.ts",
+  "src/game/alpha-p1-batch-1-art.test.ts",
   "src/game/flagship-champion-art.test.ts",
   "src/game/cost-reduction-contract.test.ts",
   "src/game/effect-chain-contract.test.ts",
