@@ -70,6 +70,10 @@ has("src/app/api/auth/email/start/route.ts", "15 * 60_000", "magic-link lifetime
 has("src/app/api/auth/email/callback/route.ts", "isNull(authLoginTokens.consumedAt)", "magic-link callback refuses replayed tokens");
 has("src/app/play/PlayEntryClient.tsx", "Entre na", "player entry is explicit instead of silent account creation");
 lacks("src/components/CatalogBootstrap.tsx", "ensurePlayerSession", "global catalog bootstrap never creates player identities implicitly");
+has("src/lib/client-player-session.ts", "export async function createGuestPlayerSession()", "Guest creation has an explicit client action boundary");
+has("src/lib/client-player-session.ts", "if (!current.ok) return json(current);", "session resolution fails closed instead of minting a Guest");
+has("src/app/play/PlayEntryClient.tsx", "createGuestPlayerSession()", "explicit Guest button uses the dedicated creation boundary");
+lacks("src/app/play/PlayEntryClient.tsx", "ensurePlayerSession", "player entry cannot create a Guest through legacy session ensure semantics");
 has("src/app/admin/studio/StudioChrome.tsx", "/admin/studio/identity", "Identity & Auth is discoverable from Studio");
 has("src/app/api/auth/identities/route.ts", "getPlayerSession", "linked identity status requires an authenticated player session");
 lacks("src/app/api/auth/identities/route.ts", "providerSubject:", "player identity status never serializes provider subject identifiers");
