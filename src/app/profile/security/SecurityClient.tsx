@@ -87,7 +87,8 @@ export default function SecurityClient() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const oauth = (provider: "google" | "discord") => {
+  const oauth = (provider: ProviderName) => {
+    if (provider === "email") return;
     router.push(`/api/auth/oauth/${provider}/start?returnTo=${encodeURIComponent("/profile/security")}`);
   };
 
