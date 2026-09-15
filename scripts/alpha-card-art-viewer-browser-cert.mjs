@@ -8,9 +8,25 @@ import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrom
 const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
-const defId = "ember_champion";
-const cardName = "Pyra, the Everflame";
-const artPath = "/art/cards/flagship/emberhold/ember_champion.webp";
+const flagshipSubject = {
+  defId: "ember_champion",
+  cardName: "Pyra, the Everflame",
+  artPath: "/art/cards/flagship/emberhold/ember_champion.webp",
+  labelPattern: /Pyra/i,
+};
+const p0Subject = {
+  defId: "ember_bolt",
+  cardName: "Scorching Bolt",
+  artPath: "/art/cards/alpha-p0/emberhold/ember_bolt.webp",
+  labelPattern: /Scorching Bolt/i,
+};
+const activeP0Paths = [
+  "/art/cards/alpha-p0/emberhold/ember_bolt.webp",
+  "/art/cards/alpha-p0/ironwood/wood_webweaver.webp",
+  "/art/cards/alpha-p0/tidecall/tide_guard.webp",
+  "/art/cards/alpha-p0/ironwood/wood_growth.webp",
+  "/art/cards/alpha-p0/ironwood/wood_mend.webp",
+];
 
 function sleep(ms) { return new Promise((resolvePromise) => setTimeout(resolvePromise, ms)); }
 
@@ -140,9 +156,9 @@ async function setSearch(cdp, placeholderFragment, value) {
   assert.equal(changed, true, `Search input containing ${placeholderFragment} not found`);
 }
 
-async function hoverCard(cdp) {
-  const selector = `[data-card-tip-def-id=${JSON.stringify(defId)}]`;
-  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`), `${defId} card`);
+async function hoverCard(cdp, subject) {
+  const selector = `[data-card-tip-def-id=${JSON.stringify(subject.defId)}]`;
+  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`), `${subject.defId} card`);
   const point = await evaluate(cdp, `(() => {
     const target = document.querySelector(${JSON.stringify(selector)});
     if (!target) return null;
@@ -150,26 +166,26 @@ async function hoverCard(cdp) {
     const rect = target.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   })()`);
-  assert.ok(point, `Could not locate ${defId}`);
+  assert.ok(point, `Could not locate ${subject.defId}`);
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
   await sleep(120);
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
   await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-tooltip-panel="true"]'))`), "card intelligence tooltip");
-  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer-trigger="${defId}"]'))`), "VER ARTE trigger");
+  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer-trigger="${subject.defId}"]'))`), "VER ARTE trigger");
 }
 
-async function openViewer(cdp) {
+async function openViewer(cdp, subject) {
   const clicked = await evaluate(cdp, `(() => {
-    const trigger = document.querySelector('[data-card-art-viewer-trigger="${defId}"]');
+    const trigger = document.querySelector('[data-card-art-viewer-trigger="${subject.defId}"]');
     if (!trigger) return false;
     trigger.click();
     return true;
   })()`);
   assert.equal(clicked, true, "VER ARTE button could not be clicked");
-  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer="${defId}"]'))`), "full-art dialog");
+  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer="${subject.defId}"]'))`), "full-art dialog");
   const state = await evaluate(cdp, `(() => {
-    const dialog = document.querySelector('[data-card-art-viewer="${defId}"]');
-    const image = document.querySelector('[data-card-art-viewer-image="${defId}"]');
+    const dialog = document.querySelector('[data-card-art-viewer="${subject.defId}"]');
+    const image = document.querySelector('[data-card-art-viewer-image="${subject.defId}"]');
     return {
       role: dialog?.getAttribute('role') || '',
       modal: dialog?.getAttribute('aria-modal') || '',
@@ -180,14 +196,14 @@ async function openViewer(cdp) {
   })()`);
   assert.equal(state.role, "dialog", "full-art viewer must expose dialog semantics");
   assert.equal(state.modal, "true", "full-art viewer must be modal");
-  assert.match(state.label, /Pyra/i, "full-art viewer must identify the card");
-  assert.ok(state.background.includes(artPath), `full-art viewer must render ${artPath}`);
+  assert.match(state.label, subject.labelPattern, "full-art viewer must identify the card");
+  assert.ok(state.background.includes(subject.artPath), `full-art viewer must render ${subject.artPath}`);
   assert.equal(state.overflow, "hidden", "full-art viewer must lock background scrolling");
 }
 
-async function closeViewer(cdp) {
+async function closeViewer(cdp, subject) {
   await evaluate(cdp, `window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`);
-  await waitUntil(() => evaluate(cdp, `!document.querySelector('[data-card-art-viewer="${defId}"]')`), "full-art dialog to close");
+  await waitUntil(() => evaluate(cdp, `!document.querySelector('[data-card-art-viewer="${subject.defId}"]')`), "full-art dialog to close");
 }
 
 async function capture(cdp, filename) {
@@ -198,11 +214,16 @@ async function capture(cdp, filename) {
   await writeFile(join(outputDir, filename), Buffer.from(screenshot.data, "base64"));
 }
 
+async function assertServedWebp(path) {
+  const response = await fetch(`${baseUrl}${path}`);
+  assert.equal(response.ok, true, `${path} must be served by the built app`);
+  assert.match(response.headers.get("content-type") || "", /^image\/webp/i, `${path} must remain WebP`);
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
-  const artResponse = await fetch(`${baseUrl}${artPath}`);
-  assert.equal(artResponse.ok, true, `${artPath} must be served by the built app`);
-  assert.match(artResponse.headers.get("content-type") || "", /^image\/webp/i, `${artPath} must remain WebP`);
+  await assertServedWebp(flagshipSubject.artPath);
+  for (const path of activeP0Paths) await assertServedWebp(path);
 
   const profileDir = await mkdtemp(join(tmpdir(), "runeforge-card-art-viewer-"));
   let port = 0;
@@ -221,21 +242,27 @@ async function main() {
 
     await navigate(cdp, "/codex");
     await dismissRecoveryHandoffIfPresent(cdp);
-    await setSearch(cdp, "Nome, habilidade", cardName);
-    await hoverCard(cdp);
-    await openViewer(cdp);
+    await setSearch(cdp, "Nome, habilidade", flagshipSubject.cardName);
+    await hoverCard(cdp, flagshipSubject);
+    await openViewer(cdp, flagshipSubject);
     await capture(cdp, "10k-codex-art-viewer.png");
-    await closeViewer(cdp);
+    await closeViewer(cdp, flagshipSubject);
+
+    await setSearch(cdp, "Nome, habilidade", p0Subject.cardName);
+    await hoverCard(cdp, p0Subject);
+    await openViewer(cdp, p0Subject);
+    await capture(cdp, "45-alpha-p0-ember-bolt-art-viewer.png");
+    await closeViewer(cdp, p0Subject);
 
     await navigate(cdp, "/collection");
     await waitUntil(() => evaluate(cdp, `Boolean([...document.querySelectorAll('input')].find((element) => (element.placeholder || '').includes('Buscar nome')))`) , "Collection search input");
-    await setSearch(cdp, "Buscar nome", cardName);
-    await hoverCard(cdp);
-    await openViewer(cdp);
+    await setSearch(cdp, "Buscar nome", flagshipSubject.cardName);
+    await hoverCard(cdp, flagshipSubject);
+    await openViewer(cdp, flagshipSubject);
     await capture(cdp, "10l-collection-art-viewer.png");
-    await closeViewer(cdp);
+    await closeViewer(cdp, flagshipSubject);
 
-    console.log("CARD ART VIEWER BROWSER CERT: PASS — Codex + Collection expose full Pyra art with accessible lightbox");
+    console.log("CARD ART VIEWER BROWSER CERT: PASS — Flagship viewer preserved + five active P0 WebPs served + Scorching Bolt runtime viewer certified");
   } finally {
     try { cdp?.close(); } catch {}
     if (chrome.exitCode == null && chrome.signalCode == null) chrome.kill("SIGTERM");
