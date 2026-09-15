@@ -28,16 +28,16 @@ assert.equal(ALPHA_P0_ART_FORMAT.delivery, "webp");
 const activeIds = new Set<string>(ALPHA_P0_ACTIVE_IDS);
 const pendingTargets = ALPHA_P0_ART_TARGETS.filter((target) => !activeIds.has(target.defId));
 const liveP0 = alphaArtPriorityQueue().filter((row) => row.priority === "P0");
-assert.equal(pendingTargets.length, 0, "Every certified P0 target must be active after final activation");
-assert.equal(liveP0.length, 0, "Final activation must exhaust the live P0 production queue");
+assert.equal(pendingTargets.length, 0, "Every certified P0 target must remain active after later priority promotions");
+assert.equal(liveP0.length, 0, "Later P1 activation must not reintroduce any P0 production debt");
 
 const snapshot = alphaArtBacklogSnapshot();
 assert.equal(snapshot.uniqueStarterCards, 140, "Starter art universe must remain 140 unique cards");
-assert.equal(snapshot.covered, 51, "30 Flagship masters + twenty-one activated P0 masters must report 51 covered starter cards");
-assert.equal(snapshot.missing, 89, "Final P0 activation must leave 89 starter cards without dedicated art");
-assert.equal(snapshot.byPriority.P0, 0, "Final P0 activation must leave no P0 cards pending");
-assert.equal(snapshot.byPriority.P1, 46, "Final P0 activation must not change the P1 queue");
-assert.equal(snapshot.byPriority.P2, 43, "Final P0 activation must not change the P2 queue");
+assert.equal(snapshot.covered, 56, "30 Flagship + 21 P0 + five P1 masters must report 56 covered starter cards");
+assert.equal(snapshot.missing, 84, "P1 Batch 1 activation must leave 84 starter cards without dedicated art");
+assert.equal(snapshot.byPriority.P0, 0, "P1 Batch 1 activation must keep the P0 queue exhausted");
+assert.equal(snapshot.byPriority.P1, 41, "P1 Batch 1 activation must leave 41 P1 cards pending");
+assert.equal(snapshot.byPriority.P2, 43, "P1 Batch 1 activation must not change the P2 queue");
 
 for (const target of ALPHA_P0_ART_TARGETS) {
   assert.ok(target.assetPath.startsWith(`${ALPHA_P0_ART_ROOT}/${target.region.toLowerCase()}/`), `${target.defId} must live under its regional P0 art directory`);
@@ -45,9 +45,9 @@ for (const target of ALPHA_P0_ART_TARGETS) {
   assert.ok(target.brief.length >= 80, `${target.defId} production brief is too thin`);
 
   const exposure = alphaArtExposure(target.defId);
-  assert.equal(activeIds.has(target.defId), true, `${target.defId} must be active after final P0 promotion`);
-  assert.equal(exposure.priority, "covered", `${target.defId} must leave the P0 queue after activation`);
-  assert.equal(exposure.knownDedicatedArt, true, `${target.defId} must be reported as covered after certified activation`);
+  assert.equal(activeIds.has(target.defId), true, `${target.defId} must remain active after P1 promotion`);
+  assert.equal(exposure.priority, "covered", `${target.defId} must remain outside the production queue`);
+  assert.equal(exposure.knownDedicatedArt, true, `${target.defId} must remain reported as covered`);
   assert.equal(alphaP0ArtUrl(target.defId), target.assetPath, `${target.defId} active registry must resolve its certified master`);
   assert.equal(getCardArt(target.defId)?.url, target.assetPath, `${target.defId} must resolve its built-in P0 master`);
   assert.equal(getCard(target.defId).art, target.assetPath, `${target.defId} catalog overlay must expose its P0 master`);
@@ -60,4 +60,4 @@ assert.equal(getCardArt("ember_bolt")?.url, "/uploads/editorial/ember-bolt-appro
 replaceRegisteredCardArt([]);
 assert.equal(getCardArt("ember_bolt")?.url, emberBoltPath, "Clearing editorial art must restore the certified P0 master");
 
-console.log("FORGED ALPHA P0 ART ACTIVATION: 21 active / 51 covered / 89 backlog / 0 P0 pending / PASS");
+console.log("FORGED ALPHA P0 ART ACTIVATION: 21 active / 56 covered / 84 backlog / 0 P0 pending / P1 activation coexistence PASS");
