@@ -34,6 +34,18 @@ const LABELS: Record<ProviderName, { title: string; copy: string; glyph: string 
   discord: { title: "Discord", copy: "Vincule sua identidade do Discord ao mesmo forjador.", glyph: "D" },
   email: { title: "E-mail", copy: "Receba um magic link de uso único, com expiração em 15 minutos.", glyph: "@" },
 };
+const AUTH_ERRORS: Record<string, string> = {
+  identity_conflict: "Esta identidade já está vinculada a outro forjador.",
+  provider_cancelled: "A vinculação foi cancelada no provedor.",
+  provider_unavailable: "Este método de entrada não está disponível agora.",
+  invalid_oauth_state: "A tentativa de vinculação expirou ou perdeu o estado de segurança.",
+  token_exchange_failed: "O provedor recusou a troca segura do código de acesso.",
+  profile_fetch_failed: "Não foi possível validar o perfil retornado pelo provedor.",
+  invalid_magic_link: "O magic link é inválido.",
+  expired_magic_link: "O magic link expirou ou já foi utilizado.",
+  oauth_failed: "Não foi possível concluir a vinculação OAuth.",
+  magic_link_failed: "Não foi possível concluir a vinculação por e-mail.",
+};
 
 export default function SecurityClient() {
   const router = useRouter();
@@ -61,8 +73,11 @@ export default function SecurityClient() {
       setPlayer(payload.player ?? null);
       setProviders(payload.providers ?? []);
       const params = new URLSearchParams(window.location.search);
+      const authError = params.get("auth_error");
       const linked = params.get("auth");
-      if (linked) setMessage(`${linked === "email" ? "E-mail" : linked[0]?.toUpperCase() + linked.slice(1)} vinculado à sua conta.`);
+      if (authError) setMessage(AUTH_ERRORS[authError] || "Não foi possível concluir a vinculação.");
+      else if (linked) setMessage(`${linked === "email" ? "E-mail" : linked[0]?.toUpperCase() + linked.slice(1)} vinculado à sua conta.`);
+      if (authError || linked) window.history.replaceState({}, "", "/profile/security");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível carregar a segurança da conta.");
     } finally {
