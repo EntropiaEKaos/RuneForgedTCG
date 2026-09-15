@@ -70,7 +70,7 @@ function isExpectedAuthTransitionNetworkLog(message){
   if(entry?.source!=="network"||entry?.level!=="error") return false;
   const url=String(entry.url||"");
   const text=String(entry.text||"");
-  if(text.includes("401 (Unauthorized)")&&(url.endsWith("/api/admin/session")||url.endsWith("/api/player"))) return true;
+  if(text.includes("401 (Unauthorized)")&&(url.endsWith("/api/admin/session")||url.endsWith("/api/player")||url.endsWith("/api/player/cosmetics"))) return true;
   return text.includes("404 (Not Found)")&&url.endsWith("/favicon.ico");
 }
 async function shutdown(chrome,profileDir){if(chrome.exitCode==null&&chrome.signalCode==null)chrome.kill("SIGTERM");await sleep(300);if(chrome.exitCode==null&&chrome.signalCode==null)chrome.kill("SIGKILL");await rm(profileDir,{recursive:true,force:true,maxRetries:5,retryDelay:200}).catch(()=>{});}
@@ -93,11 +93,15 @@ async function main(){
     await clearPlayerSession(cdp,"anonymous entry setup");
 
     await navigate(cdp,"/play"); await waitForText(cdp,"Entre na"); await waitForText(cdp,"CONTINUAR COMO CONVIDADO");
+    const preGuestState=await evaluate(cdp,`(async()=>{const recovery=[...document.querySelectorAll('[role="dialog"]')].some(node=>(node.textContent||'').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'));const playerStatus=(await fetch('/api/player',{cache:'no-store',credentials:'include'})).status;return {recovery,playerStatus};})()`);
+    assert.equal(preGuestState?.recovery,false,"Anonymous auth entry must not issue a recovery key before explicit Guest choice");
+    assert.equal(preGuestState?.playerStatus,401,"Anonymous auth entry must not create a player session before explicit Guest choice");
     const entry=await capture(cdp,"57-identity-auth-entry.png","Player Identity/Auth → explicit entry");
     assert.ok(normalizeText(entry.bodyText).includes(normalizeText("Escolha como quer continuar")),"Auth entry must explain explicit identity choice");
     await clickText(cdp,"CONTINUAR COMO CONVIDADO");
-    await waitForText(cdp,"FORJE SUA IDENTIDADE");
+    await waitForText(cdp,"SALVE SUA CHAVE DE RECUPERAÇÃO");
     await dismissRecovery(cdp);
+    await waitForText(cdp,"FORJE SUA IDENTIDADE");
     await waitForText(cdp,"FORJAR IDENTIDADE");
     await capture(cdp,"58-identity-auth-nickname.png","Player Identity/Auth → nickname forging");
     await fillNickname(cdp,"Identity Cert"); await clickText(cdp,"FORJAR IDENTIDADE"); await waitForText(cdp,"PRIMEIRO ACESSO · ALPHA JOGÁVEL");
@@ -113,8 +117,8 @@ async function main(){
     const severe=cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown"||(message.method==="Log.entryAdded"&&["error","assert"].includes(message.params?.entry?.level)&&!isExpectedAuthTransitionNetworkLog(message)));
     assert.equal(severe.length,0,`Browser emitted runtime errors: ${JSON.stringify(severe.slice(0,3))}`);
     const screenshots=["57-identity-auth-entry.png","58-identity-auth-nickname.png","59-studio-identity-provider-vault.png","60-profile-access-security.png"];
-    await writeFile(join(outputDir,"57-60-identity-auth-browser-cert.json"),`${JSON.stringify({ok:true,gitSha:process.env.GITHUB_SHA||null,screenshots,guestFallback:true,providerControls:["google","discord","email"],playerLinkingWorkspace:true},null,2)}\n`);
-    console.log("IDENTITY AUTH BROWSER CERT: PASS — explicit entry + nickname + Studio provider vault + player linking workspace certified in real browser");
+    await writeFile(join(outputDir,"57-60-identity-auth-browser-cert.json"),`${JSON.stringify({ok:true,gitSha:process.env.GITHUB_SHA||null,screenshots,anonymousUntilGuestChoice:true,guestFallback:true,providerControls:["google","discord","email"],playerLinkingWorkspace:true},null,2)}\n`);
+    console.log("IDENTITY AUTH BROWSER CERT: PASS — anonymous explicit entry + explicit Guest creation + nickname + Studio provider vault + player linking workspace certified in real browser");
   } catch(error) {
     if(cdp){try{console.error("--- Identity/Auth browser snapshot ---",await evaluate(cdp,`({href:location.href,title:document.title,bodyText:(document.body?.innerText||'').replace(/\\s+/g,' ').trim().slice(0,1200)})`));}catch{}}
     if(stderr.trim())console.error(stderr.slice(-5000)); throw error;
