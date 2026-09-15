@@ -9,6 +9,7 @@ const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
 const viewport = { width:1440, height:1000, deviceScaleFactor:1, mobile:false };
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+const normalizeText = (value) => String(value || "").toLocaleLowerCase("pt-BR");
 
 function findChrome() {
   for (const candidate of [process.env.CHROME_BIN,"google-chrome","google-chrome-stable","chromium","chromium-browser"].filter(Boolean)) {
@@ -55,7 +56,7 @@ class CdpClient {
 async function evaluate(cdp,expression){const result=await cdp.call("Runtime.evaluate",{expression,awaitPromise:true,returnByValue:true,userGesture:true});if(result.exceptionDetails)throw new Error(result.exceptionDetails.exception?.description||result.exceptionDetails.text||"Runtime evaluation failed");return result.result?.value;}
 async function waitUntil(check,label,timeoutMs=25_000){const deadline=Date.now()+timeoutMs;let last;while(Date.now()<deadline){try{last=await check();if(last)return last;}catch(error){last=error;}await sleep(125);}throw new Error(`Timed out waiting for ${label}${last instanceof Error?`: ${last.message}`:""}`);}
 async function navigate(cdp,path){const target=`${baseUrl}${path}`;await cdp.call("Page.navigate",{url:target});await waitUntil(()=>evaluate(cdp,`location.href === ${JSON.stringify(target)} && ['interactive','complete'].includes(document.readyState)`),`navigation to ${target}`,30_000);await sleep(250);}
-async function waitForText(cdp,text){return waitUntil(()=>evaluate(cdp,`document.body?.innerText?.includes(${JSON.stringify(text)}) === true`),`text ${JSON.stringify(text)}`);}
+async function waitForText(cdp,text){const needle=normalizeText(text);return waitUntil(()=>evaluate(cdp,`(document.body?.innerText||'').toLocaleLowerCase('pt-BR').includes(${JSON.stringify(needle)})`),`text ${JSON.stringify(text)}`);}
 async function clickText(cdp,text){const clicked=await evaluate(cdp,`(() => { const n=(v)=>(v||'').replace(/\\s+/g,' ').trim(); const el=[...document.querySelectorAll('button,a,[role="button"]')].find((node)=>!node.disabled&&n(node.textContent).includes(${JSON.stringify(text)})); if(!el)return false; el.click(); return true; })()`);assert.equal(clicked,true,`Could not click ${text}`);}
 async function capture(cdp,filename,stage){const metrics=await evaluate(cdp,`({innerWidth:window.innerWidth,scrollWidth:document.documentElement.scrollWidth,bodyText:(document.body?.innerText||'').replace(/\\s+/g,' ').trim()})`);assert.ok(metrics.scrollWidth<=metrics.innerWidth+2,`${stage} has horizontal overflow`);assert.ok(metrics.bodyText.length>50,`${stage} rendered suspiciously little text`);const shot=await cdp.call("Page.captureScreenshot",{format:"png",fromSurface:true,captureBeyondViewport:false});await writeFile(join(outputDir,filename),Buffer.from(shot.data,"base64"));console.log(`IDENTITY AUTH BROWSER CERT: captured ${filename} — ${stage}`);return metrics;}
 async function login(cdp){const password=process.env.ADMIN_PASSWORD?.trim();assert.ok(password,"ADMIN_PASSWORD is required");const payload=JSON.stringify({username:process.env.ADMIN_USERNAME?.trim()||"admin",password});const result=await evaluate(cdp,`(async()=>{const r=await fetch('/api/admin/login',{method:'POST',credentials:'include',headers:{'content-type':'application/json'},body:${JSON.stringify(payload)}});return {status:r.status,body:await r.json().catch(()=>null)}})()`);assert.equal(result?.status,200,`Admin login failed: ${JSON.stringify(result)}`);assert.equal(result?.body?.ok,true,"Admin login did not return ok=true");}
@@ -76,12 +77,13 @@ async function main(){
     await navigate(cdp,"/admin/studio"); await waitForText(cdp,"Runeforge Studio Access"); await login(cdp);
     await navigate(cdp,"/admin/studio/identity"); await waitForText(cdp,"Autenticação & Provedores"); await waitForText(cdp,"Google Client ID"); await waitForText(cdp,"Resend API Key");
     const studio=await capture(cdp,"59-studio-identity-provider-vault.png","Studio → Identity/Auth provider vault");
-    assert.ok(studio.bodyText.includes("Google")&&studio.bodyText.includes("Discord")&&studio.bodyText.includes("E-mail / Magic Link"),"Studio must expose all supported provider controls");
+    const studioText=normalizeText(studio.bodyText);
+    assert.ok(studioText.includes("google")&&studioText.includes("discord")&&studioText.includes("e-mail / magic link"),"Studio must expose all supported provider controls");
     await logout(cdp);
 
     await navigate(cdp,"/play"); await waitForText(cdp,"Entre na"); await waitForText(cdp,"CONTINUAR COMO CONVIDADO");
     const entry=await capture(cdp,"57-identity-auth-entry.png","Player Identity/Auth → explicit entry");
-    assert.ok(entry.bodyText.includes("Escolha como quer continuar"),"Auth entry must explain explicit identity choice");
+    assert.ok(normalizeText(entry.bodyText).includes(normalizeText("Escolha como quer continuar")),"Auth entry must explain explicit identity choice");
     await clickText(cdp,"CONTINUAR COMO CONVIDADO");
     await waitForText(cdp,"FORJE SUA IDENTIDADE");
     await dismissRecovery(cdp);
@@ -91,8 +93,9 @@ async function main(){
 
     await navigate(cdp,"/profile/security"); await waitForText(cdp,"Identidades vinculadas"); await waitForText(cdp,"Player ID"); await waitForText(cdp,"Contrato de segurança");
     const security=await capture(cdp,"60-profile-access-security.png","Player profile → access and security linking workspace");
-    assert.ok(security.bodyText.includes("Google")&&security.bodyText.includes("Discord")&&security.bodyText.includes("E-mail"),"Player security workspace must expose all supported identity methods");
-    assert.ok(security.bodyText.includes("Segredos dos provedores ficam no Vault administrativo"),"Player security workspace must state secret isolation");
+    const securityText=normalizeText(security.bodyText);
+    assert.ok(securityText.includes("google")&&securityText.includes("discord")&&securityText.includes("e-mail"),"Player security workspace must expose all supported identity methods");
+    assert.ok(securityText.includes(normalizeText("Segredos dos provedores ficam no Vault administrativo")),"Player security workspace must state secret isolation");
 
     const cleared=await evaluate(cdp,`(async()=> (await fetch('/api/player',{method:'DELETE',credentials:'include'})).status)()`); assert.equal(cleared,200,"Guest browser session cleanup failed");
 
