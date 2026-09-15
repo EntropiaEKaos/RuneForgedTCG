@@ -289,14 +289,34 @@ async function main() {
 
     await navigate(cdp, "/admin/studio/art");
     await waitForText(cdp, "Art Pipeline");
-    await waitForArtPipelineReady(cdp);
-    await waitForText(cdp, "P0 pendentes");
+    const artReadyState = await waitForArtPipelineReady(cdp);
     const artMetrics = await capture(cdp, "43-studio-art-pipeline.png", "Art Pipeline");
-    const artEvidence = await evaluate(cdp, `(() => ({ mounted:document.querySelector('[data-studio-art-pipeline="visual-authoring-1.1"]') !== null, hasUpload:[...document.querySelectorAll('label')].some((x)=>(x.textContent||'').includes('Upload imagem')), hasFrameBuilder:(document.body?.innerText||'').includes('Frame Builder'), hasAlphaPriority:(document.body?.innerText||'').includes('P0 pendentes') && (document.body?.innerText||'').includes('Prioridade Alpha') }))()`);
+    const artEvidence = await evaluate(cdp, `(() => {
+      const root = document.querySelector('[data-studio-art-pipeline="visual-authoring-1.1"]');
+      const sourceText = root?.textContent || '';
+      const queue = document.querySelector('select[aria-label="Fila de arte"]');
+      const queueOptions = queue ? [...queue.options].map((option) => option.value) : [];
+      return {
+        mounted:Boolean(root),
+        loadReady:Boolean(document.querySelector('[data-art-pipeline-load="ready"]')),
+        hasUpload:[...document.querySelectorAll('label')].some((x)=>(x.textContent||'').includes('Upload imagem')),
+        hasFrameBuilder:sourceText.includes('Frame Builder'),
+        hasP0Stat:sourceText.includes('P0 pendentes'),
+        hasAlphaPriority:sourceText.includes('Prioridade Alpha'),
+        hasQueueLegend:sourceText.includes('Fila Alpha:') && sourceText.includes('P0') && sourceText.includes('P1') && sourceText.includes('P2'),
+        queueOptions
+      };
+    })()`);
+    await writeFile(join(outputDir, "43-studio-art-pipeline-ready.json"), `${JSON.stringify({ readyState:artReadyState, evidence:artEvidence, metrics:artMetrics },null,2)}\n`, "utf8");
+    console.log("STUDIO ART PIPELINE READY:", JSON.stringify({ readyState:artReadyState, evidence:artEvidence }));
     assert.equal(artEvidence.mounted, true);
+    assert.equal(artEvidence.loadReady, true);
     assert.equal(artEvidence.hasUpload, true);
     assert.equal(artEvidence.hasFrameBuilder, true);
+    assert.equal(artEvidence.hasP0Stat, true, "Art Pipeline must render the P0 pending stat from source text, independent of CSS text-transform");
     assert.equal(artEvidence.hasAlphaPriority, true);
+    assert.equal(artEvidence.hasQueueLegend, true, "Art Pipeline must explain P0/P1/P2 priority tiers");
+    assert.deepEqual(artEvidence.queueOptions, ["alpha","p0","missing","all"], "Art Pipeline queue filters must expose Alpha/P0/missing/all scopes");
 
     const report = {
       ok:true,
@@ -305,7 +325,7 @@ async function main() {
       viewport,
       frame:{ id:frameRow.id, key:frameKey, name:frameName, ...frameEvidence, metrics:frameMetrics },
       cosmetics:{ defId, ...cosmeticsEvidence, metrics:cosmeticsMetrics },
-      art:{ ...artEvidence, metrics:artMetrics },
+      art:{ readyState:artReadyState, ...artEvidence, metrics:artMetrics },
       screenshots:["41-studio-frame-builder.png","42-studio-card-visual-authoring.png","43-studio-art-pipeline.png"],
     };
     await writeFile(join(outputDir, "studio-visual-authoring-manifest.json"), `${JSON.stringify(report,null,2)}\n`, "utf8");
