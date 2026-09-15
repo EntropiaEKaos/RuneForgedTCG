@@ -52,4 +52,23 @@ lacks("src/app/api/pvp/[code]/route.ts", "...room,", "participant room response 
 has("scripts/production-verify.ts", "active PvP rooms carry immutable content snapshot", "runtime DB verification rejects active rooms without content provenance");
 lacks("src/game/format-definitions.ts", 'id: "vanilla", name: "Vanilla", description: "Somente a coleção inaugural Vanilla.", collectionKeys: ["vanilla"], active: true, rankedEligible: true', "generic Vanilla format is not Ranked-eligible");
 
+// Identity/Auth 1.0 security and migration contracts.
+has("drizzle/0045_identity_auth.sql", "CREATE TABLE IF NOT EXISTS auth_provider_settings", "Identity/Auth provider settings migration exists");
+has("drizzle/0045_identity_auth.sql", "CREATE TABLE IF NOT EXISTS player_identities", "external identities remain separate from gameplay player ownership");
+has("drizzle/0045_identity_auth.sql", "CREATE TABLE IF NOT EXISTS auth_login_tokens", "one-time e-mail login tokens have a dedicated table");
+has("drizzle/0045_identity_auth.sql", "ON DELETE CASCADE", "external identities follow player lifecycle");
+has("src/lib/auth-secret-vault.ts", 'createCipheriv("aes-256-gcm"', "auth provider secrets use AES-256-GCM");
+has("src/lib/auth-secret-vault.ts", "Unencrypted auth secret refused", "auth provider vault refuses plaintext reads");
+has("src/app/api/admin/auth/providers/route.ts", "requireAdminStepUp", "auth provider mutation requires administrative step-up");
+has("src/app/api/admin/auth/providers/route.ts", "encryptAuthSecret", "auth provider secrets are encrypted before persistence");
+has("src/app/api/admin/auth/providers/route.ts", "adminAuditLogs", "auth provider mutations are audited");
+lacks("src/app/api/admin/auth/providers/route.ts", "decryptAuthSecret", "admin provider API cannot return decrypted secrets");
+has("src/app/api/auth/oauth/[provider]/start/route.ts", 'url.searchParams.set("code_challenge_method", "S256")', "OAuth uses PKCE S256");
+has("src/app/api/auth/oauth/[provider]/start/route.ts", "httpOnly: true", "OAuth transaction state is held in HttpOnly cookie");
+has("src/app/api/auth/email/start/route.ts", 'consumeRequestRateLimit(req, "auth-email-start"', "magic-link issuance is rate limited");
+has("src/app/api/auth/email/start/route.ts", "15 * 60_000", "magic-link lifetime is bounded to 15 minutes");
+has("src/app/api/auth/email/callback/route.ts", "isNull(authLoginTokens.consumedAt)", "magic-link callback refuses replayed tokens");
+has("src/app/play/PlayEntryClient.tsx", "Entre na", "player entry is explicit instead of silent account creation");
+has("src/app/admin/studio/StudioChrome.tsx", "/admin/studio/identity", "Identity & Auth is discoverable from Studio");
+
 console.log(`SOURCE CONTRACT AUDIT 2.97: PASS (${checks.length} static contracts; NOT behavioral certification)`);
