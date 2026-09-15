@@ -61,6 +61,7 @@ async function clickText(cdp,text){const clicked=await evaluate(cdp,`(() => { co
 async function capture(cdp,filename,stage){const metrics=await evaluate(cdp,`({innerWidth:window.innerWidth,scrollWidth:document.documentElement.scrollWidth,bodyText:(document.body?.innerText||'').replace(/\\s+/g,' ').trim()})`);assert.ok(metrics.scrollWidth<=metrics.innerWidth+2,`${stage} has horizontal overflow`);assert.ok(metrics.bodyText.length>50,`${stage} rendered suspiciously little text`);const shot=await cdp.call("Page.captureScreenshot",{format:"png",fromSurface:true,captureBeyondViewport:false});await writeFile(join(outputDir,filename),Buffer.from(shot.data,"base64"));console.log(`IDENTITY AUTH BROWSER CERT: captured ${filename} — ${stage}`);return metrics;}
 async function login(cdp){const password=process.env.ADMIN_PASSWORD?.trim();assert.ok(password,"ADMIN_PASSWORD is required");const payload=JSON.stringify({username:process.env.ADMIN_USERNAME?.trim()||"admin",password});const result=await evaluate(cdp,`(async()=>{const r=await fetch('/api/admin/login',{method:'POST',credentials:'include',headers:{'content-type':'application/json'},body:${JSON.stringify(payload)}});return {status:r.status,body:await r.json().catch(()=>null)}})()`);assert.equal(result?.status,200,`Admin login failed: ${JSON.stringify(result)}`);assert.equal(result?.body?.ok,true,"Admin login did not return ok=true");}
 async function logout(cdp){const status=await evaluate(cdp,`(async()=> (await fetch('/api/admin/login',{method:'DELETE',credentials:'include'})).status)()`);assert.equal(status,200,"Admin logout failed");}
+async function clearPlayerSession(cdp,label){const status=await evaluate(cdp,`(async()=> (await fetch('/api/player',{method:'DELETE',credentials:'include'})).status)()`);assert.equal(status,200,`${label}: player-session cleanup failed`);}
 async function dismissRecovery(cdp){await waitUntil(()=>evaluate(cdp,`(()=>{const dialog=[...document.querySelectorAll('[role="dialog"]')].find(node=>(node.textContent||'').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'));if(!dialog)return true;const button=[...dialog.querySelectorAll('button')].find(node=>!node.disabled&&(node.textContent||'').replace(/\\s+/g,' ').trim()==='JÁ GUARDEI');if(button)button.click();return false;})()`),"recovery handoff dismissal",30_000);}
 async function fillNickname(cdp,name){const filled=await evaluate(cdp,`(()=>{const input=[...document.querySelectorAll('input')].find(node=>node.getAttribute('placeholder')==='Seu nome na Forja');if(!input)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(!setter)return false;setter.call(input,${JSON.stringify(name)});input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);assert.equal(filled,true,"Nickname input is required for Identity/Auth browser certification");}
 async function shutdown(chrome,profileDir){if(chrome.exitCode==null&&chrome.signalCode==null)chrome.kill("SIGTERM");await sleep(300);if(chrome.exitCode==null&&chrome.signalCode==null)chrome.kill("SIGKILL");await rm(profileDir,{recursive:true,force:true,maxRetries:5,retryDelay:200}).catch(()=>{});}
@@ -80,6 +81,7 @@ async function main(){
     const studioText=normalizeText(studio.bodyText);
     assert.ok(studioText.includes("google")&&studioText.includes("discord")&&studioText.includes("e-mail / magic link"),"Studio must expose all supported provider controls");
     await logout(cdp);
+    await clearPlayerSession(cdp,"anonymous entry setup");
 
     await navigate(cdp,"/play"); await waitForText(cdp,"Entre na"); await waitForText(cdp,"CONTINUAR COMO CONVIDADO");
     const entry=await capture(cdp,"57-identity-auth-entry.png","Player Identity/Auth → explicit entry");
@@ -97,7 +99,7 @@ async function main(){
     assert.ok(securityText.includes("google")&&securityText.includes("discord")&&securityText.includes("e-mail"),"Player security workspace must expose all supported identity methods");
     assert.ok(securityText.includes(normalizeText("Segredos dos provedores ficam no Vault administrativo")),"Player security workspace must state secret isolation");
 
-    const cleared=await evaluate(cdp,`(async()=> (await fetch('/api/player',{method:'DELETE',credentials:'include'})).status)()`); assert.equal(cleared,200,"Guest browser session cleanup failed");
+    await clearPlayerSession(cdp,"guest browser teardown");
 
     const severe=cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown"||(message.method==="Log.entryAdded"&&["error","assert"].includes(message.params?.entry?.level)));
     assert.equal(severe.length,0,`Browser emitted runtime errors: ${JSON.stringify(severe.slice(0,3))}`);
