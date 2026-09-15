@@ -19,11 +19,11 @@ const target = (defId: string, region: Region, brief: string): AlphaP0ArtTarget 
 });
 
 /**
- * Production contract for the first 21-card P0 art batch.
+ * Production contract for the first 21-card P0 art sprint.
  *
- * IMPORTANT: these paths are targets only. They are intentionally not wired into
- * getCardArt() until the corresponding master files have been delivered and
- * certified, so the Studio never reports art coverage that does not physically exist.
+ * Targets remain production intent until they are explicitly promoted into
+ * ALPHA_P0_ACTIVE_IDS after physical-master and browser certification. This keeps
+ * runtime resolution and reported coverage fail-closed for undelivered targets.
  */
 export const ALPHA_P0_ART_TARGETS: AlphaP0ArtTarget[] = [
   target("ember_bolt", "Emberhold", "Scorching Bolt: a compact forge-fire projectile ripping across a basalt combat lane, immediate speed and impact, no generic fireball composition."),
@@ -49,6 +49,26 @@ export const ALPHA_P0_ART_TARGETS: AlphaP0ArtTarget[] = [
   target("wood_cub", "Ironwood", "Young ironwood beast beneath colossal roots, sturdy bark-like hide and amber-sap accents, resilient juvenile guardian rather than pet imagery."),
 ];
 
+export const ALPHA_P0_ACTIVE_IDS = [
+  "ember_bolt",
+  "wood_webweaver",
+  "tide_guard",
+  "wood_growth",
+  "wood_mend",
+] as const;
+
+const activeIds = new Set<string>(ALPHA_P0_ACTIVE_IDS);
+
+export const ALPHA_P0_ACTIVE_TARGETS = ALPHA_P0_ART_TARGETS.filter((entry) => activeIds.has(entry.defId));
+
 export function alphaP0ArtTarget(defId: string): AlphaP0ArtTarget | undefined {
   return ALPHA_P0_ART_TARGETS.find((entry) => entry.defId === defId);
+}
+
+export function alphaP0ActiveArtTarget(defId: string): AlphaP0ArtTarget | undefined {
+  return activeIds.has(defId) ? alphaP0ArtTarget(defId) : undefined;
+}
+
+export function alphaP0ArtUrl(defId: string): string | undefined {
+  return alphaP0ActiveArtTarget(defId)?.assetPath;
 }
