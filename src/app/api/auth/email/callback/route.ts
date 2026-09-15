@@ -9,7 +9,7 @@ import { establishExternalIdentity, IdentityConflictError } from "@/lib/player-i
 export const dynamic = "force-dynamic";
 
 function fail(req: NextRequest, code: string) {
-  const url = new URL("/play", req.nextUrl.origin);
+  const url = new URL(safeAuthReturnTo(req.nextUrl.searchParams.get("returnTo")), req.nextUrl.origin);
   url.searchParams.set("auth_error", code);
   return NextResponse.redirect(url);
 }
