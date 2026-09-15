@@ -97,9 +97,18 @@ function main() {
   assert.doesNotMatch(studioApi, /allCards\(\)/, "cosmetic draft authoring must not require a card to be runtime-enabled");
   const studio = read("src/app/admin/studio/cards/CardAuthoringStudio.tsx");
   assert.match(studio, /CardCosmeticsTab/, "Card Studio must own cosmetic authoring as an extension, not a parallel admin tool");
+
+  const cosmeticsApi = read("src/app/api/player/cosmetics/route.ts");
+  assert.match(cosmeticsApi, /authenticated:\s*false,\s*wardrobe:\s*\[\],\s*preferences:\s*\[\]/, "anonymous cosmetic reads must return an explicit empty unauthenticated view without exposing private inventory");
+  assert.match(cosmeticsApi, /export async function PUT\(req: NextRequest\)[\s\S]*?Player session required[\s\S]*?status:\s*401/, "equipping cosmetic copies must remain authenticated");
+  assert.match(cosmeticsApi, /export async function DELETE\(req: NextRequest\)[\s\S]*?Player session required[\s\S]*?status:\s*401/, "resetting cosmetic preferences must remain authenticated");
+
   const wardrobe = read("src/app/collection/variants/CosmeticWardrobeClient.tsx");
   assert.match(wardrobe, /USAR ESTA VERSÃO/, "player collection must expose owned cosmetic selection");
   assert.match(wardrobe, /100% cosmético/, "player UI must communicate gameplay neutrality");
+  assert.match(wardrobe, /data\.authenticated === false/, "wardrobe must explicitly model the anonymous cosmetic response");
+  assert.match(wardrobe, /<SessionRequired \/>/, "anonymous wardrobe must render an identity entry state instead of pretending the inventory is empty");
+  assert.doesNotMatch(wardrobe, /ensurePlayerSession/, "wardrobe must not depend on legacy implicit player-session probing");
 
   const admin = read("src/app/api/admin/marketplace/route.ts");
   assert.match(admin, /verifyAdminStepUp/, "economy configuration changes require admin step-up");
