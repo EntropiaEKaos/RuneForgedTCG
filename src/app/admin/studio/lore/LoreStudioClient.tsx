@@ -91,7 +91,12 @@ export default function LoreStudioClient({ username, role }: { username: string;
     setItems(data.items ?? []);
   }, []);
 
-  useEffect(() => { void load().catch((err) => setError(err instanceof Error ? err.message : "Falha ao carregar.")); }, [load]);
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void load().catch((err) => setError(err instanceof Error ? err.message : "Falha ao carregar."));
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [load]);
 
   async function open(slug: string) {
     setBusy(true); setError(""); setNotice("");
