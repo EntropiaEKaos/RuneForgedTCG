@@ -14,6 +14,15 @@ async function actorFor(req: NextRequest, role: "designer" | "publisher") {
   return actor;
 }
 
+async function liveCosmeticUsingFrame(key: string) {
+  const [usage] = await db.select({ id: cardCosmeticVariants.id }).from(cardCosmeticVariants).where(and(
+    eq(cardCosmeticVariants.frameId, key),
+    eq(cardCosmeticVariants.status, "published"),
+    eq(cardCosmeticVariants.enabled, true),
+  )).limit(1);
+  return usage || null;
+}
+
 function asPreset(row: typeof adminGameDefinitions.$inferSelect) {
   const payload = row.payload && typeof row.payload === "object" && !Array.isArray(row.payload)
     ? row.payload as Record<string, unknown>
@@ -102,6 +111,9 @@ export async function PATCH(req: NextRequest) {
     return Response.json({ ok: false, error: "Publisher role required to change a live frame preset" }, { status: 403 });
   }
   if (requestedEnabled && requestedStatus !== "published") return Response.json({ ok: false, error: "Only published frame presets may be enabled" }, { status: 400 });
+  if ((requestedStatus !== "published" || !requestedEnabled) && await liveCosmeticUsingFrame(current.key)) {
+    return Response.json({ ok: false, error: "Cannot disable or archive a frame preset while a LIVE cosmetic uses it" }, { status: 409 });
+  }
   const row = await db.transaction(async (tx) => {
     const updated = await tx.update(adminGameDefinitions).set({
       name: normalized.value!.name,
@@ -131,6 +143,9 @@ export async function DELETE(req: NextRequest) {
   if (!Number.isInteger(id) || id < 1) return Response.json({ ok: false, error: "Valid id is required" }, { status: 400 });
   const [current] = await db.select().from(adminGameDefinitions).where(and(eq(adminGameDefinitions.id, id), eq(adminGameDefinitions.domain, DOMAIN))).limit(1);
   if (!current) return Response.json({ ok: false, error: "Frame preset not found" }, { status: 404 });
+  if (await liveCosmeticUsingFrame(current.key)) {
+    return Response.json({ ok: false, error: "Cannot delete a frame preset while a LIVE cosmetic uses it" }, { status: 409 });
+  }
   const [usage] = await db.select({ id: cardCosmeticVariants.id }).from(cardCosmeticVariants).where(eq(cardCosmeticVariants.frameId, current.key)).limit(1);
   if (usage) {
     const row = await db.transaction(async (tx) => {
