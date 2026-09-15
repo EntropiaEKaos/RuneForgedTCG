@@ -3,7 +3,8 @@ import { execFileSync } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import sharp from "sharp";
-import { alphaArtBacklogSnapshot, alphaArtExposure, alphaArtPriorityQueue } from "./alpha-art-priority";
+import { alphaArtBacklogSnapshot, alphaArtExposure } from "./alpha-art-priority";
+import { allCards } from "./cards";
 import {
   ALPHA_P1_ACTIVE_IDS,
   ALPHA_P1_ART_FORMAT,
@@ -14,8 +15,8 @@ import {
 
 const batchIds = [
   "ember_duelist",
-  "ember_herald",
   "ember_raider",
+  "ember_herald",
   "ember_whelp",
   "ember_zealot",
 ] as const;
@@ -27,7 +28,7 @@ async function main() {
   assert.deepEqual(
     ALPHA_P1_ART_TARGETS.map((target) => target.defId),
     [...batchIds],
-    "Alpha P1 Batch 1 manifest must follow deterministic queue order",
+    "Alpha P1 Batch 1 manifest must follow the Studio production queue order",
   );
 
   const snapshot = alphaArtBacklogSnapshot();
@@ -44,12 +45,17 @@ async function main() {
     "Physical P1 production must not change live Studio coverage",
   );
 
-  const liveP1 = alphaArtPriorityQueue().filter((row) => row.priority === "P1");
-  assert.equal(liveP1.length, 46, "P1 queue must remain at 46 until runtime activation");
+  // Studio sorts equal-exposure cards by region then player-facing card name.
+  const studioP1 = allCards()
+    .filter((card) => card.collectible !== false)
+    .map((card) => ({ card, exposure: alphaArtExposure(card.defId) }))
+    .filter(({ exposure }) => exposure.priority === "P1")
+    .sort((a, b) => b.exposure.score - a.exposure.score || a.card.region.localeCompare(b.card.region) || a.card.name.localeCompare(b.card.name));
+  assert.equal(studioP1.length, 46, "P1 queue must remain at 46 until runtime activation");
   assert.deepEqual(
-    liveP1.slice(0, batchIds.length).map((row) => row.defId),
+    studioP1.slice(0, batchIds.length).map(({ card }) => card.defId),
     [...batchIds],
-    "Batch 1 must exactly match the deterministic top-five P1 queue",
+    "Batch 1 must exactly match the first five cards shown in the deterministic Studio P1 production queue",
   );
 
   assert.equal(ALPHA_P1_ART_FORMAT.aspectRatio, "4:5");
@@ -115,7 +121,7 @@ async function main() {
     .png()
     .toFile(evidencePath);
 
-  console.log("FORGED ALPHA P1 ART BATCH 1: 5/5 physical masters · 1536x1920 WebP · inactive/fail-closed · top deterministic P1 queue · contact sheet PASS");
+  console.log("FORGED ALPHA P1 ART BATCH 1: 5/5 physical masters · 1536x1920 WebP · inactive/fail-closed · Studio top-five P1 queue · contact sheet PASS");
 }
 
 void main().catch((error) => {
