@@ -13,12 +13,12 @@ import {
 
 assert.equal(ALPHA_P0_ART_TARGETS.length, 21, "Alpha P0 production contract must stay scoped to 21 masters");
 assert.equal(new Set(ALPHA_P0_ART_TARGETS.map((target) => target.defId)).size, 21, "Alpha P0 target defIds must be unique");
-assert.equal(ALPHA_P0_ACTIVE_IDS.length, 15, "Batch 1 + 2 + 3 activation must stay scoped to fifteen certified masters");
-assert.equal(ALPHA_P0_ACTIVE_TARGETS.length, 15, "Every active P0 id must map to one production target");
+assert.equal(ALPHA_P0_ACTIVE_IDS.length, 21, "Final Alpha P0 activation must expose all twenty-one certified masters");
+assert.equal(ALPHA_P0_ACTIVE_TARGETS.length, 21, "Every active P0 id must map to one production target");
 assert.deepEqual(
-  ALPHA_P0_ART_TARGETS.slice(0, ALPHA_P0_ACTIVE_IDS.length).map((entry) => entry.defId),
+  ALPHA_P0_ART_TARGETS.map((entry) => entry.defId),
   [...ALPHA_P0_ACTIVE_IDS],
-  "Batch 1 + 2 + 3 activation must remain the first fifteen certified P0 targets in production order",
+  "Final Alpha P0 activation must preserve the complete certified production order",
 );
 assert.equal(ALPHA_P0_ART_FORMAT.aspectRatio, "4:5");
 assert.equal(ALPHA_P0_ART_FORMAT.masterWidth, 1536);
@@ -28,18 +28,16 @@ assert.equal(ALPHA_P0_ART_FORMAT.delivery, "webp");
 const activeIds = new Set<string>(ALPHA_P0_ACTIVE_IDS);
 const pendingTargets = ALPHA_P0_ART_TARGETS.filter((target) => !activeIds.has(target.defId));
 const liveP0 = alphaArtPriorityQueue().filter((row) => row.priority === "P0");
-assert.equal(liveP0.length, 6, "Activating Batch 3 must reduce the live P0 queue from 11 to 6 cards");
-assert.deepEqual(
-  [...pendingTargets.map((target) => target.defId)].sort(),
-  [...liveP0.map((row) => row.defId)].sort(),
-  "Remaining P0 production targets must exactly match the live deterministic P0 queue",
-);
+assert.equal(pendingTargets.length, 0, "Every certified P0 target must be active after final activation");
+assert.equal(liveP0.length, 0, "Final activation must exhaust the live P0 production queue");
 
 const snapshot = alphaArtBacklogSnapshot();
 assert.equal(snapshot.uniqueStarterCards, 140, "Starter art universe must remain 140 unique cards");
-assert.equal(snapshot.covered, 45, "30 Flagship masters + fifteen activated P0 masters must report 45 covered starter cards");
-assert.equal(snapshot.missing, 95, "Batch 3 activation must leave 95 starter cards without dedicated art");
-assert.equal(snapshot.byPriority.P0, 6, "Batch 3 activation must leave exactly 6 P0 cards pending");
+assert.equal(snapshot.covered, 51, "30 Flagship masters + twenty-one activated P0 masters must report 51 covered starter cards");
+assert.equal(snapshot.missing, 89, "Final P0 activation must leave 89 starter cards without dedicated art");
+assert.equal(snapshot.byPriority.P0, 0, "Final P0 activation must leave no P0 cards pending");
+assert.equal(snapshot.byPriority.P1, 46, "Final P0 activation must not change the P1 queue");
+assert.equal(snapshot.byPriority.P2, 43, "Final P0 activation must not change the P2 queue");
 
 for (const target of ALPHA_P0_ART_TARGETS) {
   assert.ok(target.assetPath.startsWith(`${ALPHA_P0_ART_ROOT}/${target.region.toLowerCase()}/`), `${target.defId} must live under its regional P0 art directory`);
@@ -47,17 +45,12 @@ for (const target of ALPHA_P0_ART_TARGETS) {
   assert.ok(target.brief.length >= 80, `${target.defId} production brief is too thin`);
 
   const exposure = alphaArtExposure(target.defId);
-  if (activeIds.has(target.defId)) {
-    assert.equal(exposure.priority, "covered", `${target.defId} must leave the P0 queue after activation`);
-    assert.equal(exposure.knownDedicatedArt, true, `${target.defId} must be reported as covered after certified activation`);
-    assert.equal(alphaP0ArtUrl(target.defId), target.assetPath, `${target.defId} active registry must resolve its certified master`);
-    assert.equal(getCardArt(target.defId)?.url, target.assetPath, `${target.defId} must resolve its built-in P0 master`);
-    assert.equal(getCard(target.defId).art, target.assetPath, `${target.defId} catalog overlay must expose its P0 master`);
-  } else {
-    assert.equal(exposure.priority, "P0", `${target.defId} must remain P0 until its dedicated art is activated`);
-    assert.equal(exposure.knownDedicatedArt, false, `${target.defId} must remain uncovered before activation`);
-    assert.equal(alphaP0ArtUrl(target.defId), undefined, `${target.defId} must remain fail-closed until activation`);
-  }
+  assert.equal(activeIds.has(target.defId), true, `${target.defId} must be active after final P0 promotion`);
+  assert.equal(exposure.priority, "covered", `${target.defId} must leave the P0 queue after activation`);
+  assert.equal(exposure.knownDedicatedArt, true, `${target.defId} must be reported as covered after certified activation`);
+  assert.equal(alphaP0ArtUrl(target.defId), target.assetPath, `${target.defId} active registry must resolve its certified master`);
+  assert.equal(getCardArt(target.defId)?.url, target.assetPath, `${target.defId} must resolve its built-in P0 master`);
+  assert.equal(getCard(target.defId).art, target.assetPath, `${target.defId} catalog overlay must expose its P0 master`);
 }
 
 const emberBoltPath = ALPHA_P0_ACTIVE_TARGETS.find((target) => target.defId === "ember_bolt")?.assetPath;
@@ -67,4 +60,4 @@ assert.equal(getCardArt("ember_bolt")?.url, "/uploads/editorial/ember-bolt-appro
 replaceRegisteredCardArt([]);
 assert.equal(getCardArt("ember_bolt")?.url, emberBoltPath, "Clearing editorial art must restore the certified P0 master");
 
-console.log("FORGED ALPHA P0 ART ACTIVATION: 15 active / 45 covered / 95 backlog / 6 P0 pending / PASS");
+console.log("FORGED ALPHA P0 ART ACTIVATION: 21 active / 51 covered / 89 backlog / 0 P0 pending / PASS");
