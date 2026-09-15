@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { adminAuditLogs, adminGameDefinitions, cardCatalogMeta } from "@/db/schema";
+import { alphaArtExposure } from "@/game/alpha-art-priority";
 import { allCards } from "@/game/cards";
 import { ensureCustomCardsLoaded, refreshCustomCardCache } from "@/game/catalog";
 import { adminRoleAllowed, getAdminSessionContext, unauthorized } from "@/lib/admin-auth";
@@ -53,8 +54,20 @@ export async function GET(req: NextRequest) {
   const cards = allCards().filter((card) => card.collectible !== false).map((card) => {
     const row = byDef.get(card.defId);
     const editorial = safeAssetUrl(row?.artUrl);
-    return { defId: card.defId, name: card.name, region: card.region, type: card.type, rarity: card.rarity, art: editorial || card.art || null, editorialArt: editorial || null, crop: row?.artCrop || {}, missing: !(editorial || card.art) };
-  }).sort((a, b) => Number(b.missing) - Number(a.missing) || a.region.localeCompare(b.region) || a.name.localeCompare(b.name));
+    const starterExposure = alphaArtExposure(card.defId);
+    return {
+      defId: card.defId,
+      name: card.name,
+      region: card.region,
+      type: card.type,
+      rarity: card.rarity,
+      art: editorial || card.art || null,
+      editorialArt: editorial || null,
+      crop: row?.artCrop || {},
+      missing: !(editorial || card.art),
+      starterExposure,
+    };
+  }).sort((a, b) => Number(b.missing) - Number(a.missing) || b.starterExposure.score - a.starterExposure.score || a.region.localeCompare(b.region) || a.name.localeCompare(b.name));
   const assets = assetRows.map((row) => ({ id: row.id, key: row.key, name: row.name, status: row.status, enabled: row.enabled, payload: row.payload as Record<string, unknown> }))
     .filter((row) => row.payload?.type === "image" && safeAssetUrl(row.payload?.url))
     .map((row) => {
@@ -63,7 +76,31 @@ export async function GET(req: NextRequest) {
       return { id: row.id, key: row.key, name: row.name, status: row.status, url: safeAssetUrl(row.payload.url), preferredUrl: selected?.url || safeAssetUrl(row.payload.url), preferredVariant: selected?.variant || "original", variants, optimization: row.payload.optimization || null, mimeType: String(row.payload.mimeType || ""), width: Number(row.payload.width || 0), height: Number(row.payload.height || 0), size: Number(row.payload.size || 0) };
     });
   const missing = cards.filter((card) => card.missing).length;
-  return Response.json({ ok: true, coverage: { total: cards.length, withArt: cards.length - missing, missing, percent: cards.length ? Math.round(((cards.length - missing) / cards.length) * 1000) / 10 : 100 }, cards, assets });
+  const starterCards = cards.filter((card) => card.starterExposure.copies > 0);
+  const starterMissing = starterCards.filter((card) => card.missing).length;
+  const p0Missing = starterCards.filter((card) => card.missing && card.starterExposure.priority === "P0").length;
+  const p1Missing = starterCards.filter((card) => card.missing && card.starterExposure.priority === "P1").length;
+  const p2Missing = starterCards.filter((card) => card.missing && card.starterExposure.priority === "P2").length;
+  return Response.json({
+    ok: true,
+    coverage: {
+      total: cards.length,
+      withArt: cards.length - missing,
+      missing,
+      percent: cards.length ? Math.round(((cards.length - missing) / cards.length) * 1000) / 10 : 100,
+      starter: {
+        total: starterCards.length,
+        withArt: starterCards.length - starterMissing,
+        missing: starterMissing,
+        percent: starterCards.length ? Math.round(((starterCards.length - starterMissing) / starterCards.length) * 1000) / 10 : 100,
+        p0Missing,
+        p1Missing,
+        p2Missing,
+      },
+    },
+    cards,
+    assets,
+  });
 }
 
 export async function POST(req: NextRequest) {
