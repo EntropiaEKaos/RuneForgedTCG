@@ -60,6 +60,11 @@ export const ALPHA_P0_ACTIVE_IDS = [
   "ember_face",
   "ember_drake",
   "ember_stun",
+  "forest_canopy_warden",
+  "forest_cub",
+  "storm_dashbolt",
+  "storm_eye",
+  "storm_herald",
 ] as const;
 
 const activeIds = new Set<string>(ALPHA_P0_ACTIVE_IDS);
