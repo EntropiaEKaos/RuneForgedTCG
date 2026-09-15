@@ -65,6 +65,12 @@ export const ALPHA_P0_ACTIVE_IDS = [
   "storm_dashbolt",
   "storm_eye",
   "storm_herald",
+  "storm_lightning",
+  "storm_sky_sentinel",
+  "storm_strikecaller",
+  "tide_sprite",
+  "void_drain",
+  "wood_cub",
 ] as const;
 
 const activeIds = new Set<string>(ALPHA_P0_ACTIVE_IDS);
