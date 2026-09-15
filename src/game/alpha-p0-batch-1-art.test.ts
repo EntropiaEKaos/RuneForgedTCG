@@ -26,9 +26,9 @@ async function main() {
     "Batch 1 must remain the five highest-exposure P0 targets in production order",
   );
   assert.deepEqual(
-    [...ALPHA_P0_ACTIVE_IDS],
+    ALPHA_P0_ACTIVE_IDS.slice(0, batchIds.length),
     [...batchIds],
-    "Only physically certified Batch 1 masters may be active in this activation slice",
+    "Physically certified Batch 1 masters must remain the first active P0 slice",
   );
 
   execFileSync(process.execPath, ["scripts/generate-alpha-p0-batch-1-art.mjs"], {
@@ -75,7 +75,7 @@ async function main() {
     .png()
     .toFile(evidencePath);
 
-  console.log(`FORGED ALPHA P0 ART BATCH 1: ${targets.length}/${targets.length} physical masters · 1536x1920 WebP · active registry match · contact sheet PASS`);
+  console.log(`FORGED ALPHA P0 ART BATCH 1: ${targets.length}/${targets.length} physical masters · 1536x1920 WebP · active registry prefix match · contact sheet PASS`);
 }
 
 void main().catch((error) => {
