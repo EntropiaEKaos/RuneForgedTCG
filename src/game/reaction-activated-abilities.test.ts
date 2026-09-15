@@ -1,5 +1,5 @@
 import { aiChooseReaction } from "./ai";
-import { getCard } from "./cards";
+import { CARDS } from "./cards";
 import {
   applyStackedAction,
   applyStackedActionWithAi,
@@ -17,8 +17,8 @@ const deck: DeckInput = {
   cards: Array(20).fill("ember_whelp"),
 };
 
-const sourceDef = getCard("wood_ent");
-const boltDef = getCard("ember_bolt");
+const sourceDef = CARDS.wood_ent;
+const boltDef = CARDS.ember_bolt;
 const originalAbilities = sourceDef.reactionActivatedAbilities;
 const originalBoltRules = [...(boltDef.customKeywords ?? [])];
 
