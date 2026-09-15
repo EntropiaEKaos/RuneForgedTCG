@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     eq(adminGameDefinitions.key, preset.key),
   )).limit(1);
   if (existing.length) return Response.json({ ok: false, error: "Frame key already exists" }, { status: 409 });
-  const [row] = await db.transaction(async (tx) => {
+  const row = await db.transaction(async (tx) => {
     const inserted = await tx.insert(adminGameDefinitions).values({
       domain: DOMAIN,
       key: preset.key,
@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest) {
     return Response.json({ ok: false, error: "Publisher role required to change a live frame preset" }, { status: 403 });
   }
   if (requestedEnabled && requestedStatus !== "published") return Response.json({ ok: false, error: "Only published frame presets may be enabled" }, { status: 400 });
-  const [row] = await db.transaction(async (tx) => {
+  const row = await db.transaction(async (tx) => {
     const updated = await tx.update(adminGameDefinitions).set({
       name: normalized.value!.name,
       description: normalized.value!.description || "",
@@ -133,7 +133,7 @@ export async function DELETE(req: NextRequest) {
   if (!current) return Response.json({ ok: false, error: "Frame preset not found" }, { status: 404 });
   const [usage] = await db.select({ id: cardCosmeticVariants.id }).from(cardCosmeticVariants).where(eq(cardCosmeticVariants.frameId, current.key)).limit(1);
   if (usage) {
-    const [row] = await db.transaction(async (tx) => {
+    const row = await db.transaction(async (tx) => {
       const updated = await tx.update(adminGameDefinitions).set({ status: "archived", enabled: false, revision: current.revision + 1, updatedAt: new Date() }).where(eq(adminGameDefinitions.id, id)).returning();
       await tx.insert(adminAuditLogs).values({ action: "card.frame.archive", resource: "card-frame-preset", resourceId: id, actor: actor.actorId, details: { key: current.key, reason: "cosmetic-usage-exists" } });
       return updated[0];
