@@ -9,7 +9,6 @@ import { cardFramePresetCss, replaceRegisteredCardFramePresets } from "@/game/ca
 import { hydrateClientRuntimeConfig } from "@/game/client-game-config";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { CatalogRevisionContext } from "./CatalogContext";
-import { ensurePlayerSession } from "@/lib/client-player-session";
 
 interface PromoItem {
   key: string;
@@ -70,14 +69,10 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
   }, []);
 
   useDeferredEffect(() => {
-    let cancelled = false;
-    void ensurePlayerSession(localStorage.getItem("runeforge_playername") || "")
-      .then(() => { if (!cancelled) void refreshPlayerCosmetics(); })
-      .catch(() => null);
+    void refreshPlayerCosmetics();
     const saved = localStorage.getItem("runeforge_colorblind_mode") === "1";
     setColorblindMode(saved);
     document.documentElement.classList.toggle("colorblind-mode", saved);
-    return () => { cancelled = true; };
   }, [refreshPlayerCosmetics]);
 
   const refreshCatalog = useCallback(async () => {

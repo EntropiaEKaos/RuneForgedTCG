@@ -10,7 +10,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const identity = await getPlayerSession(req);
-  if (!identity) return Response.json({ ok: false, error: "Player session required" }, { status: 401 });
+  if (!identity) {
+    return Response.json({ ok: true, authenticated: false, wardrobe: [], preferences: [] });
+  }
   await ensureCustomCardsLoaded();
   const [assets, variants, preferences] = await Promise.all([
     db.select().from(cardAssets).where(eq(cardAssets.ownerPlayerId, identity.playerId)).orderBy(cardAssets.defId, cardAssets.id),
@@ -44,7 +46,7 @@ export async function GET(req: NextRequest) {
     if (!asset || asset.defId !== preference.defId) return [];
     return [{ defId: preference.defId, assetId: asset.id, variantId: asset.variantId, frameId: asset.frameId, finish: asset.finish, serialNumber: asset.serialNumber }];
   });
-  return Response.json({ ok: true, wardrobe, preferences: equipped });
+  return Response.json({ ok: true, authenticated: true, wardrobe, preferences: equipped });
 }
 
 export async function PUT(req: NextRequest) {

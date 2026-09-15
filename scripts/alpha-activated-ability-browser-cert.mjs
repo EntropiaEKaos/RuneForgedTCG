@@ -231,6 +231,20 @@ async function clickText(cdp, text) {
   assert.equal(clicked, true, `Could not click control containing text: ${text}`);
 }
 
+async function fillInputByPlaceholder(cdp, placeholder, value) {
+  const filled = await evaluate(cdp, `(() => {
+    const input = [...document.querySelectorAll('input')].find((element) => element.getAttribute('placeholder') === ${JSON.stringify(placeholder)});
+    if (!input) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    if (!setter) return false;
+    setter.call(input, ${JSON.stringify(value)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`);
+  assert.equal(filled, true, `Could not fill input with placeholder: ${placeholder}`);
+}
+
 async function clickSelector(cdp, selector) {
   const encoded = JSON.stringify(selector);
   return evaluate(cdp, `(() => {
@@ -622,6 +636,20 @@ async function main() {
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
 
     await navigate(cdp, "/play");
+    const entryStage = await waitUntil(
+      () => evaluate(cdp, `(() => {
+        const text = document.body?.innerText || '';
+        if (text.includes('CONTINUAR COMO CONVIDADO')) return 'auth';
+        if (text.includes('SALVE SUA CHAVE DE RECUPERAÇÃO')) return 'recovery';
+        return null;
+      })()`),
+      "explicit auth entry or recovery handoff",
+      30_000,
+    );
+    if (entryStage === "auth") {
+      await clickText(cdp, "CONTINUAR COMO CONVIDADO");
+    }
+
     await waitForText(cdp, "SALVE SUA CHAVE DE RECUPERAÇÃO", 30_000);
     await clickText(cdp, "JÁ GUARDEI");
     await waitUntil(
@@ -629,6 +657,23 @@ async function main() {
       "recovery-key handoff dismissal",
       5_000,
     );
+
+    const identityStage = await waitUntil(
+      () => evaluate(cdp, `(() => {
+        const text = document.body?.innerText || '';
+        if (text.includes('FORJE SUA IDENTIDADE')) return 'nickname';
+        if (text.includes('PRIMEIRO ACESSO · ALPHA JOGÁVEL')) return 'onboarding';
+        return null;
+      })()`),
+      "nickname or onboarding after recovery handoff",
+      30_000,
+    );
+    if (identityStage === "nickname") {
+      await waitForText(cdp, "FORJAR IDENTIDADE", 30_000);
+      await fillInputByPlaceholder(cdp, "Seu nome na Forja", "Activated Ability Cert");
+      await clickText(cdp, "FORJAR IDENTIDADE");
+    }
+
     await waitForText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL", 30_000);
     const chosen = await prepareAuthoritativeFixture(cdp);
     assert.equal(chosen.token.playerFirst, true, "certification fixture must be server-authoritative player-first");

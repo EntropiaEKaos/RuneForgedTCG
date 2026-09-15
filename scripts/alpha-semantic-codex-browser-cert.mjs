@@ -125,14 +125,8 @@ async function navigate(cdp, path) {
 }
 
 async function dismissRecoveryHandoffIfPresent(cdp) {
-  // CatalogBootstrap establishes a stable player session globally. A fresh
-  // browser therefore receives the one-time recovery-key handoff even on the
-  // Codex route. The Alpha visual journey certifies that handoff strictly;
-  // this semantic cert must clear it before exercising the real card hover.
-  await waitUntil(
-    () => evaluate(cdp, `fetch('/api/player', { cache: 'no-store' }).then((response) => response.status === 200).catch(() => false)`),
-    "global player session",
-  );
+  // Codex is public and must not require creating a player identity.
+  // Only clear a recovery handoff if a prior explicit session already exists.
   await sleep(350);
 
   const handoff = await evaluate(cdp, `(() => {
@@ -145,9 +139,8 @@ async function dismissRecoveryHandoffIfPresent(cdp) {
     return { present: true, dismissed: true };
   })()`);
 
-  if (handoff?.present) {
-    assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before Codex certification");
-  }
+  if (!handoff?.present) return;
+  assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before Codex certification");
   await waitUntil(
     () => evaluate(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`),
     "recovery-key handoff dismissal",

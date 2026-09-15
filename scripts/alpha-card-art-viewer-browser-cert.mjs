@@ -118,10 +118,8 @@ async function navigate(cdp, path) {
 }
 
 async function dismissRecoveryHandoffIfPresent(cdp) {
-  await waitUntil(
-    () => evaluate(cdp, `fetch('/api/player', { cache: 'no-store' }).then((response) => response.status === 200).catch(() => false)`),
-    "global player session",
-  );
+  // Public catalog surfaces remain anonymous; only dismiss a handoff left by
+  // a prior explicit player session if one is actually present.
   await sleep(350);
 
   const handoff = await evaluate(cdp, `(() => {
@@ -134,9 +132,8 @@ async function dismissRecoveryHandoffIfPresent(cdp) {
     return { present: true, dismissed: true };
   })()`);
 
-  if (handoff?.present) {
-    assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before art viewer certification");
-  }
+  if (!handoff?.present) return;
+  assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before art viewer certification");
   await waitUntil(
     () => evaluate(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`),
     "recovery-key handoff dismissal",
@@ -144,33 +141,136 @@ async function dismissRecoveryHandoffIfPresent(cdp) {
   );
 }
 
-async function setSearch(cdp, placeholderFragment, value) {
-  const changed = await evaluate(cdp, `(() => {
-    const input = [...document.querySelectorAll('input')].find((element) => (element.placeholder || '').includes(${JSON.stringify(placeholderFragment)}));
-    if (!input) return false;
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-    setter.call(input, ${JSON.stringify(value)});
-    input.dispatchEvent(new Event('input', { bubbles: true }));
+async function createExplicitGuestSession(cdp) {
+  await navigate(cdp, "/play");
+  await waitUntil(
+    () => evaluate(cdp, `[...document.querySelectorAll('button')].some((node) => !node.disabled && (node.textContent || '').includes('CONTINUAR COMO CONVIDADO'))`),
+    "explicit Guest entry control",
+  );
+  const preGuestStatus = await evaluate(cdp, `(async () => (await fetch('/api/player', { cache: 'no-store', credentials: 'include' })).status)()`);
+  assert.equal(preGuestStatus, 401, "Art viewer cert must remain anonymous before explicit Guest choice");
+
+  const clicked = await evaluate(cdp, `(() => {
+    const button = [...document.querySelectorAll('button')].find((node) => !node.disabled && (node.textContent || '').includes('CONTINUAR COMO CONVIDADO'));
+    if (!button) return false;
+    button.click();
     return true;
   })()`);
-  assert.equal(changed, true, `Search input containing ${placeholderFragment} not found`);
+  assert.equal(clicked, true, "Could not choose Guest explicitly before Collection art certification");
+
+  await waitUntil(
+    () => evaluate(cdp, `(async () => (await fetch('/api/player', { cache: 'no-store', credentials: 'include' })).status === 200)()`),
+    "explicit Guest player session",
+  );
+  await waitUntil(
+    () => evaluate(cdp, `Boolean([...document.querySelectorAll('[role="dialog"]')].find((node) => (node.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))) || (document.body?.innerText || '').includes('FORJE SUA IDENTIDADE')`),
+    "explicit Guest handoff",
+  );
+  await dismissRecoveryHandoffIfPresent(cdp);
+}
+
+async function setSearchForCard(cdp, placeholderFragment, value, defId) {
+  const selector = `[data-card-tip-def-id=${JSON.stringify(defId)}]`;
+  const inputExpression = `[...document.querySelectorAll('input')].find((element) => (element.placeholder || '').includes(${JSON.stringify(placeholderFragment)}))`;
+
+  await waitUntil(
+    () => evaluate(cdp, `Boolean(${inputExpression})`),
+    `search input containing ${placeholderFragment}`,
+    10_000,
+  );
+
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const prepared = await evaluate(cdp, `(() => {
+      const input = ${inputExpression};
+      if (!input) return false;
+      input.focus();
+      input.select();
+      return true;
+    })()`);
+    assert.equal(prepared, true, `Search input containing ${placeholderFragment} not found`);
+
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Control", code: "ControlLeft", modifiers: 2 });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 2 });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 2 });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Control", code: "ControlLeft" });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
+    await cdp.call("Input.insertText", { text: value });
+    await sleep(350);
+
+    const found = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`);
+    if (found) return;
+
+    // Server-rendered inputs can exist a fraction before React's delegated
+    // handlers are hydrated. A bounded retry replays genuine browser input
+    // instead of weakening the assertion that the requested card must render.
+    await sleep(attempt * 150);
+  }
+
+  const diagnostic = await evaluate(cdp, `(() => ({
+    href: location.href,
+    inputPlaceholder: (${inputExpression})?.placeholder || '',
+    inputValue: (${inputExpression})?.value || '',
+    visibleDefIds: [...document.querySelectorAll('[data-card-tip-def-id]')].slice(0, 20).map((node) => node.getAttribute('data-card-tip-def-id')),
+    bodyText: (document.body?.innerText || '').slice(0, 1200),
+  }))()`);
+  throw new Error(`Search did not render ${defId} for ${JSON.stringify(value)}: ${JSON.stringify(diagnostic)}`);
 }
 
 async function hoverCard(cdp, subject) {
   const selector = `[data-card-tip-def-id=${JSON.stringify(subject.defId)}]`;
   await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`), `${subject.defId} card`);
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
+  await sleep(160);
+
+  const scrolled = await evaluate(cdp, `(() => {
+    const target = document.querySelector(${JSON.stringify(selector)});
+    if (!target) return false;
+    target.scrollIntoView({ block: 'center', inline: 'center' });
+    return true;
+  })()`);
+  assert.equal(scrolled, true, `Could not locate hover target ${subject.defId}`);
+  await sleep(120);
+
   const point = await evaluate(cdp, `(() => {
     const target = document.querySelector(${JSON.stringify(selector)});
     if (!target) return null;
-    target.scrollIntoView({ block: 'center', inline: 'center' });
     const rect = target.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    if (rect.width <= 0 || rect.height <= 0) return null;
+    const candidates = [
+      [0.50, 0.50], [0.35, 0.50], [0.65, 0.50],
+      [0.50, 0.35], [0.50, 0.65], [0.35, 0.35], [0.65, 0.65],
+    ];
+    for (const [rx, ry] of candidates) {
+      const x = rect.left + rect.width * rx;
+      const y = rect.top + rect.height * ry;
+      const hit = document.elementFromPoint(x, y);
+      if (hit && (hit === target || target.contains(hit))) {
+        return { x, y, defId: target.getAttribute('data-card-tip-def-id') };
+      }
+    }
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const hit = document.elementFromPoint(centerX, centerY);
+    return {
+      blocked: true,
+      x: centerX,
+      y: centerY,
+      defId: target.getAttribute('data-card-tip-def-id'),
+      hitTag: hit?.tagName || null,
+      hitDefId: hit?.closest?.('[data-card-tip-def-id]')?.getAttribute('data-card-tip-def-id') || null,
+      hitClass: typeof hit?.className === 'string' ? hit.className : null,
+      hitRole: hit?.getAttribute?.('role') || null,
+    };
   })()`);
-  assert.ok(point, `Could not locate ${subject.defId}`);
-  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
-  await sleep(120);
+  assert.ok(point, `Could not hover ${subject.defId}`);
+  assert.notEqual(point.blocked, true, `Hover target ${point.defId || subject.defId} is obscured (hit ${point.hitTag || 'unknown'} / ${point.hitDefId || 'no-card'} / ${point.hitRole || 'no-role'} / ${point.hitClass || 'no-class'})`);
+
+  await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: Math.max(1, point.x - 2), y: point.y });
+  await sleep(40);
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
-  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-tooltip-panel="true"]'))`), "card intelligence tooltip");
+  await sleep(80);
+  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-intelligence-panel="true"]'))`), "card intelligence tooltip");
   await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer-trigger="${subject.defId}"]'))`), "VER ARTE trigger");
 }
 
@@ -242,27 +342,27 @@ async function main() {
 
     await navigate(cdp, "/codex");
     await dismissRecoveryHandoffIfPresent(cdp);
-    await setSearch(cdp, "Nome, habilidade", flagshipSubject.cardName);
+    await setSearchForCard(cdp, "Nome, habilidade", flagshipSubject.cardName, flagshipSubject.defId);
     await hoverCard(cdp, flagshipSubject);
     await openViewer(cdp, flagshipSubject);
     await capture(cdp, "10k-codex-art-viewer.png");
     await closeViewer(cdp, flagshipSubject);
 
-    await setSearch(cdp, "Nome, habilidade", p0Subject.cardName);
+    await setSearchForCard(cdp, "Nome, habilidade", p0Subject.cardName, p0Subject.defId);
     await hoverCard(cdp, p0Subject);
     await openViewer(cdp, p0Subject);
     await capture(cdp, "45-alpha-p0-ember-bolt-art-viewer.png");
     await closeViewer(cdp, p0Subject);
 
+    await createExplicitGuestSession(cdp);
     await navigate(cdp, "/collection");
-    await waitUntil(() => evaluate(cdp, `Boolean([...document.querySelectorAll('input')].find((element) => (element.placeholder || '').includes('Buscar nome')))`) , "Collection search input");
-    await setSearch(cdp, "Buscar nome", flagshipSubject.cardName);
+    await setSearchForCard(cdp, "Buscar nome", flagshipSubject.cardName, flagshipSubject.defId);
     await hoverCard(cdp, flagshipSubject);
     await openViewer(cdp, flagshipSubject);
     await capture(cdp, "10l-collection-art-viewer.png");
     await closeViewer(cdp, flagshipSubject);
 
-    console.log("CARD ART VIEWER BROWSER CERT: PASS — Flagship viewer preserved + five active P0 WebPs served + Scorching Bolt runtime viewer certified");
+    console.log("CARD ART VIEWER BROWSER CERT: PASS — anonymous Codex viewers + explicit-Guest Collection viewer + five active P0 WebPs certified");
   } finally {
     try { cdp?.close(); } catch {}
     if (chrome.exitCode == null && chrome.signalCode == null) chrome.kill("SIGTERM");

@@ -53,46 +53,55 @@ async function createPlayer(displayName?: string): Promise<{ response: Response;
   return { response, payload: await json(response) };
 }
 
+/**
+ * Resolve an existing browser player session without ever creating a player.
+ *
+ * Identity/Auth 1.0 deliberately keeps this helper non-creating so legacy
+ * page effects, prefetches and read-only surfaces cannot silently mint Guest
+ * accounts. Guest creation is an explicit user action through
+ * createGuestPlayerSession().
+ */
 export async function ensurePlayerSession(preferredName?: string): Promise<PlayerSessionPayload> {
   clearLegacyRecoverySecret();
   const current = await fetch("/api/player", { cache: "no-store" });
+  if (!current.ok) return json(current);
+
+  let payload = await json(current);
+  const normalized = preferredName?.trim();
+  const canRename = normalized
+    && normalized.toLowerCase() !== "challenger"
+    && !normalized.toLowerCase().startsWith("guest-")
+    && normalized !== payload.player?.name;
+  if (canRename) {
+    const renamedResponse = await fetch("/api/player", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: normalized }),
+    });
+    const renamed = await json(renamedResponse);
+    if (renamed.ok) payload = renamed;
+  }
+  rememberPlayerName(payload);
+  return payload;
+}
+
+/**
+ * Explicit Guest fallback for user-driven account creation only.
+ * Call this from a deliberate UI action such as "CONTINUAR COMO CONVIDADO".
+ */
+export async function createGuestPlayerSession(): Promise<PlayerSessionPayload> {
+  clearLegacyRecoverySecret();
+
+  // Avoid minting a second player if a session arrived between the entry gate
+  // and the explicit Guest click (for example another completed auth tab).
+  const current = await fetch("/api/player", { cache: "no-store" });
   if (current.ok) {
-    let payload = await json(current);
-    const normalized = preferredName?.trim();
-    const canRename = normalized
-      && normalized.toLowerCase() !== "challenger"
-      && !normalized.toLowerCase().startsWith("guest-")
-      && normalized !== payload.player?.name;
-    if (canRename) {
-      const renamedResponse = await fetch("/api/player", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName: normalized }),
-      });
-      const renamed = await json(renamedResponse);
-      if (renamed.ok) payload = renamed;
-    }
+    const payload = await json(current);
     rememberPlayerName(payload);
     return payload;
   }
 
-  const normalized = preferredName?.trim();
-  const displayName = normalized
-    && normalized.toLowerCase() !== "challenger"
-    && !normalized.toLowerCase().startsWith("guest-")
-    ? normalized
-    : undefined;
-
-  let created = await createPlayer(displayName);
-
-  // A browser that lost its HttpOnly session may still remember the old public
-  // display name. Never block onboarding on that non-secret local preference:
-  // if the name is already owned, create a temporary guest and let the player
-  // explicitly recover the original account with their recovery key.
-  if (created.response.status === 409 && displayName) {
-    created = await createPlayer();
-  }
-
+  const created = await createPlayer();
   if (created.payload.ok) {
     rememberPlayerName(created.payload);
     publishRecoveryCode(created.payload.recoveryCode);

@@ -9,7 +9,6 @@ import {
   resolveCardCosmeticPrestige,
 } from "@/game/card-cosmetics";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
-import { ensurePlayerSession } from "@/lib/client-player-session";
 
 interface WardrobeAsset {
   assetId: number;
@@ -57,6 +56,7 @@ function chanceLabel(asset: WardrobeAsset) {
 export default function CosmeticWardrobeClient() {
   const [assets, setAssets] = useState<WardrobeAsset[]>([]);
   const [preferences, setPreferences] = useState<Preference[]>([]);
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
@@ -66,8 +66,16 @@ export default function CosmeticWardrobeClient() {
     const response = await fetch("/api/player/cosmetics", { cache: "no-store" });
     const data = await response.json();
     if (!data.ok) throw new Error(data.error || "Wardrobe unavailable");
+    if (data.authenticated === false) {
+      setAuthenticated(false);
+      setAssets([]);
+      setPreferences([]);
+      replacePlayerCardCosmeticPreferences([]);
+      return;
+    }
     const nextAssets = Array.isArray(data.wardrobe) ? data.wardrobe as WardrobeAsset[] : [];
     const nextPreferences = Array.isArray(data.preferences) ? data.preferences as Preference[] : [];
+    setAuthenticated(true);
     setAssets(nextAssets);
     setPreferences(nextPreferences);
     replacePlayerCardCosmeticPreferences(nextPreferences);
@@ -75,9 +83,8 @@ export default function CosmeticWardrobeClient() {
 
   useDeferredEffect(() => {
     let cancelled = false;
-    void ensurePlayerSession(localStorage.getItem("runeforge_playername") || "")
-      .then(async () => { if (!cancelled) await load(); })
-      .catch(() => { if (!cancelled) setMessage("❌ Não foi possível carregar sua sessão."); })
+    void load()
+      .catch(() => { if (!cancelled) setMessage("❌ Não foi possível carregar seu Ateliê."); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [load]);
@@ -146,7 +153,7 @@ export default function CosmeticWardrobeClient() {
 
         <div className="cosmetic-wardrobe-search mb-5 rounded-2xl border border-white/10 bg-slate-950/45 p-4"><input className="input w-full" placeholder="Buscar carta, variante, finish ou edição…" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
 
-        {loading ? <Empty title="Sincronizando Ateliê" text="Carregando suas cópias colecionáveis individuais." /> : special.length === 0 ? <Empty title="Nenhuma variante especial encontrada" text="Quando uma cópia Full Art, Foil, Premium, Animated ou Serialized entrar no seu inventário ela aparecerá aqui. Suas cartas Standard continuam intactas." /> : (
+        {loading ? <Empty title="Sincronizando Ateliê" text="Carregando suas cópias colecionáveis individuais." /> : authenticated === false ? <SessionRequired /> : special.length === 0 ? <Empty title="Nenhuma variante especial encontrada" text="Quando uma cópia Full Art, Foil, Premium, Animated ou Serialized entrar no seu inventário ela aparecerá aqui. Suas cartas Standard continuam intactas." /> : (
           <section className="cosmetic-wardrobe-grid grid gap-5 md:grid-cols-2 xl:grid-cols-3" aria-label="Variantes cosméticas possuídas">
             {special.map((asset) => {
               const cosmetic = asset.cosmetic!;
@@ -178,6 +185,9 @@ export default function CosmeticWardrobeClient() {
   );
 }
 
+function SessionRequired() {
+  return <div className="rounded-3xl border border-dashed border-amber-300/20 bg-slate-950/35 px-6 py-16 text-center"><div className="text-5xl">◇</div><h2 className="mt-4 text-xl font-black text-white">Entre na Forja</h2><p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-400">O Ateliê mostra cópias cosméticas e preferências privadas da sua conta. Entre ou continue como convidado para carregar seu inventário.</p><Link href="/play" className="rf-button rf-button-primary mt-6 inline-flex">ENTRAR NA FORJA</Link></div>;
+}
 function Tag({ children }: { children: React.ReactNode }) { return <span className="rounded-full border border-white/10 bg-white/[.06] px-2 py-1">{children}</span>; }
 function Meta({ label, value }: { label: string; value: string }) { return <div><dt className="text-[9px] font-black uppercase tracking-wider text-slate-600">{label}</dt><dd className="mt-1 truncate font-mono text-[10px] text-slate-300" title={value}>{value}</dd></div>; }
 function Stat({ label, value, detail }: { label: string; value: number; detail: string }) { return <div className="cosmetic-prestige-stat rounded-2xl border border-white/10 bg-slate-950/45 p-4"><div className="text-[10px] font-black uppercase tracking-[.18em] text-slate-500">{label}</div><div className="mt-1 text-3xl font-black text-white">{value}</div><div className="mt-1 text-xs text-slate-400">{detail}</div></div>; }

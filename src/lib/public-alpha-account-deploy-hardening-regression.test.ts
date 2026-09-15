@@ -23,7 +23,10 @@ assert.match(client, /localStorage\.removeItem\(LEGACY_RECOVERY_KEY\)/);
 assert.match(client, /PLAYER_RECOVERY_KEY_EVENT/);
 assert.match(client, /consumePendingRecoveryCode/);
 assert.match(client, /recoverPlayerSession/);
-assert.match(client, /created\.response\.status === 409/);
+assert.match(client, /export async function createGuestPlayerSession\(\)/);
+assert.match(client, /if \(!current\.ok\) return json\(current\);/, "ordinary session resolution must not create a Guest when unauthenticated");
+assert.match(client, /const created = await createPlayer\(\);/, "explicit Guest creation must not reuse a remembered display name");
+assert.doesNotMatch(client, /created\.response\.status === 409/, "explicit Guest creation no longer needs the legacy preferred-name conflict fallback");
 assert.match(client, /publishRecoveryCode\(created\.payload\.recoveryCode\)/);
 
 // A one-time handoff is globally visible and offers export outside the browser.
@@ -67,4 +70,4 @@ assert.match(e2e, /explicit recovery must replace an already-authenticated tempo
 assert.match(alpha, /temporary recovery account failed/);
 assert.match(alpha, /recovery test must begin on a different authenticated player/);
 
-console.log("PUBLIC ALPHA ACCOUNT/DEPLOY HARDENING: PASS — branded one-time recovery export + explicit session migration + certified Netlify gate");
+console.log("PUBLIC ALPHA ACCOUNT/DEPLOY HARDENING: PASS — explicit-only Guest creation + branded one-time recovery export + explicit session migration + certified Netlify gate");
