@@ -2,7 +2,8 @@
 
 import pkg from "../../../../../package.json";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { PRODUCT_BRAND } from "@/lib/product-brand";
 
 type ArtPriority = "P0" | "P1" | "P2" | "backlog" | "covered";
@@ -29,7 +30,7 @@ export default function ArtPipelineClient() {
       setLoadState("error"); setLoadError(error instanceof Error?error.message:"Falha desconhecida");
     }
   },[]);
-  useEffect(()=>{void load();},[load]);
+  useDeferredEffect(()=>{void load();},[load]);
   const filtered=useMemo(()=>cards.filter(c=>{
     const matchesQuery=!query||`${c.name} ${c.defId} ${c.region} ${c.starterExposure.deckNames.join(" ")}`.toLowerCase().includes(query.toLowerCase());
     if(!matchesQuery)return false;
