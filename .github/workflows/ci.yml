@@ -167,6 +167,7 @@ jobs:
           node scripts/alpha-card-art-viewer-browser-cert.mjs
           node scripts/alpha-p0-batch-2-browser-cert.mjs
           node scripts/alpha-p0-batch-3-browser-cert.mjs
+          node scripts/alpha-p0-final-browser-cert.mjs
           node scripts/alpha-runtime-tooltip-cert.mjs
           node scripts/alpha-activated-ability-browser-cert.mjs
           node scripts/alpha-casual-pvp-journey.mjs

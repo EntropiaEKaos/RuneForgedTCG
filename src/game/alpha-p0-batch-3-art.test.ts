@@ -15,7 +15,7 @@ const batchIds = [
 ] as const;
 
 async function main() {
-  assert.equal(ALPHA_P0_ACTIVE_IDS.length, 15, "Batch 3 activation must expose exactly fifteen certified P0 masters");
+  assert.ok(ALPHA_P0_ACTIVE_IDS.length >= 15, "Batch 3 activation must preserve at least the first fifteen certified P0 masters");
   assert.deepEqual(
     ALPHA_P0_ART_TARGETS.slice(10, 15).map((entry) => entry.defId),
     [...batchIds],

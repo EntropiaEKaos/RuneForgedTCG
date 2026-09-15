@@ -15,7 +15,7 @@ const batchIds = [
 ] as const;
 
 async function main() {
-  assert.equal(ALPHA_P0_ACTIVE_IDS.length, 15, "Batch 4 production must not activate additional P0 masters");
+  assert.equal(ALPHA_P0_ACTIVE_IDS.length, 21, "Final P0 activation must expose all twenty-one certified masters");
   assert.deepEqual(
     ALPHA_P0_ART_TARGETS.slice(15, 20).map((entry) => entry.defId),
     [...batchIds],
@@ -26,11 +26,11 @@ async function main() {
   const targets = batchIds.map((defId) => {
     const target = ALPHA_P0_ART_TARGETS.find((entry) => entry.defId === defId);
     assert.ok(target, `Missing Alpha P0 manifest target ${defId}`);
-    assert.equal(activeIds.has(defId), false, `${defId} must remain inactive in the physical-production PR`);
-    assert.equal(alphaP0ArtUrl(defId), undefined, `${defId} must remain fail-closed until a separate activation PR`);
+    assert.equal(activeIds.has(defId), true, `${defId} must be active after final P0 promotion`);
+    assert.equal(alphaP0ArtUrl(defId), target.assetPath, `${defId} must resolve its certified Batch 4 master`);
     const exposure = alphaArtExposure(defId);
-    assert.equal(exposure.priority, "P0", `${defId} must remain a pending P0 target`);
-    assert.equal(exposure.knownDedicatedArt, false, `${defId} must not be reported as covered before activation`);
+    assert.equal(exposure.priority, "covered", `${defId} must leave the P0 queue after activation`);
+    assert.equal(exposure.knownDedicatedArt, true, `${defId} must report dedicated art after activation`);
     return target;
   });
 
@@ -78,7 +78,7 @@ async function main() {
     .png()
     .toFile(evidencePath);
 
-  console.log(`FORGED ALPHA P0 ART BATCH 4: ${targets.length}/${targets.length} physical masters · 1536x1920 WebP · inactive/fail-closed · contact sheet PASS`);
+  console.log(`FORGED ALPHA P0 ART BATCH 4: ${targets.length}/${targets.length} physical masters · 1536x1920 WebP · active registry match · contact sheet PASS`);
 }
 
 void main().catch((error) => {
