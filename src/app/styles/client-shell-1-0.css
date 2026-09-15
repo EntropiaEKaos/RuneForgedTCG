@@ -301,3 +301,14 @@ body:has(.rf-client-shell) {
   .rf-client-brand-sigil { width: 27px; height: 27px; }
   .rf-client-topbar { gap: 8px; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-client-shell *,
+  .rf-client-shell *::before,
+  .rf-client-shell *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
