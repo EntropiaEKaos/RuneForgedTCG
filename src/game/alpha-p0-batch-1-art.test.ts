@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import sharp from "sharp";
-import { ALPHA_P0_ART_FORMAT, ALPHA_P0_ART_TARGETS } from "./alpha-p0-art";
+import { ALPHA_P0_ACTIVE_IDS, ALPHA_P0_ART_FORMAT, ALPHA_P0_ART_TARGETS } from "./alpha-p0-art";
 
 const batchIds = [
   "ember_bolt",
@@ -24,6 +24,11 @@ async function main() {
     ALPHA_P0_ART_TARGETS.slice(0, batchIds.length).map((entry) => entry.defId),
     [...batchIds],
     "Batch 1 must remain the five highest-exposure P0 targets in production order",
+  );
+  assert.deepEqual(
+    [...ALPHA_P0_ACTIVE_IDS],
+    [...batchIds],
+    "Only physically certified Batch 1 masters may be active in this activation slice",
   );
 
   execFileSync(process.execPath, ["scripts/generate-alpha-p0-batch-1-art.mjs"], {
@@ -70,7 +75,7 @@ async function main() {
     .png()
     .toFile(evidencePath);
 
-  console.log(`FORGED ALPHA P0 ART BATCH 1: ${targets.length}/${targets.length} physical masters · 1536x1920 WebP · contact sheet PASS`);
+  console.log(`FORGED ALPHA P0 ART BATCH 1: ${targets.length}/${targets.length} physical masters · 1536x1920 WebP · active registry match · contact sheet PASS`);
 }
 
 void main().catch((error) => {
