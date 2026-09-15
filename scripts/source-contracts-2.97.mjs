@@ -70,5 +70,10 @@ has("src/app/api/auth/email/start/route.ts", "15 * 60_000", "magic-link lifetime
 has("src/app/api/auth/email/callback/route.ts", "isNull(authLoginTokens.consumedAt)", "magic-link callback refuses replayed tokens");
 has("src/app/play/PlayEntryClient.tsx", "Entre na", "player entry is explicit instead of silent account creation");
 has("src/app/admin/studio/StudioChrome.tsx", "/admin/studio/identity", "Identity & Auth is discoverable from Studio");
+has("src/app/api/auth/identities/route.ts", "getPlayerSession", "linked identity status requires an authenticated player session");
+lacks("src/app/api/auth/identities/route.ts", "providerSubject:", "player identity status never serializes provider subject identifiers");
+has("src/app/profile/security/SecurityClient.tsx", 'returnTo: "/profile/security"', "e-mail linking returns to player security workspace");
+has("src/app/profile/security/SecurityClient.tsx", 'encodeURIComponent("/profile/security")', "OAuth linking returns to player security workspace");
+has("src/components/SiteNav.tsx", "Acesso & Segurança", "player identity linking is discoverable from identity navigation");
 
 console.log(`SOURCE CONTRACT AUDIT 2.97: PASS (${checks.length} static contracts; NOT behavioral certification)`);
