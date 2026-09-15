@@ -7,6 +7,16 @@ const frameApi = read("src/app/api/admin/studio/frames/route.ts");
 assert.match(frameApi, /card-frame-presets/);
 assert.match(frameApi, /adminRoleAllowed\(actor\.role, "publisher"\)/, "live frame publishing must remain publisher-gated");
 assert.match(frameApi, /cosmetic-usage-exists/, "used frame presets must archive instead of disappearing");
+assert.match(frameApi, /liveCosmeticUsingFrame/, "frame lifecycle must query LIVE cosmetic usage before deactivation");
+assert.match(frameApi, /Cannot disable or archive a frame preset while a LIVE cosmetic uses it/, "LIVE cosmetics must block frame deactivation");
+assert.match(frameApi, /Cannot delete a frame preset while a LIVE cosmetic uses it/, "LIVE cosmetics must block frame deletion");
+
+const cosmeticApi = read("src/app/api/admin/studio/cosmetics/route.ts");
+assert.match(cosmeticApi, /FRAME_PRESET_DOMAIN = "card-frame-presets"/);
+assert.match(cosmeticApi, /frameAvailableForLiveCosmetic/, "LIVE cosmetic activation must validate its frame preset");
+assert.match(cosmeticApi, /Frame preset must be published and enabled before a cosmetic can go LIVE/, "Draft or disabled frames must fail closed for LIVE cosmetics");
+assert.match(cosmeticApi, /eq\(adminGameDefinitions\.status, "published"\)/);
+assert.match(cosmeticApi, /eq\(adminGameDefinitions\.enabled, true\)/);
 
 const frameBuilder = read("src/app/admin/studio/frames/FrameBuilderClient.tsx");
 for (const token of ["Frame Builder", "primaryColor", "secondaryColor", "accentColor", "cornerStyle", "ornament", "foilIntensity", "Duplicar", "Publicar + habilitar"]) {
