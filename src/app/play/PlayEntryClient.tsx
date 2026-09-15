@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import SiteNav from "@/components/SiteNav";
-import { ensurePlayerSession, renamePlayerDisplayName } from "@/lib/client-player-session";
+import { createGuestPlayerSession, renamePlayerDisplayName } from "@/lib/client-player-session";
 import { ALPHA_FIRST_MATCH_DIFFICULTY, ALPHA_ONBOARDING_COMPLETE, ALPHA_ONBOARDING_STORAGE_KEY, shouldShowAlphaOnboarding } from "@/lib/alpha-onboarding";
 import { PRODUCT_BRAND } from "@/lib/product-brand";
 import GameClient from "./GameClient";
@@ -30,7 +30,7 @@ export default function PlayEntryClient() {
   const providerEnabled=(p:Provider["provider"])=>providers.some(x=>x.provider===p&&x.enabled);
   const oauth=(provider:"google"|"discord")=>{router.push(`/api/auth/oauth/${provider}/start?returnTo=${encodeURIComponent("/play")}`);};
   const magic=async(e:FormEvent)=>{e.preventDefault();setBusy(true);setMessage("");try{const r=await fetch("/api/auth/email/start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,returnTo:"/play"})});const d=await r.json();setMessage(d.ok?"Link enviado. Abra seu e-mail para entrar na Forja.":d.error||"Não foi possível enviar o link.");}finally{setBusy(false);}};
-  const guest=async()=>{setBusy(true);setMessage("");try{const session=await ensurePlayerSession();if(!session.ok||!session.player)throw new Error(session.error||"Não foi possível criar a sessão de convidado.");setPlayerName(String(session.player.name));setNickname("");setState("nickname");}catch(cause){setMessage(cause instanceof Error?cause.message:"Falha ao continuar como convidado.");}finally{setBusy(false);}};
+  const guest=async()=>{setBusy(true);setMessage("");try{const session=await createGuestPlayerSession();if(!session.ok||!session.player)throw new Error(session.error||"Não foi possível criar a sessão de convidado.");setPlayerName(String(session.player.name));setNickname("");setState("nickname");}catch(cause){setMessage(cause instanceof Error?cause.message:"Falha ao continuar como convidado.");}finally{setBusy(false);}};
   const forgeName=async(e:FormEvent)=>{e.preventDefault();setBusy(true);setMessage("");try{const result=await renamePlayerDisplayName(nickname);if(!result.ok||!result.player){setMessage(result.error||"Nome indisponível.");return;}const name=String(result.player.name);setPlayerName(name);const completed=localStorage.getItem(ALPHA_ONBOARDING_STORAGE_KEY)===ALPHA_ONBOARDING_COMPLETE;if(shouldShowAlphaOnboarding({created:true,completed})){localStorage.setItem("runeforge_ai_difficulty",ALPHA_FIRST_MATCH_DIFFICULTY);setState("welcome");}else setState("ready");}finally{setBusy(false);}};
 
   if(state==="ready")return <GameClient/>;
