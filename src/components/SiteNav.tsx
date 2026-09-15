@@ -94,6 +94,7 @@ const UTILITIES: MetaLink[] = [
   { href: "/codex", label: "Codex", icon: "⌘" },
   { href: "/admin", label: "Studio", icon: "✦" },
 ];
+const SECURITY_LINK: MetaLink = { href: "/profile/security", label: "Acesso & Segurança", icon: "◇" };
 
 const SYSTEM_SECTION: MetaSection = {
   id: "system",
@@ -102,7 +103,7 @@ const SYSTEM_SECTION: MetaSection = {
   icon: "◉",
   routes: ["/profile", "/codex", "/admin"],
   contextLabel: "IDENTIDADE & SISTEMA",
-  links: UTILITIES,
+  links: [...UTILITIES, SECURITY_LINK],
 };
 
 function routeMatches(pathname: string, route: string) {
