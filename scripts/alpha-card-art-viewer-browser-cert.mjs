@@ -141,16 +141,50 @@ async function dismissRecoveryHandoffIfPresent(cdp) {
   );
 }
 
-async function setSearch(cdp, placeholderFragment, value) {
-  const changed = await evaluate(cdp, `(() => {
-    const input = [...document.querySelectorAll('input')].find((element) => (element.placeholder || '').includes(${JSON.stringify(placeholderFragment)}));
-    if (!input) return false;
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-    setter.call(input, ${JSON.stringify(value)});
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    return true;
-  })()`);
-  assert.equal(changed, true, `Search input containing ${placeholderFragment} not found`);
+async function setSearchForCard(cdp, placeholderFragment, value, defId) {
+  const selector = `[data-card-tip-def-id=${JSON.stringify(defId)}]`;
+  const inputExpression = `[...document.querySelectorAll('input')].find((element) => (element.placeholder || '').includes(${JSON.stringify(placeholderFragment)}))`;
+
+  await waitUntil(
+    () => evaluate(cdp, `Boolean(${inputExpression})`),
+    `search input containing ${placeholderFragment}`,
+    10_000,
+  );
+
+  for (let attempt = 1; attempt <= 6; attempt += 1) {
+    const prepared = await evaluate(cdp, `(() => {
+      const input = ${inputExpression};
+      if (!input) return false;
+      input.focus();
+      input.select();
+      return true;
+    })()`);
+    assert.equal(prepared, true, `Search input containing ${placeholderFragment} not found`);
+
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Control", code: "ControlLeft", modifiers: 2 });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", key: "a", code: "KeyA", modifiers: 2 });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 2 });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Control", code: "ControlLeft" });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace" });
+    await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace" });
+    await cdp.call("Input.insertText", { text: value });
+    await sleep(350);
+
+    const found = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`);
+    if (found) return;
+
+    // Server-rendered inputs can exist a fraction before React's delegated
+    // handlers are hydrated. A bounded retry replays genuine browser input
+    // instead of weakening the assertion that the requested card must render.
+    await sleep(attempt * 150);
+  }
+
+  const diagnostic = await evaluate(cdp, `(() => ({
+    inputValue: (${inputExpression})?.value || '',
+    visibleDefIds: [...document.querySelectorAll('[data-card-tip-def-id]')].slice(0, 20).map((node) => node.getAttribute('data-card-tip-def-id')),
+    bodyText: (document.body?.innerText || '').slice(0, 1200),
+  }))()`);
+  throw new Error(`Search did not render ${defId} for ${JSON.stringify(value)}: ${JSON.stringify(diagnostic)}`);
 }
 
 async function hoverCard(cdp, subject) {
@@ -278,21 +312,20 @@ async function main() {
 
     await navigate(cdp, "/codex");
     await dismissRecoveryHandoffIfPresent(cdp);
-    await setSearch(cdp, "Nome, habilidade", flagshipSubject.cardName);
+    await setSearchForCard(cdp, "Nome, habilidade", flagshipSubject.cardName, flagshipSubject.defId);
     await hoverCard(cdp, flagshipSubject);
     await openViewer(cdp, flagshipSubject);
     await capture(cdp, "10k-codex-art-viewer.png");
     await closeViewer(cdp, flagshipSubject);
 
-    await setSearch(cdp, "Nome, habilidade", p0Subject.cardName);
+    await setSearchForCard(cdp, "Nome, habilidade", p0Subject.cardName, p0Subject.defId);
     await hoverCard(cdp, p0Subject);
     await openViewer(cdp, p0Subject);
     await capture(cdp, "45-alpha-p0-ember-bolt-art-viewer.png");
     await closeViewer(cdp, p0Subject);
 
     await navigate(cdp, "/collection");
-    await waitUntil(() => evaluate(cdp, `Boolean([...document.querySelectorAll('input')].find((element) => (element.placeholder || '').includes('Buscar nome')))`) , "Collection search input");
-    await setSearch(cdp, "Buscar nome", flagshipSubject.cardName);
+    await setSearchForCard(cdp, "Buscar nome", flagshipSubject.cardName, flagshipSubject.defId);
     await hoverCard(cdp, flagshipSubject);
     await openViewer(cdp, flagshipSubject);
     await capture(cdp, "10l-collection-art-viewer.png");
