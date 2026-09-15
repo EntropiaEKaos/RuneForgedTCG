@@ -27,7 +27,8 @@ const PRIMARY_LINKS: ClientLink[] = [
   { href: "/forge", label: "Decks", icon: "◆", routes: ["/forge"] },
   { href: "/ranked", label: "Ranked", icon: "♜", routes: ["/ranked", "/leaderboard"] },
   { href: "/lore", label: "Crônicas", icon: "⌘", routes: ["/lore"] },
-  { href: "/modes", label: "Eventos", icon: "✦", routes: ["/modes", "/store", "/market"] },
+  { href: "/modes", label: "Eventos", icon: "✦", routes: ["/modes"] },
+  { href: "/market", label: "Mercado", icon: "⬡", routes: ["/market"] },
   { href: "/community", label: "Social", icon: "◎", routes: ["/community", "/friends"] },
 ];
 
