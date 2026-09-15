@@ -94,6 +94,56 @@ async function waitForText(cdp, text) {
   return waitUntil(() => evaluate(cdp, `document.body?.innerText?.includes(${JSON.stringify(text)}) === true`), `text ${JSON.stringify(text)}`);
 }
 
+async function artPipelineUiState(cdp) {
+  return evaluate(cdp, `(() => ({
+    href:location.href,
+    ready:Boolean(document.querySelector('[data-art-pipeline-load="ready"]')),
+    loading:Boolean(document.querySelector('[data-art-pipeline-load="loading"]')),
+    error:Boolean(document.querySelector('[data-art-pipeline-load="error"]')),
+    mounted:Boolean(document.querySelector('[data-studio-art-pipeline="visual-authoring-1.1"]')),
+    text:(document.body?.innerText || '').replace(/\\s+/g,' ').trim().slice(0,1200)
+  }))()`);
+}
+
+async function diagnoseArtPipeline(cdp) {
+  const ui = await artPipelineUiState(cdp);
+  const api = await evaluate(cdp, `(async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch('/api/admin/studio/art', { credentials:'include', cache:'no-store', signal:controller.signal });
+      const text = await response.text();
+      let body = null;
+      try { body = JSON.parse(text); } catch {}
+      return { status:response.status, ok:response.ok, body, text:text.slice(0,1200) };
+    } catch (error) {
+      return { status:null, ok:false, error:error instanceof Error ? error.message : String(error) };
+    } finally {
+      clearTimeout(timer);
+    }
+  })()`);
+  return { ui, api };
+}
+
+async function waitForArtPipelineReady(cdp) {
+  const deadline = Date.now() + 30_000;
+  let lastState = null;
+  while (Date.now() < deadline) {
+    lastState = await artPipelineUiState(cdp);
+    if (lastState.ready) return lastState;
+    if (lastState.error) {
+      const diagnostic = await diagnoseArtPipeline(cdp);
+      throw new Error(`Art Pipeline entered error state: ${JSON.stringify(diagnostic)}`);
+    }
+    await sleep(125);
+  }
+  const diagnostic = await diagnoseArtPipeline(cdp);
+  await writeFile(join(outputDir, "43-studio-art-pipeline-diagnostic.json"), `${JSON.stringify(diagnostic,null,2)}\n`, "utf8");
+  const screenshot = await cdp.call("Page.captureScreenshot", { format:"png", fromSurface:true, captureBeyondViewport:false });
+  await writeFile(join(outputDir, "43-studio-art-pipeline-diagnostic.png"), Buffer.from(screenshot.data, "base64"));
+  throw new Error(`Timed out waiting for Art Pipeline ready state: ${JSON.stringify(diagnostic)}`);
+}
+
 async function clickText(cdp, text) {
   const clicked = await evaluate(cdp, `(() => {
     const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
@@ -239,6 +289,7 @@ async function main() {
 
     await navigate(cdp, "/admin/studio/art");
     await waitForText(cdp, "Art Pipeline");
+    await waitForArtPipelineReady(cdp);
     await waitForText(cdp, "P0 pendentes");
     const artMetrics = await capture(cdp, "43-studio-art-pipeline.png", "Art Pipeline");
     const artEvidence = await evaluate(cdp, `(() => ({ mounted:document.querySelector('[data-studio-art-pipeline="visual-authoring-1.1"]') !== null, hasUpload:[...document.querySelectorAll('label')].some((x)=>(x.textContent||'').includes('Upload imagem')), hasFrameBuilder:(document.body?.innerText||'').includes('Frame Builder'), hasAlphaPriority:(document.body?.innerText||'').includes('P0 pendentes') && (document.body?.innerText||'').includes('Prioridade Alpha') }))()`);
