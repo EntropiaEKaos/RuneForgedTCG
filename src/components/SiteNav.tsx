@@ -2,204 +2,148 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { PRODUCT_BRAND } from "@/lib/product-brand";
+import { trackClientEvent } from "@/lib/client-telemetry";
 
-type MetaLink = { href: string; label: string; icon?: string };
-type MetaSection = {
-  id: string;
+type ClientLink = {
   href: string;
   label: string;
   icon: string;
   routes: string[];
-  contextLabel: string;
-  links: MetaLink[];
+  accent?: boolean;
 };
 
-const SECTIONS: MetaSection[] = [
-  {
-    id: "play",
-    href: "/play",
-    label: "Jogar",
-    icon: "⚔",
-    routes: ["/play", "/pvp", "/ranked", "/draft", "/simulate"],
-    contextLabel: "PREPARAÇÃO & DUELO",
-    links: [
-      { href: "/play", label: "Decks" },
-      { href: "/pvp", label: "PvP casual" },
-      { href: "/ranked", label: "Ranked" },
-      { href: "/draft", label: "Draft" },
-      { href: "/simulate", label: "Simulador" },
-    ],
-  },
-  {
-    id: "modes",
-    href: "/modes",
-    label: "Modos",
-    icon: "◇",
-    routes: ["/modes"],
-    contextLabel: "ARQUIVOS DO NEXUS",
-    links: [
-      { href: "/modes", label: "Expedições" },
-      { href: "/draft", label: "Draft" },
-      { href: "/ranked", label: "Competitivo" },
-      { href: "/pvp", label: "Duelo casual" },
-    ],
-  },
-  {
-    id: "collection",
-    href: "/collection",
-    label: "Coleção",
-    icon: "◈",
-    routes: ["/collection", "/collections", "/album"],
-    contextLabel: "ACERVO DO FORJADOR",
-    links: [
-      { href: "/collection", label: "Cartas" },
-      { href: "/collections", label: "Coleções" },
-      { href: "/album", label: "Álbum" },
-      { href: "/codex", label: "Codex" },
-    ],
-  },
-  {
-    id: "forge",
-    href: "/forge",
-    label: "Forja",
-    icon: "◆",
-    routes: ["/forge", "/store", "/market"],
-    contextLabel: "ARSENAL & ECONOMIA",
-    links: [
-      { href: "/forge", label: "Decks" },
-      { href: "/store", label: "Loja" },
-      { href: "/market", label: "Mercado" },
-      { href: "/collection", label: "Acervo" },
-    ],
-  },
-  {
-    id: "community",
-    href: "/community",
-    label: "Comunidade",
-    icon: "◎",
-    routes: ["/community", "/friends", "/leaderboard"],
-    contextLabel: "REDE DO NEXUS",
-    links: [
-      { href: "/community", label: "Hub" },
-      { href: "/friends", label: "Amigos" },
-      { href: "/leaderboard", label: "Ranking" },
-      { href: "/pvp", label: "Salas PvP" },
-    ],
-  },
-];
-
-const UTILITIES: MetaLink[] = [
-  { href: "/profile", label: "Perfil", icon: "◉" },
-  { href: "/codex", label: "Codex", icon: "⌘" },
-  { href: "/admin", label: "Studio", icon: "✦" },
-];
-const SECURITY_LINK: MetaLink = { href: "/profile/security", label: "Acesso & Segurança", icon: "◇" };
-
-const SYSTEM_SECTION: MetaSection = {
-  id: "system",
-  href: "/profile",
-  label: "Forjador",
-  icon: "◉",
-  routes: ["/profile", "/codex", "/admin"],
-  contextLabel: "IDENTIDADE & SISTEMA",
-  links: [...UTILITIES, SECURITY_LINK],
+type ClientContext = {
+  ok?: boolean;
+  player?: { authenticated: boolean; name?: string | null; avatar?: string | null };
+  admin?: { authenticated: boolean; role?: string | null; canStudio?: boolean };
 };
+
+const PRIMARY_LINKS: ClientLink[] = [
+  { href: "/", label: "Início", icon: "◇", routes: ["/"] },
+  { href: "/play", label: "Jogar", icon: "⚔", routes: ["/play", "/pvp", "/draft", "/simulate"], accent: true },
+  { href: "/collection", label: "Coleção", icon: "◈", routes: ["/collection", "/collections", "/album", "/codex"] },
+  { href: "/forge", label: "Decks", icon: "◆", routes: ["/forge"] },
+  { href: "/ranked", label: "Ranked", icon: "♜", routes: ["/ranked", "/leaderboard"] },
+  { href: "/lore", label: "Crônicas", icon: "⌘", routes: ["/lore"] },
+  { href: "/modes", label: "Eventos", icon: "✦", routes: ["/modes", "/store", "/market"] },
+  { href: "/community", label: "Social", icon: "◎", routes: ["/community", "/friends"] },
+];
+
+const PROFILE_LINKS: ClientLink[] = [
+  { href: "/profile", label: "Perfil", icon: "◉", routes: ["/profile"] },
+];
 
 function routeMatches(pathname: string, route: string) {
+  if (route === "/") return pathname === "/";
   return pathname === route || pathname.startsWith(`${route}/`);
 }
 
-function currentSection(pathname: string) {
-  return SECTIONS.find((section) => section.routes.some((route) => routeMatches(pathname, route)))
-    ?? (SYSTEM_SECTION.routes.some((route) => routeMatches(pathname, route)) ? SYSTEM_SECTION : null);
+function isActive(pathname: string, link: ClientLink) {
+  return link.routes.some((route) => routeMatches(pathname, route));
 }
 
 export default function SiteNav() {
   const pathname = usePathname() || "/";
-  const activeSection = currentSection(pathname);
-  const context = activeSection ?? {
-    ...SYSTEM_SECTION,
-    id: "home",
-    contextLabel: PRODUCT_BRAND.subtitle,
-    links: [
-      { href: "/play", label: "Jogar" },
-      { href: "/profile", label: "Perfil" },
-      { href: "/codex", label: "Codex" },
-    ],
-  };
+  const [context, setContext] = useState<ClientContext | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/client/context", { credentials: "include", cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (alive) setContext(data);
+      })
+      .catch(() => {
+        if (alive) setContext(null);
+      });
+    return () => { alive = false; };
+  }, [pathname]);
+
+  useEffect(() => {
+    trackClientEvent("client.route_viewed", { pathname });
+  }, [pathname]);
+
+  const activeLabel = useMemo(() => {
+    return PRIMARY_LINKS.find((link) => isActive(pathname, link))?.label
+      ?? PROFILE_LINKS.find((link) => isActive(pathname, link))?.label
+      ?? "FORGED";
+  }, [pathname]);
+
+  const canStudio = Boolean(context?.admin?.authenticated && context.admin.canStudio);
+  const playerName = context?.player?.name?.trim() || "FORJADOR";
+  const playerAvatar = context?.player?.avatar?.trim() || "◉";
 
   return (
-    <header className="rf-chrome" data-meta-section={activeSection?.id ?? "home"}>
-      <div className="rf-chrome-primary mx-auto flex max-w-7xl items-center justify-between gap-6 px-4 py-3 sm:px-6">
-        <Link href="/" className="rf-brand" aria-label={`${PRODUCT_BRAND.fullName} — início`}>
-          <span className="rf-brand-mark" aria-hidden="true"><i /></span>
-          <span className="rf-brand-wordmark">
+    <header className="rf-client-shell" data-client-shell="true" data-active-surface={activeLabel.toLowerCase()}>
+      <div className="rf-client-topbar">
+        <Link href="/" className="rf-client-brand" aria-label={`${PRODUCT_BRAND.fullName} — início`}>
+          <span className="rf-client-brand-sigil" aria-hidden="true"><i /></span>
+          <span className="rf-client-brand-copy">
             <strong>{PRODUCT_BRAND.displayName}</strong>
             <small>{PRODUCT_BRAND.subtitle}</small>
           </span>
         </Link>
 
-        <nav className="rf-nav" aria-label="Navegação principal">
-          {SECTIONS.map((section) => {
-            const active = activeSection?.id === section.id;
-            return (
-              <Link
-                key={section.href}
-                href={section.href}
-                className="rf-nav-link"
-                data-active={active ? "true" : "false"}
-                aria-current={pathname === section.href ? "page" : undefined}
-              >
-                <i aria-hidden="true">{section.icon}</i>{section.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="rf-client-surface-title">
+          <small>CLIENT</small>
+          <strong>{activeLabel}</strong>
+        </div>
 
-        <div className="rf-meta-actions" aria-label="Acesso rápido">
-          {UTILITIES.map((utility) => {
-            const active = routeMatches(pathname, utility.href);
-            return (
-              <Link
-                key={utility.href}
-                href={utility.href}
-                className="rf-meta-action"
-                data-active={active ? "true" : "false"}
-                aria-current={pathname === utility.href ? "page" : undefined}
-              >
-                <i aria-hidden="true">{utility.icon}</i><span>{utility.label}</span>
-              </Link>
-            );
-          })}
-          <Link href="/play" className="rf-nav-cta" aria-current={pathname === "/play" ? "page" : undefined}>
-            <span>JOGAR ALPHA</span><b>→</b>
+        <div className="rf-client-top-actions">
+          <Link href="/store" className="rf-client-resource" aria-label="Loja e recursos"><span>◆</span><b>LOJA</b></Link>
+          <Link href="/profile" className="rf-client-profile-chip">
+            <span className="rf-client-avatar" aria-hidden="true">{playerAvatar}</span>
+            <span><small>{context?.player?.authenticated ? "ONLINE" : "CONVIDADO"}</small><b>{playerName}</b></span>
           </Link>
         </div>
       </div>
 
-      <div className="rf-context-rail">
-        <div className="rf-context-inner mx-auto max-w-7xl px-4 sm:px-6">
-          <span className="rf-context-label"><i aria-hidden="true" />{context.contextLabel}</span>
-          <nav className="rf-context-links" aria-label={`Atalhos — ${context.contextLabel}`}>
-            {context.links.map((link) => {
-              const active = routeMatches(pathname, link.href);
-              return (
-                <Link
-                  key={`${context.id}:${link.href}`}
-                  href={link.href}
-                  className="rf-context-link"
-                  data-active={active ? "true" : "false"}
-                  aria-current={pathname === link.href ? "page" : undefined}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-          </nav>
-          <span className="rf-context-sigil" aria-hidden="true">◇</span>
+      <aside className="rf-client-rail" aria-label="Navegação do client">
+        <div className="rf-client-rail-primary">
+          {PRIMARY_LINKS.map((link) => {
+            const active = isActive(pathname, link);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rf-client-rail-link"
+                data-active={active ? "true" : "false"}
+                data-accent={link.accent ? "true" : "false"}
+                aria-current={active ? "page" : undefined}
+                title={link.label}
+              >
+                <i aria-hidden="true">{link.icon}</i>
+                <span>{link.label}</span>
+              </Link>
+            );
+          })}
         </div>
-      </div>
+
+        <div className="rf-client-rail-utility">
+          {canStudio && (
+            <Link
+              href="/admin/studio"
+              className="rf-client-rail-link rf-client-admin-link"
+              data-active={pathname.startsWith("/admin") ? "true" : "false"}
+              title="Studio Admin"
+            >
+              <i aria-hidden="true">⚙</i>
+              <span>Studio</span>
+            </Link>
+          )}
+          {PROFILE_LINKS.map((link) => {
+            const active = isActive(pathname, link);
+            return (
+              <Link key={link.href} href={link.href} className="rf-client-rail-link" data-active={active ? "true" : "false"} title={link.label}>
+                <i aria-hidden="true">{link.icon}</i>
+                <span>{link.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </aside>
     </header>
   );
 }
