@@ -64,6 +64,15 @@ async function logout(cdp){const status=await evaluate(cdp,`(async()=> (await fe
 async function clearPlayerSession(cdp,label){const status=await evaluate(cdp,`(async()=> (await fetch('/api/player',{method:'DELETE',credentials:'include'})).status)()`);assert.equal(status,200,`${label}: player-session cleanup failed`);}
 async function dismissRecovery(cdp){await waitUntil(()=>evaluate(cdp,`(()=>{const dialog=[...document.querySelectorAll('[role="dialog"]')].find(node=>(node.textContent||'').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'));if(!dialog)return true;const button=[...dialog.querySelectorAll('button')].find(node=>!node.disabled&&(node.textContent||'').replace(/\\s+/g,' ').trim()==='JÁ GUARDEI');if(button)button.click();return false;})()`),"recovery handoff dismissal",30_000);}
 async function fillNickname(cdp,name){const filled=await evaluate(cdp,`(()=>{const input=[...document.querySelectorAll('input')].find(node=>node.getAttribute('placeholder')==='Seu nome na Forja');if(!input)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(!setter)return false;setter.call(input,${JSON.stringify(name)});input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);assert.equal(filled,true,"Nickname input is required for Identity/Auth browser certification");}
+function isExpectedAuthTransitionNetworkLog(message){
+  if(message.method!=="Log.entryAdded") return false;
+  const entry=message.params?.entry;
+  if(entry?.source!=="network"||entry?.level!=="error") return false;
+  const url=String(entry.url||"");
+  const text=String(entry.text||"");
+  if(text.includes("401 (Unauthorized)")&&(url.endsWith("/api/admin/session")||url.endsWith("/api/player"))) return true;
+  return text.includes("404 (Not Found)")&&url.endsWith("/favicon.ico");
+}
 async function shutdown(chrome,profileDir){if(chrome.exitCode==null&&chrome.signalCode==null)chrome.kill("SIGTERM");await sleep(300);if(chrome.exitCode==null&&chrome.signalCode==null)chrome.kill("SIGKILL");await rm(profileDir,{recursive:true,force:true,maxRetries:5,retryDelay:200}).catch(()=>{});}
 
 async function main(){
@@ -101,7 +110,7 @@ async function main(){
 
     await clearPlayerSession(cdp,"guest browser teardown");
 
-    const severe=cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown"||(message.method==="Log.entryAdded"&&["error","assert"].includes(message.params?.entry?.level)));
+    const severe=cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown"||(message.method==="Log.entryAdded"&&["error","assert"].includes(message.params?.entry?.level)&&!isExpectedAuthTransitionNetworkLog(message)));
     assert.equal(severe.length,0,`Browser emitted runtime errors: ${JSON.stringify(severe.slice(0,3))}`);
     const screenshots=["57-identity-auth-entry.png","58-identity-auth-nickname.png","59-studio-identity-provider-vault.png","60-profile-access-security.png"];
     await writeFile(join(outputDir,"57-60-identity-auth-browser-cert.json"),`${JSON.stringify({ok:true,gitSha:process.env.GITHUB_SHA||null,screenshots,guestFallback:true,providerControls:["google","discord","email"],playerLinkingWorkspace:true},null,2)}\n`);
