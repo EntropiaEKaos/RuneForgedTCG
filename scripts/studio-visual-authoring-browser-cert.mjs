@@ -200,7 +200,13 @@ async function main() {
     await waitForText(cdp, frameName);
     await clickText(cdp, "Editar");
     await waitUntil(() => evaluate(cdp, `document.querySelector('[data-frame-preview]')?.getAttribute('data-frame-preview') === ${JSON.stringify(frameKey)}`), "Frame Builder selected preset");
-    await waitForText(cdp, "Live preview");
+    await waitUntil(() => evaluate(cdp, `(() => {
+      const preview = document.querySelector('[data-frame-preview]');
+      if (!preview || preview.getAttribute('data-frame-preview') !== ${JSON.stringify(frameKey)}) return false;
+      const rect = preview.getBoundingClientRect();
+      const text = (preview.textContent || '').replace(/\\s+/g, ' ').trim();
+      return rect.width >= 200 && rect.height >= 300 && text.includes('FRAME PREVIEW');
+    })()`), "Frame Builder live preview ready");
     const frameMetrics = await capture(cdp, "41-studio-frame-builder.png", "Frame Builder");
     const frameEvidence = await evaluate(cdp, `(() => ({ builder:Boolean(document.querySelector('[data-studio-frame-builder="true"]')), preview:Boolean(document.querySelector('[data-frame-preview]')), primary:[...document.querySelectorAll('input[type="color"]')].map((x)=>x.value), ranges:document.querySelectorAll('input[type="range"]').length }))()`);
     assert.equal(frameEvidence.builder, true, "Frame Builder marker must be mounted");
