@@ -20,12 +20,12 @@ export function getCardArt(defId: string) {
   if (cosmetic.artUrl) return { url: cosmetic.artUrl, crop: cosmetic.artCrop || undefined, cosmetic: true as const };
   const editorial = browserArt[defId] ?? getCustomCardArtCached(defId);
   if (editorial) return editorial;
-  const builtInUrl =
+  const flagshipUrl =
     alphaP0ArtUrl(defId) ??
     flagshipChampionArtUrl(defId) ??
     flagshipStructureArtUrl(defId) ??
     flagshipRitualArtUrl(defId) ??
     flagshipTrapArtUrl(defId) ??
     flagshipSignatureArtUrl(defId);
-  return builtInUrl ? { url: builtInUrl } : undefined;
+  return flagshipUrl ? { url: flagshipUrl } : undefined;
 }
