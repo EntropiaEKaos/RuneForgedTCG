@@ -55,6 +55,11 @@ export const ALPHA_P0_ACTIVE_IDS = [
   "tide_guard",
   "wood_growth",
   "wood_mend",
+  "ember_sprinter",
+  "wood_ward",
+  "ember_face",
+  "ember_drake",
+  "ember_stun",
 ] as const;
 
 const activeIds = new Set<string>(ALPHA_P0_ACTIVE_IDS);

@@ -13,12 +13,12 @@ import {
 
 assert.equal(ALPHA_P0_ART_TARGETS.length, 21, "Alpha P0 production contract must stay scoped to 21 masters");
 assert.equal(new Set(ALPHA_P0_ART_TARGETS.map((target) => target.defId)).size, 21, "Alpha P0 target defIds must be unique");
-assert.equal(ALPHA_P0_ACTIVE_IDS.length, 5, "Batch 1 activation must stay scoped to five certified masters");
-assert.equal(ALPHA_P0_ACTIVE_TARGETS.length, 5, "Every active P0 id must map to one production target");
+assert.equal(ALPHA_P0_ACTIVE_IDS.length, 10, "Batch 1 + 2 activation must stay scoped to ten certified masters");
+assert.equal(ALPHA_P0_ACTIVE_TARGETS.length, 10, "Every active P0 id must map to one production target");
 assert.deepEqual(
   ALPHA_P0_ART_TARGETS.slice(0, ALPHA_P0_ACTIVE_IDS.length).map((entry) => entry.defId),
   [...ALPHA_P0_ACTIVE_IDS],
-  "Batch 1 activation must remain the five highest-exposure P0 targets",
+  "Batch 1 + 2 activation must remain the ten highest-exposure P0 targets in production order",
 );
 assert.equal(ALPHA_P0_ART_FORMAT.aspectRatio, "4:5");
 assert.equal(ALPHA_P0_ART_FORMAT.masterWidth, 1536);
@@ -28,7 +28,7 @@ assert.equal(ALPHA_P0_ART_FORMAT.delivery, "webp");
 const activeIds = new Set<string>(ALPHA_P0_ACTIVE_IDS);
 const pendingTargets = ALPHA_P0_ART_TARGETS.filter((target) => !activeIds.has(target.defId));
 const liveP0 = alphaArtPriorityQueue().filter((row) => row.priority === "P0");
-assert.equal(liveP0.length, 16, "Activating Batch 1 must reduce the live P0 queue from 21 to 16 cards");
+assert.equal(liveP0.length, 11, "Activating Batch 2 must reduce the live P0 queue from 16 to 11 cards");
 assert.deepEqual(
   [...pendingTargets.map((target) => target.defId)].sort(),
   [...liveP0.map((row) => row.defId)].sort(),
@@ -37,9 +37,9 @@ assert.deepEqual(
 
 const snapshot = alphaArtBacklogSnapshot();
 assert.equal(snapshot.uniqueStarterCards, 140, "Starter art universe must remain 140 unique cards");
-assert.equal(snapshot.covered, 35, "30 Flagship masters + five activated P0 masters must report 35 covered starter cards");
-assert.equal(snapshot.missing, 105, "Batch 1 activation must leave 105 starter cards without dedicated art");
-assert.equal(snapshot.byPriority.P0, 16, "Batch 1 activation must leave exactly 16 P0 cards pending");
+assert.equal(snapshot.covered, 40, "30 Flagship masters + ten activated P0 masters must report 40 covered starter cards");
+assert.equal(snapshot.missing, 100, "Batch 2 activation must leave 100 starter cards without dedicated art");
+assert.equal(snapshot.byPriority.P0, 11, "Batch 2 activation must leave exactly 11 P0 cards pending");
 
 for (const target of ALPHA_P0_ART_TARGETS) {
   assert.ok(target.assetPath.startsWith(`${ALPHA_P0_ART_ROOT}/${target.region.toLowerCase()}/`), `${target.defId} must live under its regional P0 art directory`);
@@ -67,4 +67,4 @@ assert.equal(getCardArt("ember_bolt")?.url, "/uploads/editorial/ember-bolt-appro
 replaceRegisteredCardArt([]);
 assert.equal(getCardArt("ember_bolt")?.url, emberBoltPath, "Clearing editorial art must restore the certified P0 master");
 
-console.log("FORGED ALPHA P0 ART ACTIVATION: 5 active / 35 covered / 105 backlog / 16 P0 pending / PASS");
+console.log("FORGED ALPHA P0 ART ACTIVATION: 10 active / 40 covered / 100 backlog / 11 P0 pending / PASS");

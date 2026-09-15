@@ -18,17 +18,22 @@ async function main() {
   assert.deepEqual(
     ALPHA_P0_ART_TARGETS.slice(5, 10).map((entry) => entry.defId),
     [...batchIds],
-    "Batch 2 must remain the next five masters in the certified P0 production contract",
+    "Batch 2 must remain the second five-master slice in the certified P0 production contract",
+  );
+  assert.deepEqual(
+    ALPHA_P0_ACTIVE_IDS.slice(5, 10),
+    [...batchIds],
+    "Physically certified Batch 2 masters must exactly match the second active P0 slice",
   );
 
   const targets = batchIds.map((defId) => {
     const target = ALPHA_P0_ART_TARGETS.find((entry) => entry.defId === defId);
     assert.ok(target, `Missing Alpha P0 manifest target ${defId}`);
-    assert.equal(ALPHA_P0_ACTIVE_IDS.includes(defId as never), false, `${defId} must not be runtime-active in the physical-production PR`);
-    assert.equal(alphaP0ArtUrl(defId), undefined, `${defId} must remain fail-closed until a separate activation PR`);
+    assert.equal(ALPHA_P0_ACTIVE_IDS.includes(defId), true, `${defId} must be runtime-active after Batch 2 certification`);
+    assert.equal(alphaP0ArtUrl(defId), target.assetPath, `${defId} must resolve its certified Batch 2 master`);
     const exposure = alphaArtExposure(defId);
-    assert.equal(exposure.priority, "P0", `${defId} must still be a pending P0 target`);
-    assert.equal(exposure.knownDedicatedArt, false, `${defId} must not be reported as covered before activation`);
+    assert.equal(exposure.priority, "covered", `${defId} must leave the P0 queue after activation`);
+    assert.equal(exposure.knownDedicatedArt, true, `${defId} must be reported as covered after activation`);
     return target;
   });
 
@@ -76,7 +81,7 @@ async function main() {
     .png()
     .toFile(evidencePath);
 
-  console.log(`FORGED ALPHA P0 ART BATCH 2: ${targets.length}/${targets.length} physical masters · 1536x1920 WebP · inactive/fail-closed · contact sheet PASS`);
+  console.log(`FORGED ALPHA P0 ART BATCH 2: ${targets.length}/${targets.length} physical masters · 1536x1920 WebP · active registry match · contact sheet PASS`);
 }
 
 void main().catch((error) => {
