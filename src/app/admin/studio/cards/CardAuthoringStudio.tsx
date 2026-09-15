@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { StudioCommandPalette, StudioBreadcrumb } from "../StudioChrome";
 import { useCardAuthoringModel } from "./useCardAuthoringModel";
-import { CardCatalogSidebar, CardStudioHeader, CardWorkspaceHeader, Panel, Preview } from "./CardAuthoringFields";
+import { CardCatalogSidebar, CardWorkspaceHeader, Panel, Preview } from "./CardAuthoringFields";
 import CardIdentityTab from "./CardIdentityTab";
 import CardClassificationTab from "./CardClassificationTab";
 import CardRulesTab from "./CardRulesTab";
@@ -10,6 +10,7 @@ import CardReleaseTab from "./CardReleaseTab";
 import CardQaStudio from "./CardQaStudio";
 import CardCosmeticsTab from "./CardCosmeticsTab";
 import { hasStudioUiCapability } from "@/lib/admin-studio-access";
+import { PRODUCT_BRAND } from "@/lib/product-brand";
 
 export default function CardAuthoringStudio({ role }: { role: string }) {
 const model = useCardAuthoringModel();
@@ -43,7 +44,7 @@ const {
   return (
     <div className="studio-shell min-h-screen">
       <StudioCommandPalette role={role} />
-      {canUseProductionActions ? <CardStudioHeader /> : <DesignerCardStudioHeader />}
+      <VisualAuthoringStudioHeader production={canUseProductionActions} />
       <div className="studio-layout">
         <CardCatalogSidebar rows={rows} id={id} reset={reset} edit={edit} collectionForDefId={collectionForDefId} />
         <main className="studio-main">
@@ -123,20 +124,21 @@ const {
   );
 }
 
-function DesignerCardStudioHeader() {
+function VisualAuthoringStudioHeader({ production }: { production: boolean }) {
   return (
-    <header className="studio-topbar">
+    <header className="studio-topbar" data-forged-studio-header="true">
       <div className="studio-topbar-inner flex items-center justify-between gap-4">
         <div className="studio-brand">
-          <div className="studio-brand-mark">🃏</div>
+          <div className="studio-brand-mark">◇</div>
           <div>
-            <div className="studio-kicker">RUNEFORGE // CONTENT ENGINEERING</div>
+            <div className="studio-kicker">{PRODUCT_BRAND.displayName} // VISUAL AUTHORING</div>
             <div className="studio-title">Card Authoring Studio <span className="text-amber-300">4.2.1</span></div>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="hidden rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-[10px] font-black text-emerald-300 md:inline">● ENGINE CONNECTED</span>
           <Link href="/admin/studio" className="btn-ghost text-xs">Control Room</Link>
+          {production && <Link href="/admin/studio/production" className="btn-ghost text-xs">Production</Link>}
         </div>
       </div>
     </header>
