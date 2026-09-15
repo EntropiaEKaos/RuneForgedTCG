@@ -191,6 +191,11 @@ async function clickText(cdp, text, required = true) {
   return clicked;
 }
 
+async function fillInputByPlaceholder(cdp, placeholder, value) {
+  const filled = await evalJs(cdp, `(()=>{const input=[...document.querySelectorAll('input')].find(node=>node.getAttribute('placeholder')===${JSON.stringify(placeholder)});if(!input)return false;const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')?.set;if(!setter)return false;setter.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));return true;})()`);
+  assert.equal(filled, true, `Could not fill input with placeholder: ${placeholder}`);
+}
+
 async function dismissRecoveryHandoff(cdp, timeout = 15000) {
   // SSR can expose the dialog before React hydration wires the button handler.
   // Keep clicking the exact dialog action until state actually transitions.
@@ -420,8 +425,26 @@ async function main() {
     await cdp.call("Runtime.enable");
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
     await navigate(cdp, "/play");
+
+    const hasExplicitAuthEntry = await evalJs(cdp, "document.body?.innerText?.includes('CONTINUAR COMO CONVIDADO')===true");
+    if (hasExplicitAuthEntry) {
+      await clickText(cdp, "CONTINUAR COMO CONVIDADO");
+      await waitUntil(
+        () => evalJs(cdp, "document.body?.innerText?.includes('CONTINUAR COMO CONVIDADO')!==true"),
+        "explicit auth entry to advance",
+      );
+    }
+
     await waitText(cdp, "SALVE SUA CHAVE DE RECUPERAÇÃO", 30000);
     await dismissRecoveryHandoff(cdp);
+
+    const needsNickname = await evalJs(cdp, "document.body?.innerText?.includes('FORJE SUA IDENTIDADE')===true");
+    if (needsNickname) {
+      await waitText(cdp, "FORJAR IDENTIDADE", 30000);
+      await fillInputByPlaceholder(cdp, "Seu nome na Forja", "Runtime Tooltip Cert");
+      await clickText(cdp, "FORJAR IDENTIDADE");
+    }
+
     await waitText(cdp, "PRIMEIRO ACESSO · ALPHA JOGÁVEL", 30000);
 
     const fixtureDeck = await seedDeck(cdp);
