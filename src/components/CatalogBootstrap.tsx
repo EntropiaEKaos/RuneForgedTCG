@@ -5,6 +5,7 @@ import { replaceRegisteredCustomCards } from "@/game/custom-registry";
 import { replaceRegisteredCardCollections } from "@/game/card-collections";
 import { replaceRegisteredCardArt } from "@/game/card-art";
 import { replacePlayerCardCosmeticPreferences, replaceRegisteredCardCosmetics } from "@/game/card-cosmetics";
+import { cardFramePresetCss, replaceRegisteredCardFramePresets } from "@/game/card-frame-presets";
 import { hydrateClientRuntimeConfig } from "@/game/client-game-config";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { CatalogRevisionContext } from "./CatalogContext";
@@ -31,7 +32,7 @@ function timeLeft(endsAt: string | null): string {
 
 /**
  * Loads runtime catalog data into browser registries so client-side rendering
- * resolves admin-authored cards, art and cosmetic appearances without rebuilds.
+ * resolves admin-authored cards, art, frames and cosmetic appearances without rebuilds.
  */
 export default function CatalogBootstrap({ children }: { children: React.ReactNode }) {
   const [announcement, setAnnouncement] = useState("");
@@ -40,6 +41,7 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
   const [promoIndex, setPromoIndex] = useState(0);
   const [colorblindMode, setColorblindMode] = useState(false);
   const [catalogRevision, setCatalogRevision] = useState(0);
+  const [framePresetCss, setFramePresetCss] = useState("");
 
   const toggleColorblindMode = () => {
     setColorblindMode((prev) => {
@@ -90,6 +92,10 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
         if (Array.isArray(data.cardCollections)) replaceRegisteredCardCollections(data.cardCollections);
         if (Array.isArray(data.cardArt)) replaceRegisteredCardArt(data.cardArt);
         if (Array.isArray(data.cardCosmetics)) replaceRegisteredCardCosmetics(data.cardCosmetics);
+        if (Array.isArray(data.framePresets)) {
+          replaceRegisteredCardFramePresets(data.framePresets);
+          setFramePresetCss(cardFramePresetCss(data.framePresets));
+        }
         lastCatalogRevision.current = revision;
         shouldBumpRevision = true;
       }
@@ -136,6 +142,7 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
 
   return (
     <CatalogRevisionContext.Provider value={catalogRevision}>
+      {framePresetCss && <style id="studio-card-frame-presets">{framePresetCss}</style>}
       {maintenance && (
         <div className="bg-red-600 px-4 py-2 text-center text-sm font-bold text-white">
           🚧 Manutenção ativa — novas ações de gameplay e economia estão bloqueadas temporariamente.
