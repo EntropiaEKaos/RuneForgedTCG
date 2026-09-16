@@ -39,7 +39,6 @@ import "./styles/visual-5-8-deck-builder.css";
 import "./styles/brand-identity-1-0.css";
 import "./styles/brand-identity-1-1-product.css";
 import "./styles/client-shell-1-0.css";
-import "./styles/client-shell-1-1-player-experience.css";
 
 export const dynamic = "force-dynamic";
 
