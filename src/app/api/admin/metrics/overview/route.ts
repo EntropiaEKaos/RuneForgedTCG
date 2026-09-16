@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
 
-  const [playersResult, activityResult, gameplayResult, economyResult, commerceResult, contentResult, topEventsResult, topRoutesResult, recentResult] = await Promise.all([
+  const [playersResult, activityResult, gameplayResult, economyResult, commerceResult, contentResult, journeyResult, topEventsResult, topRoutesResult, recentResult] = await Promise.all([
     db.execute(sql`
       select
         count(*)::int as total,
@@ -94,6 +94,15 @@ export async function GET(req: NextRequest) {
       from site_content
     `),
     db.execute(sql`
+      select
+        (select count(*)::int from players) as account_created,
+        (select count(distinct player_id)::int from pack_openings where player_id is not null) as pack_opened,
+        (select count(distinct owner_player_id)::int from custom_decks where owner_player_id is not null) as deck_created,
+        (select count(distinct player_id)::int from matches where player_id is not null) as match_played,
+        (select count(distinct player_id)::int from matches where player_id is not null and won = true) as match_won,
+        (select count(*)::int from players where ranked_wins + ranked_losses > 0) as ranked_started
+    `),
+    db.execute(sql`
       select event_name as name, count(*)::int as total
       from telemetry_events
       where created_at >= ${weekAgo}
@@ -126,6 +135,7 @@ export async function GET(req: NextRequest) {
   const economy = rowsOf(economyResult)[0];
   const commerce = rowsOf(commerceResult)[0];
   const content = rowsOf(contentResult)[0];
+  const journey = rowsOf(journeyResult)[0];
 
   return Response.json({
     ok: true,
@@ -154,6 +164,14 @@ export async function GET(req: NextRequest) {
     content: {
       loreTotal: num(content, "lore_total"), lorePublished: num(content, "lore_published"), loreDrafts: num(content, "lore_drafts"),
       eventsPublished: num(content, "events_published"), newsPublished: num(content, "news_published"),
+    },
+    journey: {
+      accountCreated: num(journey, "account_created"),
+      packOpened: num(journey, "pack_opened"),
+      deckCreated: num(journey, "deck_created"),
+      matchPlayed: num(journey, "match_played"),
+      matchWon: num(journey, "match_won"),
+      rankedStarted: num(journey, "ranked_started"),
     },
     topEvents: rowsOf(topEventsResult).map((row) => ({ name: String(row.name ?? "unknown"), total: num(row, "total") })),
     topRoutes: rowsOf(topRoutesResult).map((row) => ({ path: String(row.path ?? "/"), total: num(row, "total"), sessions: num(row, "sessions") })),

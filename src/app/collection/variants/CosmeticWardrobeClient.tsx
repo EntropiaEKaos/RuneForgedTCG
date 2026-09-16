@@ -9,6 +9,7 @@ import {
   resolveCardCosmeticPrestige,
 } from "@/game/card-cosmetics";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
+import { trackClientEvent } from "@/lib/client-telemetry";
 
 interface WardrobeAsset {
   assetId: number;
@@ -71,6 +72,7 @@ export default function CosmeticWardrobeClient() {
       setAssets([]);
       setPreferences([]);
       replacePlayerCardCosmeticPreferences([]);
+      trackClientEvent("collection.variants_viewed", { authenticated: false });
       return;
     }
     const nextAssets = Array.isArray(data.wardrobe) ? data.wardrobe as WardrobeAsset[] : [];
@@ -79,6 +81,11 @@ export default function CosmeticWardrobeClient() {
     setAssets(nextAssets);
     setPreferences(nextPreferences);
     replacePlayerCardCosmeticPreferences(nextPreferences);
+    trackClientEvent("collection.variants_viewed", {
+      authenticated: true,
+      specialCopies: nextAssets.filter((asset) => asset.variantId !== "standard" && asset.cosmetic).length,
+      equipped: nextPreferences.length,
+    });
   }, []);
 
   useDeferredEffect(() => {
@@ -97,6 +104,7 @@ export default function CosmeticWardrobeClient() {
   const prefByDef = useMemo(() => new Map(preferences.map((item) => [item.defId, item])), [preferences]);
   const uniqueCards = useMemo(() => new Set(special.map((asset) => asset.defId)).size, [special]);
   const relics = useMemo(() => special.filter((asset) => resolveCardCosmeticPrestige(asset.cosmetic).id === "relic").length, [special]);
+  const serialized = useMemo(() => special.filter((asset) => asset.serialNumber !== null).length, [special]);
 
   const equip = async (asset: WardrobeAsset) => {
     setBusyId(asset.assetId);
@@ -107,6 +115,7 @@ export default function CosmeticWardrobeClient() {
       if (!data.ok) { setMessage(`❌ ${data.error || "Não foi possível equipar a variante."}`); return; }
       await load();
       setMessage(`✨ ${asset.cosmetic?.name || asset.variantId} equipada em ${asset.cardName}.`);
+      trackClientEvent("collection.variant_equipped", { defId: asset.defId, variantId: asset.variantId, frameId: asset.frameId, finish: asset.finish, serialized: asset.serialNumber !== null });
     } catch {
       setMessage("❌ Não foi possível sincronizar a aparência.");
     } finally {
@@ -123,6 +132,7 @@ export default function CosmeticWardrobeClient() {
       if (!data.ok) { setMessage(`❌ ${data.error || "Não foi possível voltar ao Standard."}`); return; }
       await load();
       setMessage(`✓ ${cardName} voltou para a aparência Standard.`);
+      trackClientEvent("collection.variant_reset", { defId });
     } finally {
       setBusyId(null);
     }
@@ -134,17 +144,18 @@ export default function CosmeticWardrobeClient() {
       <div className="rf-app-shell">
         <header className="rf-app-heading cosmetic-wardrobe-hero">
           <div>
-            <p className="rf-eyebrow"><span /> COLECIONÁVEIS COSMÉTICOS</p>
+            <p className="rf-eyebrow"><span /> COLLECTION 2.0 · IDENTIDADE VISUAL</p>
             <h1>Ateliê de Variantes</h1>
-            <p>Escolha qual cópia visual de cada carta será exibida. Poder, custo, regras e legalidade continuam idênticos ao <code>defId</code> original.</p>
+            <p>Escolha qual cópia visual de cada carta representa sua coleção. Poder, custo, regras e legalidade continuam idênticos ao <code>defId</code> original.</p>
           </div>
-          <div className="flex flex-wrap gap-2"><Link href="/collection" className="rf-button rf-button-secondary">← COLEÇÃO</Link><Link href="/market" className="rf-button rf-button-secondary">MARKETPLACE</Link><Link href="/store" className="rf-button rf-button-primary">PACKS</Link></div>
+          <div className="flex flex-wrap gap-2"><Link href="/profile" className="rf-button rf-button-secondary">MEU PERFIL</Link><Link href="/collection" className="rf-button rf-button-secondary">← COLEÇÃO</Link><Link href="/market" className="rf-button rf-button-secondary">MARKETPLACE</Link><Link href="/store" className="rf-button rf-button-primary">PACKS</Link></div>
         </header>
 
-        <section className="cosmetic-prestige-summary mb-5 grid gap-3 sm:grid-cols-4" aria-label="Resumo de prestígio cosmético">
+        <section className="cosmetic-prestige-summary mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumo de prestígio cosmético">
           <Stat label="Cópias especiais" value={special.length} detail="assets cosméticos possuídos" />
           <Stat label="Cartas com variante" value={uniqueCards} detail="gameplay IDs distintos" />
           <Stat label="Equipadas" value={preferences.length} detail="preferências visuais ativas" />
+          <Stat label="Serialized" value={serialized} detail="cópias numeradas" />
           <Stat label="Relíquias" value={relics} detail="drops abaixo de 0,5%" />
         </section>
 
@@ -161,7 +172,7 @@ export default function CosmeticWardrobeClient() {
               const prestige = resolveCardCosmeticPrestige(cosmetic);
               const artStyle = cosmetic.artUrl ? { backgroundImage: `linear-gradient(rgba(2,6,23,.08),rgba(2,6,23,.82)),url(${JSON.stringify(cosmetic.artUrl)})`, backgroundSize: "cover", backgroundPosition: "center" } : {};
               return (
-                <article key={asset.assetId} className={`cosmetic-wardrobe-card overflow-hidden rounded-3xl border bg-slate-950/60 shadow-xl ${equipped ? "is-equipped border-amber-300/65 ring-2 ring-amber-300/20" : "border-white/10"}`} data-cosmetic-prestige={prestige.id}>
+                <article key={asset.assetId} className={`cosmetic-wardrobe-card overflow-hidden rounded-3xl border bg-slate-950/60 shadow-xl transition duration-300 hover:-translate-y-1 hover:shadow-2xl ${equipped ? "is-equipped border-amber-300/65 ring-2 ring-amber-300/20" : "border-white/10 hover:border-amber-200/20"}`} data-cosmetic-prestige={prestige.id}>
                   <div className="cosmetic-wardrobe-art relative aspect-[16/10] bg-slate-900" style={artStyle}>
                     {!cosmetic.artUrl && <div className="grid h-full place-items-center text-5xl">{asset.emoji}</div>}
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent p-4 pt-12"><div className="text-xs font-black uppercase tracking-[.18em] text-amber-300">{cosmetic.name}</div><h2 className="mt-1 text-xl font-black text-white">{asset.cardName}</h2></div>
