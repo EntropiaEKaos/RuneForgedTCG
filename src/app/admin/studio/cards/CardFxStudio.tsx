@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Panel } from "./CardAuthoringFields";
-import { FORGED_FX_PRESETS, type FxPresetId } from "@/game/fx-registry";
+import { FORGED_FX_PRESETS, type FxPreset, type FxPresetId } from "@/game/fx-registry";
 
 const PRESET_IDS = Object.keys(FORGED_FX_PRESETS) as FxPresetId[];
+const presetFor = (id: FxPresetId): FxPreset => FORGED_FX_PRESETS[id];
 
 const rendererLabel = { motion: "Motion", timeline: "GSAP Timeline", gpu: "WebGL" } as const;
 const intensityLabel = { subtle: "Subtle", standard: "Standard", cinematic: "Cinematic" } as const;
@@ -13,7 +14,7 @@ export default function CardFxStudio() {
   const [presetId, setPresetId] = useState<FxPresetId>("summon-default");
   const [playing, setPlaying] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const preset = FORGED_FX_PRESETS[presetId];
+  const preset = presetFor(presetId);
   const particleBudget = preset.particleBudget ?? 0;
   const dots = useMemo(() => Array.from({ length: Math.min(18, Math.max(4, particleBudget)) }), [particleBudget]);
 
@@ -36,7 +37,7 @@ export default function CardFxStudio() {
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {PRESET_IDS.map((id) => {
-            const fx = FORGED_FX_PRESETS[id];
+            const fx = presetFor(id);
             const active = id === presetId;
             return (
               <button key={id} type="button" onClick={() => setPresetId(id)} className={`rounded-2xl border p-4 text-left transition ${active ? "border-cyan-300/40 bg-cyan-300/10 shadow-[0_0_30px_rgba(34,211,238,.08)]" : "border-white/10 bg-white/[.025] hover:border-white/20 hover:bg-white/[.04]"}`}>
@@ -65,23 +66,15 @@ export default function CardFxStudio() {
 
       <Panel title="Live Preview" eyebrow="MOTION · GSAP · WEBGL">
         <div className="relative min-h-[430px] overflow-hidden rounded-[28px] border border-white/10 bg-[radial-gradient(circle_at_50%_35%,rgba(34,211,238,.12),transparent_32%),linear-gradient(160deg,#111827,#020617_70%)] p-6 shadow-2xl">
-          <div className="absolute inset-x-5 top-5 flex items-center justify-between text-[9px] font-black uppercase tracking-[.18em] text-slate-500">
-            <span>{rendererLabel[preset.renderer]}</span><span>{preset.intensity}</span>
-          </div>
+          <div className="absolute inset-x-5 top-5 flex items-center justify-between text-[9px] font-black uppercase tracking-[.18em] text-slate-500"><span>{rendererLabel[preset.renderer]}</span><span>{preset.intensity}</span></div>
           <div className="absolute inset-0 grid place-items-center">
             <div className={`relative grid h-56 w-40 place-items-center rounded-[22px] border bg-gradient-to-br from-slate-800 to-slate-950 shadow-2xl transition-transform ${playing ? "scale-[1.035] border-cyan-200/70" : "border-white/15"}`} style={{ transitionDuration: `${Math.max(180, preset.durationMs)}ms` }}>
               <div className="absolute inset-3 rounded-[17px] border border-amber-300/15 bg-[radial-gradient(circle_at_50%_30%,rgba(245,158,11,.2),transparent_42%)]" />
               <div className="relative text-center"><div className="text-4xl">◇</div><div className="mt-2 text-[10px] font-black uppercase tracking-[.22em] text-slate-300">FX Target</div></div>
-              {playing && <>
-                <div className="absolute -inset-5 animate-ping rounded-[28px] border border-cyan-300/35" />
-                {dots.map((_, i) => <i key={i} className="absolute h-1.5 w-1.5 rounded-full bg-cyan-200 shadow-[0_0_10px_currentColor]" style={{ transform: `rotate(${(360 / dots.length) * i}deg) translateY(-118px)`, opacity: .45 + (i % 4) * .12 }} />)}
-              </>}
+              {playing && <><div className="absolute -inset-5 animate-ping rounded-[28px] border border-cyan-300/35" />{dots.map((_, i) => <i key={i} className="absolute h-1.5 w-1.5 rounded-full bg-cyan-200 shadow-[0_0_10px_currentColor]" style={{ transform: `rotate(${(360 / dots.length) * i}deg) translateY(-118px)`, opacity: .45 + (i % 4) * .12 }} />)}</>}
             </div>
           </div>
-          <div className="absolute inset-x-5 bottom-5 grid gap-2">
-            <button type="button" className="btn-primary w-full justify-center" onClick={preview}>▶ Preview {preset.id}</button>
-            <div className="text-center text-[9px] leading-4 text-slate-500">Preview isolado · sem dispatch de evento · sem mutação de gameplay</div>
-          </div>
+          <div className="absolute inset-x-5 bottom-5 grid gap-2"><button type="button" className="btn-primary w-full justify-center" onClick={preview}>▶ Preview {preset.id}</button><div className="text-center text-[9px] leading-4 text-slate-500">Preview isolado · sem dispatch de evento · sem mutação de gameplay</div></div>
         </div>
       </Panel>
     </div>
