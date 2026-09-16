@@ -44,12 +44,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: FX foundation source-contract smoke
+      - name: FX foundation tests
         run: |
-          test -f src/game/fx-registry.ts
-          test -f src/game/fx-plan.ts
-          test -f src/game/fx-dom-renderer.ts
-          test -f src/hooks/useGameFx.ts
+          node --import tsx src/game/fx-registry.test.ts
+          node --import tsx src/game/fx-plan.test.ts
+          node --import tsx src/game/fx-dom-renderer.test.ts
 
       - name: Production build
         run: npm run build
