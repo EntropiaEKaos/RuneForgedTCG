@@ -52,6 +52,7 @@ async function main() {
     .sort((a, b) => b.exposure.score - a.exposure.score || a.card.region.localeCompare(b.card.region) || a.card.name.localeCompare(b.card.name));
   assert.equal(studioP1.length, 41, "P1 queue must fall from 46 to 41 after Batch 1 activation");
   assert.equal(studioP1.some(({ card }) => batchIds.includes(card.defId as (typeof batchIds)[number])), false, "Activated Batch 1 cards must leave the live Studio P1 queue");
+  console.log("FORGED ALPHA P1 BATCH 2 CANDIDATES:", studioP1.slice(0, 5).map(({ card }) => `${card.defId}|${card.name}|${card.region}`).join(","));
 
   assert.equal(ALPHA_P1_ART_FORMAT.aspectRatio, "4:5");
   assert.equal(ALPHA_P1_ART_FORMAT.masterWidth, 1536);
