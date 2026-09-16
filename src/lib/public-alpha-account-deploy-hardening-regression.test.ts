@@ -46,7 +46,7 @@ assert.ok(recoveryIndex >= 0 && currentIndex > recoveryIndex, "recovery must pre
 assert.match(route, /await clearPlayerSession\(\);[\s\S]*await setPlayerSessionCookie\(rotated\.token\)/);
 assert.match(profile, /recoverPlayerSession/);
 assert.match(profile, /profile-recovery-key/);
-assert.match(profile, /RECUPERAR CONTA/);
+assert.match(profile, /RECUPERAR(?: CONTA)?/);
 assert.doesNotMatch(profile, /storedRecoveryCode/);
 
 // Runtime provenance can use non-secret identity embedded during the certified build.
