@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp, jsonb, unique, uniqueIndex, check } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, timestamp, jsonb, unique, uniqueIndex, check, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const adminUsers = pgTable("admin_users", {
@@ -36,6 +36,8 @@ export const adminFxPresets = pgTable("admin_fx_presets", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({
+  enabledIdx: index("admin_fx_presets_enabled_idx").on(table.enabled),
+  rendererIdx: index("admin_fx_presets_renderer_idx").on(table.renderer),
   rendererCheck: check("admin_fx_presets_renderer_check", sql`${table.renderer} in ('motion','timeline','gpu')`),
   intensityCheck: check("admin_fx_presets_intensity_check", sql`${table.intensity} in ('subtle','standard','cinematic')`),
   screenShakeCheck: check("admin_fx_presets_screen_shake_check", sql`${table.screenShake} is null or ${table.screenShake} in ('light','medium')`),
