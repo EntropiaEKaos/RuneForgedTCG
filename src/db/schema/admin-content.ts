@@ -42,7 +42,7 @@ export const adminFxPresets = pgTable("admin_fx_presets", {
   intensityCheck: check("admin_fx_presets_intensity_check", sql`${table.intensity} in ('subtle','standard','cinematic')`),
   screenShakeCheck: check("admin_fx_presets_screen_shake_check", sql`${table.screenShake} is null or ${table.screenShake} in ('light','medium')`),
   durationCheck: check("admin_fx_presets_duration_check", sql`${table.durationMs} between 80 and 5000`),
-  particleBudgetCheck: check("admin_fx_presets_particle_budget_check", sql`${table.particleBudget} between 0 and 128`),
+  particleBudgetCheck: check("admin_fx_presets_particle_budget_check", sql`${table.particleBudget} between 0 and 36`),
   targetFlashCheck: check("admin_fx_presets_target_flash_check", sql`${table.targetFlashMs} is null or ${table.targetFlashMs} between 0 and 2000`),
 }));
 
