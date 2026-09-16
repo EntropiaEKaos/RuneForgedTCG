@@ -1,5 +1,5 @@
 import type { GameEvent } from "./events";
-import { resolveGameEventBatchFx, type FxPreset, type ResolvedFx } from "./fx-registry";
+import { resolveGameEventBatchFx, type FxIntensity, type FxPreset, type FxRenderer, type ResolvedFx } from "./fx-registry";
 
 export type FxQuality = "low" | "medium" | "high" | "ultra";
 
@@ -10,6 +10,8 @@ export interface FxCapabilities {
 }
 
 export interface FxExecutionPlan extends ResolvedFx {
+  renderer: FxRenderer;
+  intensity: FxIntensity;
   durationMs: number;
   particleBudget: number;
   allowScreenShake: boolean;
@@ -36,6 +38,8 @@ export function buildFxExecutionPlan(resolved: ResolvedFx, capabilities: FxCapab
 
   return {
     ...resolved,
+    renderer: resolved.preset.renderer,
+    intensity: resolved.preset.intensity,
     durationMs: reducedDuration(resolved.preset, capabilities),
     particleBudget: Math.floor((resolved.preset.particleBudget ?? 0) * scale),
     allowScreenShake: Boolean(resolved.preset.screenShake) && !capabilities.reducedMotion && !capabilities.constrained,
