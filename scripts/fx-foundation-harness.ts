@@ -58,6 +58,18 @@ const plans = buildGameEventFxPlans([
 assert.deepEqual(plans.map((plan) => plan.preset.id), ["attack-default", "damage-default", "death-default"]);
 
 assert.equal(buildFxDomAnimation(ultra)?.options.duration, ultra.durationMs);
+for (const id of ["summon-default", "attack-default", "damage-default", "heal-default", "death-default", "barrierbreak-default", "stun-default"] as const) {
+  const preset = FORGED_FX_PRESETS[id];
+  const event = cases.find(([, expected]) => expected === id)?.[0];
+  if (!event) throw new Error(`${id}: fixture missing`);
+  const resolved = resolveGameEventFx(event);
+  if (!resolved) throw new Error(`${id}: resolver missing`);
+  const plan = buildFxExecutionPlan(resolved, { quality: "high", reducedMotion: false, constrained: false });
+  const spec = buildFxDomAnimation(plan);
+  assert.ok(spec, `${id}: DOM choreography missing`);
+  assert.ok(spec.keyframes.length >= 3, `${id}: premium choreography requires at least 3 keyframes`);
+  assert.equal(spec.options.duration, preset.durationMs);
+}
 const poison = resolveGameEventFx({ type: "NEXUS_POISONED", player: "ai", amount: 1, total: 1 });
 if (!poison) throw new Error("poison preset missing");
 const poisonPlan = buildFxExecutionPlan(poison, { quality: "ultra", reducedMotion: false, constrained: false });
