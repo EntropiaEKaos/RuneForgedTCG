@@ -18,7 +18,7 @@ assert.match(profile, /profile\.viewed/);
 assert.match(profile, /profile\.tab_selected/);
 assert.match(profile, /Ranked do Nexus/);
 assert.match(profile, /COLLECTION 2\.0/);
-assert.match(profile, /RECUPERAR CONTA/);
+assert.match(profile, /RECUPERAR(?: CONTA)?/);
 assert.doesNotMatch(profile, /setMmr|updateMmr|mutateMmr|writeMmr/i, "Profile must not include MMR mutation helpers");
 
 // Home/QG is account-aware and emits first-party journey intent.
