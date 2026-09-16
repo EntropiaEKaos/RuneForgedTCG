@@ -1,0 +1,1 @@
+Implementation is intentionally additive over the certified FORGED Client 1.0 baseline. Existing Progression, Live Ops and cosmetic-variant authority are reused rather than duplicated. The Player Journey funnel uses persisted gameplay/economy milestones and first-party telemetry only as diagnostic context.
