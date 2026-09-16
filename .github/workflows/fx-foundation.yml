@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/game/fx-*.ts'
       - 'src/hooks/useGameFx.ts'
+      - 'scripts/fx-foundation-harness.ts'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/fx-foundation.yml'
@@ -44,11 +45,8 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: FX foundation tests
-        run: |
-          node --import tsx src/game/fx-registry.test.ts
-          node --import tsx src/game/fx-plan.test.ts
-          node --import tsx src/game/fx-dom-renderer.test.ts
+      - name: FX foundation harness
+        run: node --import tsx scripts/fx-foundation-harness.ts
 
       - name: Production build
         run: npm run build
