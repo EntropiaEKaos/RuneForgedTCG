@@ -537,7 +537,7 @@ async function main() {
     await capture(cdp, "13-post-match-return.png", "post-match return to deck selection", manifest);
 
     await navigate(cdp, "/profile");
-    await waitForText(cdp, "Perfil", 20_000);
+    await waitForText(cdp, "Resumo do Forjador", 20_000);
     await capture(cdp, "14-post-match-profile.png", "post-match persisted progression", manifest);
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
