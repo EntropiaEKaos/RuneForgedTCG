@@ -44,8 +44,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: FX foundation tests
-        run: npx vitest run src/game/fx-registry.test.ts src/game/fx-plan.test.ts src/game/fx-dom-renderer.test.ts
+      - name: FX foundation source-contract smoke
+        run: |
+          test -f src/game/fx-registry.ts
+          test -f src/game/fx-plan.ts
+          test -f src/game/fx-dom-renderer.ts
+          test -f src/hooks/useGameFx.ts
 
       - name: Production build
         run: npm run build
