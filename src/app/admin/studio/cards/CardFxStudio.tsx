@@ -54,7 +54,12 @@ export default function CardFxStudio() {
   }
 
   useEffect(() => cleanup, []);
-  useEffect(() => { cleanup(); setPlaying(false); }, [presetId]);
+
+  function selectPreset(id: FxPresetId) {
+    cleanup();
+    setPlaying(false);
+    setPresetId(id);
+  }
 
   function preview() {
     cleanup();
@@ -87,7 +92,7 @@ export default function CardFxStudio() {
         <div className="mb-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[.04] p-4 text-xs leading-5 text-cyan-100/80">Preview conectado aos mesmos renderers de produção. Nenhum evento é despachado ao jogo e nenhuma regra, stat ou estado autoritativo é alterado.</div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {PRESET_IDS.map((id) => { const fx = presetFor(id); const active = id === presetId; return (
-            <button key={id} type="button" onClick={() => setPresetId(id)} className={`rounded-2xl border p-4 text-left transition ${active ? "border-cyan-300/40 bg-cyan-300/10 shadow-[0_0_30px_rgba(34,211,238,.08)]" : "border-white/10 bg-white/[.025] hover:border-white/20 hover:bg-white/[.04]"}`}>
+            <button key={id} type="button" onClick={() => selectPreset(id)} className={`rounded-2xl border p-4 text-left transition ${active ? "border-cyan-300/40 bg-cyan-300/10 shadow-[0_0_30px_rgba(34,211,238,.08)]" : "border-white/10 bg-white/[.025] hover:border-white/20 hover:bg-white/[.04]"}`}>
               <div className="flex items-center justify-between gap-2"><span className="text-xs font-black text-white">{id.replace("-default", "")}</span><span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[9px] font-black uppercase text-slate-400">{rendererLabel[fx.renderer]}</span></div>
               <div className="mt-3 flex flex-wrap gap-1.5 text-[9px] font-bold uppercase text-slate-500"><span>{intensityLabel[fx.intensity]}</span><span>·</span><span>{fx.durationMs}ms</span><span>·</span><span>{fx.particleBudget ?? 0} particles</span></div>
             </button>); })}
