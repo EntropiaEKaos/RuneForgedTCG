@@ -73,6 +73,29 @@ async function waitUntil(check, label, timeoutMs = 25_000) {
   throw new Error(`Timed out waiting for ${label}`);
 }
 
+async function navigate(cdp, path) {
+  const target = `${baseUrl}${path}`;
+  await cdp.call("Page.navigate", { url: target });
+  await waitUntil(() => evaluate(cdp, `location.href === ${JSON.stringify(target)} && ['interactive','complete'].includes(document.readyState)`), `navigation to ${target}`, 30_000);
+  await sleep(250);
+}
+
+async function waitForText(cdp, text) {
+  return waitUntil(() => evaluate(cdp, `document.body?.innerText?.includes(${JSON.stringify(text)}) === true`), `text ${JSON.stringify(text)}`);
+}
+
+async function login(cdp) {
+  const password = process.env.ADMIN_PASSWORD?.trim();
+  assert.ok(password, "ADMIN_PASSWORD is required");
+  const payload = JSON.stringify({ username: process.env.ADMIN_USERNAME?.trim() || "admin", password });
+  const result = await evaluate(cdp, `(async () => {
+    const response = await fetch('/api/admin/login', { method:'POST', credentials:'include', headers:{'content-type':'application/json'}, body:${JSON.stringify(payload)} });
+    return { status:response.status, body:await response.json().catch(() => null) };
+  })()`);
+  assert.equal(result?.status, 200, `Admin login failed: ${JSON.stringify(result)}`);
+  assert.equal(result?.body?.ok, true, "Admin login did not return ok=true");
+}
+
 async function clickText(cdp, text) {
   await waitUntil(() => evaluate(cdp, `(() => { const n=v=>(v||'').replace(/\\s+/g,' ').trim(); return [...document.querySelectorAll('button,a,[role="button"]')].some(x=>!x.disabled&&n(x.textContent).includes(${JSON.stringify(text)})); })()`), `interactive ${text}`);
   assert.equal(await evaluate(cdp, `(() => { const n=v=>(v||'').replace(/\\s+/g,' ').trim(); const x=[...document.querySelectorAll('button,a,[role="button"]')].find(x=>!x.disabled&&n(x.textContent).includes(${JSON.stringify(text)})); if(!x)return false; x.scrollIntoView({block:'center'}); x.click(); return true; })()`), true);
@@ -98,9 +121,12 @@ async function main() {
     cdp = await CdpClient.connect(targets.find((target) => target.type === "page")?.webSocketDebuggerUrl);
     await cdp.call("Page.enable"); await cdp.call("Runtime.enable");
     await cdp.call("Emulation.setDeviceMetricsOverride", { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-    await cdp.call("Page.navigate", { url: `${baseUrl}/admin/studio/cards` });
-    await waitUntil(() => evaluate(cdp, "['interactive','complete'].includes(document.readyState)"), "Studio navigation", 30_000);
-    await waitUntil(() => evaluate(cdp, "document.querySelector('[data-card-fx-studio=true]') !== null || document.body?.innerText?.includes('Card Authoring Studio')"), "Card Studio", 30_000);
+
+    await navigate(cdp, "/admin/studio");
+    await waitForText(cdp, "Runeforge Studio Access");
+    await login(cdp);
+    await navigate(cdp, "/admin/studio/cards");
+    await waitForText(cdp, "Card Authoring Studio");
     if (!(await evaluate(cdp, "document.querySelector('[data-card-fx-studio=true]') !== null"))) await clickText(cdp, "FX Studio");
     await waitUntil(() => evaluate(cdp, "document.querySelector('[data-card-fx-studio=true]') !== null"), "FX Studio panel");
 
