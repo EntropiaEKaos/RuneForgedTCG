@@ -18,6 +18,18 @@ function findChrome() {
   throw new Error("Chrome/Chromium not found");
 }
 
+async function stopChrome(chrome) {
+  if (chrome.exitCode !== null || chrome.signalCode !== null) return;
+  const exited = new Promise((resolvePromise) => chrome.once("exit", resolvePromise));
+  chrome.kill("SIGTERM");
+  await Promise.race([exited, sleep(5_000)]);
+  if (chrome.exitCode === null && chrome.signalCode === null) {
+    const killed = new Promise((resolvePromise) => chrome.once("exit", resolvePromise));
+    chrome.kill("SIGKILL");
+    await Promise.race([killed, sleep(2_000)]);
+  }
+}
+
 class CdpClient {
   constructor(socket) {
     this.socket = socket; this.nextId = 1; this.pending = new Map();
@@ -104,7 +116,9 @@ async function main() {
     assert.equal(await evaluate(cdp, "document.querySelectorAll('canvas').length <= 1"), true, "FX cleanup left unexpected canvas layers");
     console.log(`FX VISUAL BROWSER CERT: PASS — ${presets.length} transient presets captured`);
   } finally {
-    cdp?.close(); chrome.kill("SIGTERM"); await rm(profile, { recursive: true, force: true });
+    cdp?.close();
+    await stopChrome(chrome);
+    await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }
 
