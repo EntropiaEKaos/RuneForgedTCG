@@ -11,7 +11,7 @@ export const FORGED_FX_PRESETS = {
   "damage-default": { id: "damage-default", renderer: "timeline", intensity: "standard", durationMs: 320, screenShake: "light", targetFlashMs: 110, particleBudget: 12, soundCue: "damage" },
   "heal-default": { id: "heal-default", renderer: "timeline", intensity: "subtle", durationMs: 420, targetFlashMs: 140, particleBudget: 10, soundCue: "heal" },
   "death-default": { id: "death-default", renderer: "timeline", intensity: "cinematic", durationMs: 620, screenShake: "medium", particleBudget: 22, soundCue: "death" },
-  "levelup-default": { id: "levelup-default", renderer: "gpu", intensity: "cinematic", durationMs: 900, screenShake: "medium", targetFlashMs: 180, particleBudget: 40, soundCue: "levelup" },
+  "levelup-default": { id: "levelup-default", renderer: "gpu", intensity: "cinematic", durationMs: 900, screenShake: "medium", targetFlashMs: 180, particleBudget: 36, soundCue: "levelup" },
   "poison-default": { id: "poison-default", renderer: "gpu", intensity: "standard", durationMs: 520, particleBudget: 20, soundCue: "poison" },
   "barrier-default": { id: "barrier-default", renderer: "gpu", intensity: "standard", durationMs: 460, targetFlashMs: 120, particleBudget: 18, soundCue: "barrier" },
   "barrierbreak-default": { id: "barrierbreak-default", renderer: "timeline", intensity: "standard", durationMs: 380, targetFlashMs: 100, particleBudget: 12, soundCue: "barrierbreak" },
