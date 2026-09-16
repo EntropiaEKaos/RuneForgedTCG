@@ -10,7 +10,7 @@ const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visua
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 const subject = {
   defId: "ember_blade",
-  cardName: "Flamebrand Blade",
+  cardName: "Flamebrand",
   artPath: "/art/cards/alpha-p1/emberhold/ember_blade.webp",
 };
 const activeP1Batch2Paths = [
