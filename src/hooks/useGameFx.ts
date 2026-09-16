@@ -120,11 +120,18 @@ export function useGameFx(state: GameState | null): GameFxState {
 
     const plans = buildGameEventFxPlans(events, getFxCapabilities());
     const planByEvent = new Map<GameEvent, FxExecutionPlan>(plans.map((plan) => [plan.event, plan]));
-    const stamped = events.map((event, index) => {
+    const stamped: FxEvent[] = [];
+    events.forEach((event, index) => {
       const visual = toFx(event, state);
-      if (!visual) return null;
-      return { ...visual, plan: planByEvent.get(event), pos: locateEvent(event), key: `${Date.now()}_${index}_${"unitId" in event ? event.unitId : event.player}_${event.type}` } satisfies FxEvent;
-    }).filter((event): event is FxEvent => event !== null);
+      if (!visual) return;
+      const plan = planByEvent.get(event);
+      stamped.push({
+        ...visual,
+        ...(plan ? { plan } : {}),
+        pos: locateEvent(event),
+        key: `${Date.now()}_${index}_${"unitId" in event ? event.unitId : event.player}_${event.type}`,
+      });
+    });
     if (!stamped.length) return;
 
     setFx((list) => [...list, ...stamped]);
