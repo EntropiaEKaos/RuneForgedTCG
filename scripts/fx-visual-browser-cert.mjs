@@ -32,6 +32,7 @@ class CdpClient {
   }
   static async connect(url) {
     assert.equal(typeof WebSocket, "function", "Node 22 WebSocket global is required");
+    assert.equal(typeof url, "string", "Chrome page WebSocket URL is required");
     const socket = new WebSocket(url);
     await new Promise((resolvePromise, reject) => {
       const timer = setTimeout(() => reject(new Error("Timed out opening Chrome DevTools WebSocket")), 10_000);
@@ -74,11 +75,13 @@ async function screenshot(cdp, name) {
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const profile = await mkdtemp(join(tmpdir(), "forged-fx-cert-"));
-  const port = 9339;
-  const chrome = spawn(findChrome(), ["--headless=new", "--no-sandbox", "--disable-dev-shm-usage", `--remote-debugging-port=${port}`, CHROME_REMOTE_DEBUGGING_FLAG, `--user-data-dir=${profile}`, "about:blank"], { stdio: "ignore" });
+  let chromeStderr = "";
+  const chrome = spawn(findChrome(), ["--headless=new", "--no-sandbox", "--disable-dev-shm-usage", CHROME_REMOTE_DEBUGGING_FLAG, `--user-data-dir=${profile}`, "about:blank"], { stdio: ["ignore", "ignore", "pipe"] });
+  chrome.stderr?.setEncoding("utf8");
+  chrome.stderr?.on("data", (chunk) => { chromeStderr = `${chromeStderr}${chunk}`.slice(-8_000); });
   let cdp;
   try {
-    await waitForChromeDevToolsPort(port);
+    const port = await waitForChromeDevToolsPort({ profileDir: profile, chrome, getStderr: () => chromeStderr });
     const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
     cdp = await CdpClient.connect(targets.find((target) => target.type === "page")?.webSocketDebuggerUrl);
     await cdp.call("Page.enable"); await cdp.call("Runtime.enable");
