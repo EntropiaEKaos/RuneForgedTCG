@@ -96,14 +96,14 @@ assert.deepEqual(
     starterDecks: 6,
     starterSlots: 240,
     uniqueStarterCards: 140,
-    covered: 56,
-    missing: 84,
-    byPriority: { P0: 0, P1: 41, P2: 43 },
+    covered: 61,
+    missing: 79,
+    byPriority: { P0: 0, P1: 36, P2: 43 },
   },
   "Alpha art priority baseline must remain deterministic so Studio production queues cannot drift silently",
 );
 const priorityQueue = alphaArtPriorityQueue();
-assert.equal(priorityQueue.length, 84);
+assert.equal(priorityQueue.length, 79);
 assert.equal(alphaArtExposure("ember_bolt").priority, "covered");
 assert.equal(alphaArtExposure("ember_bolt").copies, 5);
 assert.equal(alphaArtExposure("wood_webweaver").priority, "covered");
@@ -125,7 +125,18 @@ assert.equal(alphaArtExposure("tide_sprite").priority, "covered");
 assert.equal(alphaArtExposure("void_drain").priority, "covered");
 assert.equal(alphaArtExposure("wood_cub").priority, "covered");
 assert.equal(alphaArtExposure("ember_ashguard").priority, "covered");
-for (const defId of ["ember_duelist", "ember_raider", "ember_herald", "ember_whelp", "ember_zealot"]) {
+for (const defId of [
+  "ember_duelist",
+  "ember_raider",
+  "ember_herald",
+  "ember_whelp",
+  "ember_zealot",
+  "ember_blade",
+  "ember_phantom",
+  "forest_pack_shelter",
+  "forest_summon_pack",
+  "forest_packrunner",
+]) {
   assert.equal(alphaArtExposure(defId).priority, "covered", `${defId} must leave the P1 queue after certified activation`);
 }
 assert.deepEqual(
@@ -135,9 +146,9 @@ assert.deepEqual(
 );
 assert.equal(
   priorityQueue.filter((row) => row.priority === "P1").length,
-  41,
-  "Alpha P1 Batch 1 activation must leave exactly 41 P1 cards pending",
+  36,
+  "Alpha P1 Batch 2 activation must leave exactly 36 P1 cards pending",
 );
 assert.ok(priorityQueue.every((row, index) => index === 0 || priorityQueue[index - 1].score >= row.score));
 
-console.log("FORGED ALPHA FLAGSHIP + ACTIVE PRIORITY ART: 56 covered / 84 starter backlog / 0 P0 pending / 41 P1 pending / PASS");
+console.log("FORGED ALPHA FLAGSHIP + ACTIVE PRIORITY ART: 61 covered / 79 starter backlog / 0 P0 pending / 36 P1 pending / PASS");

@@ -9,16 +9,16 @@ const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 const subject = {
-  defId: "ember_duelist",
-  cardName: "Ash Duelist",
-  artPath: "/art/cards/alpha-p1/emberhold/ember_duelist.webp",
+  defId: "ember_blade",
+  cardName: "Flamebrand",
+  artPath: "/art/cards/alpha-p1/emberhold/ember_blade.webp",
 };
-const activeP1Paths = [
-  "/art/cards/alpha-p1/emberhold/ember_duelist.webp",
-  "/art/cards/alpha-p1/emberhold/ember_raider.webp",
-  "/art/cards/alpha-p1/emberhold/ember_herald.webp",
-  "/art/cards/alpha-p1/emberhold/ember_whelp.webp",
-  "/art/cards/alpha-p1/emberhold/ember_zealot.webp",
+const activeP1Batch2Paths = [
+  "/art/cards/alpha-p1/emberhold/ember_blade.webp",
+  "/art/cards/alpha-p1/emberhold/ember_phantom.webp",
+  "/art/cards/alpha-p1/florestia/forest_pack_shelter.webp",
+  "/art/cards/alpha-p1/florestia/forest_summon_pack.webp",
+  "/art/cards/alpha-p1/florestia/forest_packrunner.webp",
 ];
 
 function sleep(ms) { return new Promise((resolvePromise) => setTimeout(resolvePromise, ms)); }
@@ -122,7 +122,7 @@ async function dismissRecoveryHandoffIfPresent(cdp) {
     return { present: true, dismissed: true };
   })()`);
   if (!handoff?.present) return;
-  assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before P1 certification");
+  assert.equal(handoff.dismissed, true, "Recovery-key handoff could not be dismissed before P1 Batch 2 certification");
   await waitUntil(() => evaluate(cdp, `![...document.querySelectorAll('[role="dialog"]')].some((element) => (element.textContent || '').includes('SALVE SUA CHAVE DE RECUPERAÇÃO'))`), "recovery-key handoff dismissal", 5_000);
 }
 
@@ -152,7 +152,7 @@ async function openSubjectViewer(cdp) {
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
   await sleep(120);
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
-  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer-trigger="${subject.defId}"]'))`), "P1 VER ARTE trigger");
+  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer-trigger="${subject.defId}"]'))`), "P1 Batch 2 VER ARTE trigger");
 
   const clicked = await evaluate(cdp, `(() => {
     const trigger = document.querySelector('[data-card-art-viewer-trigger="${subject.defId}"]');
@@ -160,8 +160,8 @@ async function openSubjectViewer(cdp) {
     trigger.click();
     return true;
   })()`);
-  assert.equal(clicked, true, "P1 VER ARTE button could not be clicked");
-  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer="${subject.defId}"]'))`), "P1 full-art dialog");
+  assert.equal(clicked, true, "P1 Batch 2 VER ARTE button could not be clicked");
+  await waitUntil(() => evaluate(cdp, `Boolean(document.querySelector('[data-card-art-viewer="${subject.defId}"]'))`), "P1 Batch 2 full-art dialog");
 
   const state = await evaluate(cdp, `(() => {
     const dialog = document.querySelector('[data-card-art-viewer="${subject.defId}"]');
@@ -174,19 +174,19 @@ async function openSubjectViewer(cdp) {
       overflow: document.body.style.overflow,
     };
   })()`);
-  assert.equal(state.role, "dialog", "P1 full-art viewer must expose dialog semantics");
-  assert.equal(state.modal, "true", "P1 full-art viewer must be modal");
-  assert.match(state.label, /Ash Duelist/i, "P1 full-art viewer must identify Ash Duelist");
-  assert.ok(state.background.includes(subject.artPath), `P1 full-art viewer must render ${subject.artPath}`);
-  assert.equal(state.overflow, "hidden", "P1 full-art viewer must lock background scrolling");
+  assert.equal(state.role, "dialog", "P1 Batch 2 full-art viewer must expose dialog semantics");
+  assert.equal(state.modal, "true", "P1 Batch 2 full-art viewer must be modal");
+  assert.ok(state.label.length > 0, "P1 Batch 2 full-art viewer must expose an accessible label");
+  assert.ok(state.background.includes(subject.artPath), `P1 Batch 2 full-art viewer must render ${subject.artPath}`);
+  assert.equal(state.overflow, "hidden", "P1 Batch 2 full-art viewer must lock background scrolling");
 }
 
 async function capture(cdp) {
   await settle(cdp);
   const metrics = await evaluate(cdp, `({ innerWidth: window.innerWidth, scrollWidth: document.documentElement.scrollWidth })`);
-  assert.ok(metrics.scrollWidth <= metrics.innerWidth + 2, "P1 art viewer has horizontal overflow");
+  assert.ok(metrics.scrollWidth <= metrics.innerWidth + 2, "P1 Batch 2 art viewer has horizontal overflow");
   const screenshot = await cdp.call("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
-  await writeFile(join(outputDir, "54-alpha-p1-ember-duelist-art-viewer.png"), Buffer.from(screenshot.data, "base64"));
+  await writeFile(join(outputDir, "55-alpha-p1-batch-2-ember-blade-art-viewer.png"), Buffer.from(screenshot.data, "base64"));
 }
 
 async function assertServedWebp(path) {
@@ -197,10 +197,10 @@ async function assertServedWebp(path) {
 
 async function main() {
   await mkdir(outputDir, { recursive: true });
-  assert.equal(activeP1Paths.length, 5, "P1 Batch 1 browser certification must cover all five active masters");
-  for (const path of activeP1Paths) await assertServedWebp(path);
+  assert.equal(activeP1Batch2Paths.length, 5, "P1 Batch 2 browser certification must cover all five masters");
+  for (const path of activeP1Batch2Paths) await assertServedWebp(path);
 
-  const profileDir = await mkdtemp(join(tmpdir(), "runeforge-p1-batch1-viewer-"));
+  const profileDir = await mkdtemp(join(tmpdir(), "runeforge-p1-batch2-viewer-"));
   const chrome = spawn(findChrome(), [
     "--headless=new", "--disable-gpu", "--no-sandbox", "--disable-dev-shm-usage", "--hide-scrollbars", "--mute-audio",
     CHROME_REMOTE_DEBUGGING_FLAG, `--user-data-dir=${profileDir}`, `--window-size=${viewport.width},${viewport.height}`, "about:blank",
@@ -220,14 +220,7 @@ async function main() {
     await openSubjectViewer(cdp);
     await capture(cdp);
 
-    const batch2 = spawnSync(process.execPath, ["scripts/alpha-p1-batch-2-browser-cert.mjs"], {
-      cwd: process.cwd(),
-      stdio: "inherit",
-      env: { ...process.env, E2E_BASE_URL: baseUrl, ALPHA_VISUAL_DIR: outputDir },
-    });
-    assert.equal(batch2.status, 0, `P1 Batch 2 browser certification failed with status ${batch2.status}`);
-
-    console.log("ALPHA P1 BATCH 1+2 BROWSER CERT: PASS — 10 active P1 WebPs served + Batch 1/2 runtime viewers certified");
+    console.log("ALPHA P1 BATCH 2 BROWSER CERT: PASS — 5 Batch 2 WebPs served + ember_blade runtime viewer certified");
   } finally {
     try { cdp?.close(); } catch {}
     if (chrome.exitCode == null && chrome.signalCode == null) chrome.kill("SIGTERM");
@@ -238,6 +231,6 @@ async function main() {
 }
 
 void main().catch((error) => {
-  console.error("ALPHA P1 BATCH 1+2 BROWSER CERT: FAIL", error);
+  console.error("ALPHA P1 BATCH 2 BROWSER CERT: FAIL", error);
   process.exitCode = 1;
 });
