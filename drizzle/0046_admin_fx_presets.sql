@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS "admin_fx_presets" (
   CONSTRAINT "admin_fx_presets_intensity_check" CHECK ("intensity" IN ('subtle','standard','cinematic')),
   CONSTRAINT "admin_fx_presets_screen_shake_check" CHECK ("screen_shake" IS NULL OR "screen_shake" IN ('light','medium')),
   CONSTRAINT "admin_fx_presets_duration_check" CHECK ("duration_ms" BETWEEN 80 AND 5000),
-  CONSTRAINT "admin_fx_presets_particle_budget_check" CHECK ("particle_budget" BETWEEN 0 AND 128),
+  CONSTRAINT "admin_fx_presets_particle_budget_check" CHECK ("particle_budget" BETWEEN 0 AND 36),
   CONSTRAINT "admin_fx_presets_target_flash_check" CHECK ("target_flash_ms" IS NULL OR "target_flash_ms" BETWEEN 0 AND 2000)
 );
 
