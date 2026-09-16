@@ -49,7 +49,7 @@ export function validateContent(resource: string, row: any) {
     const duration = Number(row?.durationMs);
     const particles = Number(row?.particleBudget);
     if (!Number.isInteger(duration) || duration < 80 || duration > 5000) errors.push("FX duration must be an integer between 80 and 5000 ms.");
-    if (!Number.isInteger(particles) || particles < 0 || particles > 128) errors.push("FX particle budget must be an integer between 0 and 128.");
+    if (!Number.isInteger(particles) || particles < 0 || particles > 36) errors.push("FX particle budget must be an integer between 0 and 36.");
     if (row?.screenShake != null && !["light", "medium"].includes(String(row.screenShake))) errors.push("FX screen shake must be light, medium, or empty.");
     if (row?.targetFlashMs != null) { const flash = Number(row.targetFlashMs); if (!Number.isInteger(flash) || flash < 0 || flash > 2000) errors.push("FX target flash must be an integer between 0 and 2000 ms."); }
   }
