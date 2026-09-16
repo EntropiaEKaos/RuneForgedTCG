@@ -5,6 +5,7 @@ const read = (path: string) => readFileSync(path, "utf8");
 
 const profile = read("src/app/profile/ProfileClient.tsx");
 const headquarters = read("src/components/PlayerHeadquarters.tsx");
+const collection = read("src/app/collection/CollectionClient.tsx");
 const wardrobe = read("src/app/collection/variants/CosmeticWardrobeClient.tsx");
 const metrics = read("src/app/api/admin/metrics/overview/route.ts");
 const commandCenter = read("src/app/admin/studio/command-center/CommandCenterClient.tsx");
@@ -35,6 +36,20 @@ assert.match(wardrobe, /collection\.variant_equipped/);
 assert.match(wardrobe, /collection\.variant_reset/);
 assert.match(wardrobe, /nunca altera raridade de gameplay, stats, efeitos, limite de cópias, matchmaking ou regras competitivas/);
 
+// Client 1.2 surfaces the existing cosmetic authority directly in Collection 2.0
+// without teaching the collection UI to mutate gameplay, MMR or card definitions.
+assert.match(collection, /fetch\("\/api\/player\/cosmetics"/);
+assert.match(collection, /collection\.collection2_cosmetics_viewed/);
+assert.match(collection, /type CosmeticFilter = "All" \| "Variants" \| "Equipped" \| "Serialized"/);
+assert.match(collection, /COLLECTION 2\.0 · IDENTIDADE VISUAL/);
+assert.match(collection, /ABRIR ATELIÊ/);
+assert.match(collection, /GERENCIAR VARIANTES/);
+assert.match(collection, /100% cosmético/);
+assert.match(collection, /specialCount/);
+assert.match(collection, /serializedCount/);
+assert.match(collection, /Visual ativo/);
+assert.doesNotMatch(collection, /setMmr|updateMmr|mutateMmr|writeMmr|updateCardDef|mutateCardDef/i, "Collection cosmetic integration must remain presentation-only");
+
 // Command Center funnel uses persisted product milestones, not click-only telemetry.
 for (const contract of [
   /from players\) as account_created/,
@@ -58,4 +73,4 @@ for (const defId of ["ember_blade", "ember_phantom", "forest_pack_shelter", "for
 assert.match(p1Registry, /ALPHA_P1_BATCH_2_IDS/);
 assert.match(nextConfig, /generate-alpha-p1-batch-2-art\.mjs/);
 
-console.log("FORGED CLIENT 1.1 PLAYER EXPERIENCE SOURCE CONTRACT: PASS — Profile 2.0 + Player HQ + cosmetic variants + authoritative funnel + P1 Batch 2 locked");
+console.log("FORGED CLIENT PLAYER EXPERIENCE SOURCE CONTRACT: PASS — Profile 2.0 + Player HQ + Collection 2.0 cosmetic integration + authoritative funnel + P1 Batch 2 locked");
