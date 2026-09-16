@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCard } from "@/game/cards";
+import { playFxDomAnimation } from "@/game/fx-dom-renderer";
 import { buildGameEventFxPlans, type FxCapabilities, type FxExecutionPlan } from "@/game/fx-plan";
 import {
   deriveGameEvents,
@@ -64,20 +65,25 @@ function toFx(event: GameEvent, state: GameState): Omit<FxEvent, "key" | "pos"> 
   }
 }
 
-function locateEvent(event: GameEvent): { x: number; y: number } | null {
+function targetForEvent(event: GameEvent): Element | null {
   if (event.type === "NEXUS_DAMAGED" || event.type === "NEXUS_HEALED" || event.type === "NEXUS_POISONED") {
-    const el = document.querySelector(`[data-nexus-side="${event.player}"]`);
-    if (!el) return null;
-    const rect = el.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top - 8 };
+    return document.querySelector(`[data-nexus-side="${event.player}"]`);
   }
   if ("unitId" in event) {
-    const el = document.querySelector(`[data-unit-id="${event.unitId}"]`);
-    if (el) { const rect = el.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: rect.top + 4 }; }
-    const box = document.querySelector(`[data-bench-side="${event.player}"]`);
-    if (box) { const rect = box.getBoundingClientRect(); return { x: rect.left + Math.min(140, Math.max(80, rect.width / 2)), y: rect.top + 28 }; }
+    return document.querySelector(`[data-unit-id="${event.unitId}"]`)
+      ?? document.querySelector(`[data-bench-side="${event.player}"]`);
   }
   return null;
+}
+
+function locateEvent(event: GameEvent): { x: number; y: number } | null {
+  const el = targetForEvent(event);
+  if (!el) return null;
+  const rect = el.getBoundingClientRect();
+  if (event.type === "NEXUS_DAMAGED" || event.type === "NEXUS_HEALED" || event.type === "NEXUS_POISONED") {
+    return { x: rect.left + rect.width / 2, y: rect.top - 8 };
+  }
+  return { x: rect.left + rect.width / 2, y: rect.top + 4 };
 }
 
 function playEventSound(event: GameEvent): void {
@@ -100,6 +106,7 @@ function playEventSound(event: GameEvent): void {
 export function useGameFx(state: GameState | null): GameFxState {
   const previousRef = useRef<GameState | null>(null);
   const timersRef = useRef<Set<number>>(new Set());
+  const animationsRef = useRef<Set<Animation>>(new Set());
   const [fx, setFx] = useState<FxEvent[]>([]);
   const [shaking, setShaking] = useState(false);
   const [hitStop, setHitStop] = useState(false);
@@ -108,7 +115,12 @@ export function useGameFx(state: GameState | null): GameFxState {
   const [impactFlash, setImpactFlash] = useState<"red" | "cyan" | "gold" | null>(null);
   const [impactLabel, setImpactLabel] = useState<string | null>(null);
   const schedule = useCallback((callback: () => void, delay: number) => { const id = window.setTimeout(() => { timersRef.current.delete(id); callback(); }, delay); timersRef.current.add(id); }, []);
-  useEffect(() => () => { for (const id of timersRef.current) window.clearTimeout(id); timersRef.current.clear(); }, []);
+  useEffect(() => () => {
+    for (const id of timersRef.current) window.clearTimeout(id);
+    timersRef.current.clear();
+    for (const animation of animationsRef.current) animation.cancel();
+    animationsRef.current.clear();
+  }, []);
 
   useEffect(() => {
     if (!state) { previousRef.current = null; return; }
@@ -133,6 +145,17 @@ export function useGameFx(state: GameState | null): GameFxState {
       });
     });
     if (!stamped.length) return;
+
+    requestAnimationFrame(() => {
+      for (const plan of plans) {
+        const animation = playFxDomAnimation(targetForEvent(plan.event), plan);
+        if (!animation) continue;
+        animationsRef.current.add(animation);
+        const release = () => animationsRef.current.delete(animation);
+        animation.addEventListener("finish", release, { once: true });
+        animation.addEventListener("cancel", release, { once: true });
+      }
+    });
 
     setFx((list) => [...list, ...stamped]);
     const keys = new Set(stamped.map((event) => event.key));
