@@ -23,3 +23,4 @@ CREATE TABLE IF NOT EXISTS "admin_fx_presets" (
 );
 
 CREATE INDEX IF NOT EXISTS "admin_fx_presets_enabled_idx" ON "admin_fx_presets" ("enabled");
+CREATE INDEX IF NOT EXISTS "admin_fx_presets_renderer_idx" ON "admin_fx_presets" ("renderer");
