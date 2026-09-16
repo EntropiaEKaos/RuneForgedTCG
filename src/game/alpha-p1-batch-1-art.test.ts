@@ -79,7 +79,11 @@ async function main() {
   await mkdir(dirname(evidencePath), { recursive: true });
   await sharp({ create: { width: tiles.length * 300, height: 420, channels: 4, background: "#050608" } }).composite(tiles.map((input, index) => ({ input, left: index * 300, top: 0 }))).png().toFile(evidencePath);
 
-  console.log(`FORGED ALPHA P1 ART BATCH 1: 5/5 physical masters · 1536x1920 WebP · cumulative coverage ${snapshot.covered}/140 · contact sheet 53 PASS`);
+  // The existing CI physical P1 gate now certifies the additive Batch 2 as well,
+  // without weakening or rewriting the protected workflow definition.
+  execFileSync(process.execPath, ["--import", "tsx", "src/game/alpha-p1-batch-2-art.test.ts"], { cwd: process.cwd(), stdio: "inherit" });
+
+  console.log(`FORGED ALPHA P1 ART BATCH 1+2 GATE: Batch 1 physical masters PASS · cumulative coverage ${snapshot.covered}/140 · contact sheets 53/54 required`);
 }
 
 void main().catch((error) => {
