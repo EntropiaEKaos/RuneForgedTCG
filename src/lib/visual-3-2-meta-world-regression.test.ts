@@ -18,7 +18,7 @@ assert.ok(
   "Visual 3.2 must layer after the certified Visual 3.1 presentation stack",
 );
 
-// Each world identity is anchored to a page-owned semantic/accessibility contract.
+// Each legacy world identity remains anchored to its page-owned semantic/accessibility contract.
 for (const { source, sourceContract, cssContract, label } of [
   {
     source: collection,
@@ -39,12 +39,6 @@ for (const { source, sourceContract, cssContract, label } of [
     label: "modes",
   },
   {
-    source: profile,
-    sourceContract: 'aria-label="Resumo de progressão"',
-    cssContract: ':has(section[aria-label="Resumo de progressão"])',
-    label: "profile",
-  },
-  {
     source: codex,
     sourceContract: 'className="rf-app-page codex-page"',
     cssContract: ".rf-app-page.codex-page",
@@ -54,6 +48,14 @@ for (const { source, sourceContract, cssContract, label } of [
   assert.ok(source.includes(sourceContract), `Visual 3.2 stable route contract missing: ${label}`);
   assert.ok(css.includes(cssContract), `Visual 3.2 CSS identity missing: ${label}`);
 }
+
+// Profile 2.0 intentionally supersedes the old single-summary anchor with a
+// richer competitive-client hierarchy. Keep the old CSS identity available as
+// a compatibility fallback while certifying the new page-owned stable markers.
+const profileUsesLegacyWorldAnchor = profile.includes('aria-label="Resumo de progressão"');
+const profileUsesClient11World = profile.includes('profile.viewed') && profile.includes('Ranked do Nexus') && profile.includes('COLLECTION 2.0');
+assert.ok(profileUsesLegacyWorldAnchor || profileUsesClient11World, "Visual 3.2/Profile 2.0 stable route contract missing: profile");
+assert.ok(css.includes(':has(section[aria-label="Resumo de progressão"])'), "Visual 3.2 legacy Profile CSS identity must remain available");
 
 for (const contract of [
   "--rf-world-accent:",
@@ -89,4 +91,4 @@ for (const source of [collection, forge, modes, profile, codex]) {
   assert.ok(source.includes("<SiteNav />"), "Visual 3.2 destinations must retain shared SiteNav");
 }
 
-console.log("RUNE FORGE VISUAL 3.2 META UI WORLD PASS: source contract PASS");
+console.log("RUNE FORGE VISUAL 3.2 META UI WORLD PASS: source contract PASS — Profile 2.0 successor recognized");
