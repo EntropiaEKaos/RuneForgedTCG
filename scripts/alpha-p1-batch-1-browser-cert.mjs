@@ -220,7 +220,14 @@ async function main() {
     await openSubjectViewer(cdp);
     await capture(cdp);
 
-    console.log("ALPHA P1 BATCH 1 BROWSER CERT: PASS — 5 active P1 WebPs served + Ash Duelist runtime viewer certified");
+    const batch2 = spawnSync(process.execPath, ["scripts/alpha-p1-batch-2-browser-cert.mjs"], {
+      cwd: process.cwd(),
+      stdio: "inherit",
+      env: { ...process.env, E2E_BASE_URL: baseUrl, ALPHA_VISUAL_DIR: outputDir },
+    });
+    assert.equal(batch2.status, 0, `P1 Batch 2 browser certification failed with status ${batch2.status}`);
+
+    console.log("ALPHA P1 BATCH 1+2 BROWSER CERT: PASS — 10 active P1 WebPs served + Batch 1/2 runtime viewers certified");
   } finally {
     try { cdp?.close(); } catch {}
     if (chrome.exitCode == null && chrome.signalCode == null) chrome.kill("SIGTERM");
@@ -231,6 +238,6 @@ async function main() {
 }
 
 void main().catch((error) => {
-  console.error("ALPHA P1 BATCH 1 BROWSER CERT: FAIL", error);
+  console.error("ALPHA P1 BATCH 1+2 BROWSER CERT: FAIL", error);
   process.exitCode = 1;
 });
