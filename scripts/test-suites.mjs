@@ -52,6 +52,7 @@ export const behavioralTests = [
   "src/game/alpha-p0-batch-4-art.test.ts",
   "src/game/alpha-p0-batch-5-art.test.ts",
   "src/game/alpha-p1-batch-1-art.test.ts",
+  "src/game/alpha-p1-batch-2-art.test.ts",
   "src/game/flagship-champion-art.test.ts",
   "src/game/cost-reduction-contract.test.ts",
   "src/game/effect-chain-contract.test.ts",
@@ -203,5 +204,6 @@ export const sourceContractTests = [
   "src/lib/visual-5-4-ranked-competitive-regression.test.ts",
   "src/lib/visual-5-5-draft-premium-regression.test.ts",
   "src/lib/visual-5-7-pack-opening-regression.test.ts",
-  "src/lib/visual-5-8-deck-builder-regression.test.ts"
+  "src/lib/visual-5-8-deck-builder-regression.test.ts",
+  "src/lib/forged-client-1-1-player-experience-regression.test.ts"
 ];
