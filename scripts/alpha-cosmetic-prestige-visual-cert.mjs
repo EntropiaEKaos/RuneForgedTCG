@@ -357,7 +357,15 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+main().then(() => {
+  const collectionCert = spawnSync(process.execPath, ["scripts/collection-2-0-visual-cert.mjs"], {
+    stdio: "inherit",
+    env: { ...process.env, COLLECTION_VISUAL_DIR: outputDir },
+  });
+  if (collectionCert.status !== 0) {
+    throw new Error(`Collection 2.0 visual certification failed with status ${collectionCert.status ?? "unknown"}`);
+  }
+}).catch((error) => {
   console.error("ALPHA COSMETIC PRESTIGE VISUAL CERT: FAIL", error);
   process.exitCode = 1;
 });
