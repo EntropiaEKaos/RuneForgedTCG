@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import SiteNav from "@/components/SiteNav";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { ACHIEVEMENTS, DAILY_QUESTS } from "@/lib/achievements";
@@ -273,7 +273,7 @@ export default function ProfileClient() {
   const rankedWinRate = percentage(player?.rankedWins ?? 0, rankedGames);
   const overallWinRate = percentage(stats?.wins ?? 0, stats?.matches ?? 0);
   const collectionCompletion = percentage(collection.ownedCards, collection.totalCards);
-  const badgeList = useMemo(() => Array.isArray(player?.badges) ? player.badges.map(String).slice(0, 6) : [], [player?.badges]);
+  const badgeList = Array.isArray(player?.badges) ? player.badges.map(String).slice(0, 6) : [];
 
   return (
     <main className="rf-app-page min-h-screen bg-[#05080d] text-slate-100">
@@ -321,7 +321,7 @@ export default function ProfileClient() {
                   </div>
 
                   <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto lg:min-w-[500px]">
-                    <HeroMetric label="Ranked MMR" value={player.rankedGamesInPlacement > 0 ? `${player.mmr}` : `${player.mmr}`} detail={player.rankedGamesInPlacement > 0 ? `${player.rankedGamesInPlacement} jogos de colocação` : `pico ${player.peakMmr}`} />
+                    <HeroMetric label="Ranked MMR" value={`${player.mmr}`} detail={player.rankedGamesInPlacement > 0 ? `${player.rankedGamesInPlacement} jogos de colocação` : `pico ${player.peakMmr}`} />
                     <HeroMetric label="Coleção" value={`${collectionCompletion}%`} detail={`${collection.ownedCards}/${collection.totalCards || collection.totalDefinitions} distintas`} />
                     <HeroMetric label="Legado" value={`${completedAchievements}/${ACHIEVEMENTS.length}`} detail="conquistas concluídas" />
                   </div>
