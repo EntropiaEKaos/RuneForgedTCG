@@ -13,6 +13,7 @@ type MetricData = {
   economy: { generated24h:number; spent24h:number; transactions24h:number };
   commerce: { orders24h:number; approved24h:number; revenueCents24h:number; orders7d:number; revenueCents7d:number };
   content: { loreTotal:number; lorePublished:number; loreDrafts:number; eventsPublished:number; newsPublished:number };
+  journey: { accountCreated:number; packOpened:number; deckCreated:number; matchPlayed:number; matchWon:number; rankedStarted:number };
   topEvents: Array<{ name:string; total:number }>;
   topRoutes: Array<{ path:string; total:number; sessions:number }>;
   recentEvents: Array<{ eventName:string; playerId:number|null; sessionId:string|null; properties:Record<string,unknown>; createdAt:string }>;
@@ -22,6 +23,7 @@ function integer(value: number) { return new Intl.NumberFormat("pt-BR", { maximu
 function decimal(value: number) { return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value || 0); }
 function money(cents: number) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100); }
 function time(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("pt-BR"); }
+function pct(value: number, base: number) { return base > 0 ? Math.min(100, Math.max(0, value / base * 100)) : 0; }
 
 function Stat({ label, value, hint, emphasis = false }: { label:string; value:string; hint?:string; emphasis?:boolean }) {
   return (
@@ -42,6 +44,19 @@ function Section({ eyebrow, title, children, action }: { eyebrow:string; title:s
       </div>
       <div className="p-5">{children}</div>
     </section>
+  );
+}
+
+function FunnelStage({ index, label, value, accounts, previous, detail }: { index:number; label:string; value:number; accounts:number; previous:number; detail:string }) {
+  const overall = pct(value, accounts);
+  const step = index === 0 ? 100 : pct(value, previous);
+  return (
+    <div className="relative border border-white/8 bg-black/20 p-4">
+      <div className="flex items-center justify-between gap-3"><span className="text-[8px] font-black uppercase tracking-[.16em] text-slate-600">0{index + 1} · {label}</span><span className="text-[9px] font-bold text-amber-200/65">{decimal(overall)}%</span></div>
+      <div className="mt-2 font-[var(--font-display)] text-2xl font-black text-slate-100">{integer(value)}</div>
+      <div className="mt-3 h-1.5 bg-white/5"><div className="h-full bg-gradient-to-r from-amber-700 to-amber-200" style={{ width: `${Math.max(value > 0 ? 2 : 0, overall)}%` }} /></div>
+      <div className="mt-2 flex justify-between gap-3 text-[9px] text-slate-600"><span>{detail}</span><span>{index === 0 ? "base" : `${decimal(step)}% da etapa anterior`}</span></div>
+    </div>
   );
 }
 
@@ -82,9 +97,9 @@ export default function CommandCenterClient({ username, role }: { username:strin
 
         <div className="mt-7 flex flex-wrap items-end justify-between gap-5 border-b border-white/8 pb-5">
           <div>
-            <p className="text-[9px] font-bold uppercase tracking-[.3em] text-amber-200/48">FORGED LIVE INTELLIGENCE</p>
+            <p className="text-[9px] font-bold uppercase tracking-[.3em] text-amber-200/48">FORGED LIVE INTELLIGENCE · PLAYER JOURNEY</p>
             <h1 className="mt-2 font-[var(--font-display)] text-3xl font-black text-[#f0e3c4]">Command Center</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-400">Jogadores, uso do client, gameplay, economia, monetização, conteúdo e Lore em uma única superfície administrativa. Dados reais do banco + telemetria first-party. Operador: {username}.</p>
+            <p className="mt-2 max-w-3xl text-sm text-slate-400">Jogadores, funil do player, uso do client, gameplay, economia, monetização, conteúdo e Lore em uma única superfície administrativa. Dados reais do banco + telemetria first-party. Operador: {username}.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[9px] uppercase tracking-[.16em] text-slate-500">
             <label className="flex items-center gap-2 border border-white/8 px-3 py-2"><input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} /> Auto 60s</label>
@@ -101,6 +116,20 @@ export default function CommandCenterClient({ username, role }: { username:strin
             <Stat label="PvP / 24h" value={integer(data.gameplay.pvpCreated24h)} hint={`${integer(data.gameplay.pvpFinished24h)} finalizadas`} />
             <Stat label="Ranked / 24h" value={integer(data.gameplay.rankedResults24h)} />
             <Stat label="Receita / 24h" value={money(data.commerce.revenueCents24h)} hint={`${integer(data.commerce.approved24h)} pagamentos aprovados`} emphasis />
+          </div>
+
+          <div className="mt-6">
+            <Section eyebrow="PLAYER JOURNEY · AUTHORITATIVE" title="Funil completo do jogador" action={<span className="text-[9px] uppercase tracking-[.14em] text-slate-600">coortes acumuladas · fonte: banco de produção</span>}>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+                <FunnelStage index={0} label="Conta" value={data.journey.accountCreated} accounts={data.journey.accountCreated} previous={data.journey.accountCreated} detail="identidade criada" />
+                <FunnelStage index={1} label="Primeiro pack" value={data.journey.packOpened} accounts={data.journey.accountCreated} previous={data.journey.accountCreated} detail="abriu ao menos um pack" />
+                <FunnelStage index={2} label="Primeiro deck" value={data.journey.deckCreated} accounts={data.journey.accountCreated} previous={data.journey.packOpened} detail="criou deck customizado" />
+                <FunnelStage index={3} label="Primeira partida" value={data.journey.matchPlayed} accounts={data.journey.accountCreated} previous={data.journey.deckCreated} detail="jogou ao menos uma vez" />
+                <FunnelStage index={4} label="Primeira vitória" value={data.journey.matchWon} accounts={data.journey.accountCreated} previous={data.journey.matchPlayed} detail="venceu ao menos uma partida" />
+                <FunnelStage index={5} label="Ranked" value={data.journey.rankedStarted} accounts={data.journey.accountCreated} previous={data.journey.matchWon} detail="entrou no competitivo" />
+              </div>
+              <p className="mt-4 text-[10px] leading-5 text-slate-600">Este funil usa marcos persistidos e não depende apenas de cliques de UI. A telemetria abaixo complementa o diagnóstico mostrando intenção, navegação e interação entre os marcos.</p>
+            </Section>
           </div>
 
           <div className="mt-6 grid gap-6 xl:grid-cols-2">
@@ -160,14 +189,16 @@ export default function CommandCenterClient({ username, role }: { username:strin
             </Section>
           </div>
 
-          <Section eyebrow="LIVE STREAM" title="Eventos recentes" action={<span className="text-[9px] uppercase tracking-[.14em] text-slate-600">gerado {time(data.generatedAt)}</span>}>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-left text-[10px]">
-                <thead className="text-[8px] uppercase tracking-[.16em] text-slate-600"><tr><th className="border-b border-white/8 py-2 pr-4">Evento</th><th className="border-b border-white/8 py-2 pr-4">Player</th><th className="border-b border-white/8 py-2 pr-4">Path</th><th className="border-b border-white/8 py-2">Quando</th></tr></thead>
-                <tbody>{data.recentEvents.map((event, index) => <tr key={`${event.createdAt}:${index}`} className="text-slate-400"><td className="border-b border-white/5 py-2.5 pr-4 font-mono text-slate-300">{event.eventName}</td><td className="border-b border-white/5 py-2.5 pr-4">{event.playerId ?? "anon"}</td><td className="border-b border-white/5 py-2.5 pr-4 font-mono">{String(event.properties?.path ?? "—")}</td><td className="border-b border-white/5 py-2.5">{time(event.createdAt)}</td></tr>)}</tbody>
-              </table>
-            </div>
-          </Section>
+          <div className="mt-6">
+            <Section eyebrow="LIVE STREAM" title="Eventos recentes" action={<span className="text-[9px] uppercase tracking-[.14em] text-slate-600">gerado {time(data.generatedAt)}</span>}>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse text-left text-[10px]">
+                  <thead className="text-[8px] uppercase tracking-[.16em] text-slate-600"><tr><th className="border-b border-white/8 py-2 pr-4">Evento</th><th className="border-b border-white/8 py-2 pr-4">Player</th><th className="border-b border-white/8 py-2 pr-4">Path</th><th className="border-b border-white/8 py-2">Quando</th></tr></thead>
+                  <tbody>{data.recentEvents.map((event, index) => <tr key={`${event.createdAt}:${index}`} className="text-slate-400"><td className="border-b border-white/5 py-2.5 pr-4 font-mono text-slate-300">{event.eventName}</td><td className="border-b border-white/5 py-2.5 pr-4">{event.playerId ?? "anon"}</td><td className="border-b border-white/5 py-2.5 pr-4 font-mono">{String(event.properties?.path ?? "—")}</td><td className="border-b border-white/5 py-2.5">{time(event.createdAt)}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </Section>
+          </div>
         </>}
       </div>
     </main>
