@@ -6,10 +6,20 @@ import { motion, useReducedMotion } from "motion/react";
 export interface ForgedMotionSurfaceProps extends PropsWithChildren {
   className?: string;
   legendary?: boolean;
+  cardDefId?: string;
+  unitId?: string;
+  rarity?: string;
 }
 
 /** Presentation-only card micro-interactions. Never owns gameplay state. */
-export default function ForgedMotionSurface({ children, className, legendary = false }: ForgedMotionSurfaceProps) {
+export default function ForgedMotionSurface({
+  children,
+  className,
+  legendary = false,
+  cardDefId,
+  unitId,
+  rarity,
+}: ForgedMotionSurfaceProps) {
   const reducedMotion = useReducedMotion();
   const enabled = !reducedMotion;
 
@@ -17,6 +27,10 @@ export default function ForgedMotionSurface({ children, className, legendary = f
     <motion.span
       className={className}
       data-motion-surface="card"
+      data-card-tip-def-id={cardDefId}
+      data-unit-id={unitId}
+      data-card-rarity={rarity}
+      data-fx-premium={legendary ? "legendary" : undefined}
       initial={enabled ? { opacity: 0.92, scale: 0.985, y: 3 } : false}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       whileHover={enabled ? { y: -4, scale: legendary ? 1.025 : 1.018 } : undefined}
