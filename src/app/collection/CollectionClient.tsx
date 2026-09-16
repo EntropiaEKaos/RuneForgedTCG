@@ -10,6 +10,7 @@ import type { CardDef, CardType, Keyword, Rarity, Region } from "@/game/types";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 import { ensurePlayerSession } from "@/lib/client-player-session";
 import { pendingEconomyOperationId, settleEconomyOperation } from "@/lib/client-economy-operation";
+import { trackClientEvent } from "@/lib/client-telemetry";
 
 interface CollectionCard extends CardDef {
   owned: number;
@@ -26,8 +27,52 @@ interface PlayerInfo {
   xp: number;
 }
 
+interface CosmeticDefinition {
+  name: string;
+  kind: string;
+  artUrl: string | null;
+  animationUrl: string | null;
+  edition: string | null;
+  serialLimit: number | null;
+  acquisition: "pack" | "event" | "promotion" | "market" | "grant";
+  packEligible: boolean;
+  dropWeight: number;
+}
+
+interface WardrobeAsset {
+  assetId: number;
+  defId: string;
+  cardName: string;
+  cardRarity: string;
+  cardRegion: string | null;
+  emoji: string;
+  variantId: string;
+  frameId: string;
+  finish: string;
+  serialNumber: number | null;
+  source: string;
+  acquiredAt: string;
+  cosmetic: CosmeticDefinition | null;
+}
+
+interface CosmeticPreference {
+  defId: string;
+  assetId: number;
+  variantId: string;
+  frameId: string;
+  finish: string;
+  serialNumber?: number | null;
+}
+
+interface CardCosmeticSummary {
+  specialCount: number;
+  serializedCount: number;
+  equipped: WardrobeAsset | null;
+}
+
 type OwnershipFilter = "All" | "Owned" | "Missing" | "Complete";
 type CostFilter = "All" | "0-2" | "3-5" | "6+";
+type CosmeticFilter = "All" | "Variants" | "Equipped" | "Serialized";
 type SortMode = "curve" | "name" | "rarity";
 
 type CollectionPayload = {
@@ -43,11 +88,20 @@ type CollectionPayload = {
   dustGained?: number;
 };
 
+type CosmeticsPayload = {
+  ok?: boolean;
+  authenticated?: boolean;
+  wardrobe?: WardrobeAsset[];
+  preferences?: CosmeticPreference[];
+  error?: string;
+};
+
 const REGIONS: Array<Region | "All"> = ["All", ...CARD_REGIONS];
 const RARITIES: Array<Rarity | "All"> = ["All", "Common", "Rare", "Epic", "Legend"];
 const TYPES: Array<CardType | "All"> = ["All", "Unit", "Spell", "Enchantment", "Artifact", "Equipment", "Sentinela"];
 const OWNERSHIP: OwnershipFilter[] = ["All", "Owned", "Missing", "Complete"];
 const COSTS: CostFilter[] = ["All", "0-2", "3-5", "6+"];
+const COSMETICS: CosmeticFilter[] = ["All", "Variants", "Equipped", "Serialized"];
 const KEYWORDS: Array<Keyword | "All"> = ["All", "Barrier", "Challenger", "Elusive", "Fearsome", "Flying", "Haste", "Lifesteal", "Overwhelm", "QuickAttack", "Regeneration", "Tough"];
 
 const RARITY_LABEL: Record<Rarity, string> = {
@@ -124,6 +178,9 @@ export default function CollectionClient() {
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [cosmeticAssets, setCosmeticAssets] = useState<WardrobeAsset[]>([]);
+  const [cosmeticPreferences, setCosmeticPreferences] = useState<CosmeticPreference[]>([]);
+  const [cosmeticAuthenticated, setCosmeticAuthenticated] = useState<boolean | null>(null);
 
   const [regionFilter, setRegionFilter] = useState<Region | "All">("All");
   const [rarityFilter, setRarityFilter] = useState<Rarity | "All">("All");
@@ -132,6 +189,7 @@ export default function CollectionClient() {
   const [search, setSearch] = useState("");
   const [costFilter, setCostFilter] = useState<CostFilter>("All");
   const [keywordFilter, setKeywordFilter] = useState<Keyword | "All">("All");
+  const [cosmeticFilter, setCosmeticFilter] = useState<CosmeticFilter>("All");
   const [sortBy, setSortBy] = useState<SortMode>("curve");
 
   const applySnapshot = useCallback((payload: CollectionPayload) => {
@@ -165,13 +223,40 @@ export default function CollectionClient() {
     }
   }, [applySnapshot]);
 
+  const loadCosmetics = useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await fetch("/api/player/cosmetics", { cache: "no-store" });
+      const payload = await response.json() as CosmeticsPayload;
+      if (!payload.ok) return false;
+      if (payload.authenticated === false) {
+        setCosmeticAuthenticated(false);
+        setCosmeticAssets([]);
+        setCosmeticPreferences([]);
+        return true;
+      }
+      const nextAssets = Array.isArray(payload.wardrobe) ? payload.wardrobe : [];
+      const nextPreferences = Array.isArray(payload.preferences) ? payload.preferences : [];
+      setCosmeticAuthenticated(true);
+      setCosmeticAssets(nextAssets);
+      setCosmeticPreferences(nextPreferences);
+      trackClientEvent("collection.collection2_cosmetics_viewed", {
+        specialCopies: nextAssets.filter((asset) => asset.variantId !== "standard" && asset.cosmetic).length,
+        serialized: nextAssets.filter((asset) => asset.serialNumber !== null).length,
+        equipped: nextPreferences.length,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   useDeferredEffect(() => {
     let cancelled = false;
     void ensurePlayerSession(localStorage.getItem("runeforge_playername") || "")
       .then(async (profile) => {
         if (cancelled) return;
         if (profile.player?.name) setPlayerName(String(profile.player.name));
-        await loadCollection();
+        await Promise.all([loadCollection(), loadCosmetics()]);
       })
       .catch(() => {
         if (!cancelled) {
@@ -180,7 +265,32 @@ export default function CollectionClient() {
         }
       });
     return () => { cancelled = true; };
-  }, [loadCollection]);
+  }, [loadCollection, loadCosmetics]);
+
+  const specialAssets = useMemo(
+    () => cosmeticAssets.filter((asset) => asset.variantId !== "standard" && asset.cosmetic),
+    [cosmeticAssets],
+  );
+  const equippedAssetIds = useMemo(() => new Set(cosmeticPreferences.map((preference) => preference.assetId)), [cosmeticPreferences]);
+  const cosmeticByDef = useMemo(() => {
+    const map = new Map<string, CardCosmeticSummary>();
+    for (const asset of specialAssets) {
+      const summary = map.get(asset.defId) ?? { specialCount: 0, serializedCount: 0, equipped: null };
+      summary.specialCount += 1;
+      if (asset.serialNumber !== null) summary.serializedCount += 1;
+      if (equippedAssetIds.has(asset.assetId)) summary.equipped = asset;
+      map.set(asset.defId, summary);
+    }
+    return map;
+  }, [specialAssets, equippedAssetIds]);
+  const cosmeticCards = useMemo(() => new Set(specialAssets.map((asset) => asset.defId)).size, [specialAssets]);
+  const serializedCopies = useMemo(() => specialAssets.filter((asset) => asset.serialNumber !== null).length, [specialAssets]);
+  const equippedSpecial = useMemo(() => specialAssets.filter((asset) => equippedAssetIds.has(asset.assetId)).length, [specialAssets, equippedAssetIds]);
+  const cosmeticHighlights = useMemo(() => [...specialAssets]
+    .sort((a, b) => Number(equippedAssetIds.has(b.assetId)) - Number(equippedAssetIds.has(a.assetId))
+      || Number(b.serialNumber !== null) - Number(a.serialNumber !== null)
+      || Date.parse(b.acquiredAt) - Date.parse(a.acquiredAt))
+    .slice(0, 4), [specialAssets, equippedAssetIds]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -191,6 +301,13 @@ export default function CollectionClient() {
       .filter((card) => typeFilter === "All" || card.type === typeFilter)
       .filter((card) => matchesCost(card.cost, costFilter))
       .filter((card) => keywordFilter === "All" || (card.keywords ?? []).includes(keywordFilter))
+      .filter((card) => {
+        const cosmetic = cosmeticByDef.get(card.defId);
+        if (cosmeticFilter === "Variants") return (cosmetic?.specialCount ?? 0) > 0;
+        if (cosmeticFilter === "Equipped") return Boolean(cosmetic?.equipped);
+        if (cosmeticFilter === "Serialized") return (cosmetic?.serializedCount ?? 0) > 0;
+        return true;
+      })
       .filter((card) => {
         if (ownFilter === "Owned") return card.owned > 0;
         if (ownFilter === "Missing") return card.owned === 0;
@@ -213,7 +330,7 @@ export default function CollectionClient() {
         if (sortBy === "rarity") return RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.cost - b.cost || a.name.localeCompare(b.name);
         return a.cost - b.cost || a.name.localeCompare(b.name);
       });
-  }, [cards, regionFilter, rarityFilter, typeFilter, ownFilter, costFilter, keywordFilter, sortBy, search, duplicateCap]);
+  }, [cards, regionFilter, rarityFilter, typeFilter, ownFilter, costFilter, keywordFilter, cosmeticFilter, cosmeticByDef, sortBy, search, duplicateCap]);
 
   const stats = useMemo(() => {
     const byRarity: Record<Rarity, { owned: number; total: number }> = {
@@ -239,7 +356,7 @@ export default function CollectionClient() {
 
   const completion = totalCards > 0 ? Math.round((ownedCards / totalCards) * 100) : 0;
   const missingCards = Math.max(0, totalCards - ownedCards);
-  const activeFilters = [regionFilter, rarityFilter, typeFilter, ownFilter, costFilter, keywordFilter].filter((value) => value !== "All").length + (search.trim() ? 1 : 0);
+  const activeFilters = [regionFilter, rarityFilter, typeFilter, ownFilter, costFilter, keywordFilter, cosmeticFilter].filter((value) => value !== "All").length + (search.trim() ? 1 : 0);
 
   const clearFilters = () => {
     setRegionFilter("All");
@@ -248,6 +365,7 @@ export default function CollectionClient() {
     setOwnFilter("All");
     setCostFilter("All");
     setKeywordFilter("All");
+    setCosmeticFilter("All");
     setSortBy("curve");
     setSearch("");
   };
@@ -292,21 +410,67 @@ export default function CollectionClient() {
           <div>
             <p className="rf-eyebrow"><span /> ARQUIVO DO INVOCADOR</p>
             <h1>Coleção de Cartas</h1>
-            <p>Consulte seu acervo, encontre lacunas e transforme pó em novas cópias com segurança.</p>
+            <p>Consulte seu acervo, encontre lacunas e escolha como cada carta representa sua identidade visual.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/collection/variants" className="rf-button rf-button-secondary">VARIANTES</Link>
             <Link href="/album" className="rf-button rf-button-secondary">ÁLBUM VANILLA</Link>
             <Link href="/collections" className="rf-button rf-button-secondary">CALENDÁRIO</Link>
             <Link href="/store" className="rf-button rf-button-primary">LOJA</Link>
           </div>
         </header>
 
-        <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumo da coleção">
+        <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="Resumo da coleção">
           <SummaryCard label="Conclusão" value={`${completion}%`} detail={`${ownedCards}/${totalCards} cartas distintas`} />
           <SummaryCard label="Faltando" value={missingCards} detail="cartas colecionáveis" />
           <SummaryCard label="No limite" value={stats.complete} detail={`com ${duplicateCap}/${duplicateCap} cópias`} />
+          <SummaryCard label="Variantes" value={specialAssets.length} detail={`${cosmeticCards} cartas · ${serializedCopies} serialized`} />
           <SummaryCard label="Pó" value={player?.dust ?? "—"} detail="saldo para forja" />
           <SummaryCard label="Jogador" value={playerName || "Sincronizando"} detail={player ? `nível ${player.level} · ${player.gold} ouro` : "carregando perfil"} />
+        </section>
+
+        <section className="mb-5 rounded-3xl border border-amber-300/15 bg-gradient-to-br from-amber-300/[.08] via-slate-950/65 to-cyan-300/[.04] p-4" aria-labelledby="collection-cosmetics-heading">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[.2em] text-amber-300">COLLECTION 2.0 · IDENTIDADE VISUAL</p>
+              <h2 id="collection-cosmetics-heading" className="mt-1 text-xl font-black text-white">Seu acervo também é uma assinatura</h2>
+              <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-400">Variantes, finishes e cópias Serialized são 100% cosméticas. Poder, custo, regras, raridade de gameplay e legalidade continuam definidos pela carta original.</p>
+            </div>
+            <Link href="/collection/variants" className="rf-button rf-button-secondary">ABRIR ATELIÊ</Link>
+          </div>
+
+          {cosmeticAuthenticated === false ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-slate-400">Entre na Forja para carregar suas cópias cosméticas privadas.</div>
+          ) : cosmeticHighlights.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-slate-400">Nenhuma variante especial encontrada. Suas cartas Standard continuam completas e válidas.</div>
+          ) : (
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {cosmeticHighlights.map((asset) => {
+                const equipped = equippedAssetIds.has(asset.assetId);
+                const artStyle = asset.cosmetic?.artUrl ? { backgroundImage: `linear-gradient(rgba(2,6,23,.08),rgba(2,6,23,.88)),url(${JSON.stringify(asset.cosmetic.artUrl)})`, backgroundSize: "cover", backgroundPosition: "center" } : {};
+                return (
+                  <Link key={asset.assetId} href="/collection/variants" className="group overflow-hidden rounded-2xl border border-white/10 bg-slate-950/70 transition hover:-translate-y-0.5 hover:border-amber-200/30">
+                    <div className="relative aspect-[16/8] bg-slate-900" style={artStyle}>
+                      {!asset.cosmetic?.artUrl && <div className="grid h-full place-items-center text-4xl">{asset.emoji}</div>}
+                      {equipped && <span className="absolute left-2 top-2 rounded-full bg-emerald-300 px-2 py-1 text-[8px] font-black uppercase text-emerald-950">Em uso</span>}
+                      {asset.serialNumber !== null && <span className="absolute right-2 top-2 rounded-full border border-amber-200/40 bg-black/70 px-2 py-1 text-[9px] font-black text-amber-100">#{asset.serialNumber}{asset.cosmetic?.serialLimit ? `/${asset.cosmetic.serialLimit}` : ""}</span>}
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 to-transparent p-3 pt-8">
+                        <div className="text-[9px] font-black uppercase tracking-[.14em] text-amber-300">{asset.cosmetic?.name || asset.variantId}</div>
+                        <div className="mt-0.5 truncate text-sm font-black text-white">{asset.cardName}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 px-3 py-2 text-[9px] font-bold uppercase tracking-wider text-slate-400"><span>{asset.finish}</span><span>{asset.cosmetic?.edition || asset.frameId}</span></div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+            <Metric label="Cartas com variante" value={cosmeticCards} />
+            <Metric label="Equipadas" value={equippedSpecial} />
+            <Metric label="Serialized" value={serializedCopies} />
+          </div>
         </section>
 
         <section className="mb-5 rounded-2xl border border-white/10 bg-slate-950/45 p-4" aria-labelledby="collection-progress-heading">
@@ -363,7 +527,7 @@ export default function CollectionClient() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-9">
             <label className="sm:col-span-2 xl:col-span-2">
               <span className="sr-only">Buscar cartas</span>
               <input className="input w-full" placeholder="Buscar nome, texto, raça ou habilidade…" value={search} onChange={(event) => setSearch(event.target.value)} />
@@ -374,6 +538,7 @@ export default function CollectionClient() {
             <FilterSelect label="Posse" value={ownFilter} onChange={(value) => setOwnFilter(value as OwnershipFilter)} options={OWNERSHIP.map((value) => ({ value, label: value === "All" ? "Toda posse" : value === "Owned" ? "Obtidas" : value === "Missing" ? "Faltando" : "No limite" }))} />
             <FilterSelect label="Custo" value={costFilter} onChange={(value) => setCostFilter(value as CostFilter)} options={COSTS.map((value) => ({ value, label: value === "All" ? "Todo custo" : value }))} />
             <FilterSelect label="Habilidade" value={keywordFilter} onChange={(value) => setKeywordFilter(value as Keyword | "All")} options={KEYWORDS.map((value) => ({ value, label: value === "All" ? "Todas habilidades" : value }))} />
+            <FilterSelect label="Cosmético" value={cosmeticFilter} onChange={(value) => setCosmeticFilter(value as CosmeticFilter)} options={COSMETICS.map((value) => ({ value, label: value === "All" ? "Todo visual" : value === "Variants" ? "Com variante" : value === "Equipped" ? "Variante equipada" : "Serialized" }))} />
             <FilterSelect label="Ordenação" value={sortBy} onChange={(value) => setSortBy(value as SortMode)} options={[{ value: "curve", label: "Curva de mana" }, { value: "name", label: "Nome" }, { value: "rarity", label: "Raridade" }]} />
           </div>
         </section>
@@ -390,15 +555,19 @@ export default function CollectionClient() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                 {filtered.map((card) => {
                   const selected = selectedCardId === card.defId;
+                  const cosmetic = cosmeticByDef.get(card.defId);
                   return (
                     <button
                       type="button"
                       key={card.defId}
                       onClick={() => setSelectedCardId(card.defId)}
                       aria-pressed={selected}
-                      aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${card.owned} de ${duplicateCap} cópias`}
+                      aria-label={`${card.name}, ${RARITY_LABEL[card.rarity]}, ${card.owned} de ${duplicateCap} cópias${cosmetic?.specialCount ? `, ${cosmetic.specialCount} variantes` : ""}`}
                       className={`group relative flex min-w-0 flex-col items-center gap-2 rounded-xl border p-2 text-left transition ${selected ? "border-amber-400/70 bg-amber-400/10" : "border-white/10 bg-white/[.025] hover:border-white/25 hover:bg-white/[.045]"} ${card.owned === 0 ? "opacity-55" : ""}`}
                     >
+                      {cosmetic?.specialCount ? <span className="absolute left-2 top-2 z-10 rounded-full border border-amber-300/35 bg-slate-950/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-200">◇ {cosmetic.specialCount} VAR</span> : null}
+                      {cosmetic?.serializedCount ? <span className="absolute left-2 top-8 z-10 rounded-full border border-fuchsia-300/30 bg-fuchsia-950/80 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-fuchsia-100">SERIAL {cosmetic.serializedCount}</span> : null}
+                      {cosmetic?.equipped ? <span className="absolute bottom-10 left-2 z-10 rounded-full bg-emerald-300 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-emerald-950">Visual ativo</span> : null}
                       {card.shiny && <span className="absolute right-2 top-2 z-10 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-cyan-200">Brilhante</span>}
                       <div className={`pointer-events-none transition ${card.owned === 0 ? "grayscale" : "group-hover:-translate-y-0.5"}`}><CardTip defId={card.defId} size="sm" /></div>
                       <div className="flex w-full items-center justify-between gap-2 px-1 text-[10px]">
@@ -413,12 +582,12 @@ export default function CollectionClient() {
 
             <aside className="self-start rounded-2xl border border-white/10 bg-slate-950/55 p-4 lg:sticky lg:top-4" aria-label="Detalhes e ações da carta">
               {selectedCard ? (
-                <CardEconomyPanel card={selectedCard} duplicateCap={duplicateCap} dust={player?.dust ?? 0} busy={Boolean(actionKey)} actionKey={actionKey} onAction={doAction} />
+                <CardEconomyPanel card={selectedCard} duplicateCap={duplicateCap} dust={player?.dust ?? 0} busy={Boolean(actionKey)} actionKey={actionKey} cosmetic={cosmeticByDef.get(selectedCard.defId)} onAction={doAction} />
               ) : (
                 <div className="py-12 text-center">
                   <div className="text-4xl">◇</div>
                   <h3 className="mt-3 font-black text-white">Selecione uma carta</h3>
-                  <p className="mx-auto mt-2 max-w-[230px] text-xs leading-5 text-slate-400">O painel mostra suas cópias, custo de forja, retorno de desencanto e opções para completar ou transformar sua coleção.</p>
+                  <p className="mx-auto mt-2 max-w-[230px] text-xs leading-5 text-slate-400">O painel mostra suas cópias, identidade visual, custo de forja, retorno de desencanto e opções para completar ou transformar sua coleção.</p>
                 </div>
               )}
             </aside>
@@ -461,7 +630,7 @@ function EmptyState({ title, text, action }: { title: string; text: string; acti
   );
 }
 
-function CardEconomyPanel({ card, duplicateCap, dust, busy, actionKey, onAction }: { card: CollectionCard; duplicateCap: number; dust: number; busy: boolean; actionKey: string | null; onAction: (action: "craft" | "disenchant", card: CollectionCard, amount: number) => Promise<void> }) {
+function CardEconomyPanel({ card, duplicateCap, dust, busy, actionKey, cosmetic, onAction }: { card: CollectionCard; duplicateCap: number; dust: number; busy: boolean; actionKey: string | null; cosmetic?: CardCosmeticSummary; onAction: (action: "craft" | "disenchant", card: CollectionCard, amount: number) => Promise<void> }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-center"><CardTip defId={card.defId} size="lg" /></div>
@@ -475,6 +644,19 @@ function CardEconomyPanel({ card, duplicateCap, dust, busy, actionKey, onAction 
         <Metric label="Você possui" value={`${card.owned}/${duplicateCap}`} />
         <Metric label="Pó disponível" value={dust} />
       </div>
+
+      <section className="rounded-xl border border-amber-300/20 bg-amber-300/[.05] p-3" aria-label="Identidade visual da carta">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-amber-200">Identidade visual</p>
+            <p className="mt-1 text-xs leading-5 text-slate-400">{cosmetic?.specialCount ? `${cosmetic.specialCount} variante(s) especial(is) possuída(s)${cosmetic.serializedCount ? ` · ${cosmetic.serializedCount} Serialized` : ""}.` : "Nenhuma variante especial desta carta no seu inventário."}</p>
+            {cosmetic?.equipped && <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-emerald-300">Em uso: {cosmetic.equipped.cosmetic?.name || cosmetic.equipped.variantId} · {cosmetic.equipped.finish}</p>}
+          </div>
+          <span className="text-xl">◇</span>
+        </div>
+        <Link href="/collection/variants" className="rf-button rf-button-secondary mt-3 inline-flex w-full justify-center">GERENCIAR VARIANTES</Link>
+        <p className="mt-2 text-[9px] leading-4 text-slate-500">100% cosmético: esta escolha nunca altera stats, efeitos, limite de cópias, matchmaking ou legalidade competitiva.</p>
+      </section>
 
       <section className="rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-3" aria-label="Forjar cópias">
         <div className="flex items-start justify-between gap-2"><div><p className="text-xs font-black uppercase tracking-wider text-cyan-200">Forjar</p><p className="mt-1 text-xs text-slate-400">{card.craftCost} de pó por cópia.</p></div><span className="text-lg">💠</span></div>
