@@ -10,7 +10,6 @@ const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visua
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 
-
 function findChrome() {
   const candidates = [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean);
   for (const candidate of candidates) {
@@ -100,6 +99,10 @@ async function waitForText(cdp, text) {
 }
 
 async function clickText(cdp, text) {
+  await waitUntil(() => evaluate(cdp, `(() => {
+    const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+    return [...document.querySelectorAll('button,a,[role="button"]')].some((node) => !node.disabled && normalize(node.textContent).includes(${JSON.stringify(text)}));
+  })()`), `interactive control ${JSON.stringify(text)}`);
   const clicked = await evaluate(cdp, `(() => {
     const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
     const target = [...document.querySelectorAll('button,a,[role="button"]')].find((node) => !node.disabled && normalize(node.textContent).includes(${JSON.stringify(text)}));
@@ -267,15 +270,15 @@ async function main() {
     assert.equal(afterReload.consumeBarrier, true, "Unit Barrier cost survives save + full page reload");
     await capture(cdp, "studio-modal-authoring-after-reload.png");
 
-    console.log("STUDIO MODAL ABILITY BROWSER CERT: PASS — modal choices + expanded/selected base costs create → save → reload with stable ids/resources");
+    console.log("STUDIO MODAL ABILITY BROWSER CERT: PASS");
   } finally {
     cdp?.close();
     await shutdown(chrome, profileDir);
-    if (stderr && process.exitCode) console.error(stderr);
   }
 }
 
 main().catch((error) => {
-  console.error("STUDIO MODAL ABILITY BROWSER CERT: FAIL", error);
+  console.error("STUDIO MODAL ABILITY BROWSER CERT: FAIL");
+  console.error(error instanceof Error ? error.stack || error.message : error);
   process.exitCode = 1;
 });
