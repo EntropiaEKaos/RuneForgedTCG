@@ -28,6 +28,7 @@ const freshFiles = [
   "drizzle/0044_card_cosmetics.sql",
   "drizzle/0045_identity_auth.sql",
   "drizzle/0046_admin_fx_presets.sql",
+  "drizzle/0047_admin_fx_associations.sql",
 ];
 const sql = freshFiles.map((f) => fs.readFileSync(path.join(root, f), "utf8")).join("\n").replace(/--.*$/gm, "");
 const failures = [];
