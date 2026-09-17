@@ -6,6 +6,8 @@ const PRESET_IDS = new Set<FxPresetId>(Object.keys(FORGED_FX_PRESETS) as FxPrese
 const RENDERERS = new Set<FxRenderer>(["motion", "timeline", "gpu"]);
 const INTENSITIES = new Set<FxIntensity>(["subtle", "standard", "cinematic"]);
 const SHAKES = new Set(["light", "medium"] as const);
+let runtimeOverrides: FxPresetOverrides = {};
+let loadPromise: Promise<void> | null = null;
 
 type PublishedFxPresetRow = {
   key?: unknown;
@@ -62,4 +64,21 @@ export function parsePublishedFxPresets(payload: unknown): FxPresetOverrides {
 export function applyFxPresetOverrides<T extends { preset: FxPreset }>(resolved: T, overrides: FxPresetOverrides): T {
   const preset = overrides[resolved.preset.id];
   return preset ? { ...resolved, preset } : resolved;
+}
+
+export function getRuntimeFxPresetOverrides(): FxPresetOverrides {
+  return runtimeOverrides;
+}
+
+/** Starts a non-blocking presentation-only refresh. Static presets remain authoritative fallback. */
+export function ensureRuntimeFxPresetsLoaded(): void {
+  if (typeof window === "undefined" || loadPromise) return;
+  loadPromise = fetch("/api/client/fx-presets", { headers: { accept: "application/json" } })
+    .then(async (response) => {
+      if (!response.ok) return;
+      const payload: unknown = await response.json();
+      runtimeOverrides = parsePublishedFxPresets(payload);
+    })
+    .catch(() => {})
+    .finally(() => { loadPromise = null; });
 }
