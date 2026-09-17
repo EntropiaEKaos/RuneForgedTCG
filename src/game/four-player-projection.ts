@@ -19,7 +19,6 @@ export interface FourPlayerProjectedSeatState {
   nexusHealth: number;
   eliminated: boolean;
   hand?: readonly string[];
-  deck?: readonly string[];
 }
 
 export interface FourPlayerSeatProjection {
@@ -28,9 +27,8 @@ export interface FourPlayerSeatProjection {
 }
 
 /**
- * Security boundary for clients: only the viewing seat receives its hand/deck identities.
- * Opponents receive counts plus public zones. Hidden identities never need to be sent and
- * concealed by CSS.
+ * Security boundary for clients. A viewer receives identities for its current hand only.
+ * Future deck identities/order remain server-only for every seat, including the owner.
  */
 export function projectFourPlayerStateForSeat(
   states: Record<FourPlayerSeat, FourPlayerPrivateSeatState>,
@@ -47,10 +45,9 @@ export function projectFourPlayerStateForSeat(
       publicBoard: [...source.publicBoard],
       nexusHealth: source.nexusHealth,
       eliminated: source.eliminated,
-      ...(own ? { hand: [...source.hand], deck: [...source.deck] } : {}),
+      ...(own ? { hand: [...source.hand] } : {}),
     };
     return [seat, value];
   })) as Record<FourPlayerSeat, FourPlayerProjectedSeatState>;
-
   return { viewer, seats: projected };
 }
