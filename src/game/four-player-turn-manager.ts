@@ -11,19 +11,26 @@ export function createFourPlayerTurnState(startingSeat: FourPlayerSeat = "p1"): 
   return { activeSeat: startingSeat, round: 1, turn: 1, eliminatedSeats: [] };
 }
 
+export function livingSeats(eliminatedSeats: readonly FourPlayerSeat[] = []): FourPlayerSeat[] {
+  const eliminated = new Set(eliminatedSeats);
+  return FOUR_PLAYER_SEATS.filter((seat) => !eliminated.has(seat));
+}
+
 export function nextLivingSeat(
   activeSeat: FourPlayerSeat,
   eliminatedSeats: readonly FourPlayerSeat[] = [],
 ): FourPlayerSeat {
   const eliminated = new Set(eliminatedSeats);
-  if (eliminated.size >= FOUR_PLAYER_SEATS.length - 1) return activeSeat;
+  const living = livingSeats(eliminatedSeats);
+  if (living.length === 0) return activeSeat;
+  if (living.length === 1) return living[0];
 
   const start = FOUR_PLAYER_SEATS.indexOf(activeSeat);
   for (let offset = 1; offset <= FOUR_PLAYER_SEATS.length; offset += 1) {
     const candidate = FOUR_PLAYER_SEATS[(start + offset) % FOUR_PLAYER_SEATS.length];
     if (!eliminated.has(candidate)) return candidate;
   }
-  return activeSeat;
+  return living[0];
 }
 
 export function advanceFourPlayerTurn(state: FourPlayerTurnState): FourPlayerTurnState {
