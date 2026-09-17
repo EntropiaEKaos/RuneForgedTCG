@@ -27,15 +27,18 @@ assert.equal(sessionForSeat(sessions, "p2")?.connectionEpoch, 2);
 assert.throws(() => assertSessionControlsSeat(sessions, "session-p2", "p2", 1), /Stale connection epoch/);
 assertSessionControlsSeat(sessions, "session-p2", "p2", 2);
 
-const privateStates = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, {
-  seat,
-  hand: [`${seat}-hand-secret`],
-  deck: [`${seat}-deck-future-secret`],
-  graveyard: [],
-  publicBoard: [`${seat}-public-unit`],
-  nexusHealth: 30,
-  eliminated: false,
-}])) as Record<FourPlayerSeat, FourPlayerPrivateSeatState>;
+const privateStates = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivateSeatState>>((result, seat) => {
+  result[seat] = {
+    seat,
+    hand: [`${seat}-hand-secret`],
+    deck: [`${seat}-deck-future-secret`],
+    graveyard: [],
+    publicBoard: [`${seat}-public-unit`],
+    nexusHealth: 30,
+    eliminated: false,
+  };
+  return result;
+}, {} as Record<FourPlayerSeat, FourPlayerPrivateSeatState>);
 
 const projection = projectFourPlayerStateForSeat(privateStates, "p2");
 const snapshot = createFourPlayerResyncSnapshot(matchId, protocol.revision, projection);
