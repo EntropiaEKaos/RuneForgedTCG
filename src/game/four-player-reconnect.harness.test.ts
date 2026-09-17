@@ -4,6 +4,7 @@ import { bindFourPlayerSession, createFourPlayerSessionRegistry, disconnectFourP
 import { createFourPlayerProtocolState } from "./four-player-protocol";
 import { decideFourPlayerResync, createFourPlayerResyncSnapshot } from "./four-player-resync";
 import { projectFourPlayerStateForSeat, type FourPlayerPrivateSeatState } from "./four-player-projection";
+import { createFourPlayerMatchState } from "./four-player-match";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 
 const matchId = "reconnect-4p-001";
@@ -40,14 +41,23 @@ const privateStates = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayer
   return result;
 }, {} as Record<FourPlayerSeat, FourPlayerPrivateSeatState>);
 
-const projection = projectFourPlayerStateForSeat(privateStates, "p2");
+// Reconnect snapshots include public authoritative flow so the client cannot guess phase/priority.
+const match = { ...createFourPlayerMatchState("p3"), phase: "main_2" as const };
+const projection = projectFourPlayerStateForSeat(privateStates, "p2", match);
 const snapshot = createFourPlayerResyncSnapshot(matchId, protocol.revision, projection);
 assert.equal(snapshot.revision, 21);
 assert.equal(snapshot.viewer, "p2");
 assert.deepEqual(snapshot.projection.seats.p2.hand, ["p2-hand-secret"]);
+assert.deepEqual(snapshot.projection.match, {
+  activeSeat: "p3",
+  round: 1,
+  phase: "main_2",
+  priorityHolder: "p3",
+  status: "active",
+});
 const serialized = JSON.stringify(snapshot);
 for (const seat of FOUR_PLAYER_SEATS) assert.equal(serialized.includes(`${seat}-deck-future-secret`), false);
 for (const opponent of FOUR_PLAYER_SEATS.filter((seat) => seat !== "p2")) assert.equal(serialized.includes(`${opponent}-hand-secret`), false);
 assert.deepEqual(decideFourPlayerResync(matchId, 21, { matchId, revision: 21 }), { type: "current" });
 
-console.log("FOUR PLAYER RECONNECT AND SAFE RESYNC HARNESS: PASS");
+console.log("FOUR PLAYER RECONNECT, AUTHORITATIVE PHASE AND SAFE RESYNC HARNESS: PASS");
