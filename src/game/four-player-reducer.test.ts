@@ -38,6 +38,12 @@ assert.throws(() => reduceFourPlayerServerEvent(match, event("cast_general", "p2
 match = reduceFourPlayerServerEvent(match, event("cast_general", "p1"));
 assert.equal(match.generals.p1.location, "stack");
 assert.equal(match.seats.p1.generalCastsFromZone, 1);
+assert.equal(match.resolution.stack.items.length, 1);
+assert.equal(match.resolution.stack.items[0]?.kind, "general_cast");
+assert.equal(match.resolution.stack.items[0]?.controller, "p1");
+assert.deepEqual(match.resolution.stack.items[0]?.payload, { owner: "p1", defId: "general-p1" });
+assert.equal(match.resolution.priority.holder, "p2");
+assert.throws(() => reduceFourPlayerServerEvent(match, event("cast_general", "p2")), /General can only be cast from the General Zone|Only priority holder/);
 
 match = createFourPlayerMatchState("p1");
 const stacked = reduceFourPlayerServerEvent(match, event("submit_action", "p1", {
@@ -64,4 +70,4 @@ assert.equal(completed.status, "completed");
 assert.throws(() => reduceFourPlayerServerEvent(completed, event("pass_priority", "p1")), /matches are terminal/);
 assert.throws(() => reduceFourPlayerServerEvent(completed, event("concede", "p1")), /matches are terminal/);
 
-console.log("FOUR PLAYER AUTHORITATIVE EVENT REDUCER HARDENING: PASS");
+console.log("FOUR PLAYER AUTHORITATIVE EVENT REDUCER + GENERAL STACK HARDENING: PASS");
