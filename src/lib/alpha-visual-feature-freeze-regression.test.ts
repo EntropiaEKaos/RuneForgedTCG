@@ -27,9 +27,17 @@ import { readFileSync } from "node:fs";
  * ArenaIdentity.tsx, engine/rules/APIs/persistence and Ranked authority remain
  * frozen. Full CI, notebook/mobile browser certificates and the complete Alpha
  * Visual Journey are mandatory before this client-shell candidate is promoted.
+ *
+ * Battlefield Premium 1.6 break-glass 2026-09-17: layout.tsx is intentionally
+ * recertified only to mount forged-battlefield-premium-1-6.css immediately after
+ * the certified Visual 4.4 battlefield UX layer. This is a presentation-only CSS
+ * layer; BattleView.tsx, CardView.tsx, ArenaIdentity.tsx, engine/rules/APIs/state
+ * authority and the frozen Visual 3.x structural layers remain unchanged. Full
+ * CI/browser artifacts and representative battlefield visual inspection are
+ * mandatory before this candidate can be promoted.
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
-  "src/app/layout.tsx": "830e771bd1aae2d5673f6d4918c258261455626d",
+  "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
   "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
@@ -67,6 +75,7 @@ for (const layer of orderedLayers) {
 
 const responsiveLayer = 'import "./styles/visual-4-0-responsive-battlefield.css";';
 const battlefieldUxLayer = 'import "./styles/visual-4-4-battlefield-ux.css";';
+const battlefieldPremiumLayer = 'import "./styles/forged-battlefield-premium-1-6.css";';
 const cinematicIdentityLayer = 'import "./styles/visual-5-0-cinematic-identity.css";';
 const metagamePremiumLayer = 'import "./styles/visual-5-1-metagame-premium.css";';
 const playerJourneyLayer = 'import "./styles/visual-5-2-player-journey.css";';
@@ -83,6 +92,7 @@ const clientShellLayer = 'import "./styles/client-shell-1-0.css";';
 const requiredLayers = [
   responsiveLayer,
   battlefieldUxLayer,
+  battlefieldPremiumLayer,
   cinematicIdentityLayer,
   metagamePremiumLayer,
   playerJourneyLayer,
@@ -103,6 +113,7 @@ for (const layer of requiredLayers) {
 const orderedPresentationLayers = [
   responsiveLayer,
   battlefieldUxLayer,
+  battlefieldPremiumLayer,
   cinematicIdentityLayer,
   metagamePremiumLayer,
   playerJourneyLayer,
@@ -129,4 +140,4 @@ assert.equal(
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
 
-console.log("FORGED ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Client 1.0 shell break-glass recorded");
+console.log("FORGED ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Battlefield Premium 1.6 break-glass recorded");
