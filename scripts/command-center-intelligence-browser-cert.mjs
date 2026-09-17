@@ -118,9 +118,9 @@ async function main() {
     await cdp.call("Page.navigate", { url:`${baseUrl}/admin/studio/command-center` });
     await waitUntil(() => evaluate(cdp, `["interactive","complete"].includes(document.readyState)`), "Command Center navigation");
     await waitUntil(() => evaluate(cdp, `document.body?.innerText?.includes('INTELLIGENCE 1.7') && document.body?.innerText?.includes('Saúde operacional e movimento do funil')`), "Intelligence 1.7 panel");
-    await waitUntil(() => evaluate(cdp, `document.body?.innerText?.includes('24h atuais') && document.body?.innerText?.includes('Maior vazamento absoluto')`), "Intelligence comparison contract");
+    await waitUntil(() => evaluate(cdp, `document.body?.innerText?.toLocaleLowerCase('pt-BR')?.includes('24h atuais') && document.body?.innerText?.toLocaleLowerCase('pt-BR')?.includes('maior vazamento absoluto')`), "Intelligence comparison contract");
     const evidence = await evaluate(cdp, `(() => {
-      const text = (document.body?.innerText || '').replace(/\\s+/g,' ').trim();
+      const text = (document.body?.innerText || '').replace(/\\s+/g,' ').trim();\n      const normalizedText = text.toLocaleLowerCase('pt-BR');
       const root = document.documentElement;
       return {
         href: location.href,
@@ -128,10 +128,10 @@ async function main() {
         scrollWidth: root.scrollWidth,
         intelligence: text.includes('INTELLIGENCE 1.7'),
         title: text.includes('Saúde operacional e movimento do funil'),
-        absoluteLeak: text.includes('Maior vazamento absoluto'),
-        comparison: text.includes('24h atuais') && text.includes('24h anteriores'),
-        neutralDirection: text.includes('Setas descrevem direção matemática, não julgamento.'),
-        signalLabels: ['DAU / MAU','DAU / WAU','Conclusão PvP 24h','Aprovação pagamentos 24h'].filter((label) => text.includes(label)),
+        absoluteLeak: normalizedText.includes('maior vazamento absoluto'),
+        comparison: normalizedText.includes('24h atuais') && normalizedText.includes('24h anteriores'),
+        neutralDirection: normalizedText.includes('setas descrevem direção matemática, não julgamento.'),
+        signalLabels: ['dau / mau','dau / wau','conclusão pvp 24h','aprovação pagamentos 24h'].filter((label) => normalizedText.includes(label)),
       };
     })()`);
     assert.equal(evidence.intelligence, true);
