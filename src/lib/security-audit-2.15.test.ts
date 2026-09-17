@@ -14,8 +14,8 @@ const playerSession = read("src/lib/player-session.ts");
 
 if (!cards.includes('adminRoleAllowed(actor.role, ["designer", "qa", "publisher"])')) throw new Error("Card catalog GET missing read RBAC");
 if (!settings.includes('adminRoleAllowed(actor.role, "liveops")')) throw new Error("Game settings GET missing liveops RBAC");
-if (!generic.includes('resource === "players" && !adminRoleAllowed(actor.role, "admin")')) throw new Error("Player profile GET missing admin-only guard");
-if (!genericId.includes('resource === "players" && !adminRoleAllowed(actor.role, "admin")')) throw new Error("Player profile PATCH missing admin-only guard");
+if (!/resource\s*===\s*"players"\s*&&\s*!adminRoleAllowed\(actor\.role,\s*"admin"\)/.test(generic)) throw new Error("Player profile GET missing admin-only guard");
+if (!/resource\s*={2,3}\s*"players"\s*&&\s*!adminRoleAllowed\(actor\.role,\s*"admin"\)/.test(genericId)) throw new Error("Player profile PATCH missing admin-only guard");
 if (!genericId.includes('economyReason is required')) throw new Error("Admin economy mutation missing reason requirement");
 if (!adminAuth.includes("revokedAt") || !adminAuth.includes("expiresAt")) throw new Error("Admin session revocation/expiry missing");
 if (!playerSession.includes("playerSessions.sessionId") || !playerSession.includes("playerSessions.playerId")) throw new Error("Player session ownership binding missing");
