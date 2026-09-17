@@ -90,6 +90,7 @@ export const behavioralTests = [
   "src/game/vanilla-1-11-florestia-carddef.test.ts",
   "src/game/four-player-ascension.test.ts",
   "src/game/four-player-authority.test.ts",
+  "src/game/four-player-broadcast.test.ts",
   "src/game/four-player-combat.test.ts",
   "src/game/four-player-elimination.test.ts",
   "src/game/four-player-flow.test.ts",
