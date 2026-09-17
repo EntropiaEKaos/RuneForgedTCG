@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
+import { createFourPlayerMatchState } from "./four-player-match";
 import { projectFourPlayerStateForSeat, type FourPlayerPrivateSeatState } from "./four-player-projection";
 
 const states = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivateSeatState>>((result, seat, index) => {
@@ -15,9 +16,18 @@ const states = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivate
   return result;
 }, {} as Record<FourPlayerSeat, FourPlayerPrivateSeatState>);
 
+const match = { ...createFourPlayerMatchState("p3"), phase: "combat" as const };
+
 for (const viewer of FOUR_PLAYER_SEATS) {
-  const projection = projectFourPlayerStateForSeat(states, viewer);
+  const projection = projectFourPlayerStateForSeat(states, viewer, match);
   assert.deepEqual(projection.seats[viewer].hand, states[viewer].hand);
+  assert.deepEqual(projection.match, {
+    activeSeat: "p3",
+    round: 1,
+    phase: "combat",
+    priorityHolder: "p3",
+    status: "active",
+  });
   const serialized = JSON.stringify(projection);
 
   for (const seat of FOUR_PLAYER_SEATS) {
@@ -35,4 +45,8 @@ for (const viewer of FOUR_PLAYER_SEATS) {
   }
 }
 
-console.log("FOUR PLAYER HIDDEN INFORMATION PROJECTION: PASS");
+// Compatibility: callers that have not wired match flow yet still receive the same secure seat projection.
+const legacyProjection = projectFourPlayerStateForSeat(states, "p1");
+assert.equal(legacyProjection.match, undefined);
+
+console.log("FOUR PLAYER HIDDEN INFORMATION + PUBLIC MATCH FLOW PROJECTION: PASS");
