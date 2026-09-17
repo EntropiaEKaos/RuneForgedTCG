@@ -22,14 +22,14 @@ priority = passPriority(priority);
 assert.equal(priority.holder, "p1");
 assert.equal(allLivingPlayersPassed(priority), true);
 
-// P3 responds: passes are reset and priority continues clockwise from the actor.
+// P3 responds: the consecutive pass count resets and priority continues clockwise.
 priority = createFourPlayerPriorityState("p1");
-priority = passPriority(priority); // p1 -> p2
-priority = passPriority(priority); // p2 -> p3
-priority = actionTaken(priority);  // p3 action -> p4
+priority = passPriority(priority);
+priority = passPriority(priority);
+priority = actionTaken(priority);
 assert.equal(priority.anchorSeat, "p3");
 assert.equal(priority.holder, "p4");
-assert.deepEqual(priority.passedSeats, []);
+assert.equal(priority.consecutivePasses, 0);
 
 // Eliminated seats never receive priority and are not required to pass.
 priority = createFourPlayerPriorityState("p1", ["p2"]);
@@ -38,6 +38,10 @@ assert.equal(priority.holder, "p3");
 priority = passPriority(priority);
 priority = passPriority(priority);
 assert.equal(allLivingPlayersPassed(priority), true);
+
+// An eliminated requested anchor is normalized to a living seat.
+priority = createFourPlayerPriorityState("p3", ["p3"]);
+assert.equal(priority.holder, "p1");
 
 assert.equal(shouldPauseForPriority("smart_priority", false), false);
 assert.equal(shouldPauseForPriority("smart_priority", true, false), false);
