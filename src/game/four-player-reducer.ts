@@ -66,7 +66,17 @@ export function reduceFourPlayerServerEvent(
     case "cast_general": {
       assertPriorityHolder(state, event.actor);
       const general = castGeneralFromZone(state.generals[event.actor]);
-      return updateMatchGeneral(state, event.actor, general);
+      const withGeneral = updateMatchGeneral(state, event.actor, general);
+      const stackItem: FourPlayerStackItem<{ owner: FourPlayerServerEvent["actor"]; defId: string }> = {
+        id: `general:${event.actor}:${general.castsFromGeneralZone}:${event.eventId}`,
+        controller: event.actor,
+        kind: "general_cast",
+        payload: { owner: event.actor, defId: general.defId },
+      };
+      return {
+        ...withGeneral,
+        resolution: submitFourPlayerAction(withGeneral.resolution, stackItem),
+      };
     }
 
     case "end_turn":
