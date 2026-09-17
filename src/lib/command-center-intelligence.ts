@@ -7,6 +7,16 @@ export type CommandCenterJourney = {
   rankedStarted: number;
 };
 
+export type CommandCenterWindow = {
+  events: number;
+  sessions: number;
+  pvpCreated: number;
+  pvpFinished: number;
+  orders: number;
+  approved: number;
+  revenueCents: number;
+};
+
 export type CommandCenterPulseInput = {
   journey: CommandCenterJourney;
   dau: number;
@@ -16,6 +26,8 @@ export type CommandCenterPulseInput = {
   pvpFinished24h: number;
   orders24h: number;
   approved24h: number;
+  current24h?: CommandCenterWindow;
+  previous24h?: CommandCenterWindow;
 };
 
 export type IntelligenceSignal = {
@@ -27,6 +39,16 @@ export type IntelligenceSignal = {
   detail: string;
 };
 
+export type IntelligenceTrend = {
+  id: keyof CommandCenterWindow;
+  label: string;
+  current: number;
+  previous: number;
+  delta: number | null;
+  direction: "up" | "down" | "flat" | "neutral";
+  unit: "count" | "currency";
+};
+
 function safeRate(value: number, base: number) {
   if (!Number.isFinite(value) || !Number.isFinite(base) || base <= 0) return 0;
   return Math.max(0, Math.min(100, value / base * 100));
@@ -36,6 +58,34 @@ function statusForRate(value: number, healthy: number, watch: number): Intellige
   if (value >= healthy) return "healthy";
   if (value >= watch) return "watch";
   return "critical";
+}
+
+function trendDelta(current: number, previous: number) {
+  if (!Number.isFinite(current) || !Number.isFinite(previous) || previous <= 0) return null;
+  return (current - previous) / previous * 100;
+}
+
+function trendDirection(delta: number | null): IntelligenceTrend["direction"] {
+  if (delta == null) return "neutral";
+  if (Math.abs(delta) < 0.05) return "flat";
+  return delta > 0 ? "up" : "down";
+}
+
+function buildTrends(current?: CommandCenterWindow, previous?: CommandCenterWindow): IntelligenceTrend[] {
+  if (!current || !previous) return [];
+  const definitions: Array<{ id:keyof CommandCenterWindow; label:string; unit: IntelligenceTrend["unit"] }> = [
+    { id: "events", label: "Eventos", unit: "count" },
+    { id: "sessions", label: "Sessões", unit: "count" },
+    { id: "pvpCreated", label: "PvP criadas", unit: "count" },
+    { id: "pvpFinished", label: "PvP concluídas", unit: "count" },
+    { id: "orders", label: "Pedidos", unit: "count" },
+    { id: "approved", label: "Pagamentos aprovados", unit: "count" },
+    { id: "revenueCents", label: "Receita", unit: "currency" },
+  ];
+  return definitions.map(({ id, label, unit }) => {
+    const delta = trendDelta(current[id], previous[id]);
+    return { id, label, current: current[id], previous: previous[id], delta, direction: trendDirection(delta), unit };
+  });
 }
 
 export function commandCenterIntelligence(input: CommandCenterPulseInput) {
@@ -67,48 +117,16 @@ export function commandCenterIntelligence(input: CommandCenterPulseInput) {
   const paymentApproval = safeRate(input.approved24h, input.orders24h);
 
   const signals: IntelligenceSignal[] = [
-    {
-      id: "dau-mau",
-      label: "DAU / MAU",
-      value: stickiness,
-      unit: "percent",
-      status: input.mau > 0 ? statusForRate(stickiness, 20, 10) : "neutral",
-      detail: "Frequência diária dentro da base mensal ativa.",
-    },
-    {
-      id: "dau-wau",
-      label: "DAU / WAU",
-      value: weeklyReturn,
-      unit: "percent",
-      status: input.wau > 0 ? statusForRate(weeklyReturn, 35, 18) : "neutral",
-      detail: "Frequência diária dentro da base semanal ativa.",
-    },
-    {
-      id: "match-completion",
-      label: "Conclusão PvP 24h",
-      value: matchCompletion,
-      unit: "percent",
-      status: input.pvpCreated24h > 0 ? statusForRate(matchCompletion, 85, 65) : "neutral",
-      detail: "Salas PvP finalizadas sobre salas criadas nas últimas 24h.",
-    },
-    {
-      id: "payment-approval",
-      label: "Aprovação pagamentos 24h",
-      value: paymentApproval,
-      unit: "percent",
-      status: input.orders24h > 0 ? statusForRate(paymentApproval, 80, 60) : "neutral",
-      detail: "Pedidos aprovados/fulfilled sobre pedidos criados nas últimas 24h.",
-    },
+    { id: "dau-mau", label: "DAU / MAU", value: stickiness, unit: "percent", status: input.mau > 0 ? statusForRate(stickiness, 20, 10) : "neutral", detail: "Frequência diária dentro da base mensal ativa." },
+    { id: "dau-wau", label: "DAU / WAU", value: weeklyReturn, unit: "percent", status: input.wau > 0 ? statusForRate(weeklyReturn, 35, 18) : "neutral", detail: "Frequência diária dentro da base semanal ativa." },
+    { id: "match-completion", label: "Conclusão PvP 24h", value: matchCompletion, unit: "percent", status: input.pvpCreated24h > 0 ? statusForRate(matchCompletion, 85, 65) : "neutral", detail: "Salas PvP finalizadas sobre salas criadas nas últimas 24h." },
+    { id: "payment-approval", label: "Aprovação pagamentos 24h", value: paymentApproval, unit: "percent", status: input.orders24h > 0 ? statusForRate(paymentApproval, 80, 60) : "neutral", detail: "Pedidos aprovados/fulfilled sobre pedidos criados nas últimas 24h." },
   ];
 
   return {
     funnel,
-    largestDrop: largestDrop ? {
-      stageId: largestDrop.id,
-      stageLabel: largestDrop.label,
-      players: largestDrop.dropOff,
-      conversion: largestDrop.stepConversion,
-    } : null,
+    largestDrop: largestDrop ? { stageId: largestDrop.id, stageLabel: largestDrop.label, players: largestDrop.dropOff, conversion: largestDrop.stepConversion } : null,
     signals,
+    trends24h: buildTrends(input.current24h, input.previous24h),
   };
 }
