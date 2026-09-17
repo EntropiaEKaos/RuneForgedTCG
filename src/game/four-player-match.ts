@@ -12,6 +12,9 @@ import {
   type FourPlayerTurnState,
 } from "./four-player-turn-manager";
 
+export const FOUR_PLAYER_PHASES = ["beginning", "main_1", "combat", "main_2", "ending"] as const;
+export type FourPlayerPhase = (typeof FOUR_PLAYER_PHASES)[number];
+
 export interface FourPlayerMatchSeatState {
   seat: FourPlayerSeat;
   eliminated: boolean;
@@ -25,6 +28,7 @@ export interface FourPlayerMatchState {
   seats: Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   generals: Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
   turn: FourPlayerTurnState;
+  phase: FourPlayerPhase;
   resolution: FourPlayerResolutionFlow;
   combat: FourPlayerCombatState;
   status: FourPlayerMatchStatus;
@@ -41,7 +45,7 @@ export function createFourPlayerMatchState(
 ): FourPlayerMatchState {
   const seats = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, { seat, eliminated: false, generalCastsFromZone: 0 }])) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
-  return { seats, generals, turn: createFourPlayerTurnState(startingSeat), resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), status: "active" };
+  return { seats, generals, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), status: "active" };
 }
 
 export function updateMatchGeneral(state: FourPlayerMatchState, seat: FourPlayerSeat, general: FourPlayerGeneralZoneState): FourPlayerMatchState {
@@ -70,6 +74,7 @@ export function eliminateFourPlayerMatchSeat(state: FourPlayerMatchState, seat: 
     ...state,
     seats: { ...state.seats, [seat]: { ...state.seats[seat], eliminated: true } },
     turn,
+    phase: wasActiveSeat && living.length > 1 ? "beginning" : state.phase,
     resolution: { stack, priority },
     combat,
     status: winner ? "completed" : "active",
@@ -80,5 +85,5 @@ export function eliminateFourPlayerMatchSeat(state: FourPlayerMatchState, seat: 
 export function advanceFourPlayerMatchTurn(state: FourPlayerMatchState): FourPlayerMatchState {
   if (state.status === "completed") return state;
   const turn = advanceFourPlayerTurn(state.turn);
-  return { ...state, turn, resolution: createFourPlayerResolutionFlow(turn.activeSeat, turn.eliminatedSeats, state.resolution.priority.mode), combat: createFourPlayerCombatState(turn.activeSeat, turn.eliminatedSeats) };
+  return { ...state, turn, phase: "beginning", resolution: createFourPlayerResolutionFlow(turn.activeSeat, turn.eliminatedSeats, state.resolution.priority.mode), combat: createFourPlayerCombatState(turn.activeSeat, turn.eliminatedSeats) };
 }
