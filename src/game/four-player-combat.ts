@@ -34,10 +34,7 @@ export function declareFourPlayerAttacker(
   if (defendingSeat === state.attackingSeat) throw new Error("A seat cannot attack itself.");
   if (state.eliminatedSeats.includes(defendingSeat)) throw new Error(`Cannot attack eliminated seat ${defendingSeat}.`);
   if (state.attackers.some((attacker) => attacker.unitId === unitId)) throw new Error(`Unit ${unitId} is already attacking.`);
-  return {
-    ...state,
-    attackers: [...state.attackers, { unitId, controller: state.attackingSeat, defendingSeat }],
-  };
+  return { ...state, attackers: [...state.attackers, { unitId, controller: state.attackingSeat, defendingSeat }] };
 }
 
 export function declareFourPlayerBlocker(
@@ -46,13 +43,23 @@ export function declareFourPlayerBlocker(
   unitId: string,
   attackerId: string,
 ): FourPlayerCombatState {
+  if (state.eliminatedSeats.includes(blockerSeat)) throw new Error(`Eliminated seat ${blockerSeat} cannot block.`);
   const attacker = state.attackers.find((entry) => entry.unitId === attackerId);
   if (!attacker) throw new Error(`Unknown attacker ${attackerId}.`);
-  if (attacker.defendingSeat !== blockerSeat) {
-    throw new Error(`Seat ${blockerSeat} cannot block an attacker assigned to ${attacker.defendingSeat}.`);
-  }
+  if (attacker.defendingSeat !== blockerSeat) throw new Error(`Seat ${blockerSeat} cannot block an attacker assigned to ${attacker.defendingSeat}.`);
   if (state.blockers.some((blocker) => blocker.unitId === unitId)) throw new Error(`Unit ${unitId} is already blocking.`);
   return { ...state, blockers: [...state.blockers, { unitId, controller: blockerSeat, attackerId }] };
+}
+
+export function cleanupFourPlayerCombatForElimination(
+  state: FourPlayerCombatState,
+  seat: FourPlayerSeat,
+): FourPlayerCombatState {
+  const eliminatedSeats = state.eliminatedSeats.includes(seat) ? state.eliminatedSeats : [...state.eliminatedSeats, seat];
+  const attackers = state.attackers.filter((attacker) => attacker.controller !== seat && attacker.defendingSeat !== seat);
+  const attackerIds = new Set(attackers.map((attacker) => attacker.unitId));
+  const blockers = state.blockers.filter((blocker) => blocker.controller !== seat && attackerIds.has(blocker.attackerId));
+  return { ...state, attackers, blockers, eliminatedSeats };
 }
 
 export function attackersForDefender(state: FourPlayerCombatState, seat: FourPlayerSeat): FourPlayerAttacker[] {
