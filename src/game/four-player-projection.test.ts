@@ -15,14 +15,18 @@ const states = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat, index) => [seat, 
 for (const viewer of FOUR_PLAYER_SEATS) {
   const projection = projectFourPlayerStateForSeat(states, viewer);
   assert.deepEqual(projection.seats[viewer].hand, states[viewer].hand);
-  assert.deepEqual(projection.seats[viewer].deck, states[viewer].deck);
+  const serialized = JSON.stringify(projection);
+
+  for (const seat of FOUR_PLAYER_SEATS) {
+    assert.equal(serialized.includes(`${seat}-deck-secret`), false, `${viewer} must never receive ${seat} future deck identity`);
+    assert.equal(projection.seats[seat].deckCount, 1);
+  }
 
   for (const opponent of FOUR_PLAYER_SEATS.filter((seat) => seat !== viewer)) {
     const projected = projection.seats[opponent];
     assert.equal(projected.hand, undefined, `${viewer} must not receive ${opponent} hand identities`);
-    assert.equal(projected.deck, undefined, `${viewer} must not receive ${opponent} deck identities`);
+    assert.equal(serialized.includes(`${opponent}-hand-a`), false);
     assert.equal(projected.handCount, 2);
-    assert.equal(projected.deckCount, 1);
     assert.deepEqual(projected.graveyard, states[opponent].graveyard);
     assert.deepEqual(projected.publicBoard, states[opponent].publicBoard);
   }
