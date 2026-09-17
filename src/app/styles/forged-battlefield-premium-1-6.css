@@ -1,0 +1,117 @@
+/* FORGED Battlefield Premium 1.6
+   Presentation-only layer composed over the certified battlefield stack.
+   No gameplay geometry, engine authority, targeting rules or state transitions. */
+
+.tcg-arena {
+  --forged-board-light: 125, 211, 252;
+  --forged-board-warm: 251, 146, 60;
+  --forged-board-priority: 167, 139, 250;
+}
+
+/* Add depth without changing certified battlefield geometry. */
+.tcg-arena::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(var(--forged-board-light), .055), transparent 42%),
+    linear-gradient(180deg, rgba(255,255,255,.018), transparent 24%, rgba(0,0,0,.12));
+  mix-blend-mode: screen;
+}
+
+.tcg-arena > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Certified zones gain material separation, not new interaction semantics. */
+.tcg-arena :is(.tcg-board, .tcg-board-zone, .battlefield-zone, .unit-zone) {
+  transition: border-color .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.tcg-arena[data-match-phase="main"] :is(.tcg-board, .battlefield-zone) {
+  box-shadow: inset 0 0 42px rgba(var(--rf-v44-main, 106, 232, 190), .025);
+}
+
+.tcg-arena[data-match-phase="combat"] :is(.tcg-board, .battlefield-zone) {
+  box-shadow:
+    inset 0 0 52px rgba(var(--forged-board-warm), .04),
+    0 0 34px rgba(var(--forged-board-warm), .025);
+}
+
+.tcg-arena[data-match-phase="response"] :is(.tcg-board, .battlefield-zone) {
+  box-shadow: inset 0 0 54px rgba(var(--forged-board-priority), .045);
+}
+
+/* Cards inherit rarity identity from Premium 1.5; the battlefield only gives
+   those already-authoritative presentation classes a bounded presence. */
+.tcg-arena :is(.card-tier-rare, .card-tier-epic, .card-tier-legend) {
+  isolation: isolate;
+}
+
+.tcg-arena .card-tier-rare {
+  filter: drop-shadow(0 5px 10px rgba(148, 163, 184, .08));
+}
+
+.tcg-arena .card-tier-epic {
+  filter: drop-shadow(0 7px 14px rgba(167, 139, 250, .11));
+}
+
+.tcg-arena .card-tier-legend {
+  filter: drop-shadow(0 9px 18px rgba(251, 191, 36, .14));
+}
+
+/* Attack and targeting feedback use state already projected by Visual 4.4. */
+.tcg-arena[data-match-phase="combat"] .attack-forecast[data-pressure-band="high"],
+.tcg-arena[data-match-phase="combat"] .attack-forecast[data-pressure-band="critical"] {
+  backdrop-filter: saturate(1.08) contrast(1.02);
+}
+
+.tcg-arena .targeting-hud {
+  backdrop-filter: blur(10px) saturate(1.08);
+}
+
+.tcg-arena[data-match-phase="response"] .reaction-stack {
+  backdrop-filter: blur(12px) saturate(1.1);
+}
+
+/* Keep focus legible above premium lighting. */
+.tcg-arena :is(button, select, [role="button"]):focus-visible {
+  position: relative;
+  z-index: 4;
+}
+
+@media (max-width: 900px) {
+  .tcg-arena::before {
+    background: radial-gradient(ellipse at 50% 48%, rgba(var(--forged-board-light), .04), transparent 48%);
+  }
+
+  .tcg-arena .targeting-hud,
+  .tcg-arena[data-match-phase="response"] .reaction-stack {
+    backdrop-filter: blur(7px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena :is(.tcg-board, .tcg-board-zone, .battlefield-zone, .unit-zone) {
+    transition: none;
+  }
+}
+
+/* Performance fallbacks are deliberately stronger than the premium layer. */
+.tcg-arena[data-performance="low"]::before,
+.tcg-arena[data-fx="reduced"]::before {
+  display: none;
+}
+
+.tcg-arena[data-performance="low"] :is(.card-tier-rare, .card-tier-epic, .card-tier-legend),
+.tcg-arena[data-fx="reduced"] :is(.card-tier-rare, .card-tier-epic, .card-tier-legend) {
+  filter: none;
+}
+
+.tcg-arena[data-performance="low"] :is(.targeting-hud, .reaction-stack),
+.tcg-arena[data-fx="reduced"] :is(.targeting-hud, .reaction-stack) {
+  backdrop-filter: none;
+}
