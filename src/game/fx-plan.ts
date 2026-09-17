@@ -1,6 +1,6 @@
 import type { GameEvent } from "./events";
 import { resolveGameEventBatchFx, type FxIntensity, type FxPreset, type FxRenderer, type ResolvedFx } from "./fx-registry";
-import { applyFxPresetOverrides, type FxPresetOverrides } from "./fx-runtime-presets";
+import { applyFxPresetOverrides, ensureRuntimeFxPresetsLoaded, getRuntimeFxPresetOverrides, type FxPresetOverrides } from "./fx-runtime-presets";
 
 export type FxQuality = "low" | "medium" | "high" | "ultra";
 
@@ -51,9 +51,13 @@ export function buildFxExecutionPlan(resolved: ResolvedFx, capabilities: FxCapab
 export function buildGameEventFxPlans(
   events: readonly GameEvent[],
   capabilities: FxCapabilities,
-  overrides: FxPresetOverrides = {},
+  overrides?: FxPresetOverrides,
 ): FxExecutionPlan[] {
+  // Loading is deliberately non-blocking. The current event uses the latest validated snapshot;
+  // config arrival never mutates React state and therefore cannot replay an authoritative event.
+  ensureRuntimeFxPresetsLoaded();
+  const activeOverrides = overrides ?? getRuntimeFxPresetOverrides();
   return resolveGameEventBatchFx(events)
-    .map((resolved) => applyFxPresetOverrides(resolved, overrides))
+    .map((resolved) => applyFxPresetOverrides(resolved, activeOverrides))
     .map((resolved) => buildFxExecutionPlan(resolved, capabilities));
 }
