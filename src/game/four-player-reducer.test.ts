@@ -43,7 +43,7 @@ assert.equal(match.resolution.stack.items[0]?.kind, "general_cast");
 assert.equal(match.resolution.stack.items[0]?.controller, "p1");
 assert.deepEqual(match.resolution.stack.items[0]?.payload, { owner: "p1", defId: "general-p1" });
 assert.equal(match.resolution.priority.holder, "p2");
-assert.throws(() => reduceFourPlayerServerEvent(match, event("cast_general", "p2")), /General can only be cast from the General Zone|Only priority holder/);
+assert.throws(() => reduceFourPlayerServerEvent(match, event("cast_general", "p1")), /Only priority holder p2/);
 
 match = createFourPlayerMatchState("p1");
 const stacked = reduceFourPlayerServerEvent(match, event("submit_action", "p1", {
