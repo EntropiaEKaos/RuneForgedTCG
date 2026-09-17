@@ -7,6 +7,7 @@ import {
   type FourPlayerServerEvent,
 } from "./four-player-protocol";
 import { reduceFourPlayerServerEvent } from "./four-player-reducer";
+import { pumpFourPlayerServer, type FourPlayerServerPumpResult } from "./four-player-server-pump";
 import { assertSessionControlsSeat, type FourPlayerSessionRegistry } from "./four-player-session";
 
 export interface FourPlayerAuthorityState {
@@ -23,6 +24,7 @@ export type FourPlayerRuleValidator = (
 export interface FourPlayerAcceptedCommand {
   state: FourPlayerAuthorityState;
   event: FourPlayerServerEvent;
+  pump?: FourPlayerServerPumpResult;
 }
 
 function assertMatchAcceptsCommand(match: FourPlayerMatchState, command: FourPlayerClientCommand): void {
@@ -58,7 +60,8 @@ export function acceptAuthoritativeFourPlayerCommand(
 /**
  * Preferred server entry point. A transport must supply the connection epoch it
  * authenticated. Stale sockets are rejected before rules or protocol state can move.
- * The canonical event is reduced before the new protocol revision is returned.
+ * The canonical event is reduced and deterministic internal stack transitions are
+ * settled before the new authoritative state is exposed to another client command.
  */
 export function processAuthoritativeFourPlayerCommand(
   state: FourPlayerAuthorityState,
@@ -71,10 +74,12 @@ export function processAuthoritativeFourPlayerCommand(
   assertMatchAcceptsCommand(state.match, command);
   validateRules(state.match, command);
   const accepted = acceptFourPlayerCommand(state.protocol, command);
-  const match = reduceFourPlayerServerEvent(state.match, accepted.event);
+  const reducedMatch = reduceFourPlayerServerEvent(state.match, accepted.event);
+  const pump = pumpFourPlayerServer(reducedMatch);
   return {
-    state: { ...state, protocol: accepted.state, match },
+    state: { ...state, protocol: accepted.state, match: pump.match },
     event: accepted.event,
+    pump,
   };
 }
 
