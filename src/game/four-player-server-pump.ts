@@ -1,6 +1,6 @@
 import { resolveFourPlayerFlow } from "./four-player-flow";
 import type { FourPlayerMatchState } from "./four-player-match";
-import { allLivingPlayersPassed } from "./four-player-priority-manager";
+import { allLivingPlayersPassed, createFourPlayerPriorityState } from "./four-player-priority-manager";
 import type { FourPlayerStackItem } from "./four-player-stack";
 
 export interface FourPlayerServerPumpResult {
@@ -12,9 +12,9 @@ export interface FourPlayerServerPumpResult {
 /**
  * Applies deterministic internal transitions that require no client choice.
  * A complete pass cycle resolves exactly one LIFO stack object, then priority
- * reopens. Empty-stack pass cycles are deliberately left to the phase/turn
- * machine, which will be wired as a separate transition instead of silently
- * skipping phases here.
+ * reopens with the active living seat. Empty-stack pass cycles are deliberately
+ * left to the phase/turn machine, which will be wired as a separate transition
+ * instead of silently skipping phases here.
  */
 export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerServerPumpResult {
   if (match.status === "completed") {
@@ -31,8 +31,13 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
   if (!result.resolved) {
     return { match, resolved: [], awaitingClientInput: true };
   }
+  const priority = createFourPlayerPriorityState(
+    match.turn.activeSeat,
+    result.flow.priority.eliminatedSeats,
+    result.flow.priority.mode,
+  );
   return {
-    match: { ...match, resolution: result.flow },
+    match: { ...match, resolution: { ...result.flow, priority } },
     resolved: [result.resolved],
     awaitingClientInput: true,
   };
