@@ -103,6 +103,7 @@ export const behavioralTests = [
   "src/game/four-player-protocol.test.ts",
   "src/game/four-player-reconnect.harness.test.ts",
   "src/game/four-player-reducer.test.ts",
+  "src/game/four-player-server-pump.test.ts",
   "src/game/four-player-session.test.ts",
   "src/game/four-player-turn-manager.test.ts",
   "src/lib/admin-multiuser.test.ts",
