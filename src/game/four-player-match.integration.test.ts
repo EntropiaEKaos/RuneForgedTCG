@@ -6,6 +6,7 @@ import { advanceFourPlayerMatchTurn, createFourPlayerMatchState, eliminateFourPl
 
 let match = createFourPlayerMatchState("p1");
 assert.equal(match.turn.activeSeat, "p1");
+assert.equal(match.status, "active");
 
 // P1 opens a spell; P2 passes; P3 answers.
 match.resolution = submitFourPlayerAction(match.resolution, {
@@ -55,5 +56,22 @@ assert.equal(match.turn.activeSeat, "p2");
 match = advanceFourPlayerMatchTurn(match);
 assert.equal(match.turn.activeSeat, "p4");
 assert.deepEqual(match.turn.eliminatedSeats, ["p3"]);
+
+// Eliminating the active seat must use the canonical turn manager so round accounting stays correct.
+const beforeActiveElimination = match.turn;
+match = eliminateFourPlayerMatchSeat(match, "p4");
+assert.equal(match.turn.activeSeat, "p1");
+assert.equal(match.turn.turn, beforeActiveElimination.turn + 1);
+assert.equal(match.turn.round, beforeActiveElimination.round + 1);
+
+// A sole survivor completes the match and terminal state cannot advance further.
+match = eliminateFourPlayerMatchSeat(match, "p2");
+assert.equal(match.status, "completed");
+assert.equal(match.winner, "p1");
+assert.equal(match.turn.activeSeat, "p1");
+const terminal = match;
+match = advanceFourPlayerMatchTurn(match);
+assert.deepEqual(match, terminal);
+assert.equal(eliminateFourPlayerMatchSeat(match, "p1"), match);
 
 console.log("FOUR PLAYER COMPLETE HEADLESS MINI-MATCH: PASS");
