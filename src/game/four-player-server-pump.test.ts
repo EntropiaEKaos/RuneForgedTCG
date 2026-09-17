@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { passFourPlayerFlow, submitFourPlayerAction } from "./four-player-flow";
-import { createFourPlayerMatchState } from "./four-player-match";
+import { createFourPlayerMatchState, eliminateFourPlayerMatchSeat } from "./four-player-match";
 import { pumpFourPlayerServer } from "./four-player-server-pump";
+
+function passAllLiving(match: ReturnType<typeof createFourPlayerMatchState>) {
+  let next = match;
+  const livingCount = 4 - next.turn.eliminatedSeats.length;
+  for (let index = 0; index < livingCount; index += 1) {
+    next = { ...next, resolution: passFourPlayerFlow(next.resolution) };
+  }
+  return next;
+}
 
 let match = createFourPlayerMatchState("p1");
 match = {
@@ -23,6 +32,7 @@ let pumped = pumpFourPlayerServer(match);
 assert.equal(pumped.resolved.length, 0);
 assert.equal(pumped.match.resolution.stack.items.length, 1);
 assert.equal(pumped.awaitingClientInput, true);
+assert.equal(pumped.phaseAdvanced, false);
 
 match = { ...match, resolution: passFourPlayerFlow(match.resolution) }; // p1
 pumped = pumpFourPlayerServer(match);
@@ -31,16 +41,41 @@ assert.equal(pumped.resolved[0]?.id, "p1-opener");
 assert.equal(pumped.match.resolution.stack.items.length, 0);
 assert.equal(pumped.match.resolution.priority.consecutivePasses, 0);
 assert.equal(pumped.match.resolution.priority.holder, "p1");
+assert.equal(pumped.match.phase, "beginning");
+assert.equal(pumped.phaseAdvanced, false);
 
-// An empty-stack all-pass cycle is not silently converted into a turn skip.
-let empty = createFourPlayerMatchState("p1");
-empty = { ...empty, resolution: passFourPlayerFlow(empty.resolution) };
-empty = { ...empty, resolution: passFourPlayerFlow(empty.resolution) };
-empty = { ...empty, resolution: passFourPlayerFlow(empty.resolution) };
-empty = { ...empty, resolution: passFourPlayerFlow(empty.resolution) };
+// Empty-stack all-pass advances exactly one phase and reopens priority.
+let empty = passAllLiving(createFourPlayerMatchState("p1"));
 const emptyPump = pumpFourPlayerServer(empty);
 assert.equal(emptyPump.resolved.length, 0);
 assert.equal(emptyPump.match.turn.activeSeat, "p1");
-assert.equal(emptyPump.awaitingClientInput, false);
+assert.equal(emptyPump.match.phase, "main_1");
+assert.equal(emptyPump.match.resolution.priority.holder, "p1");
+assert.equal(emptyPump.match.resolution.priority.consecutivePasses, 0);
+assert.equal(emptyPump.phaseAdvanced, true);
+assert.equal(emptyPump.turnAdvanced, false);
+assert.equal(emptyPump.awaitingClientInput, true);
 
-console.log("FOUR PLAYER SERVER STACK PUMP: PASS");
+// Ending all-pass advances to the next living player's beginning.
+let ending = { ...createFourPlayerMatchState("p1"), phase: "ending" as const };
+ending = eliminateFourPlayerMatchSeat(ending, "p2");
+ending = passAllLiving(ending);
+const endingPump = pumpFourPlayerServer(ending);
+assert.equal(endingPump.match.turn.activeSeat, "p3");
+assert.equal(endingPump.match.phase, "beginning");
+assert.equal(endingPump.match.resolution.priority.holder, "p3");
+assert.equal(endingPump.phaseAdvanced, true);
+assert.equal(endingPump.turnAdvanced, true);
+
+// Completed matches remain terminal.
+let completed = createFourPlayerMatchState("p1");
+completed = eliminateFourPlayerMatchSeat(completed, "p2");
+completed = eliminateFourPlayerMatchSeat(completed, "p3");
+completed = eliminateFourPlayerMatchSeat(completed, "p4");
+const terminal = pumpFourPlayerServer(completed);
+assert.equal(terminal.match, completed);
+assert.equal(terminal.phaseAdvanced, false);
+assert.equal(terminal.turnAdvanced, false);
+assert.equal(terminal.awaitingClientInput, false);
+
+console.log("FOUR PLAYER SERVER STACK/PHASE PUMP: PASS");
