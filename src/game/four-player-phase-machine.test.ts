@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { eliminateFourPlayerMatchSeat, createFourPlayerMatchState } from "./four-player-match";
+import { eliminateFourPlayerMatchSeat, createFourPlayerMatchState, type FourPlayerMatchState } from "./four-player-match";
 import { advanceFourPlayerPhase } from "./four-player-phase-machine";
 
-let match = createFourPlayerMatchState("p1");
+let match: FourPlayerMatchState = createFourPlayerMatchState("p1");
 assert.equal(match.phase, "beginning");
 
 for (const expected of ["main_1", "combat", "main_2", "ending"] as const) {
@@ -23,7 +23,7 @@ assert.equal(nextTurn.match.phase, "beginning");
 assert.equal(nextTurn.match.resolution.priority.holder, "p2");
 
 // Eliminated seats are skipped by the canonical turn manager.
-let skip = createFourPlayerMatchState("p1");
+let skip: FourPlayerMatchState = createFourPlayerMatchState("p1");
 skip = eliminateFourPlayerMatchSeat(skip, "p2");
 skip = { ...skip, phase: "ending" };
 const skipped = advanceFourPlayerPhase(skip);
@@ -31,13 +31,13 @@ assert.equal(skipped.match.turn.activeSeat, "p3");
 assert.equal(skipped.match.phase, "beginning");
 
 // Eliminating the active seat starts the replacement active seat at beginning.
-let activeElimination = { ...createFourPlayerMatchState("p1"), phase: "combat" as const };
+let activeElimination: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "combat" };
 activeElimination = eliminateFourPlayerMatchSeat(activeElimination, "p1");
 assert.equal(activeElimination.turn.activeSeat, "p2");
 assert.equal(activeElimination.phase, "beginning");
 
 // Completed matches are terminal.
-let completed = createFourPlayerMatchState("p1");
+let completed: FourPlayerMatchState = createFourPlayerMatchState("p1");
 completed = eliminateFourPlayerMatchSeat(completed, "p2");
 completed = eliminateFourPlayerMatchSeat(completed, "p3");
 completed = eliminateFourPlayerMatchSeat(completed, "p4");
