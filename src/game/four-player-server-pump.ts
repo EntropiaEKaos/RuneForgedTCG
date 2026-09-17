@@ -1,5 +1,6 @@
 import { resolveFourPlayerFlow } from "./four-player-flow";
-import type { FourPlayerMatchState } from "./four-player-match";
+import { resolveGeneralToBattlefield } from "./four-player-general-zone";
+import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-match";
 import { advanceFourPlayerPhase } from "./four-player-phase-machine";
 import { allLivingPlayersPassed, createFourPlayerPriorityState } from "./four-player-priority-manager";
 import type { FourPlayerStackItem } from "./four-player-stack";
@@ -10,6 +11,17 @@ export interface FourPlayerServerPumpResult {
   awaitingClientInput: boolean;
   phaseAdvanced: boolean;
   turnAdvanced: boolean;
+}
+
+function applyResolvedStackItem(match: FourPlayerMatchState, item: FourPlayerStackItem): FourPlayerMatchState {
+  if (item.kind !== "general_cast") return match;
+  const general = match.generals[item.controller];
+  if (general.location !== "stack") throw new Error(`Resolved General for ${item.controller} is not on the General stack.`);
+  const payload = item.payload as { owner?: string; defId?: string };
+  if (payload.owner !== item.controller || payload.defId !== general.defId) {
+    throw new Error("Resolved General stack identity does not match authoritative General state.");
+  }
+  return updateMatchGeneral(match, item.controller, resolveGeneralToBattlefield(general));
 }
 
 /**
@@ -46,8 +58,10 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
     result.flow.priority.eliminatedSeats,
     result.flow.priority.mode,
   );
+  let nextMatch: FourPlayerMatchState = { ...match, resolution: { ...result.flow, priority } };
+  nextMatch = applyResolvedStackItem(nextMatch, result.resolved);
   return {
-    match: { ...match, resolution: { ...result.flow, priority } },
+    match: nextMatch,
     resolved: [result.resolved],
     awaitingClientInput: true,
     phaseAdvanced: false,
