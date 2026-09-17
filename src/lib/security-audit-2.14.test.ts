@@ -17,7 +17,7 @@ assertIncludes("src/app/api/admin/studio/versions/route.ts", 'adminRoleAllowed(a
 
 const genericPatch = read("src/app/api/admin/studio/[resource]/[id]/route.ts");
 if (!genericPatch.includes("const allowedByResource")) throw new Error("Generic Studio PATCH must use an explicit per-resource allowlist");
-if (!genericPatch.includes('if (!allowed) return Response.json({ ok: false, error: "Unsupported resource"')) throw new Error("Unknown resource must be rejected before mutation");
-if (!genericPatch.includes('delete clean.enabled')) throw new Error("Generic PATCH must not activate content");
+if (!/if\s*\(\s*!allowed\s*\)\s*return\s+Response\.json\(\s*\{\s*ok\s*:\s*false\s*,\s*error\s*:\s*["']Unsupported resource["']/.test(genericPatch)) throw new Error("Unknown resource must be rejected before mutation");
+if (!/delete\s+clean\.enabled\b/.test(genericPatch)) throw new Error("Generic PATCH must not activate content");
 
 console.log("SECURITY AUDIT 2.14: PASS");
