@@ -16,7 +16,8 @@ export interface FxAssociationContext {
   frameId?: string;
 }
 export type FxAssociationKind = "card" | "keyword" | "race" | "class" | "region" | "rarity" | "collection" | "cosmetic" | "frame";
-export interface FxAssociation { kind: FxAssociationKind; key: string; presetId: FxPresetId; priority?: number; }
+export type FxAssociationSource = FxPresetId | "*";
+export interface FxAssociation { kind: FxAssociationKind; key: string; sourcePresetId: FxAssociationSource; presetId: FxPresetId; priority?: number; }
 const KIND_SPECIFICITY: Record<FxAssociationKind, number> = { card: 900, cosmetic: 800, frame: 700, collection: 600, keyword: 500, class: 400, race: 300, region: 200, rarity: 100 };
 const normalize = (value: string) => value.trim().toLowerCase();
 function contextKeys(context: FxAssociationContext): Map<FxAssociationKind, Set<string>> {
@@ -32,28 +33,25 @@ function contextKeys(context: FxAssociationContext): Map<FxAssociationKind, Set<
     ["frame", new Set(context.frameId ? [normalize(context.frameId)] : [])],
   ] as [FxAssociationKind, Set<string>][]);
 }
-/** Explicit priority wins, then specificity, then stable lexical order. */
-export function resolveFxAssociation(context: FxAssociationContext, associations: readonly FxAssociation[]): FxAssociation | null {
+/** Explicit priority wins, then selector specificity, then stable lexical order. */
+export function resolveFxAssociation(context: FxAssociationContext, sourcePresetId: FxPresetId, associations: readonly FxAssociation[]): FxAssociation | null {
   const keys = contextKeys(context);
-  const matches = associations.filter((association) => keys.get(association.kind)?.has(normalize(association.key)));
-  matches.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || KIND_SPECIFICITY[b.kind] - KIND_SPECIFICITY[a.kind] || a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key) || a.presetId.localeCompare(b.presetId));
+  const matches = associations.filter((association) => (association.sourcePresetId === sourcePresetId || association.sourcePresetId === "*") && keys.get(association.kind)?.has(normalize(association.key)));
+  matches.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || Number(b.sourcePresetId !== "*") - Number(a.sourcePresetId !== "*") || KIND_SPECIFICITY[b.kind] - KIND_SPECIFICITY[a.kind] || a.kind.localeCompare(b.kind) || a.key.localeCompare(b.key) || a.presetId.localeCompare(b.presetId));
   return matches[0] ?? null;
 }
 export function cardFxAssociationContext(card: CardDef): FxAssociationContext {
   return { defId: card.defId, region: card.region, races: card.race ? [card.race, ...(card.secondaryRaces ?? [])] : [...(card.secondaryRaces ?? [])], classes: card.classes ?? [], keywords: card.keywords ?? [], customKeywords: card.customKeywords ?? [], rarity: card.rarity };
 }
-
-/** Returns the card definition involved in an event when the event has card identity. */
 export function cardDefIdForFxEvent(event: GameEvent, state: GameState): string | null {
   if (event.type === "UNIT_SUMMONED" || event.type === "UNIT_DIED") return event.defId;
   if (event.type === "UNIT_LEVELLED_UP") return event.toDefId;
   if (!("unitId" in event)) return null;
   return state.players[event.player].bench.find((unit) => unit.instanceId === event.unitId)?.defId ?? null;
 }
-
-/** Applies an association only to presentation resolution; the default preset remains the fail-safe. */
+/** Applies only an association scoped to this event's base preset family. */
 export function applyFxAssociation(resolved: ResolvedFx, context: FxAssociationContext | null, associations: readonly FxAssociation[]): ResolvedFx {
   if (!context) return resolved;
-  const association = resolveFxAssociation(context, associations);
+  const association = resolveFxAssociation(context, resolved.preset.id, associations);
   return association ? { ...resolved, preset: FORGED_FX_PRESETS[association.presetId] } : resolved;
 }
