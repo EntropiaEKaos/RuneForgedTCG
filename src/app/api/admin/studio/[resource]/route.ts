@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { desc } from "drizzle-orm";
 import {
   adminKeywords, adminEffects, adminRaces, adminClasses, adminInteractions,
-  adminCollections, cardCatalogMeta, adminEvents, adminPromotions, adminCardArchetypes, players, customCards,
+  adminCollections, adminFxPresets, cardCatalogMeta, adminEvents, adminPromotions, adminCardArchetypes, players, customCards,
 } from "@/db/schema";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
 import { adminAuditLogs } from "@/db/schema";
@@ -20,6 +20,7 @@ const tables = {
   classes: adminClasses,
   interactions: adminInteractions,
   collections: adminCollections,
+  "fx-presets": adminFxPresets,
   "card-meta": cardCatalogMeta,
   events: adminEvents,
   promotions: adminPromotions,
@@ -77,6 +78,21 @@ function sanitize(resource: string, body: any): { ok: true; value: any } | { ok:
   delete base.id; delete base.createdAt; delete base.updatedAt;
   if (resource === "keywords") return { ok: true, value: { key, name: String(body.name || key).slice(0, 80), description: String(body.description || "").slice(0, 500), icon: body.icon ? String(body.icon).slice(0, 16) : null, engineKeyword: body.engineKeyword ? String(body.engineKeyword).slice(0, 80) : null, behavior: body.behavior || {}, enabled: false } };
   if (resource === "effects") return { ok: true, value: { key, name: String(body.name || key).slice(0, 80), description: String(body.description || "").slice(0, 500), kind: String(body.kind || "").slice(0, 80), schema: body.schema || {}, enabled: false } };
+  if (resource === "fx-presets") {
+    const renderer = String(body.renderer || "motion");
+    const intensity = String(body.intensity || "standard");
+    const screenShake = body.screenShake == null || body.screenShake === "" ? null : String(body.screenShake);
+    const durationMs = Number(body.durationMs ?? 320);
+    const particleBudget = Number(body.particleBudget ?? 0);
+    const targetFlashMs = body.targetFlashMs == null || body.targetFlashMs === "" ? null : Number(body.targetFlashMs);
+    if (!["motion", "timeline", "gpu"].includes(renderer)) return { ok: false, error: "Invalid FX renderer" };
+    if (!["subtle", "standard", "cinematic"].includes(intensity)) return { ok: false, error: "Invalid FX intensity" };
+    if (screenShake !== null && !["light", "medium"].includes(screenShake)) return { ok: false, error: "Invalid FX screenShake" };
+    if (!Number.isInteger(durationMs) || durationMs < 80 || durationMs > 5000) return { ok: false, error: "FX durationMs must be an integer between 80 and 5000" };
+    if (!Number.isInteger(particleBudget) || particleBudget < 0 || particleBudget > 36) return { ok: false, error: "FX particleBudget must be an integer between 0 and 36" };
+    if (targetFlashMs !== null && (!Number.isInteger(targetFlashMs) || targetFlashMs < 0 || targetFlashMs > 2000)) return { ok: false, error: "FX targetFlashMs must be null or an integer between 0 and 2000" };
+    return { ok: true, value: { key, name: String(body.name || key).slice(0, 80), description: String(body.description || "").slice(0, 500), renderer, intensity, durationMs, particleBudget, screenShake, targetFlashMs, soundCue: body.soundCue ? String(body.soundCue).slice(0, 80) : null, enabled: false } };
+  }
   if (resource === "archetypes") {
     const baseType = String(body.baseType || "");
     if (!["Unit","Spell","Enchantment","Artifact","Equipment","Sentinela"].includes(baseType)) return { ok: false, error: "Invalid archetype baseType" };
