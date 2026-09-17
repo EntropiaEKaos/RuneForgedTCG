@@ -1,12 +1,12 @@
-import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
-import { nextLivingSeat } from "./four-player-turn-manager";
+import type { FourPlayerSeat } from "./four-player-general";
+import { livingSeats, nextLivingSeat } from "./four-player-turn-manager";
 
 export type FourPlayerPriorityMode = "auto_pass" | "smart_priority" | "full_control";
 
 export interface FourPlayerPriorityState {
   holder: FourPlayerSeat;
   anchorSeat: FourPlayerSeat;
-  passedSeats: readonly FourPlayerSeat[];
+  consecutivePasses: number;
   eliminatedSeats: readonly FourPlayerSeat[];
   mode: FourPlayerPriorityMode;
 }
@@ -16,19 +16,22 @@ export function createFourPlayerPriorityState(
   eliminatedSeats: readonly FourPlayerSeat[] = [],
   mode: FourPlayerPriorityMode = "smart_priority",
 ): FourPlayerPriorityState {
-  return { holder: anchorSeat, anchorSeat, passedSeats: [], eliminatedSeats, mode };
+  const living = livingSeats(eliminatedSeats);
+  const holder = living.includes(anchorSeat) ? anchorSeat : (living[0] ?? anchorSeat);
+  return { holder, anchorSeat: holder, consecutivePasses: 0, eliminatedSeats, mode };
 }
 
 export function livingSeatCount(eliminatedSeats: readonly FourPlayerSeat[]): number {
-  const eliminated = new Set(eliminatedSeats);
-  return FOUR_PLAYER_SEATS.filter((seat) => !eliminated.has(seat)).length;
+  return livingSeats(eliminatedSeats).length;
 }
 
 export function passPriority(state: FourPlayerPriorityState): FourPlayerPriorityState {
-  const passedSeats = state.passedSeats.includes(state.holder)
-    ? state.passedSeats
-    : [...state.passedSeats, state.holder];
-  return { ...state, holder: nextLivingSeat(state.holder, state.eliminatedSeats), passedSeats };
+  const living = livingSeatCount(state.eliminatedSeats);
+  return {
+    ...state,
+    holder: nextLivingSeat(state.holder, state.eliminatedSeats),
+    consecutivePasses: Math.min(living, state.consecutivePasses + 1),
+  };
 }
 
 /** Any action restarts the consecutive-pass cycle with priority moving clockwise. */
@@ -37,14 +40,13 @@ export function actionTaken(state: FourPlayerPriorityState, actor: FourPlayerSea
     ...state,
     anchorSeat: actor,
     holder: nextLivingSeat(actor, state.eliminatedSeats),
-    passedSeats: [],
+    consecutivePasses: 0,
   };
 }
 
 export function allLivingPlayersPassed(state: FourPlayerPriorityState): boolean {
-  const eliminated = new Set(state.eliminatedSeats);
-  const passed = new Set(state.passedSeats);
-  return FOUR_PLAYER_SEATS.every((seat) => eliminated.has(seat) || passed.has(seat));
+  const living = livingSeatCount(state.eliminatedSeats);
+  return living > 0 && state.consecutivePasses >= living;
 }
 
 /**
