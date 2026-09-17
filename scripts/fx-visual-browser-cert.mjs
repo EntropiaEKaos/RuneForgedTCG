@@ -129,18 +129,21 @@ async function main() {
     await waitForText(cdp, "Card Authoring Studio");
     if (!(await evaluate(cdp, "document.querySelector('[data-card-fx-studio=true]') !== null"))) await clickText(cdp, "FX Studio");
     await waitUntil(() => evaluate(cdp, "document.querySelector('[data-card-fx-studio=true]') !== null"), "FX Studio panel");
+    await waitForText(cdp, "Live Draft Controls");
 
     for (const preset of presets) {
       await clickText(cdp, preset);
-      await clickText(cdp, "Run production FX");
-      await waitUntil(() => evaluate(cdp, "document.body?.innerText?.includes('● LIVE') === true"), `${preset} live marker`);
+      const selected = await evaluate(cdp, "document.querySelector('[data-fx-studio-preview-target=true]')?.getAttribute('data-fx-preset-id')");
+      assert.equal(selected, `${preset}-default`, `FX Studio selected unexpected preset for ${preset}`);
+      await clickText(cdp, "Run draft in production renderer");
+      await waitUntil(() => evaluate(cdp, "document.querySelector('[data-fx-studio-preview-target=true]')?.getAttribute('data-fx-playing') === 'true'"), `${preset} live marker`);
       await sleep(120);
       await screenshot(cdp, `fx-${preset}-active.png`);
-      await waitUntil(() => evaluate(cdp, "document.body?.innerText?.includes('● LIVE') !== true"), `${preset} cleanup`, 3_000);
+      await waitUntil(() => evaluate(cdp, "document.querySelector('[data-fx-studio-preview-target=true]')?.getAttribute('data-fx-playing') === 'false'"), `${preset} cleanup`, 6_000);
     }
 
     assert.equal(await evaluate(cdp, "document.querySelectorAll('canvas').length <= 1"), true, "FX cleanup left unexpected canvas layers");
-    console.log(`FX VISUAL BROWSER CERT: PASS — ${presets.length} transient presets captured`);
+    console.log(`FX VISUAL BROWSER CERT: PASS — ${presets.length} Studio 1.3 draft presets captured through production renderers`);
   } finally {
     cdp?.close();
     await stopChrome(chrome);

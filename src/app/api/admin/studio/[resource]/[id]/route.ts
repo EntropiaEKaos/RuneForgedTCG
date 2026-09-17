@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { eq } from "drizzle-orm";
-import { adminKeywords, adminEffects, adminRaces, adminClasses, adminInteractions, adminCollections, cardCatalogMeta, adminEvents, adminPromotions, adminCardArchetypes, players, customCards } from "@/db/schema";
+import { adminKeywords, adminEffects, adminRaces, adminClasses, adminInteractions, adminCollections, adminFxPresets, cardCatalogMeta, adminEvents, adminPromotions, adminCardArchetypes, players, customCards } from "@/db/schema";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
 import { adminAuditLogs } from "@/db/schema";
 import { validateContent, validateContentReferences } from "@/lib/content-pipeline";
@@ -10,7 +10,7 @@ import { levelFromXp } from "@/lib/achievements";
 import { analyzeContentReverseDependencies } from "@/lib/content-impact";
 
 export const dynamic = "force-dynamic";
-const tables = { keywords: adminKeywords, effects: adminEffects, archetypes: adminCardArchetypes, races: adminRaces, classes: adminClasses, interactions: adminInteractions, collections: adminCollections, "card-meta": cardCatalogMeta, events: adminEvents, promotions: adminPromotions, players } as const;
+const tables = { keywords: adminKeywords, effects: adminEffects, archetypes: adminCardArchetypes, races: adminRaces, classes: adminClasses, interactions: adminInteractions, collections: adminCollections, "fx-presets": adminFxPresets, "card-meta": cardCatalogMeta, events: adminEvents, promotions: adminPromotions, players } as const;
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ resource: string; id: string }> }) {
   if (!(await isAdminAuthorized(req))) return unauthorized();
@@ -48,6 +48,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ re
       classes: ["name", "description", "icon", "color"],
       interactions: ["name", "sourceType", "sourceKey", "targetType", "targetKey", "condition", "effect", "priority"],
       collections: ["name", "description", "symbol", "banner", "releaseDate", "rotationDate", "metadata"],
+      "fx-presets": ["name", "description", "renderer", "intensity", "durationMs", "particleBudget", "screenShake", "targetFlashMs", "soundCue"],
       "card-meta": ["collectionId", "tags", "classKeys", "raceKeys", "notes"],
       events: ["name", "description", "type", "startsAt", "endsAt", "rules", "rewards", "metadata"],
       promotions: ["name", "description", "type", "startsAt", "endsAt", "conditions", "offers", "metadata"],
@@ -57,6 +58,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ re
     for (const k of Object.keys(clean)) if (!allowed.includes(k)) delete clean[k];
     if (clean.name !== undefined) clean.name = String(clean.name).slice(0, 120);
     if (clean.description !== undefined) clean.description = String(clean.description).slice(0, 1000);
+    if (resource === "fx-presets") {
+      if (clean.renderer !== undefined && !["motion", "timeline", "gpu"].includes(String(clean.renderer))) return Response.json({ ok: false, error: "Invalid FX renderer" }, { status: 400 });
+      if (clean.intensity !== undefined && !["subtle", "standard", "cinematic"].includes(String(clean.intensity))) return Response.json({ ok: false, error: "Invalid FX intensity" }, { status: 400 });
+      if (clean.screenShake === "" || clean.screenShake === null) clean.screenShake = null;
+      else if (clean.screenShake !== undefined && !["light", "medium"].includes(String(clean.screenShake))) return Response.json({ ok: false, error: "Invalid FX screenShake" }, { status: 400 });
+      for (const [field, min, max] of [["durationMs", 80, 5000], ["particleBudget", 0, 36], ["targetFlashMs", 0, 2000]] as const) {
+        if (clean[field] === undefined) continue;
+        if (field === "targetFlashMs" && (clean[field] === null || clean[field] === "")) { clean[field] = null; continue; }
+        const value = Number(clean[field]);
+        if (!Number.isInteger(value) || value < min || value > max) return Response.json({ ok: false, error: `FX ${field} must be an integer between ${min} and ${max}` }, { status: 400 });
+        clean[field] = value;
+      }
+      if (clean.soundCue !== undefined) clean.soundCue = clean.soundCue ? String(clean.soundCue).slice(0, 80) : null;
+    }
     if (clean.priority !== undefined) {
       const priority = Number(clean.priority);
       if (!Number.isInteger(priority) || priority < -100000 || priority > 100000) return Response.json({ ok: false, error: "priority must be a bounded integer" }, { status: 400 });
@@ -74,15 +89,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ re
       clean[field] = d;
     }
   }
-  if (resource !== "players" && (clean.status === "published" || clean.releaseState === "published" || clean.enabled === true || clean.status === "archived" || clean.releaseState === "archived")) {
-    return Response.json({ ok: false, error: "Content state changes must go through the Content Pipeline approval workflow." }, { status: 409 });
-  }
-  if (resource !== "players") {
-    // Draft edits cannot silently activate content. State transitions belong to the pipeline.
-    delete clean.enabled;
-    if ("status" in clean) clean.status = "draft";
-    if ("releaseState" in clean) clean.releaseState = "draft";
-  }
+  if (resource !== "players" && (clean.status === "published" || clean.releaseState === "published" || clean.enabled === true || clean.status === "archived" || clean.releaseState === "archived")) return Response.json({ ok: false, error: "Content state changes must go through the Content Pipeline approval workflow." }, { status: 409 });
+  if (resource !== "players") { delete clean.enabled; if ("status" in clean) clean.status = "draft"; if ("releaseState" in clean) clean.releaseState = "draft"; }
   clean.updatedAt = new Date();
   if (resource !== "players") {
     const current = await db.select().from(table).where(eq((table as any).id, Number(id))).limit(1);
@@ -93,9 +101,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ re
       if (activeCard?.enabled) return Response.json({ ok: false, error: "The launch collection of a live card is immutable. Archive the card before editing its catalog metadata." }, { status: 409 });
     }
     const currentActive = current[0] as any;
-    if (currentActive.status === "published" || currentActive.releaseState === "published" || currentActive.enabled === true) {
-      return Response.json({ ok: false, error: "Published or active content must be archived before editing. Create a new draft/version and publish it through the approval pipeline." }, { status: 409 });
-    }
+    if (currentActive.status === "published" || currentActive.releaseState === "published" || currentActive.enabled === true) return Response.json({ ok: false, error: "Published or active content must be archived before editing. Create a new draft/version and publish it through the approval pipeline." }, { status: 409 });
     const candidate = { ...current[0], ...clean };
     const validation = validateContent(resource, candidate);
     const refErrors = await validateContentReferences(resource as any, candidate);
@@ -109,19 +115,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ re
         const [current] = await tx.select().from(players).where(eq(players.id, Number(id))).limit(1).for("update");
         if (!current) return null;
         const next = { ...clean, updatedAt: new Date() } as any;
-        if (next.xp !== undefined) {
-          // Level is derived data. Never allow an admin patch to make it diverge
-          // from the authoritative XP value, even when both fields were supplied.
-          next.level = levelFromXp(Number(next.xp));
-        }
+        if (next.xp !== undefined) next.level = levelFromXp(Number(next.xp));
         const [updated] = await tx.update(players).set(next).where(eq(players.id, Number(id))).returning();
-        if (reason) {
-          for (const currency of ["gold", "dust", "xp"] as const) {
-            if (clean[currency] === undefined) continue;
-            const delta = Number(clean[currency]) - Number((current as any)[currency]);
-            if (delta) await recordEconomyTransaction(tx, { playerId: current.id, currency, amount: delta, balanceAfter: Number(clean[currency]), reason: `admin_adjustment:${reason}`, referenceType: "player", referenceId: String(current.id) });
-          }
-        }
+        if (reason) for (const currency of ["gold", "dust", "xp"] as const) { if (clean[currency] === undefined) continue; const delta = Number(clean[currency]) - Number((current as any)[currency]); if (delta) await recordEconomyTransaction(tx, { playerId: current.id, currency, amount: delta, balanceAfter: Number(clean[currency]), reason: `admin_adjustment:${reason}`, referenceType: "player", referenceId: String(current.id) }); }
         await tx.insert(adminAuditLogs).values({ action: "update", resource, resourceId: Number(id), actor: actor.actorId, details: { role: actor.role, fields: Object.keys(clean), economyReason: reason || null } });
         return updated;
       });
@@ -146,7 +142,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ r
   if (!table) return Response.json({ ok: false, error: "Unknown resource" }, { status: 404 });
   const current = await db.select().from(table).where(eq((table as any).id, Number(id))).limit(1);
   if (!current[0]) return Response.json({ ok: false, error: "Not found" }, { status: 404 });
-  if (resource !== "players" && ((current[0] as any).status === "published" || (current[0] as any).releaseState === "published" || (current[0] as any).enabled === true)) return Response.json({ ok: false, error: "Published or active content must be archived before deletion." }, { status: 409 });
+  if ((current[0] as any).status === "published" || (current[0] as any).releaseState === "published" || (current[0] as any).enabled === true) return Response.json({ ok: false, error: "Published or active content must be archived before deletion." }, { status: 409 });
   if (resource !== "card-meta") {
     const impact = await analyzeContentReverseDependencies(resource, current[0]);
     if (impact.totalActiveReferences > 0) return Response.json({ ok: false, error: "Content has active reverse dependencies and cannot be deleted.", impact }, { status: 409 });
