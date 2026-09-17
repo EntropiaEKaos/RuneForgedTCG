@@ -181,6 +181,7 @@ jobs:
           node scripts/studio-modal-ability-browser-cert.mjs
           node scripts/studio-visual-authoring-browser-cert.mjs
           node scripts/fx-visual-browser-cert.mjs
+          node scripts/command-center-intelligence-browser-cert.mjs
 
       - name: Alpha P0 Batch 1 physical art evidence
         run: node --import tsx src/game/alpha-p0-batch-1-art.test.ts
