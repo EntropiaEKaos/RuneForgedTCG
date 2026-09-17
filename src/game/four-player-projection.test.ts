@@ -2,15 +2,18 @@ import assert from "node:assert/strict";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import { projectFourPlayerStateForSeat, type FourPlayerPrivateSeatState } from "./four-player-projection";
 
-const states = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat, index) => [seat, {
-  seat,
-  hand: [`${seat}-hand-a`, `${seat}-hand-b`],
-  deck: [`${seat}-deck-secret`],
-  graveyard: [`${seat}-grave-public`],
-  publicBoard: [`${seat}-board-public`],
-  nexusHealth: 30 - index,
-  eliminated: false,
-}])) as Record<FourPlayerSeat, FourPlayerPrivateSeatState>;
+const states = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivateSeatState>>((result, seat, index) => {
+  result[seat] = {
+    seat,
+    hand: [`${seat}-hand-a`, `${seat}-hand-b`],
+    deck: [`${seat}-deck-secret`],
+    graveyard: [`${seat}-grave-public`],
+    publicBoard: [`${seat}-board-public`],
+    nexusHealth: 30 - index,
+    eliminated: false,
+  };
+  return result;
+}, {} as Record<FourPlayerSeat, FourPlayerPrivateSeatState>);
 
 for (const viewer of FOUR_PLAYER_SEATS) {
   const projection = projectFourPlayerStateForSeat(states, viewer);
