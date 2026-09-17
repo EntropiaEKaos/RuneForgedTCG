@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { acceptAuthoritativeFourPlayerCommand, assertPriorityHolder } from "./four-player-authority";
+import { assertPriorityHolder, processAuthoritativeFourPlayerCommand } from "./four-player-authority";
 import { createFourPlayerMatchState } from "./four-player-match";
 import { createFourPlayerProtocolState, type FourPlayerClientCommand } from "./four-player-protocol";
-import { reduceFourPlayerServerEvent } from "./four-player-reducer";
-import { bindFourPlayerSession, createFourPlayerSessionRegistry } from "./four-player-session";
+import { bindFourPlayerSession, createFourPlayerSessionRegistry, sessionForSeat } from "./four-player-session";
 
 const matchId = "harness-4p-001";
 let sessions = createFourPlayerSessionRegistry();
@@ -19,11 +18,14 @@ function command(seat: "p1" | "p2" | "p3" | "p4", type: FourPlayerClientCommand[
   return { commandId: `cmd-${authority.protocol.revision + 1}-${seat}-${type}`, matchId, seat, expectedRevision: authority.protocol.revision, type, payload };
 }
 
-function dispatch(seat: "p1" | "p2" | "p3" | "p4", type: FourPlayerClientCommand["type"], payload: unknown = {}): void {
-  const accepted = acceptAuthoritativeFourPlayerCommand(authority, `session-${seat}`, command(seat, type, payload), (match, cmd) => {
+function dispatch(seat: "p1" | "p2" | "p3" | "p4", type: FourPlayerClientCommand["type"], payload: unknown = {}) {
+  const session = sessionForSeat(authority.sessions, seat);
+  assert.ok(session);
+  const accepted = processAuthoritativeFourPlayerCommand(authority, session.sessionId, session.connectionEpoch, command(seat, type, payload), (match, cmd) => {
     if (cmd.type === "pass_priority" || cmd.type === "submit_action") assertPriorityHolder(match, cmd.seat);
   });
-  authority = { ...accepted.state, match: reduceFourPlayerServerEvent(accepted.state.match, accepted.event) };
+  authority = accepted.state;
+  return accepted;
 }
 
 // Four independent clients participate in one authoritative revision stream.
@@ -36,14 +38,25 @@ dispatch("p3", "submit_action", { id: "p3-response", controller: "p3", kind: "re
 dispatch("p4", "pass_priority");
 dispatch("p1", "pass_priority");
 dispatch("p2", "pass_priority");
-dispatch("p3", "pass_priority");
-assert.equal(authority.match.resolution.stack.items.length, 2);
-assert.equal(authority.match.resolution.priority.consecutivePasses, 4);
+const responseResolution = dispatch("p3", "pass_priority");
+assert.deepEqual(responseResolution.pump?.resolved.map((item) => item.id), ["p3-response"]);
+assert.deepEqual(authority.match.resolution.stack.items.map((item) => item.id), ["p1-spell"]);
+assert.equal(authority.match.resolution.priority.consecutivePasses, 0);
+assert.equal(authority.match.resolution.priority.holder, "p1");
 
-// P3 concedes while its response is on the stack: only P3's object disappears.
+// Resolution is atomic: after the completed pass cycle no client can interleave
+// before P3's response has already left the authoritative stack.
+dispatch("p1", "pass_priority");
+dispatch("p2", "pass_priority");
+dispatch("p3", "pass_priority");
+const openerResolution = dispatch("p4", "pass_priority");
+assert.deepEqual(openerResolution.pump?.resolved.map((item) => item.id), ["p1-spell"]);
+assert.equal(authority.match.resolution.stack.items.length, 0);
+assert.equal(authority.match.resolution.priority.holder, "p1");
+
+// With the stack settled, P3 may concede. Its seat is removed from future rotation.
 dispatch("p3", "concede");
 assert.equal(authority.match.seats.p3.eliminated, true);
-assert.deepEqual(authority.match.resolution.stack.items.map((item) => item.id), ["p1-spell"]);
 assert.notEqual(authority.match.resolution.priority.holder, "p3");
 
 // Active P1 ends the turn; eliminated P3 will be skipped after P2.
@@ -56,6 +69,7 @@ assert.equal(authority.match.turn.activeSeat, "p4");
 dispatch("p4", "concede");
 dispatch("p2", "concede");
 assert.equal(authority.match.winner, "p1");
-assert.equal(authority.protocol.revision, 12);
+assert.equal(authority.match.status, "completed");
+assert.equal(authority.protocol.revision, 16);
 
-console.log("FOUR PLAYER FOUR-CLIENT AUTHORITATIVE HARNESS: PASS");
+console.log("FOUR PLAYER FOUR-CLIENT ATOMIC AUTHORITY HARNESS: PASS");
