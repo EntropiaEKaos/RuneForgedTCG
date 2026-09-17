@@ -8,22 +8,20 @@
   --forged-board-priority: 167, 139, 250;
 }
 
-/* Add depth without changing certified battlefield geometry. */
+/* Add depth without changing certified battlefield geometry or stacking.
+   The negative layer stays behind the existing arena composition; importantly,
+   we do not restack direct children because Visual 4.3 relies on its certified
+   mobile overlay/viewport hierarchy. */
 .tcg-arena::before {
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   background:
     radial-gradient(ellipse at 50% 48%, rgba(var(--forged-board-light), .055), transparent 42%),
     linear-gradient(180deg, rgba(255,255,255,.018), transparent 24%, rgba(0,0,0,.12));
   mix-blend-mode: screen;
-}
-
-.tcg-arena > * {
-  position: relative;
-  z-index: 1;
 }
 
 /* Certified zones gain material separation, not new interaction semantics. */
