@@ -1,5 +1,6 @@
-import type { FxPresetId } from "./fx-registry";
-import type { CardDef, Keyword, Race, Rarity, Region } from "./types";
+import { FORGED_FX_PRESETS, type FxPresetId, type ResolvedFx } from "./fx-registry";
+import type { GameEvent } from "./events";
+import type { CardDef, GameState, Keyword, Race, Rarity, Region } from "./types";
 
 /** Presentation-only metadata. It never changes authoritative rules or state. */
 export interface FxAssociationContext {
@@ -40,4 +41,19 @@ export function resolveFxAssociation(context: FxAssociationContext, associations
 }
 export function cardFxAssociationContext(card: CardDef): FxAssociationContext {
   return { defId: card.defId, region: card.region, races: card.race ? [card.race, ...(card.secondaryRaces ?? [])] : [...(card.secondaryRaces ?? [])], classes: card.classes ?? [], keywords: card.keywords ?? [], customKeywords: card.customKeywords ?? [], rarity: card.rarity };
+}
+
+/** Returns the card definition involved in an event when the event has card identity. */
+export function cardDefIdForFxEvent(event: GameEvent, state: GameState): string | null {
+  if (event.type === "UNIT_SUMMONED" || event.type === "UNIT_DIED") return event.defId;
+  if (event.type === "UNIT_LEVELLED_UP") return event.toDefId;
+  if (!("unitId" in event)) return null;
+  return state.players[event.player].bench.find((unit) => unit.instanceId === event.unitId)?.defId ?? null;
+}
+
+/** Applies an association only to presentation resolution; the default preset remains the fail-safe. */
+export function applyFxAssociation(resolved: ResolvedFx, context: FxAssociationContext | null, associations: readonly FxAssociation[]): ResolvedFx {
+  if (!context) return resolved;
+  const association = resolveFxAssociation(context, associations);
+  return association ? { ...resolved, preset: FORGED_FX_PRESETS[association.presetId] } : resolved;
 }
