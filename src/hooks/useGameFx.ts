@@ -2,246 +2,38 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getCard } from "@/game/cards";
-import {
-  deriveGameEvents,
-  getUnitFromEvent,
-  isDamageEvent,
-  isHealEvent,
-  isLevelEvent,
-  type GameEvent,
-} from "@/game/events";
+import { playFxDomAnimation } from "@/game/fx-dom-renderer";
+import { playFxGpuOverlay, type FxGpuHandle } from "@/game/fx-gpu-renderer";
+import { playFxParticles, type FxParticleHandle } from "@/game/fx-particle-renderer";
+import { playFxPremiumModifier, type FxPremiumHandle } from "@/game/fx-premium-renderer";
+import { playFxTimeline, type FxTimelineHandle } from "@/game/fx-timeline-renderer";
+import { buildGameEventFxPlans, type FxCapabilities, type FxExecutionPlan } from "@/game/fx-plan";
+import { deriveGameEvents, getUnitFromEvent, isDamageEvent, isHealEvent, isLevelEvent, type GameEvent } from "@/game/events";
 import type { GameState, PlayerId } from "@/game/types";
 
-export interface FxEvent {
-  key: string;
-  type: "dmg" | "heal" | "death" | "nexushit" | "levelup" | "impact" | "summon" | "poison" | "barrier" | "barrierbreak" | "frost" | "stun";
-  text: string;
-  color: string;
-  pos: { x: number; y: number } | null;
-  unitId?: string;
-  side?: PlayerId;
-}
+export interface FxEvent { key: string; type: "dmg" | "heal" | "death" | "nexushit" | "levelup" | "impact" | "summon" | "poison" | "barrier" | "barrierbreak" | "frost" | "stun"; text: string; color: string; pos: { x: number; y: number } | null; unitId?: string; side?: PlayerId; plan?: FxExecutionPlan; }
+export interface GameFxState { fx: FxEvent[]; shaking: boolean; hitStop: boolean; nexusFlash: { player: number; ai: number }; levelBanner: string | null; impactFlash: "red" | "cyan" | "gold" | null; impactLabel: string | null; }
+function getFxCapabilities(): FxCapabilities { const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; const constrained = reducedMotion || (navigator.hardwareConcurrency ?? 8) <= 4; return { quality: constrained ? "low" : "high", reducedMotion, constrained }; }
+function statusLabel(status: "barrier" | "frostbitten" | "stunned"): Pick<FxEvent, "text" | "color" | "type"> { switch (status) { case "barrier": return { type: "barrier", text: "🛡 BARREIRA", color: "#67e8f9" }; case "frostbitten": return { type: "frost", text: "❄ CONGELADO", color: "#7dd3fc" }; case "stunned": return { type: "stun", text: "✦ ATORDOADO", color: "#c4b5fd" }; } }
+function toFx(event: GameEvent): Omit<FxEvent, "key" | "pos"> | null { switch (event.type) { case "UNIT_SUMMONED": return { type: "summon", text: "✦", color: "#fde68a", unitId: event.unitId, side: event.player }; case "UNIT_DAMAGED": return { type: "dmg", text: `-${event.amount}`, color: "#f87171", unitId: event.unitId, side: event.player }; case "UNIT_HEALED": return { type: "heal", text: `+${event.amount}`, color: "#4ade80", unitId: event.unitId, side: event.player }; case "UNIT_DIED": return { type: "death", text: "💀", color: "#94a3b8", unitId: event.unitId, side: event.player }; case "UNIT_LEVELLED_UP": return { type: "levelup", text: getCard(event.toDefId).name, color: "#fbbf24", unitId: event.unitId, side: event.player }; case "UNIT_ATTACK_STARTED": return { type: "impact", text: "⚔", color: "#fbbf24", unitId: event.unitId, side: event.player }; case "STATUS_APPLIED": return { ...statusLabel(event.status), unitId: event.unitId, side: event.player }; case "STATUS_REMOVED": return { type: "barrierbreak", text: "◇ BARREIRA ROMPIDA", color: "#a5f3fc", unitId: event.unitId, side: event.player }; case "NEXUS_DAMAGED": return { type: "nexushit", text: `-${event.amount}`, color: "#f87171", side: event.player }; case "NEXUS_HEALED": return { type: "nexushit", text: `+${event.amount}`, color: "#4ade80", side: event.player }; case "NEXUS_POISONED": return { type: "poison", text: `🧪 +${event.amount} · ${event.total}/10`, color: "#a3e635", side: event.player }; } }
+function targetForEvent(event: GameEvent): Element | null { if (event.type === "NEXUS_DAMAGED" || event.type === "NEXUS_HEALED" || event.type === "NEXUS_POISONED") return document.querySelector(`[data-nexus-side="${event.player}"]`); if ("unitId" in event) return document.querySelector(`[data-unit-id="${event.unitId}"]`) ?? document.querySelector(`[data-bench-side="${event.player}"]`); return null; }
+function locateEvent(event: GameEvent): { x: number; y: number } | null { const el = targetForEvent(event); if (!el) return null; const rect = el.getBoundingClientRect(); return { x: rect.left + rect.width / 2, y: event.type.startsWith("NEXUS_") ? rect.top - 8 : rect.top + 4 }; }
+function playEventSound(event: GameEvent): void { import("@/lib/sounds").then(({ sfx }) => { switch (event.type) { case "UNIT_DAMAGED": case "UNIT_DIED": case "NEXUS_DAMAGED": sfx.damage(); break; case "UNIT_ATTACK_STARTED": sfx.attack(); break; case "UNIT_SUMMONED": sfx.cardPlay(); break; case "UNIT_HEALED": case "NEXUS_HEALED": sfx.heal(); break; case "UNIT_LEVELLED_UP": sfx.levelUp(); break; case "STATUS_APPLIED": sfx.status(event.status); break; case "STATUS_REMOVED": sfx.barrierBreak(); break; case "NEXUS_POISONED": sfx.poison(); break; default: break; } }).catch(() => {}); }
 
-export interface GameFxState {
-  fx: FxEvent[];
-  shaking: boolean;
-  hitStop: boolean;
-  nexusFlash: { player: number; ai: number };
-  levelBanner: string | null;
-  impactFlash: "red" | "cyan" | "gold" | null;
-  impactLabel: string | null;
-}
-
-function statusLabel(status: "barrier" | "frostbitten" | "stunned"): Pick<FxEvent, "text" | "color" | "type"> {
-  switch (status) {
-    case "barrier":
-      return { type: "barrier", text: "🛡 BARREIRA", color: "#67e8f9" };
-    case "frostbitten":
-      return { type: "frost", text: "❄ CONGELADO", color: "#7dd3fc" };
-    case "stunned":
-      return { type: "stun", text: "✦ ATORDOADO", color: "#c4b5fd" };
-  }
-}
-
-function toFx(event: GameEvent, state: GameState): Omit<FxEvent, "key" | "pos"> | null {
-  switch (event.type) {
-    case "UNIT_SUMMONED":
-      return { type: "summon", text: "✦", color: "#fde68a", unitId: event.unitId, side: event.player };
-    case "UNIT_DAMAGED":
-      return { type: "dmg", text: `-${event.amount}`, color: "#f87171", unitId: event.unitId, side: event.player };
-    case "UNIT_HEALED":
-      return { type: "heal", text: `+${event.amount}`, color: "#4ade80", unitId: event.unitId, side: event.player };
-    case "UNIT_DIED":
-      return { type: "death", text: "💀", color: "#94a3b8", unitId: event.unitId, side: event.player };
-    case "UNIT_LEVELLED_UP":
-      return {
-        type: "levelup",
-        text: getCard(event.toDefId).name,
-        color: "#fbbf24",
-        unitId: event.unitId,
-        side: event.player,
-      };
-    case "UNIT_ATTACK_STARTED":
-      return { type: "impact", text: "⚔", color: "#fbbf24", unitId: event.unitId, side: event.player };
-    case "STATUS_APPLIED": {
-      const label = statusLabel(event.status);
-      return { ...label, unitId: event.unitId, side: event.player };
-    }
-    case "STATUS_REMOVED":
-      return { type: "barrierbreak", text: "◇ BARREIRA ROMPIDA", color: "#a5f3fc", unitId: event.unitId, side: event.player };
-    case "NEXUS_DAMAGED":
-      return { type: "nexushit", text: `-${event.amount}`, color: "#f87171", side: event.player };
-    case "NEXUS_HEALED":
-      return { type: "nexushit", text: `+${event.amount}`, color: "#4ade80", side: event.player };
-    case "NEXUS_POISONED":
-      return { type: "poison", text: `🧪 +${event.amount} · ${event.total}/10`, color: "#a3e635", side: event.player };
-  }
-}
-
-function locateEvent(event: GameEvent): { x: number; y: number } | null {
-  if (event.type === "NEXUS_DAMAGED" || event.type === "NEXUS_HEALED" || event.type === "NEXUS_POISONED") {
-    const el = document.querySelector(`[data-nexus-side="${event.player}"]`);
-    if (!el) return null;
-    const rect = el.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top - 8 };
-  }
-
-  if ("unitId" in event) {
-    const el = document.querySelector(`[data-unit-id="${event.unitId}"]`);
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      return { x: rect.left + rect.width / 2, y: rect.top + 4 };
-    }
-    const box = document.querySelector(`[data-bench-side="${event.player}"]`);
-    if (box) {
-      const rect = box.getBoundingClientRect();
-      return { x: rect.left + Math.min(140, Math.max(80, rect.width / 2)), y: rect.top + 28 };
-    }
-  }
-  return null;
-}
-
-function playEventSound(event: GameEvent): void {
-  import("@/lib/sounds").then(({ sfx }) => {
-    switch (event.type) {
-      case "UNIT_DAMAGED":
-      case "UNIT_DIED":
-      case "NEXUS_DAMAGED":
-        sfx.damage();
-        break;
-      case "UNIT_ATTACK_STARTED":
-        sfx.attack();
-        break;
-      case "UNIT_SUMMONED":
-        sfx.cardPlay();
-        break;
-      case "UNIT_HEALED":
-      case "NEXUS_HEALED":
-        sfx.heal();
-        break;
-      case "UNIT_LEVELLED_UP":
-        sfx.levelUp();
-        break;
-      case "STATUS_APPLIED":
-        sfx.status(event.status);
-        break;
-      case "STATUS_REMOVED":
-        sfx.barrierBreak();
-        break;
-      case "NEXUS_POISONED":
-        sfx.poison();
-        break;
-      default:
-        break;
-    }
-  }).catch(() => {});
-}
-
-/**
- * Converts authoritative state transitions into short-lived presentation FX.
- * No gameplay mutation belongs in this hook.
- */
+/** Converts authoritative transitions into disposable presentation-only FX. */
 export function useGameFx(state: GameState | null): GameFxState {
-  const previousRef = useRef<GameState | null>(null);
-  const timersRef = useRef<Set<number>>(new Set());
-  const [fx, setFx] = useState<FxEvent[]>([]);
-  const [shaking, setShaking] = useState(false);
-  const [hitStop, setHitStop] = useState(false);
-  const [nexusFlash, setNexusFlash] = useState<{ player: number; ai: number }>({ player: 0, ai: 0 });
-  const [levelBanner, setLevelBanner] = useState<string | null>(null);
-  const [impactFlash, setImpactFlash] = useState<"red" | "cyan" | "gold" | null>(null);
-  const [impactLabel, setImpactLabel] = useState<string | null>(null);
-
-  const schedule = useCallback((callback: () => void, delay: number) => {
-    const id = window.setTimeout(() => { timersRef.current.delete(id); callback(); }, delay);
-    timersRef.current.add(id);
-  }, []);
-
-  useEffect(() => () => {
-    for (const id of timersRef.current) window.clearTimeout(id);
-    timersRef.current.clear();
-  }, []);
-
+  const previousRef = useRef<GameState | null>(null); const timersRef = useRef<Set<number>>(new Set()); const animationsRef = useRef<Set<Animation>>(new Set()); const particlesRef = useRef<Set<FxParticleHandle>>(new Set()); const premiumRef = useRef<Set<FxPremiumHandle>>(new Set()); const gpuRef = useRef<Set<FxGpuHandle>>(new Set()); const timelineRef = useRef<Set<FxTimelineHandle>>(new Set()); const lifecycleRef = useRef(0);
+  const [fx, setFx] = useState<FxEvent[]>([]); const [shaking, setShaking] = useState(false); const [hitStop, setHitStop] = useState(false); const [nexusFlash, setNexusFlash] = useState<{ player: number; ai: number }>({ player: 0, ai: 0 }); const [levelBanner, setLevelBanner] = useState<string | null>(null); const [impactFlash, setImpactFlash] = useState<"red" | "cyan" | "gold" | null>(null); const [impactLabel, setImpactLabel] = useState<string | null>(null);
+  const schedule = useCallback((callback: () => void, delay: number) => { const id = window.setTimeout(() => { timersRef.current.delete(id); callback(); }, delay); timersRef.current.add(id); }, []);
+  useEffect(() => () => { lifecycleRef.current += 1; for (const id of timersRef.current) window.clearTimeout(id); timersRef.current.clear(); for (const animation of animationsRef.current) animation.cancel(); animationsRef.current.clear(); for (const handle of particlesRef.current) handle.cancel(); particlesRef.current.clear(); for (const handle of premiumRef.current) handle.cancel(); premiumRef.current.clear(); for (const handle of gpuRef.current) handle.cancel(); gpuRef.current.clear(); for (const handle of timelineRef.current) handle.cancel(); timelineRef.current.clear(); }, []);
   useEffect(() => {
-    if (!state) {
-      previousRef.current = null;
-      return;
-    }
-
-    const previous = previousRef.current;
-    previousRef.current = state;
-    // A new match should establish a fresh FX baseline rather than replaying
-    // the entire opening state as summon/damage events.
-    if (!previous || previous === state || (previous.phase === "gameover" && state.phase !== "gameover")) return;
-
-    const events = deriveGameEvents(previous, state);
-    if (!events.length) return;
-
-    const stamped = events
-      .map((event, index) => {
-        const visual = toFx(event, state);
-        if (!visual) return null;
-        return {
-          ...visual,
-          pos: locateEvent(event),
-          key: `${Date.now()}_${index}_${"unitId" in event ? event.unitId : event.player}_${event.type}`,
-        } satisfies FxEvent;
-      })
-      .filter((event): event is FxEvent => event !== null);
-
-    if (!stamped.length) return;
-
-    setFx((list) => [...list, ...stamped]);
-    const keys = new Set(stamped.map((event) => event.key));
-    schedule(() => setFx((list) => list.filter((event) => !keys.has(event.key))), 1300);
-
-    if (events.some(isDamageEvent)) {
-      setImpactFlash("red");
-      schedule(() => setImpactFlash(null), 260);
-      setHitStop(true);
-      schedule(() => setHitStop(false), 90);
-    } else if (events.some(isLevelEvent)) {
-      setImpactFlash("gold");
-      schedule(() => setImpactFlash(null), 420);
-    } else if (events.some(isHealEvent)) {
-      setImpactFlash("cyan");
-      schedule(() => setImpactFlash(null), 260);
-    }
-
-    const damageCount = events.filter(isDamageEvent).length;
-    const label = events.some((event) => event.type === "UNIT_LEVELLED_UP")
-      ? "ASCENSÃO"
-      : events.some((event) => event.type === "NEXUS_DAMAGED")
-        ? damageCount >= 3 ? `IMPACTO EM CADEIA ×${damageCount}` : "NEXUS ATINGIDO"
-        : events.some((event) => event.type === "UNIT_DIED")
-          ? damageCount >= 3 ? `COLAPSO ×${damageCount}` : "UNIDADE DESTRUÍDA"
-          : damageCount >= 3 ? `COMBO ×${damageCount}` : null;
-    if (label) {
-      setImpactLabel(label);
-      schedule(() => setImpactLabel((current) => current === label ? null : current), 900);
-      if (damageCount >= 3) import("@/lib/sounds").then(({ sfx }) => sfx.combo(damageCount)).catch(() => {});
-    }
-
-    for (const event of events) {
-      playEventSound(event);
-      if (event.type === "NEXUS_DAMAGED" && event.player === "player") {
-        setShaking(true);
-        schedule(() => setShaking(false), 500);
-      }
-      if (event.type === "NEXUS_DAMAGED" || event.type === "NEXUS_HEALED") {
-        setNexusFlash((current) => ({
-          ...current,
-          [event.player]: current[event.player] + 1,
-        }));
-      }
-      if (event.type === "UNIT_LEVELLED_UP") {
-        const unit = getUnitFromEvent(state, event);
-        const name = unit ? getCard(unit.defId).name : getCard(event.toDefId).name;
-        setLevelBanner(name);
-        schedule(() => setLevelBanner((current) => (current === name ? null : current)), 2000);
-      }
-    }
-  }, [state, schedule]);
-
-  return { fx, shaking, hitStop, nexusFlash, levelBanner, impactFlash, impactLabel };
+    if (!state) { previousRef.current = null; return; } const previous = previousRef.current; previousRef.current = state; if (!previous || previous === state || (previous.phase === "gameover" && state.phase !== "gameover")) return;
+    const events = deriveGameEvents(previous, state); if (!events.length) return; const capabilities = getFxCapabilities(); const plans = buildGameEventFxPlans(events, capabilities); const planByEvent = new Map<GameEvent, FxExecutionPlan>(plans.map((plan) => [plan.event, plan])); const stamped: FxEvent[] = []; const lifecycle = lifecycleRef.current;
+    events.forEach((event, index) => { const visual = toFx(event); if (!visual) return; const plan = planByEvent.get(event); stamped.push({ ...visual, ...(plan ? { plan } : {}), pos: locateEvent(event), key: `${Date.now()}_${index}_${"unitId" in event ? event.unitId : event.player}_${event.type}` }); }); if (!stamped.length) return;
+    requestAnimationFrame(() => { if (lifecycle !== lifecycleRef.current) return; for (const plan of plans) { const target = targetForEvent(plan.event); if (plan.renderer !== "timeline") { const animation = playFxDomAnimation(target, plan); if (animation) { animationsRef.current.add(animation); const release = () => animationsRef.current.delete(animation); animation.addEventListener("finish", release, { once: true }); animation.addEventListener("cancel", release, { once: true }); } } else if (!capabilities.reducedMotion && !capabilities.constrained) { void playFxTimeline(target instanceof HTMLElement ? target : null, plan.event, plan).then((timeline) => { if (lifecycle !== lifecycleRef.current) { timeline.cancel(); return; } timelineRef.current.add(timeline); schedule(() => { timeline.cancel(); timelineRef.current.delete(timeline); }, Math.max(1400, plan.durationMs + 400)); }).catch(() => {}); } const particles = playFxParticles(target, plan.event, plan, capabilities.quality); if (particles) { particlesRef.current.add(particles); schedule(() => particlesRef.current.delete(particles), Math.max(1400, plan.durationMs + 300)); } if (!capabilities.reducedMotion && !capabilities.constrained) { const premium = playFxPremiumModifier(target, plan); if (premium) { premiumRef.current.add(premium); schedule(() => premiumRef.current.delete(premium), Math.max(1400, plan.durationMs + 400)); } if (plan.renderer === "gpu" || plan.intensity === "cinematic") { const gpu = playFxGpuOverlay(target, plan.event, plan, capabilities.quality); if (gpu) { gpuRef.current.add(gpu); schedule(() => gpuRef.current.delete(gpu), Math.max(1400, plan.durationMs + 400)); } } } } });
+    setFx((list) => [...list, ...stamped]); const keys = new Set(stamped.map((event) => event.key)); const lifetime = Math.max(1300, ...stamped.map((event) => event.plan?.durationMs ?? 0)); schedule(() => setFx((list) => list.filter((event) => !keys.has(event.key))), lifetime);
+    const allowsDamageShake = plans.some((plan) => plan.allowScreenShake && (plan.event.type === "UNIT_DAMAGED" || plan.event.type === "UNIT_DIED" || plan.event.type === "NEXUS_DAMAGED")); if (events.some(isDamageEvent)) { setImpactFlash("red"); schedule(() => setImpactFlash(null), 260); if (allowsDamageShake) { setHitStop(true); schedule(() => setHitStop(false), 90); } } else if (events.some(isLevelEvent)) { setImpactFlash("gold"); schedule(() => setImpactFlash(null), 420); } else if (events.some(isHealEvent)) { setImpactFlash("cyan"); schedule(() => setImpactFlash(null), 260); }
+    const damageCount = events.filter(isDamageEvent).length; const label = events.some((event) => event.type === "UNIT_LEVELLED_UP") ? "ASCENSÃO" : events.some((event) => event.type === "NEXUS_DAMAGED") ? damageCount >= 3 ? `IMPACTO EM CADEIA ×${damageCount}` : "NEXUS ATINGIDO" : events.some((event) => event.type === "UNIT_DIED") ? damageCount >= 3 ? `COLAPSO ×${damageCount}` : "UNIDADE DESTRUÍDA" : damageCount >= 3 ? `COMBO ×${damageCount}` : null; if (label) { setImpactLabel(label); schedule(() => setImpactLabel((current) => current === label ? null : current), 900); if (damageCount >= 3) import("@/lib/sounds").then(({ sfx }) => sfx.combo(damageCount)).catch(() => {}); }
+    for (const event of events) { playEventSound(event); const plan = planByEvent.get(event); if (event.type === "NEXUS_DAMAGED" && event.player === "player" && plan?.allowScreenShake) { setShaking(true); schedule(() => setShaking(false), 500); } if (event.type === "NEXUS_DAMAGED" || event.type === "NEXUS_HEALED") setNexusFlash((current) => ({ ...current, [event.player]: current[event.player] + 1 })); if (event.type === "UNIT_LEVELLED_UP") { const unit = getUnitFromEvent(state, event); const name = unit ? getCard(unit.defId).name : getCard(event.toDefId).name; setLevelBanner(name); schedule(() => setLevelBanner((current) => current === name ? null : current), 2000); } }
+  }, [state, schedule]); return { fx, shaking, hitStop, nexusFlash, levelBanner, impactFlash, impactLabel };
 }

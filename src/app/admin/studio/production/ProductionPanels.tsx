@@ -6,12 +6,12 @@ import { useDeferredEffect } from "@/hooks/useDeferredEffect";
 export type Row = Record<string, any>;
 const resources = [
   "cards", "keywords", "effects", "archetypes", "races", "classes",
-  "interactions", "collections", "card-meta", "events", "promotions",
+  "interactions", "collections", "card-meta", "events", "promotions", "fx-presets",
 ];
 const labels: Record<string, string> = {
   cards: "Cards", keywords: "Keywords", effects: "Effects", archetypes: "Card Types / Archetypes",
   races: "Races", classes: "Classes", interactions: "Interactions", collections: "Collections",
-  "card-meta": "Card Identity", events: "Events", promotions: "Promotions",
+  "card-meta": "Card Identity", events: "Events", promotions: "Promotions", "fx-presets": "FX Presets",
 };
 
 export function ResourcePicker({ resource, setResource }: { resource: string; setResource: (x: string) => void }) {
