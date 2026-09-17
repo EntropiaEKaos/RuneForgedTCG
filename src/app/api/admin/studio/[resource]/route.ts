@@ -3,101 +3,53 @@ import { db } from "@/db";
 import { desc } from "drizzle-orm";
 import {
   adminKeywords, adminEffects, adminRaces, adminClasses, adminInteractions,
-  adminCollections, adminFxPresets, cardCatalogMeta, adminEvents, adminPromotions, adminCardArchetypes, players, customCards,
+  adminCollections, adminFxPresets, adminFxAssociations, cardCatalogMeta, adminEvents, adminPromotions, adminCardArchetypes, players, customCards,
 } from "@/db/schema";
 import { getAdminSessionContext, isAdminAuthorized, unauthorized, adminRoleAllowed } from "@/lib/admin-auth";
 import { adminAuditLogs } from "@/db/schema";
 import { validateContent, validateContentReferences } from "@/lib/content-pipeline";
 
 export const dynamic = "force-dynamic";
-
-const tables = {
-  cards: customCards,
-  keywords: adminKeywords,
-  effects: adminEffects,
-  archetypes: adminCardArchetypes,
-  races: adminRaces,
-  classes: adminClasses,
-  interactions: adminInteractions,
-  collections: adminCollections,
-  "fx-presets": adminFxPresets,
-  "card-meta": cardCatalogMeta,
-  events: adminEvents,
-  promotions: adminPromotions,
-  players,
-} as const;
-
+const FX_PRESET_IDS = new Set(["summon-default","attack-default","damage-default","heal-default","death-default","levelup-default","poison-default","barrier-default","barrierbreak-default","frost-default","stun-default"]);
+const FX_ASSOCIATION_KINDS = new Set(["card","keyword","race","class","region","rarity","collection","cosmetic","frame"]);
+const tables = { cards: customCards, keywords: adminKeywords, effects: adminEffects, archetypes: adminCardArchetypes, races: adminRaces, classes: adminClasses, interactions: adminInteractions, collections: adminCollections, "fx-presets": adminFxPresets, "fx-associations": adminFxAssociations, "card-meta": cardCatalogMeta, events: adminEvents, promotions: adminPromotions, players } as const;
 type Resource = keyof typeof tables;
 function getTable(resource: string) { return tables[resource as Resource]; }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
-  if (!(await isAdminAuthorized(req))) return unauthorized();
-  const { resource } = await params;
-  const actor = await getAdminSessionContext(req);
-  if (!actor) return unauthorized();
+  if (!(await isAdminAuthorized(req))) return unauthorized(); const { resource } = await params; const actor = await getAdminSessionContext(req); if (!actor) return unauthorized();
   if (resource === "players" && !adminRoleAllowed(actor.role, "admin")) return Response.json({ ok: false, error: "Only admin can view player profiles" }, { status: 403 });
-  const table = getTable(resource);
-  if (!table) return Response.json({ ok: false, error: "Unknown resource" }, { status: 404 });
-  const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit") || 200), 1), 1000);
-  const rows = await db.select().from(table).orderBy(desc((table as any).id)).limit(limit);
-  return Response.json({ ok: true, resource, rows });
+  const table = getTable(resource); if (!table) return Response.json({ ok: false, error: "Unknown resource" }, { status: 404 });
+  const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit") || 200), 1), 1000); const rows = await db.select().from(table).orderBy(desc((table as any).id)).limit(limit); return Response.json({ ok: true, resource, rows });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ resource: string }> }) {
-  if (!(await isAdminAuthorized(req))) return unauthorized();
-  const actor = await getAdminSessionContext(req);
-  if (!actor) return unauthorized();
+  if (!(await isAdminAuthorized(req))) return unauthorized(); const actor = await getAdminSessionContext(req); if (!actor) return unauthorized();
   if (!adminRoleAllowed(actor.role, "designer")) return Response.json({ ok: false, error: `Role ${actor.role} cannot create content` }, { status: 403 });
-  const { resource } = await params;
-  if (resource === "players" && !adminRoleAllowed(actor.role, "admin")) return Response.json({ ok: false, error: "Only admin can manage player profiles" }, { status: 403 });
+  const { resource } = await params; if (resource === "players" && !adminRoleAllowed(actor.role, "admin")) return Response.json({ ok: false, error: "Only admin can manage player profiles" }, { status: 403 });
   if (resource === "players" || resource === "cards") return Response.json({ ok: false, error: resource === "cards" ? "Use the canonical Card Creator API for card creation." : "Player profiles are edited, not created here." }, { status: 405 });
-  const table = getTable(resource);
-  if (!table) return Response.json({ ok: false, error: "Unknown resource" }, { status: 404 });
-  const body = await req.json();
-  const clean = sanitize(resource, body);
-  if (!clean.ok) return Response.json(clean, { status: 400 });
-  const validation = validateContent(resource, clean.value);
-  const refErrors = await validateContentReferences(resource as any, clean.value);
-  if (!validation.passed || refErrors.length) return Response.json({ ok: false, error: "Content failed validation", validation: { ...validation, errors: [...validation.errors, ...refErrors], passed: false } }, { status: 400 });
-  try {
-    const [row] = await db.insert(table).values(clean.value as any).returning();
-    await db.insert(adminAuditLogs).values({ action: "create", resource, resourceId: row.id, actor: actor.actorId, details: { role: actor.role } });
-    return Response.json({ ok: true, row });
-  } catch (e) {
-    return Response.json({ ok: false, error: "Could not create resource. Key may already exist." }, { status: 409 });
-  }
+  const table = getTable(resource); if (!table) return Response.json({ ok: false, error: "Unknown resource" }, { status: 404 }); const body = await req.json(); const clean = sanitize(resource, body); if (!clean.ok) return Response.json(clean, { status: 400 });
+  const validation = validateContent(resource, clean.value); const refErrors = await validateContentReferences(resource as any, clean.value); if (!validation.passed || refErrors.length) return Response.json({ ok: false, error: "Content failed validation", validation: { ...validation, errors: [...validation.errors, ...refErrors], passed: false } }, { status: 400 });
+  try { const [row] = await db.insert(table).values(clean.value as any).returning(); await db.insert(adminAuditLogs).values({ action: "create", resource, resourceId: row.id, actor: actor.actorId, details: { role: actor.role } }); return Response.json({ ok: true, row }); } catch { return Response.json({ ok: false, error: "Could not create resource. Key may already exist." }, { status: 409 }); }
 }
 
 function sanitize(resource: string, body: any): { ok: true; value: any } | { ok: false; error: string } {
-  if (resource === "cards") return { ok: false, error: "Cards must be created through /api/admin/cards." };
-  if (!body || typeof body !== "object") return { ok: false, error: "Invalid JSON body" };
-  const key = typeof body.key === "string" ? body.key.trim() : "";
-  if (!["card-meta"].includes(resource) && !key) return { ok: false, error: "key is required" };
-  if (resource !== "card-meta" && resource !== "players" && !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(key)) return { ok: false, error: "Invalid key format" };
-  const base = { ...body };
-  delete base.id; delete base.createdAt; delete base.updatedAt;
+  if (resource === "cards") return { ok: false, error: "Cards must be created through /api/admin/cards." }; if (!body || typeof body !== "object") return { ok: false, error: "Invalid JSON body" };
+  const key = typeof body.key === "string" ? body.key.trim() : ""; if (!["card-meta"].includes(resource) && !key) return { ok: false, error: "key is required" };
+  if (resource !== "card-meta" && resource !== "players" && resource !== "fx-associations" && !/^[a-z0-9][a-z0-9_-]{1,63}$/.test(key)) return { ok: false, error: "Invalid key format" };
+  if (resource === "fx-associations") {
+    const kind = String(body.kind || "").trim(); const associationKey = key.slice(0, 120); const presetId = String(body.presetId || "").trim(); const priority = Number(body.priority ?? 0);
+    if (!FX_ASSOCIATION_KINDS.has(kind)) return { ok: false, error: "Invalid FX association kind" };
+    if (!associationKey || associationKey.length > 120) return { ok: false, error: "FX association key must contain 1 to 120 characters" };
+    if (!FX_PRESET_IDS.has(presetId)) return { ok: false, error: "Invalid FX association presetId" };
+    if (!Number.isInteger(priority) || priority < -1000 || priority > 1000) return { ok: false, error: "FX association priority must be an integer between -1000 and 1000" };
+    return { ok: true, value: { kind, key: associationKey, presetId, priority, enabled: false } };
+  }
+  const base = { ...body }; delete base.id; delete base.createdAt; delete base.updatedAt;
   if (resource === "keywords") return { ok: true, value: { key, name: String(body.name || key).slice(0, 80), description: String(body.description || "").slice(0, 500), icon: body.icon ? String(body.icon).slice(0, 16) : null, engineKeyword: body.engineKeyword ? String(body.engineKeyword).slice(0, 80) : null, behavior: body.behavior || {}, enabled: false } };
   if (resource === "effects") return { ok: true, value: { key, name: String(body.name || key).slice(0, 80), description: String(body.description || "").slice(0, 500), kind: String(body.kind || "").slice(0, 80), schema: body.schema || {}, enabled: false } };
-  if (resource === "fx-presets") {
-    const renderer = String(body.renderer || "motion");
-    const intensity = String(body.intensity || "standard");
-    const screenShake = body.screenShake == null || body.screenShake === "" ? null : String(body.screenShake);
-    const durationMs = Number(body.durationMs ?? 320);
-    const particleBudget = Number(body.particleBudget ?? 0);
-    const targetFlashMs = body.targetFlashMs == null || body.targetFlashMs === "" ? null : Number(body.targetFlashMs);
-    if (!["motion", "timeline", "gpu"].includes(renderer)) return { ok: false, error: "Invalid FX renderer" };
-    if (!["subtle", "standard", "cinematic"].includes(intensity)) return { ok: false, error: "Invalid FX intensity" };
-    if (screenShake !== null && !["light", "medium"].includes(screenShake)) return { ok: false, error: "Invalid FX screenShake" };
-    if (!Number.isInteger(durationMs) || durationMs < 80 || durationMs > 5000) return { ok: false, error: "FX durationMs must be an integer between 80 and 5000" };
-    if (!Number.isInteger(particleBudget) || particleBudget < 0 || particleBudget > 36) return { ok: false, error: "FX particleBudget must be an integer between 0 and 36" };
-    if (targetFlashMs !== null && (!Number.isInteger(targetFlashMs) || targetFlashMs < 0 || targetFlashMs > 2000)) return { ok: false, error: "FX targetFlashMs must be null or an integer between 0 and 2000" };
-    return { ok: true, value: { key, name: String(body.name || key).slice(0, 80), description: String(body.description || "").slice(0, 500), renderer, intensity, durationMs, particleBudget, screenShake, targetFlashMs, soundCue: body.soundCue ? String(body.soundCue).slice(0, 80) : null, enabled: false } };
-  }
-  if (resource === "archetypes") {
-    const baseType = String(body.baseType || "");
-    if (!["Unit","Spell","Enchantment","Artifact","Equipment","Sentinela"].includes(baseType)) return { ok: false, error: "Invalid archetype baseType" };
-    return { ok: true, value: { key, name: String(body.name || key).slice(0,80), description: String(body.description || "").slice(0,500), baseType, definition: body.definition || {}, enabled: false } };
-  }
+  if (resource === "fx-presets") { const renderer = String(body.renderer || "motion"); const intensity = String(body.intensity || "standard"); const screenShake = body.screenShake == null || body.screenShake === "" ? null : String(body.screenShake); const durationMs = Number(body.durationMs ?? 320); const particleBudget = Number(body.particleBudget ?? 0); const targetFlashMs = body.targetFlashMs == null || body.targetFlashMs === "" ? null : Number(body.targetFlashMs); if (!["motion", "timeline", "gpu"].includes(renderer)) return { ok: false, error: "Invalid FX renderer" }; if (!["subtle", "standard", "cinematic"].includes(intensity)) return { ok: false, error: "Invalid FX intensity" }; if (screenShake !== null && !["light", "medium"].includes(screenShake)) return { ok: false, error: "Invalid FX screenShake" }; if (!Number.isInteger(durationMs) || durationMs < 80 || durationMs > 5000) return { ok: false, error: "FX durationMs must be an integer between 80 and 5000" }; if (!Number.isInteger(particleBudget) || particleBudget < 0 || particleBudget > 36) return { ok: false, error: "FX particleBudget must be an integer between 0 and 36" }; if (targetFlashMs !== null && (!Number.isInteger(targetFlashMs) || targetFlashMs < 0 || targetFlashMs > 2000)) return { ok: false, error: "FX targetFlashMs must be null or an integer between 0 and 2000" }; return { ok: true, value: { key, name: String(body.name || key).slice(0, 80), description: String(body.description || "").slice(0, 500), renderer, intensity, durationMs, particleBudget, screenShake, targetFlashMs, soundCue: body.soundCue ? String(body.soundCue).slice(0, 80) : null, enabled: false } }; }
+  if (resource === "archetypes") { const baseType = String(body.baseType || ""); if (!["Unit","Spell","Enchantment","Artifact","Equipment","Sentinela"].includes(baseType)) return { ok: false, error: "Invalid archetype baseType" }; return { ok: true, value: { key, name: String(body.name || key).slice(0,80), description: String(body.description || "").slice(0,500), baseType, definition: body.definition || {}, enabled: false } }; }
   if (resource === "races") return { ok: true, value: { key, name: String(body.name || key).slice(0, 80), description: String(body.description || "").slice(0, 500), icon: body.icon ? String(body.icon).slice(0, 16) : null, region: body.region ? String(body.region).slice(0, 50) : null, color: body.color ? String(body.color).slice(0, 30) : null, enabled: false } };
   if (resource === "classes") return { ok: true, value: { key, name: String(body.name || key).slice(0, 80), description: String(body.description || "").slice(0, 500), icon: body.icon ? String(body.icon).slice(0, 16) : null, color: body.color ? String(body.color).slice(0, 30) : null, enabled: false } };
   if (resource === "interactions") return { ok: true, value: { name: String(body.name || "Interaction").slice(0, 120), sourceType: String(body.sourceType || "class"), sourceKey: String(body.sourceKey || ""), targetType: String(body.targetType || "class"), targetKey: String(body.targetKey || ""), condition: body.condition || {}, effect: body.effect || {}, priority: Number(body.priority) || 0, enabled: false } };
