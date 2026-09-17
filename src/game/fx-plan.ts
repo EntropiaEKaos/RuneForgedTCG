@@ -1,5 +1,6 @@
 import type { GameEvent } from "./events";
 import { resolveGameEventBatchFx, type FxIntensity, type FxPreset, type FxRenderer, type ResolvedFx } from "./fx-registry";
+import { applyFxPresetOverrides, type FxPresetOverrides } from "./fx-runtime-presets";
 
 export type FxQuality = "low" | "medium" | "high" | "ultra";
 
@@ -47,6 +48,12 @@ export function buildFxExecutionPlan(resolved: ResolvedFx, capabilities: FxCapab
   };
 }
 
-export function buildGameEventFxPlans(events: readonly GameEvent[], capabilities: FxCapabilities): FxExecutionPlan[] {
-  return resolveGameEventBatchFx(events).map((resolved) => buildFxExecutionPlan(resolved, capabilities));
+export function buildGameEventFxPlans(
+  events: readonly GameEvent[],
+  capabilities: FxCapabilities,
+  overrides: FxPresetOverrides = {},
+): FxExecutionPlan[] {
+  return resolveGameEventBatchFx(events)
+    .map((resolved) => applyFxPresetOverrides(resolved, overrides))
+    .map((resolved) => buildFxExecutionPlan(resolved, capabilities));
 }
