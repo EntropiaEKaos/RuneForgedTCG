@@ -21,30 +21,12 @@ export const adminInteractions = pgTable("admin_interactions", { id: serial("id"
 export const adminCollections = pgTable("admin_collections", { id: serial("id").primaryKey(), key: text("key").notNull().unique(), name: text("name").notNull(), description: text("description").notNull().default(""), code: text("code").notNull().unique(), symbol: text("symbol"), banner: text("banner"), releaseDate: timestamp("release_date"), rotationDate: timestamp("rotation_date"), status: text("status").notNull().default("draft"), metadata: jsonb("metadata").notNull().default({}), createdAt: timestamp("created_at").defaultNow().notNull(), updatedAt: timestamp("updated_at").defaultNow().notNull() });
 
 export const adminFxPresets = pgTable("admin_fx_presets", {
-  id: serial("id").primaryKey(),
-  key: text("key").notNull().unique(),
-  name: text("name").notNull(),
-  description: text("description").notNull().default(""),
-  renderer: text("renderer").notNull().default("motion"),
-  intensity: text("intensity").notNull().default("standard"),
-  durationMs: integer("duration_ms").notNull().default(320),
-  particleBudget: integer("particle_budget").notNull().default(0),
-  screenShake: text("screen_shake"),
-  targetFlashMs: integer("target_flash_ms"),
-  soundCue: text("sound_cue"),
-  enabled: boolean("enabled").notNull().default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => ({
-  enabledIdx: index("admin_fx_presets_enabled_idx").on(table.enabled),
-  rendererIdx: index("admin_fx_presets_renderer_idx").on(table.renderer),
-  rendererCheck: check("admin_fx_presets_renderer_check", sql`${table.renderer} in ('motion','timeline','gpu')`),
-  intensityCheck: check("admin_fx_presets_intensity_check", sql`${table.intensity} in ('subtle','standard','cinematic')`),
-  screenShakeCheck: check("admin_fx_presets_screen_shake_check", sql`${table.screenShake} is null or ${table.screenShake} in ('light','medium')`),
-  durationCheck: check("admin_fx_presets_duration_check", sql`${table.durationMs} between 80 and 5000`),
-  particleBudgetCheck: check("admin_fx_presets_particle_budget_check", sql`${table.particleBudget} between 0 and 36`),
-  targetFlashCheck: check("admin_fx_presets_target_flash_check", sql`${table.targetFlashMs} is null or ${table.targetFlashMs} between 0 and 2000`),
-}));
+  id: serial("id").primaryKey(), key: text("key").notNull().unique(), name: text("name").notNull(), description: text("description").notNull().default(""), renderer: text("renderer").notNull().default("motion"), intensity: text("intensity").notNull().default("standard"), durationMs: integer("duration_ms").notNull().default(320), particleBudget: integer("particle_budget").notNull().default(0), screenShake: text("screen_shake"), targetFlashMs: integer("target_flash_ms"), soundCue: text("sound_cue"), enabled: boolean("enabled").notNull().default(false), createdAt: timestamp("created_at").defaultNow().notNull(), updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({ enabledIdx: index("admin_fx_presets_enabled_idx").on(table.enabled), rendererIdx: index("admin_fx_presets_renderer_idx").on(table.renderer), rendererCheck: check("admin_fx_presets_renderer_check", sql`${table.renderer} in ('motion','timeline','gpu')`), intensityCheck: check("admin_fx_presets_intensity_check", sql`${table.intensity} in ('subtle','standard','cinematic')`), screenShakeCheck: check("admin_fx_presets_screen_shake_check", sql`${table.screenShake} is null or ${table.screenShake} in ('light','medium')`), durationCheck: check("admin_fx_presets_duration_check", sql`${table.durationMs} between 80 and 5000`), particleBudgetCheck: check("admin_fx_presets_particle_budget_check", sql`${table.particleBudget} between 0 and 36`), targetFlashCheck: check("admin_fx_presets_target_flash_check", sql`${table.targetFlashMs} is null or ${table.targetFlashMs} between 0 and 2000`) }));
+
+export const adminFxAssociations = pgTable("admin_fx_associations", {
+  id: serial("id").primaryKey(), kind: text("kind").notNull(), key: text("key").notNull(), presetId: text("preset_id").notNull(), priority: integer("priority").notNull().default(0), enabled: boolean("enabled").notNull().default(false), createdAt: timestamp("created_at").defaultNow().notNull(), updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({ kindKeyUnique: unique("admin_fx_associations_kind_key_unique").on(table.kind, table.key), enabledIdx: index("admin_fx_associations_enabled_idx").on(table.enabled), presetIdx: index("admin_fx_associations_preset_idx").on(table.presetId), kindCheck: check("admin_fx_associations_kind_check", sql`${table.kind} in ('card','keyword','race','class','region','rarity','collection','cosmetic','frame')`), presetCheck: check("admin_fx_associations_preset_check", sql`${table.presetId} in ('summon-default','attack-default','damage-default','heal-default','death-default','levelup-default','poison-default','barrier-default','barrierbreak-default','frost-default','stun-default')`), priorityCheck: check("admin_fx_associations_priority_check", sql`${table.priority} between -1000 and 1000`) }));
 
 export const cardCatalogMeta = pgTable("card_catalog_meta", { id: serial("id").primaryKey(), defId: text("def_id").notNull().unique(), collectionId: integer("collection_id"), tags: jsonb("tags").notNull().default([]), classKeys: jsonb("class_keys").notNull().default([]), raceKeys: jsonb("race_keys").notNull().default([]), releaseState: text("release_state").notNull().default("draft"), artUrl: text("art_url"), artCrop: jsonb("art_crop").notNull().default({}), notes: text("notes"), createdAt: timestamp("created_at").defaultNow().notNull(), updatedAt: timestamp("updated_at").defaultNow().notNull() });
 export const adminEvents = pgTable("admin_events", { id: serial("id").primaryKey(), key: text("key").notNull().unique(), name: text("name").notNull(), description: text("description").notNull().default(""), type: text("type").notNull().default("event"), status: text("status").notNull().default("draft"), startsAt: timestamp("starts_at"), endsAt: timestamp("ends_at"), rules: jsonb("rules").notNull().default({}), rewards: jsonb("rewards").notNull().default([]), metadata: jsonb("metadata").notNull().default({}), createdAt: timestamp("created_at").defaultNow().notNull(), updatedAt: timestamp("updated_at").defaultNow().notNull() });
