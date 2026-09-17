@@ -119,7 +119,7 @@ export function commandCenterIntelligence(input: CommandCenterPulseInput) {
   const signals: IntelligenceSignal[] = [
     { id: "dau-mau", label: "DAU / MAU", value: stickiness, unit: "percent", status: input.mau > 0 ? statusForRate(stickiness, 20, 10) : "neutral", detail: "Frequência diária dentro da base mensal ativa." },
     { id: "dau-wau", label: "DAU / WAU", value: weeklyReturn, unit: "percent", status: input.wau > 0 ? statusForRate(weeklyReturn, 35, 18) : "neutral", detail: "Frequência diária dentro da base semanal ativa." },
-    { id: "match-completion", label: "Conclusão PvP 24h", value: matchCompletion, unit: "percent", status: input.pvpCreated24h > 0 ? statusForRate(matchCompletion, 85, 65) : "neutral", detail: "Salas PvP finalizadas sobre salas criadas nas últimas 24h." },
+    { id: "match-completion", label: "Conclusão PvP 24h", value: matchCompletion, unit: "percent", status: input.pvpCreated24h > 0 ? statusForRate(matchCompletion, 85, 65) : "neutral", detail: "Salas criadas nas últimas 24h que já estão finalizadas." },
     { id: "payment-approval", label: "Aprovação pagamentos 24h", value: paymentApproval, unit: "percent", status: input.orders24h > 0 ? statusForRate(paymentApproval, 80, 60) : "neutral", detail: "Pedidos aprovados/fulfilled sobre pedidos criados nas últimas 24h." },
   ];
 
