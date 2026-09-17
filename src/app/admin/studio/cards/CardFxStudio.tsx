@@ -14,7 +14,12 @@ const PRESET_IDS = Object.keys(FORGED_FX_PRESETS) as FxPresetId[];
 const presetFor = (id: FxPresetId): FxPreset => FORGED_FX_PRESETS[id];
 const rendererLabel = { motion: "Motion", timeline: "GSAP Timeline", gpu: "WebGL" } as const;
 const intensityLabel = { subtle: "Subtle", standard: "Standard", cinematic: "Cinematic" } as const;
-type EditablePreset = FxPreset & { screenShake?: "light" | "medium" };
+type EditablePreset = Omit<FxPreset, "screenShake"> & { screenShake?: "light" | "medium" };
+const editablePresetFor = (id: FxPresetId): EditablePreset => {
+  const preset = presetFor(id);
+  const { screenShake, ...rest } = preset;
+  return { ...rest, screenShake: screenShake === "light" || screenShake === "medium" ? screenShake : undefined };
+};
 
 function previewEvent(id: FxPresetId): GameEvent {
   const base = { player: "player" as const, unitId: "studio-fx-preview" };
@@ -35,7 +40,7 @@ function previewEvent(id: FxPresetId): GameEvent {
 
 export default function CardFxStudio() {
   const [presetId, setPresetId] = useState<FxPresetId>("summon-default");
-  const [draft, setDraft] = useState<EditablePreset>(() => ({ ...presetFor("summon-default") }));
+  const [draft, setDraft] = useState<EditablePreset>(() => editablePresetFor("summon-default"));
   const [playing, setPlaying] = useState(false);
   const targetRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,7 +64,7 @@ export default function CardFxStudio() {
     cleanup();
     setPlaying(false);
     setPresetId(id);
-    setDraft({ ...presetFor(id) });
+    setDraft(editablePresetFor(id));
   }
 
   function patchDraft(patch: Partial<EditablePreset>) {
@@ -71,7 +76,7 @@ export default function CardFxStudio() {
   function resetDraft() {
     cleanup();
     setPlaying(false);
-    setDraft({ ...presetFor(presetId) });
+    setDraft(editablePresetFor(presetId));
   }
 
   function preview() {
