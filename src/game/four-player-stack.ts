@@ -26,6 +26,13 @@ export function pushFourPlayerStackItem<TPayload>(
   return { ...state, items: [...state.items, item] };
 }
 
+export function removeFourPlayerStackItemsByController(
+  state: FourPlayerStackState,
+  controller: FourPlayerSeat,
+): FourPlayerStackState {
+  return { ...state, items: state.items.filter((item) => item.controller !== controller) };
+}
+
 export function peekFourPlayerStack(state: FourPlayerStackState): FourPlayerStackItem | undefined {
   return state.items[state.items.length - 1];
 }
