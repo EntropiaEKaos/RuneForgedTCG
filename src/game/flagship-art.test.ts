@@ -156,8 +156,8 @@ assert.deepEqual(
 );
 assert.equal(
   priorityQueue.filter((row) => row.priority === "P1").length,
-  31,
-  "Alpha P1 Batch 3 activation must leave exactly 31 P1 cards pending",
+  26,
+  "Alpha P1 Batch 4 activation must leave exactly 26 P1 cards pending",
 );
 assert.ok(priorityQueue.every((row, index) => index === 0 || priorityQueue[index - 1].score >= row.score));
 
