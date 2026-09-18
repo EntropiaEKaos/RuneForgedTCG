@@ -302,9 +302,9 @@ async function main() {
         hasUpload:[...document.querySelectorAll('label')].some((x)=>(x.textContent||'').includes('Upload imagem')),
         hasFrameBuilder:sourceText.includes('Frame Builder'),
         hasP0Stat:sourceText.includes('P0 pendentes'),
-        hasCoverage61:sourceText.includes('61') && sourceText.includes('com arte'),
-        hasStarterMissing79:sourceText.includes('79') && sourceText.includes('sem arte'),
-        hasP1Pending36:sourceText.includes('36') && sourceText.includes('P1'),
+        coverage61:document.querySelector('[data-art-stat="com-arte"]')?.getAttribute('data-art-stat-value') || null,
+        starterMissing79:document.querySelector('[data-art-stat="starter-sem-arte"]')?.getAttribute('data-art-stat-value') || null,
+        p1Pending36:document.querySelector('[data-art-stat="p1-pendentes"]')?.getAttribute('data-art-stat-value') || null,
         hasAlphaPriority:sourceText.includes('Prioridade Alpha'),
         hasQueueLegend:sourceText.includes('Fila Alpha:') && sourceText.includes('P0') && sourceText.includes('P1') && sourceText.includes('P2'),
         queueOptions
@@ -317,9 +317,9 @@ async function main() {
     assert.equal(artEvidence.hasUpload, true);
     assert.equal(artEvidence.hasFrameBuilder, true);
     assert.equal(artEvidence.hasP0Stat, true, "Art Pipeline must render the P0 pending stat from source text, independent of CSS text-transform");
-    assert.equal(artEvidence.hasCoverage61, true, "Art Pipeline must expose 61 cards with dedicated art after P1 Batch 2 activation");
-    assert.equal(artEvidence.hasStarterMissing79, true, "Art Pipeline must expose 79 starter cards still missing dedicated art after P1 Batch 2 activation");
-    assert.equal(artEvidence.hasP1Pending36, true, "Art Pipeline must expose the remaining P1 queue of 36 after Batch 2 activation");
+    assert.equal(artEvidence.coverage61, "61", "Art Pipeline must expose 61 cards with dedicated art after P1 Batch 2 activation");
+    assert.equal(artEvidence.starterMissing79, "79", "Art Pipeline must expose 79 starter cards still missing dedicated art after P1 Batch 2 activation");
+    assert.equal(artEvidence.p1Pending36, "36", "Art Pipeline must expose the remaining P1 queue of 36 after Batch 2 activation");
     assert.equal(artEvidence.hasAlphaPriority, true);
     assert.equal(artEvidence.hasQueueLegend, true, "Art Pipeline must explain P0/P1/P2 priority tiers");
     assert.deepEqual(artEvidence.queueOptions, ["alpha","p0","missing","all"], "Art Pipeline queue filters must expose Alpha/P0/missing/all scopes");
