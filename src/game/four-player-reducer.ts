@@ -1,6 +1,6 @@
 import { declareFourPlayerAttacker, declareFourPlayerBlocker } from "./four-player-combat";
 import { passFourPlayerFlow, submitFourPlayerAction } from "./four-player-flow";
-import { assertGeneralCastTiming, castGeneralFromZone } from "./four-player-general-zone";
+import { assertGeneralCastTiming, castGeneralFromZone, generalCastCost } from "./four-player-general-zone";
 import {
   advanceFourPlayerMatchTurn,
   eliminateFourPlayerMatchSeat,
@@ -66,8 +66,16 @@ export function reduceFourPlayerServerEvent(
     case "cast_general": {
       assertPriorityHolder(state, event.actor);
       assertGeneralCastTiming(state.turn.activeSeat, state.phase, state.resolution.stack.items.length, event.actor);
-      const general = castGeneralFromZone(state.generals[event.actor]);
+      const currentGeneral = state.generals[event.actor];
+      const cost = generalCastCost(currentGeneral, state.generalPrintedCosts[event.actor]);
+      const seat = state.seats[event.actor];
+      if (seat.mana < cost) throw new Error(`Insufficient mana to cast General: requires ${cost}, has ${seat.mana}.`);
+      const general = castGeneralFromZone(currentGeneral);
       const withGeneral = updateMatchGeneral(state, event.actor, general);
+      const paidState: FourPlayerMatchState = {
+        ...withGeneral,
+        seats: { ...withGeneral.seats, [event.actor]: { ...withGeneral.seats[event.actor], mana: seat.mana - cost } },
+      };
       const stackItem: FourPlayerStackItem<{ owner: FourPlayerServerEvent["actor"]; defId: string }> = {
         id: `general:${event.actor}:${general.castsFromGeneralZone}:${event.eventId}`,
         controller: event.actor,
@@ -75,8 +83,8 @@ export function reduceFourPlayerServerEvent(
         payload: { owner: event.actor, defId: general.defId },
       };
       return {
-        ...withGeneral,
-        resolution: submitFourPlayerAction(withGeneral.resolution, stackItem),
+        ...paidState,
+        resolution: submitFourPlayerAction(paidState.resolution, stackItem),
       };
     }
 
