@@ -26,8 +26,9 @@ function handFanStyle(index: number, count: number): HandFanStyle {
   };
 }
 
-export function PlayerHand({ state, reaction, pendingSpell, pendingReaction, isPlayerMain, expanded, onToggle, onCardClick }: {
+export function PlayerHand({ state, appearanceAssets, reaction, pendingSpell, pendingReaction, isPlayerMain, expanded, onToggle, onCardClick }: {
   state: GameState;
+  appearanceAssets?: Record<string, number>;
   reaction: ReactionPending | null;
   pendingSpell: PendingSpell | null;
   pendingReaction: PendingSpell | null;
@@ -69,6 +70,7 @@ export function PlayerHand({ state, reaction, pendingSpell, pendingReaction, isP
             <div key={cardInstance.instanceId} className="tcg-hand-card" style={handFanStyle(index, hand.length)}>
               <CardTip
                 defId={cardInstance.defId}
+                assetId={appearanceAssets?.[cardInstance.defId]}
                 state={state}
                 size="md"
                 dimmed={dim}
