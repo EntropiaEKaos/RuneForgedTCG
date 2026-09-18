@@ -161,6 +161,7 @@ jobs:
           npm run test:e2e:http
           node scripts/alpha-pvp-lobby-preflight.mjs
           node scripts/alpha-visual-journey.mjs
+          node scripts/alpha-trading-2-visual-cert.mjs
           node scripts/alpha-ranked-visual-cert.mjs
           node scripts/alpha-draft-visual-cert.mjs
           node scripts/alpha-cosmetic-prestige-visual-cert.mjs
