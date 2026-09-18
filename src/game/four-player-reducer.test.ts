@@ -35,6 +35,8 @@ assert.throws(
 
 match = createFourPlayerMatchState("p1");
 assert.throws(() => reduceFourPlayerServerEvent(match, event("cast_general", "p2")), /Only priority holder p1/);
+assert.throws(() => reduceFourPlayerServerEvent(match, event("cast_general", "p1")), /main phase/);
+match = { ...match, phase: "main_1" };
 match = reduceFourPlayerServerEvent(match, event("cast_general", "p1"));
 assert.equal(match.generals.p1.location, "stack");
 assert.equal(match.seats.p1.generalCastsFromZone, 1);
