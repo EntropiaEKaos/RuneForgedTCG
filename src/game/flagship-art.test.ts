@@ -145,10 +145,9 @@ assert.deepEqual(
   "Alpha P1 activation must keep the P0 production queue exhausted",
 );
 assert.equal(
-  priorityQueue.filter((row) => row.priority === "P1").length,
-  36,
-  "Alpha P1 Batch 2 activation must leave exactly 36 P1 cards pending",
+  priorityQueue.filter((row) => row.priority === "P1").length,\n  31,
+  "Alpha P1 Batch 3 activation must leave exactly 31 P1 cards pending",
 );
 assert.ok(priorityQueue.every((row, index) => index === 0 || priorityQueue[index - 1].score >= row.score));
 
-console.log("FORGED ALPHA FLAGSHIP + ACTIVE PRIORITY ART: 61 covered / 79 starter backlog / 0 P0 pending / 36 P1 pending / PASS");
+console.log("FORGED ALPHA FLAGSHIP + ACTIVE PRIORITY ART: 66 covered / 74 starter backlog / 0 P0 pending / 31 P1 pending / PASS");
