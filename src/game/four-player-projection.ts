@@ -19,6 +19,10 @@ export interface FourPlayerProjectedSeatState {
   publicBoard: readonly string[];
   nexusHealth: number;
   eliminated: boolean;
+  life?: number;
+  mana?: number;
+  maxMana?: number;
+  generalDamageReceived?: Partial<Record<FourPlayerSeat, number>>;
   hand?: readonly string[];
 }
 
@@ -56,8 +60,14 @@ export function projectFourPlayerStateForSeat(
       deckCount: source.deck.length,
       graveyard: [...source.graveyard],
       publicBoard: [...source.publicBoard],
-      nexusHealth: source.nexusHealth,
-      eliminated: source.eliminated,
+      nexusHealth: match ? match.seats[seat].life : source.nexusHealth,
+      eliminated: match ? match.seats[seat].eliminated : source.eliminated,
+      ...(match ? {
+        life: match.seats[seat].life,
+        mana: match.seats[seat].mana,
+        maxMana: match.seats[seat].maxMana,
+        generalDamageReceived: { ...match.seats[seat].generalDamageReceived },
+      } : {}),
       ...(own ? { hand: [...source.hand] } : {}),
     };
     return [seat, value];
