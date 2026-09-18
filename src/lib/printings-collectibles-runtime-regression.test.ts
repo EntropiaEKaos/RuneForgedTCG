@@ -16,11 +16,13 @@ function main() {
   assert.match(collectionClient, /Printings especiais/, "collection detail panel must surface special copies");
   assert.match(collectionClient, /href="\/collection\/variants"/, "collection must link to the exact-copy wardrobe");
 
+  const bootstrap = read("src/components/CatalogBootstrap.tsx");
+  assert.match(bootstrap, /fetch\("\/api\/player\/cosmetics"/, "global catalog bootstrap must hydrate player printing preferences");
+  assert.match(bootstrap, /replacePlayerCardCosmeticPreferences\(data\.preferences\)/, "global presentation registry must receive exact-copy printing preferences");
+
   const forge = read("src/app/forge/ForgeClient.tsx");
-  assert.match(forge, /loadPrintingPreferences/, "Deck Builder must hydrate player printing preferences");
-  assert.match(forge, /replacePlayerCardCosmeticPreferences/, "Deck Builder must update the shared presentation registry");
-  assert.match(forge, /label="Printings"/, "Deck Builder must expose active special printings");
-  assert.match(forge, /href="\/collection\/variants"/, "Deck Builder must provide direct access to printing selection");
+  assert.match(forge, /<CardTip key=\{card\.defId\}/, "Deck Builder must render cards through the shared appearance-aware CardTip/CardView path");
+  assert.match(forge, /body: JSON\.stringify\(\{ name, emoji, formatId, cards: list \}\)/, "Deck Builder persistence must remain gameplay-only defId lists");
 
   const packApi = read("src/app/api/packs/route.ts");
   assert.match(packApi, /createPackCollectibleAsset/, "pack opening must mint one collectible asset per retained card copy");
