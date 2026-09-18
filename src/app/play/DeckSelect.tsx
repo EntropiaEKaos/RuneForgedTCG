@@ -20,6 +20,7 @@ export interface SavedDeck {
   name: string;
   emoji: string;
   cards: string[];
+  appearanceAssets?: Record<string, number>;
 }
 
 /**
@@ -57,6 +58,12 @@ export default function DeckSelect({
     const presetId = deckKey.startsWith("preset:") ? deckKey.slice(7) : deckKey;
     return (presetDecks.find((deck) => deck.id === presetId) ?? presetDecks[0] ?? DECKS[0]).cards;
   }, [deckKey, customDecks, presetDecks]);
+
+  const previewAppearanceAssets = useMemo(() => {
+    if (!deckKey.startsWith("custom:")) return {} as Record<string, number>;
+    const id = Number(deckKey.slice(7));
+    return customDecks.find((deck) => deck.id === id)?.appearanceAssets || {};
+  }, [deckKey, customDecks]);
 
   const unique = useMemo(() => {
     const seen = new Map<string, number>();
@@ -191,7 +198,7 @@ export default function DeckSelect({
           </h4>
           <div className="flex flex-wrap justify-center gap-2">
             {unique.map(([id, count]) => (
-              <CardTip key={id} defId={id} size="sm" count={count} />
+              <CardTip key={id} defId={id} assetId={previewAppearanceAssets[id]} size="sm" count={count} />
             ))}
           </div>
         </div>
