@@ -33,8 +33,8 @@ assert.equal(liveP0.length, 0, "Later P1 activation must not reintroduce any P0 
 
 const snapshot = alphaArtBacklogSnapshot();
 assert.equal(snapshot.uniqueStarterCards, 140, "Starter art universe must remain 140 unique cards");
-assert.equal(snapshot.covered, 71, "30 Flagship + 21 P0 + twenty P1 masters must report 66 covered starter cards");
-assert.equal(snapshot.missing, 69, "P1 Batch 4 activation must leave 74 starter cards without dedicated art");
+assert.equal(snapshot.covered, 71, "30 Flagship + 21 P0 + twenty P1 masters must report 71 covered starter cards");
+assert.equal(snapshot.missing, 69, "P1 Batch 4 activation must leave 69 starter cards without dedicated art");
 assert.equal(snapshot.byPriority.P0, 0, "P1 Batch 4 activation must keep the P0 queue exhausted");
 assert.equal(snapshot.byPriority.P1, 26, "P1 Batch 4 activation must leave 26 P1 cards pending");
 assert.equal(snapshot.byPriority.P2, 43, "P1 Batch 4 activation must not change the P2 queue");
