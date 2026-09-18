@@ -28,7 +28,7 @@ import { readFileSync } from "node:fs";
  * frozen. Full CI, notebook/mobile browser certificates and the complete Alpha
  * Visual Journey are mandatory before this client-shell candidate is promoted.
  *
- * Battlefield Premium 1.6 break-glass 2026-09-17: layout.tsx is intentionally
+ * Frames & Rarity Runtime break-glass 2026-09-18: CardView.tsx is intentionally\n * recertified to consume the already-certified cardRarityPresentationContract.\n * This exposes rarity id/rank/FX semantics and shared ornament classes on the\n * live card while leaving CardDef rarity, gameplay stats/rules, ownership, pack\n * probability and economy authority unchanged. Full CI/browser evidence is\n * mandatory before promotion.\n *\n * Battlefield Premium 1.6 break-glass 2026-09-17: layout.tsx is intentionally
  * recertified only to mount forged-battlefield-premium-1-6.css immediately after
  * the certified Visual 4.4 battlefield UX layer. This is a presentation-only CSS
  * layer; BattleView.tsx, CardView.tsx, ArenaIdentity.tsx, engine/rules/APIs/state
@@ -39,7 +39,7 @@ import { readFileSync } from "node:fs";
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
   "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
-  "src/components/CardView.tsx": "f148ebeec0576f60adf2d004055ec6707dc34df1",
+  "src/components/CardView.tsx": "edd582233b063110d7ca07028b83229236a74553",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
   "src/app/styles/visual-3-0-battlefield-cinematic.css": "3bf86d3b3729265db77b7ec8c92f58ae8a6bb04b",
   "src/app/styles/visual-3-1-card-presentation.css": "d5e6cafb58ce0aa759d249d2332b7753294042bd",
@@ -140,4 +140,4 @@ assert.equal(
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
 
-console.log("FORGED ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Battlefield Premium 1.6 break-glass recorded");
+console.log("FORGED ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Frames & Rarity Runtime break-glass recorded");

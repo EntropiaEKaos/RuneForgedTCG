@@ -7,6 +7,7 @@ import { strategicRoleForCard } from "@/game/card-role";
 import { getCardCollection, type CardCollectionIdentity } from "@/game/card-collections";
 import { getCardArt } from "@/game/card-art";
 import { cosmeticClassNames, resolveCardAppearance } from "@/game/card-cosmetics";
+import { cardRarityPresentationContract } from "@/game/card-rarity-presentation-contract";
 import { getClientArtFallbackUrl } from "@/game/client-game-config";
 import { certifiedSemanticCardType, semanticCardTypeLabel } from "@/game/semantic-card-types";
 import CollectionSymbolMark from "./CollectionSymbolMark";
@@ -70,6 +71,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
   const style = REGION_STYLE[def.region];
   const appearance = resolveCardAppearance(def.defId);
   const cosmeticClasses = cosmeticClassNames(appearance);
+  const rarityPresentation = cardRarityPresentationContract(def.rarity);
   const configuredFallbackArt = getClientArtFallbackUrl();
   const artAssignment = getCardArt(def.defId);
   const primaryArtUrl = artAssignment?.url || def.art || configuredFallbackArt || null;
@@ -98,7 +100,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
   // acabamento visual de raridade — uma Unidade ou Feitiço Épico/Lendário
   // ficava visualmente idêntico a um Comum do mesmo tipo. Preenche essa
   // lacuna sem duplicar o brilho de quem já tem tratamento por tipo.
-  const rarityTier = rarity ? "" : `card-tier-${(def.rarity || "Common").toLowerCase()}`;
+  const rarityTier = rarity ? "" : rarityPresentation.classes.join(" ");
   const rarityLabel = isChamp ? "CAMPEÃO" : def.rarity === "Legend" ? "LENDÁRIA" : def.rarity === "Epic" ? "ÉPICA" : def.rarity === "Rare" ? "RARA" : "COMUM";
   const role = strategicRoleForCard(def);
   const cardState = targetable ? "targetable" : selected ? "selected" : attacking ? "attacking" : dimmed ? "dimmed" : onClick ? "playable" : "idle";
@@ -109,7 +111,9 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
       data-card-region={def.region.toLowerCase()}
       data-card-region-count={regions.length}
       data-card-identity={identity.key}
-      data-card-rarity={(def.rarity || "Common").toLowerCase()}
+      data-card-rarity={rarityPresentation.attributes["data-card-rarity"]}
+      data-card-rarity-rank={rarityPresentation.attributes["data-card-rarity-rank"]}
+      data-card-rarity-fx={rarityPresentation.attributes["data-card-rarity-fx"]}
       data-card-type={def.type.toLowerCase()}
       data-card-semantic-type={semanticType?.key || "base"}
       data-card-art-source={artSource}

@@ -48,7 +48,10 @@ assert.ok(
 );
 
 assert.ok(cardView.includes("data-card-region={def.region.toLowerCase()}"), "CardView must continue exposing region semantics for presentation/accessibility");
-assert.ok(cardView.includes("data-card-rarity={(def.rarity || \"Common\").toLowerCase()}"), "CardView must continue exposing rarity semantics");
+assert.ok(cardView.includes('data-card-rarity={rarityPresentation.attributes["data-card-rarity"]}'), "CardView must expose rarity semantics through the certified presentation contract");
+assert.ok(cardView.includes('const rarityPresentation = cardRarityPresentationContract(def.rarity);'), "CardView must resolve the shared rarity presentation contract instead of duplicating rarity policy");
+assert.ok(cardView.includes('data-card-rarity-rank={rarityPresentation.attributes["data-card-rarity-rank"]}'), "CardView must expose deterministic rarity rank");
+assert.ok(cardView.includes('data-card-rarity-fx={rarityPresentation.attributes["data-card-rarity-fx"]}'), "CardView must expose presentation-only rarity FX intent");
 assert.ok(cardView.includes("data-card-state={cardState}"), "CardView must continue exposing authoritative presentation state");
 assert.ok(cardInfo.includes('data-card-intelligence-panel="true"'), "Card intelligence panel contract must remain available");
 
