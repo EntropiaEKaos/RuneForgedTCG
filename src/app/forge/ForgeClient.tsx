@@ -8,7 +8,6 @@ import { REGION_STYLE } from "@/components/CardView";
 import SiteNav from "@/components/SiteNav";
 import { CARD_REGIONS } from "@/game/card-authoring";
 import { collectibleCards, getCard } from "@/game/cards";
-import { replacePlayerCardCosmeticPreferences } from "@/game/card-cosmetics";
 import { analyzeDeck, type DeckInsight } from "@/game/deck-insights";
 import { validateDeck } from "@/game/decks";
 import type { FormatDef } from "@/game/format-definitions";
@@ -18,15 +17,6 @@ import { getRuntimeDeckRules } from "@/game/runtime-config";
 import { analyzeDeckSynergy, recommendSynergies } from "@/game/synergy-graph";
 import type { Region } from "@/game/types";
 import { ensurePlayerSession } from "@/lib/client-player-session";
-
-interface PrintingPreference {
-  defId: string;
-  assetId: number;
-  variantId: string;
-  frameId: string;
-  finish: string;
-  serialNumber?: number | null;
-}
 
 interface SavedDeck {
   id: number;
@@ -104,7 +94,6 @@ export default function ForgeClient() {
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [printingPreferences, setPrintingPreferences] = useState<PrintingPreference[]>([]);
 
   void catalogRevision;
   const deckRules = getRuntimeDeckRules();
@@ -131,25 +120,13 @@ export default function ForgeClient() {
     }
   }, []);
 
-  const loadPrintingPreferences = useCallback(async () => {
-    try {
-      const response = await fetch("/api/player/cosmetics", { cache: "no-store" });
-      const payload = await response.json();
-      const preferences = payload.ok && Array.isArray(payload.preferences) ? payload.preferences as PrintingPreference[] : [];
-      setPrintingPreferences(preferences);
-      replacePlayerCardCosmeticPreferences(preferences);
-    } catch {
-      setPrintingPreferences([]);
-    }
-  }, []);
-
   useEffect(() => {
     let cancelled = false;
     void ensurePlayerSession(localStorage.getItem("runeforge_playername") || "")
       .then(async (profile) => {
         if (cancelled) return;
         if (profile.player?.name) setPlayerName(String(profile.player.name));
-        await Promise.all([loadDecks(), loadPrintingPreferences()]);
+        await loadDecks();
       })
       .catch(() => {
         if (!cancelled) {
@@ -158,7 +135,7 @@ export default function ForgeClient() {
         }
       });
     return () => { cancelled = true; };
-  }, [loadDecks, loadPrintingPreferences]);
+  }, [loadDecks]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,11 +169,6 @@ export default function ForgeClient() {
   const selectedFormat = formats.find((format) => format.id === formatId) ?? formats[0] ?? FALLBACK_FORMAT;
   const identity = check.regions.length > 0 ? identityForRegions(check.regions) : null;
   const uniqueCards = counts.size;
-  const printingByDef = useMemo(() => new Map(printingPreferences.map((preference) => [preference.defId, preference])), [printingPreferences]);
-  const activePrintingCount = useMemo(() => [...counts.keys()].filter((defId) => {
-    const preference = printingByDef.get(defId);
-    return Boolean(preference && preference.variantId !== "standard");
-  }).length, [counts, printingByDef]);
   const progress = deckMax > 0 ? Math.min(100, Math.round((list.length / deckMax) * 100)) : 0;
 
   const pool = useMemo(() => {
@@ -359,18 +331,16 @@ export default function ForgeClient() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/collection" className="rf-button rf-button-secondary">COLEÇÃO</Link>
-            <Link href="/collection/variants" className="rf-button rf-button-secondary">VARIANTES</Link>
             <Link href="/community" className="rf-button rf-button-secondary">COMUNIDADE</Link>
             <Link href="/play" className="rf-button rf-button-primary">JOGAR</Link>
           </div>
         </header>
 
-        <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="Resumo da Forja">
+        <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Resumo da Forja">
           <SummaryCard label="Deck" value={`${list.length}/${deckMax}`} detail={`${deckMin}–${deckMax} cartas permitidas`} />
           <SummaryCard label="Cartas únicas" value={uniqueCards} detail={`máximo ${maxCopies} cópias por carta`} />
           <SummaryCard label="Identidade" value={identity?.name ?? "Em aberto"} detail={check.regions.length ? check.regions.join(" · ") : `até ${deckRules.maxRegions} regiões`} />
           <SummaryCard label="Formato" value={selectedFormat.name} detail="regras do formato ativas" />
-          <SummaryCard label="Printings" value={activePrintingCount} detail="versões especiais ativas no deck" />
           <SummaryCard label="Invocador" value={playerName || "Sincronizando"} detail={`${saved.length} deck(s) salvo(s)`} />
         </section>
 
@@ -493,7 +463,7 @@ export default function ForgeClient() {
                 return (
                   <li key={id}>
                     <button type="button" onClick={() => removeCard(id)} className="flex w-full items-center justify-between gap-2 rounded-lg border border-transparent px-2 py-1.5 text-left hover:border-white/10 hover:bg-white/[.035]" aria-label={`Remover uma cópia de ${card.name}`}>
-                      <span className="min-w-0 truncate"><span className="mr-2 inline-block w-4 text-center font-black text-sky-300">{card.cost}</span>{card.emoji} {card.name}{printingByDef.get(id)?.variantId && printingByDef.get(id)?.variantId !== "standard" ? <span className="ml-2 rounded border border-violet-300/20 bg-violet-300/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider text-violet-200">VARIANTE</span> : null}</span><span className={`shrink-0 font-black ${style.text}`}>×{amount}</span>
+                      <span className="min-w-0 truncate"><span className="mr-2 inline-block w-4 text-center font-black text-sky-300">{card.cost}</span>{card.emoji} {card.name}</span><span className={`shrink-0 font-black ${style.text}`}>×{amount}</span>
                     </button>
                   </li>
                 );
