@@ -81,7 +81,7 @@ recast = {
   seats: { ...recast.seats, p1: { ...recast.seats.p1, generalCastsFromZone: 1 } },
 };
 recast = reduceFourPlayerServerEvent(recast, event("cast_general", "p1"));
-assert.equal(recast.seats.p1.mana, 5); // printed 5 + recast tax 2
+assert.equal(recast.seats.p1.mana, 3); // first-turn grant caps 12 at 10; printed 5 + recast tax 2 leaves 3
 assert.equal(recast.generals.p1.castsFromGeneralZone, 2);
 
 match = createFourPlayerMatchState("p1");
