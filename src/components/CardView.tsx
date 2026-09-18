@@ -61,25 +61,25 @@ export function KeywordChips({ keywords, compact = false }: { keywords: Keyword[
 }
 
 export interface CardViewProps {
-  defId: string; definition?: CardDef; collection?: CardCollectionIdentity | null; unit?: UnitInstance; state?: GameState; size?: "sm" | "md" | "lg"; selected?: boolean; dimmed?: boolean; targetable?: boolean; attacking?: boolean; count?: number; costOverride?: number; className?: string; onClick?: () => void;
+  defId: string; definition?: CardDef; collection?: CardCollectionIdentity | null; unit?: UnitInstance; state?: GameState; size?: "sm" | "md" | "lg"; selected?: boolean; dimmed?: boolean; targetable?: boolean; attacking?: boolean; count?: number; costOverride?: number; variantId?: string | null; assetId?: number | null; className?: string; onClick?: () => void;
 }
 
-function CardView({ defId, definition, collection: collectionOverride, unit, state, size = "md", selected, dimmed, targetable, attacking, count, costOverride, className, onClick }: CardViewProps) {
+function CardView({ defId, definition, collection: collectionOverride, unit, state, size = "md", selected, dimmed, targetable, attacking, count, costOverride, variantId, assetId, className, onClick }: CardViewProps) {
   useCatalogRevision();
   const def: CardDef = definition ?? getCard(defId);
   const collection = collectionOverride === undefined ? getCardCollection(def.defId) : collectionOverride;
   const style = REGION_STYLE[def.region];
-  const appearance = resolveCardAppearance(def.defId);
+  const appearance = resolveCardAppearance(def.defId, variantId, assetId);
   const cosmeticClasses = cosmeticClassNames(appearance);
   const rarityPresentation = cardRarityPresentationContract(def.rarity);
   const configuredFallbackArt = getClientArtFallbackUrl();
   const artAssignment = getCardArt(def.defId);
-  const primaryArtUrl = artAssignment?.url || def.art || configuredFallbackArt || null;
+  const primaryArtUrl = appearance.artUrl || artAssignment?.url || def.art || configuredFallbackArt || null;
   const artSource = appearance.artUrl ? "cosmetic" : artAssignment?.url ? "editorial" : def.art ? "definition" : configuredFallbackArt ? "configured-fallback" : "regional-fallback";
   const artBackground = primaryArtUrl && primaryArtUrl !== style.art
     ? `${cssBackgroundUrl(primaryArtUrl)}, ${cssBackgroundUrl(style.art)}`
     : cssBackgroundUrl(style.art);
-  const artCrop = artAssignment?.crop;
+  const artCrop = appearance.artUrl ? appearance.artCrop : artAssignment?.crop;
   const semanticType = certifiedSemanticCardType(def);
   const regions = cardRegions(def);
   const identity = identityForRegions(regions);
