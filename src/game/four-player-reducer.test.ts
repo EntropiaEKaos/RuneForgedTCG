@@ -47,7 +47,7 @@ assert.deepEqual(match.resolution.stack.items[0]?.payload, { owner: "p1", defId:
 assert.equal(match.resolution.priority.holder, "p2");
 assert.throws(() => reduceFourPlayerServerEvent(match, event("cast_general", "p1")), /Only priority holder p2/);
 
-let timing = { ...createFourPlayerMatchState("p1"), phase: "main_2" as const };
+let timing: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "main_2" };
 timing = reduceFourPlayerServerEvent(timing, event("submit_action", "p1", { id: "occupied-stack", controller: "p1", kind: "spell", payload: {} }));
 // Even if priority cycles back later, a General cannot be inserted over a non-empty stack.
 timing = { ...timing, resolution: { ...timing.resolution, priority: { ...timing.resolution.priority, holder: "p1", consecutivePasses: 0 } } };
