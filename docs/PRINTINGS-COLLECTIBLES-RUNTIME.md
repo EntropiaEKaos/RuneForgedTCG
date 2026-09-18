@@ -46,9 +46,9 @@ CardView
 
 ### Deck Builder
 
-`/forge` hydrates the same printing preferences used by the global catalog bootstrap. Cards in the deck therefore render with the selected collectible appearance while validation, format legality, sharing and gameplay continue to use only `defId`.
+Visual 5.8 keeps `ForgeClient.tsx` byte-for-byte frozen. The Deck Builder therefore inherits the selected collectible appearance through the already-certified global `CatalogBootstrap -> CardTip -> CardView` path instead of introducing a second Forge-specific preference loader.
 
-The summary shows how many distinct deck definitions currently use a special printing and links directly to the Ateliê.
+Cards shown in the Forge resolve the same selected appearance as every other shared card surface, while deck persistence, validation, format legality, sharing and gameplay continue to use only `defId`. Printing selection remains centralized in the Ateliê de Variantes.
 
 ### Pack Opening
 
