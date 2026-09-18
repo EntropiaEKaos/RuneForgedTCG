@@ -96,14 +96,14 @@ assert.deepEqual(
     starterDecks: 6,
     starterSlots: 240,
     uniqueStarterCards: 140,
-    covered: 66,
-    missing: 74,
-    byPriority: { P0: 0, P1: 31, P2: 43 },
+    covered: 71,
+    missing: 69,
+    byPriority: { P0: 0, P1: 26, P2: 43 },
   },
   "Alpha art priority baseline must remain deterministic so Studio production queues cannot drift silently",
 );
 const priorityQueue = alphaArtPriorityQueue();
-assert.equal(priorityQueue.length, 74);
+assert.equal(priorityQueue.length, 69);
 assert.equal(alphaArtExposure("ember_bolt").priority, "covered");
 assert.equal(alphaArtExposure("ember_bolt").copies, 5);
 assert.equal(alphaArtExposure("wood_webweaver").priority, "covered");
@@ -141,6 +141,11 @@ for (const defId of [
   "wood_ent",
   "wood_stag",
   "wood_caller",
+  "wood_bark_rupture",
+  "wood_claw",
+  "wood_martyr",
+  "wood_recall",
+  "wood_root_prison",
 ]) {
   assert.equal(alphaArtExposure(defId).priority, "covered", `${defId} must leave the P1 queue after certified activation`);
 }
@@ -151,9 +156,9 @@ assert.deepEqual(
 );
 assert.equal(
   priorityQueue.filter((row) => row.priority === "P1").length,
-  31,
-  "Alpha P1 Batch 3 activation must leave exactly 31 P1 cards pending",
+  26,
+  "Alpha P1 Batch 4 activation must leave exactly 26 P1 cards pending",
 );
 assert.ok(priorityQueue.every((row, index) => index === 0 || priorityQueue[index - 1].score >= row.score));
 
-console.log("FORGED ALPHA FLAGSHIP + ACTIVE PRIORITY ART: 66 covered / 74 starter backlog / 0 P0 pending / 31 P1 pending / PASS");
+console.log("FORGED ALPHA FLAGSHIP + ACTIVE PRIORITY ART: 71 covered / 69 starter backlog / 0 P0 pending / 26 P1 pending / PASS");
