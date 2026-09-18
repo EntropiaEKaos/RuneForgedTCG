@@ -1,6 +1,6 @@
 import { declareFourPlayerAttacker, declareFourPlayerBlocker } from "./four-player-combat";
 import { passFourPlayerFlow, submitFourPlayerAction } from "./four-player-flow";
-import { castGeneralFromZone } from "./four-player-general-zone";
+import { assertGeneralCastTiming, castGeneralFromZone } from "./four-player-general-zone";
 import {
   advanceFourPlayerMatchTurn,
   eliminateFourPlayerMatchSeat,
