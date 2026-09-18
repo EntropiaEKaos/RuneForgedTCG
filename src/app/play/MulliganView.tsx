@@ -9,11 +9,13 @@ import { PVP_CLIENT_STATUS_EVENT, type PvpClientStatusDetail } from "@/lib/pvp-c
 
 export function MulliganView({
   state,
+  appearanceAssets,
   selection,
   onToggle,
   onConfirm,
 }: {
   state: GameState;
+  appearanceAssets?: Record<string, number>;
   selection: string[];
   onToggle: (instanceId: string) => void;
   onConfirm: () => void;
@@ -121,7 +123,7 @@ export function MulliganView({
               const selected = selection.includes(card.instanceId);
               return (
                 <div key={card.instanceId} className="relative">
-                  <CardTip defId={card.defId} size="lg" selected={selected} onClick={() => onToggle(card.instanceId)} />
+                  <CardTip defId={card.defId} assetId={appearanceAssets?.[card.defId]} size="lg" selected={selected} onClick={() => onToggle(card.instanceId)} />
                   <span className={selected
                     ? "pointer-events-none absolute inset-x-2 -bottom-2 rounded-full border border-amber-300/30 bg-slate-950/95 px-2 py-1 text-center text-[10px] font-black uppercase tracking-wide text-amber-200"
                     : "pointer-events-none absolute inset-x-2 -bottom-2 rounded-full border border-emerald-300/20 bg-slate-950/95 px-2 py-1 text-center text-[10px] font-black uppercase tracking-wide text-emerald-200"}
