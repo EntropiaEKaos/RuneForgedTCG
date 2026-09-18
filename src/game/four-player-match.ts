@@ -56,7 +56,11 @@ export function createFourPlayerMatchState(
     const cost = generalPrintedCosts[seat];
     if (!Number.isFinite(cost) || cost < 0) throw new Error(`General printed cost for ${seat} must be a non-negative finite number.`);
   }
-  const seats = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: startingMana, maxMana: startingMana }])) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
+  const seats = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
+    const isStartingSeat = seat === startingSeat;
+    const maxMana = isStartingSeat ? Math.min(FOUR_PLAYER_MAX_MANA, startingMana + 1) : startingMana;
+    return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana }];
+  })) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
   return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), status: "active" };
 }
