@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
-import { createFourPlayerMatchState } from "./four-player-match";
+import { applyFourPlayerDamage, createFourPlayerMatchState } from "./four-player-match";
 import { projectFourPlayerStateForSeat, type FourPlayerPrivateSeatState } from "./four-player-projection";
 
 const states = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivateSeatState>>((result, seat, index) => {
@@ -16,7 +16,9 @@ const states = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivate
   return result;
 }, {} as Record<FourPlayerSeat, FourPlayerPrivateSeatState>);
 
-const match = { ...createFourPlayerMatchState("p3"), phase: "combat" as const };
+let authoritativeMatch = createFourPlayerMatchState("p3");
+authoritativeMatch = applyFourPlayerDamage(authoritativeMatch, "p2", 7, "p3");
+const match = { ...authoritativeMatch, phase: "combat" as const };
 
 for (const viewer of FOUR_PLAYER_SEATS) {
   const projection = projectFourPlayerStateForSeat(states, viewer, match);
@@ -33,6 +35,11 @@ for (const viewer of FOUR_PLAYER_SEATS) {
   for (const seat of FOUR_PLAYER_SEATS) {
     assert.equal(serialized.includes(`${seat}-deck-secret`), false, `${viewer} must never receive ${seat} future deck identity`);
     assert.equal(projection.seats[seat].deckCount, 1);
+    assert.equal(projection.seats[seat].life, match.seats[seat].life);
+    assert.equal(projection.seats[seat].nexusHealth, match.seats[seat].life);
+    assert.equal(projection.seats[seat].mana, match.seats[seat].mana);
+    assert.equal(projection.seats[seat].maxMana, match.seats[seat].maxMana);
+    assert.deepEqual(projection.seats[seat].generalDamageReceived, match.seats[seat].generalDamageReceived);
   }
 
   for (const opponent of FOUR_PLAYER_SEATS.filter((seat) => seat !== viewer)) {
@@ -44,6 +51,9 @@ for (const viewer of FOUR_PLAYER_SEATS) {
     assert.deepEqual(projected.publicBoard, states[opponent].publicBoard);
   }
 }
+
+assert.equal(projectFourPlayerStateForSeat(states, "p1", match).seats.p2.life, 23);
+assert.equal(projectFourPlayerStateForSeat(states, "p1", match).seats.p2.generalDamageReceived?.p3, 7);
 
 // Compatibility: callers that have not wired match flow yet still receive the same secure seat projection.
 const legacyProjection = projectFourPlayerStateForSeat(states, "p1");
