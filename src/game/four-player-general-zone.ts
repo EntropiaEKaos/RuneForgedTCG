@@ -23,7 +23,7 @@ export function generalCastCost(state: FourPlayerGeneralZoneState, printedCost: 
   return printedCost + currentGeneralRecastTax(state);
 }
 
-/** Records an authoritative cast from the public General Zone. */
+export function assertGeneralCastTiming(activeSeat: FourPlayerSeat, phase: string, stackSize: number, actor: FourPlayerSeat): void {\n  if (activeSeat !== actor) throw new Error("General may only be cast by the active player.");\n  if (phase !== "main_1" && phase !== "main_2") throw new Error("General may only be cast during a main phase.");\n  if (stackSize !== 0) throw new Error("General may only be cast while the stack is empty.");\n}\n\n/** Records an authoritative cast from the public General Zone. */
 export function castGeneralFromZone(state: FourPlayerGeneralZoneState): FourPlayerGeneralZoneState {
   if (state.location !== "general_zone") throw new Error("General can only be cast from the General Zone.");
   return { ...state, location: "stack", castsFromGeneralZone: state.castsFromGeneralZone + 1 };
