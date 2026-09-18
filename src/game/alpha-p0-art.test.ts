@@ -33,11 +33,11 @@ assert.equal(liveP0.length, 0, "Later P1 activation must not reintroduce any P0 
 
 const snapshot = alphaArtBacklogSnapshot();
 assert.equal(snapshot.uniqueStarterCards, 140, "Starter art universe must remain 140 unique cards");
-assert.equal(snapshot.covered, 66, "30 Flagship + 21 P0 + fifteen P1 masters must report 66 covered starter cards");
-assert.equal(snapshot.missing, 74, "P1 Batch 3 activation must leave 74 starter cards without dedicated art");
-assert.equal(snapshot.byPriority.P0, 0, "P1 Batch 3 activation must keep the P0 queue exhausted");
-assert.equal(snapshot.byPriority.P1, 31, "P1 Batch 3 activation must leave 31 P1 cards pending");
-assert.equal(snapshot.byPriority.P2, 43, "P1 Batch 3 activation must not change the P2 queue");
+assert.equal(snapshot.covered, 71, "30 Flagship + 21 P0 + twenty P1 masters must report 66 covered starter cards");
+assert.equal(snapshot.missing, 69, "P1 Batch 4 activation must leave 74 starter cards without dedicated art");
+assert.equal(snapshot.byPriority.P0, 0, "P1 Batch 4 activation must keep the P0 queue exhausted");
+assert.equal(snapshot.byPriority.P1, 26, "P1 Batch 4 activation must leave 26 P1 cards pending");
+assert.equal(snapshot.byPriority.P2, 43, "P1 Batch 4 activation must not change the P2 queue");
 
 for (const target of ALPHA_P0_ART_TARGETS) {
   assert.ok(target.assetPath.startsWith(`${ALPHA_P0_ART_ROOT}/${target.region.toLowerCase()}/`), `${target.defId} must live under its regional P0 art directory`);
@@ -60,4 +60,4 @@ assert.equal(getCardArt("ember_bolt")?.url, "/uploads/editorial/ember-bolt-appro
 replaceRegisteredCardArt([]);
 assert.equal(getCardArt("ember_bolt")?.url, emberBoltPath, "Clearing editorial art must restore the certified P0 master");
 
-console.log("FORGED ALPHA P0 ART ACTIVATION: 21 active / 61 covered / 79 backlog / 0 P0 pending / P1 Batch 2 coexistence PASS");
+console.log("FORGED ALPHA P0 ART ACTIVATION: 21 active / 71 covered / 69 backlog / 0 P0 pending / P1 Batch 4 coexistence PASS");
