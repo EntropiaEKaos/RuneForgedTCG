@@ -65,6 +65,7 @@ export function reduceFourPlayerServerEvent(
 
     case "cast_general": {
       assertPriorityHolder(state, event.actor);
+      assertGeneralCastTiming(state.turn.activeSeat, state.phase, state.resolution.stack.items.length, event.actor);
       const general = castGeneralFromZone(state.generals[event.actor]);
       const withGeneral = updateMatchGeneral(state, event.actor, general);
       const stackItem: FourPlayerStackItem<{ owner: FourPlayerServerEvent["actor"]; defId: string }> = {
