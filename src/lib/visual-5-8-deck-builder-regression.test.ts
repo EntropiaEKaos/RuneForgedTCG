@@ -66,14 +66,14 @@ function gitBlobSha(path: string): string {
 
 assert.equal(
   gitBlobSha(forgeClientPath),
-  "8ea0d68997dfc4173dce1ad3374633dea8d8c006",
-  "Visual 5.8 is certified as CSS-only: ForgeClient.tsx must remain byte-for-byte unchanged",
+  "7349ffe1039c3d19bfb1792add9d0567a844087c",
+  "Visual 5.8 Forge baseline + Collectibles Runtime break-glass must remain byte-for-byte certified",
 );
 
 for (const authorityContract of [
   'fetch("/api/decks", { cache: "no-store" })',
   'fetch(editingId ? `/api/decks/${editingId}` : "/api/decks"',
-  'body: JSON.stringify({ name, emoji, formatId, cards: list })',
+  'body: JSON.stringify({ name, emoji, formatId, cards: list, appearanceAssets })',
   'fetch(`/api/decks/${id}`, { method: "DELETE" })',
   'fetch("/api/decks/share"',
   'validateDeck(list)',
