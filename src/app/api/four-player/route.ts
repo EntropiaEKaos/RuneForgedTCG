@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     if (!Number.isInteger(deckId) || deckId < 1) return Response.json({ ok: false, error: "Valid 4P deckId required" }, { status: 400 });
     const deck = await loadOwnedFourPlayerDeck(db, identity.playerId, deckId);
     const config = await loadGameConfig();
-    const rules = fourPlayerRulesSnapshot(config.nexusStart);
+    const rules = fourPlayerRulesSnapshot(config.nexusStart, config.startHand);
 
     const created = await db.transaction(async (tx) => {
       const [lockedPlayer] = await tx.select({ id: players.id }).from(players).where(eq(players.id, identity.playerId!)).limit(1).for("update");

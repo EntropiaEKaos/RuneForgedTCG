@@ -35,6 +35,7 @@ export const fourPlayerRooms = pgTable("four_player_rooms", {
   turnNumber: integer("turn_number").notNull().default(1),
   rulesSnapshot: jsonb("rules_snapshot").notNull().default({}),
   publicState: jsonb("public_state").notNull().default({}),
+  runtimeState: jsonb("runtime_state"),
   version: integer("version").notNull().default(0),
   winnerPlayerId: integer("winner_player_id").references(() => players.id, { onDelete: "set null" }),
   expiresAt: timestamp("expires_at").notNull(),

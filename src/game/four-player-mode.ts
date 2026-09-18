@@ -295,7 +295,7 @@ export function eliminateFourPlayerSeat(state: FourPlayerRuntimeState, seat: Fou
   return { ...state, seats, objects, stack, combat, activeSeat, prioritySeat, consecutivePasses: 0 };
 }
 
-export function projectFourPlayerState(state: FourPlayerRuntimeState, viewerSeat: FourPlayerSeat) {
+export function projectFourPlayerState(state: FourPlayerRuntimeState, viewerSeat: FourPlayerSeat | null) {
   return {
     rulesetId: state.rulesetId,
     turnNumber: state.turnNumber,

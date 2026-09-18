@@ -143,6 +143,7 @@ export const sourceContractTests = [
   "src/lib/concurrency-regression.test.ts",
   "src/lib/consolidation-2.89.test.ts",
   "src/lib/collectibles-four-player-regression.test.ts",
+  "src/lib/deck-printing-runtime-regression.test.ts",
   "src/lib/content-dependency-pipeline-regression.test.ts",
   "src/lib/content-release-regression.test.ts",
   "src/lib/deep-audit-regression.test.ts",

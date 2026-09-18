@@ -18,6 +18,27 @@ import { analyzeDeckSynergy, recommendSynergies } from "@/game/synergy-graph";
 import type { Region } from "@/game/types";
 import { ensurePlayerSession } from "@/lib/client-player-session";
 
+interface DeckPrintingPreference {
+  defId: string;
+  assetId: number;
+  variantId: string;
+  frameId: string;
+  finish: string;
+  serialNumber: number | null;
+}
+
+interface WardrobeItem {
+  asset: {
+    id: number;
+    defId: string;
+    variantId: string;
+    frameId: string;
+    finish: string;
+    serialNumber?: number | null;
+  };
+  cosmetic?: { name?: string; edition?: string | null } | null;
+}
+
 interface SavedDeck {
   id: number;
   ownerName?: string;
@@ -25,6 +46,7 @@ interface SavedDeck {
   emoji: string;
   cards: string[];
   formatId?: string;
+  printings?: DeckPrintingPreference[];
 }
 
 type DeckApiPayload = {
@@ -94,6 +116,8 @@ export default function ForgeClient() {
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([]);
+  const [printingByDef, setPrintingByDef] = useState<Record<string, number>>({});
 
   void catalogRevision;
   const deckRules = getRuntimeDeckRules();
@@ -139,6 +163,22 @@ export default function ForgeClient() {
 
   useEffect(() => {
     let cancelled = false;
+    fetch("/api/player/cosmetics", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload) => {
+        if (cancelled || !payload?.ok || !Array.isArray(payload.wardrobe)) return;
+        setWardrobe(payload.wardrobe.filter((item: unknown): item is WardrobeItem => {
+          if (!item || typeof item !== "object") return false;
+          const asset = (item as WardrobeItem).asset;
+          return Boolean(asset && Number.isInteger(asset.id) && typeof asset.defId === "string" && typeof asset.variantId === "string");
+        }));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     fetch("/api/formats", { cache: "no-store" })
       .then((response) => response.json() as Promise<FormatsPayload>)
       .then((payload) => {
@@ -165,6 +205,10 @@ export default function ForgeClient() {
     void catalogRevision;
     return focusCard ? recommendSynergies(focusCard, 6).filter((item) => !counts.has(item.defId)) : [];
   }, [focusCard, counts, catalogRevision]);
+  const focusedPrintings = useMemo(
+    () => focusCard ? wardrobe.filter((item) => item.asset.defId === focusCard && item.asset.variantId !== "standard") : [],
+    [focusCard, wardrobe],
+  );
 
   const selectedFormat = formats.find((format) => format.id === formatId) ?? formats[0] ?? FALLBACK_FORMAT;
   const identity = check.regions.length > 0 ? identityForRegions(check.regions) : null;
@@ -192,6 +236,13 @@ export default function ForgeClient() {
   };
 
   const removeCard = (defId: string) => {
+    if ((counts.get(defId) ?? 0) <= 1) {
+      setPrintingByDef((current) => {
+        const next = { ...current };
+        delete next[defId];
+        return next;
+      });
+    }
     setList((current) => {
       const index = current.lastIndexOf(defId);
       if (index < 0) return current;
@@ -207,6 +258,7 @@ export default function ForgeClient() {
     setMessage("");
     setFormatId(formats.some((format) => format.id === "vanilla") ? "vanilla" : (formats[0]?.id ?? "vanilla"));
     setFocusCard(null);
+    setPrintingByDef({});
   };
 
   const loadDeck = (deck: SavedDeck) => {
@@ -217,6 +269,7 @@ export default function ForgeClient() {
     setFormatId(deck.formatId && formats.some((format) => format.id === deck.formatId) ? deck.formatId : (formats[0]?.id ?? "vanilla"));
     setMessage(`✏️ Editando ${deck.name}.`);
     setFocusCard(null);
+    setPrintingByDef(Object.fromEntries((deck.printings ?? []).map((printing) => [printing.defId, printing.assetId])));
   };
 
   const save = async () => {
@@ -230,7 +283,15 @@ export default function ForgeClient() {
       const response = await fetch(editingId ? `/api/decks/${editingId}` : "/api/decks", {
         method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, emoji, formatId, cards: list }),
+        body: JSON.stringify({
+          name,
+          emoji,
+          formatId,
+          cards: list,
+          printings: Object.entries(printingByDef)
+            .filter(([defId]) => counts.has(defId))
+            .map(([defId, assetId]) => ({ defId, assetId })),
+        }),
       });
       const payload = await response.json() as DeckApiPayload;
       if (!payload.ok || !isSavedDeck(payload.deck)) {
@@ -455,6 +516,40 @@ export default function ForgeClient() {
             </div>
 
             <DeckInsightPanel insight={insight} />
+
+            {focusCard && (
+              <section className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[.05] p-3" data-deck-printing-picker={focusCard}>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <small className="font-black uppercase tracking-[.15em] text-amber-300">Printing do deck</small>
+                    <b className="mt-1 block text-sm text-white">{getCard(focusCard).name}</b>
+                    <p className="mt-1 text-[10px] leading-4 text-slate-400">Escolha uma cópia colecionável para a apresentação. Regras, custo e poder continuam ligados ao mesmo defId.</p>
+                  </div>
+                  <span className="text-xl">✦</span>
+                </div>
+                <div className="mt-2 grid gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPrintingByDef((current) => { const next = { ...current }; delete next[focusCard]; return next; })}
+                    className={`rounded-lg border px-2 py-2 text-left text-[10px] font-bold ${printingByDef[focusCard] == null ? "border-cyan-300/40 bg-cyan-300/10 text-cyan-100" : "border-white/10 bg-black/20 text-slate-400"}`}
+                  >
+                    STANDARD <span className="ml-1 font-normal opacity-70">· aparência base</span>
+                  </button>
+                  {focusedPrintings.map((item) => (
+                    <button
+                      type="button"
+                      key={item.asset.id}
+                      onClick={() => setPrintingByDef((current) => ({ ...current, [focusCard]: item.asset.id }))}
+                      className={`rounded-lg border px-2 py-2 text-left text-[10px] ${printingByDef[focusCard] === item.asset.id ? "border-amber-300/50 bg-amber-300/10 text-amber-100" : "border-white/10 bg-black/20 text-slate-300"}`}
+                    >
+                      <b>{item.cosmetic?.name || item.asset.variantId}</b>
+                      <span className="ml-1 opacity-70">· {item.asset.frameId} · {item.asset.finish}{item.asset.serialNumber ? ` · #${item.asset.serialNumber}` : ""}</span>
+                    </button>
+                  ))}
+                  {focusedPrintings.length === 0 && <p className="rounded-lg border border-dashed border-white/10 px-2 py-2 text-[10px] text-slate-500">Nenhuma variante colecionável própria para esta carta ainda.</p>}
+                </div>
+              </section>
+            )}
 
             <ul className="mt-3 max-h-[360px] space-y-1 overflow-y-auto pr-1 text-xs">
               {[...counts.entries()].sort((a, b) => getCard(a[0]).cost - getCard(b[0]).cost || getCard(a[0]).name.localeCompare(getCard(b[0]).name)).map(([id, amount]) => {

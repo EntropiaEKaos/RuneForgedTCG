@@ -15,6 +15,7 @@ const campaignService = read("src/lib/collectible-campaign-service.ts");
 const fourPlayerRoute = read("src/app/api/four-player/route.ts");
 const fourPlayerRoomRoute = read("src/app/api/four-player/[code]/route.ts");
 const feature = read("src/lib/four-player-feature.ts");
+const fourPlayerUi = read("src/app/four-player/FourPlayerClient.tsx");
 
 for (const table of [
   "deck_card_printing_preferences",
@@ -30,6 +31,7 @@ for (const table of [
 assert.ok(!multiplayerSchema.includes("fourPlayer"), "certified 1v1 multiplayer schema must not absorb 4P state");
 assert.ok(fourPlayerSchema.includes('pgTable("four_player_rooms"'), "4P rooms must live in an isolated schema");
 assert.ok(fourPlayerSchema.includes('pgTable("four_player_decks"'), "80+1 decks need dedicated persistence");
+assert.ok(fourPlayerSchema.includes('jsonb("runtime_state")'), "authoritative 4P runtime state must stay server-side in the isolated room");
 
 assert.ok(rules.includes("mainDeckCards: 80"), "4P v0 must keep 80 main-deck cards");
 assert.ok(rules.includes("maxCopies: 2"), "4P v0 must keep the 2-copy cap");
@@ -51,5 +53,9 @@ assert.ok(!campaignService.includes("insert(cardAssets)"), "campaign collectible
 assert.ok(feature.includes('process.env.FOUR_PLAYER_GENERAL_ENABLED === "true"'), "4P public runtime must fail closed behind an explicit feature flag");
 assert.ok(!fourPlayerRoute.includes("pvpRooms"), "4P lobby must not reuse certified 1v1 pvp_rooms");
 assert.ok(!fourPlayerRoomRoute.includes("pvpRooms"), "4P room lifecycle must not reuse certified 1v1 pvp_rooms");
+assert.ok(fourPlayerRoomRoute.includes("fourPlayerActionReceipts"), "live 4P mutations must have idempotency receipts");
+assert.ok(fourPlayerRoomRoute.includes('action === "start"'), "4P lobby must have an authoritative start transition");
+assert.ok(fourPlayerUi.includes("Conselho dos Quatro"), "dedicated 4P player surface must exist");
+assert.ok(fourPlayerUi.includes("relative(seat.seat)"), "4P table must rotate seats so the viewer is always presented from the bottom");
 
 console.log("COLLECTIBLES + FOUR PLAYER RUNTIME CONTRACT: PASS");

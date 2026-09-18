@@ -198,6 +198,7 @@ export function makePlayer(id: PlayerId, name: string, deck: DeckInput, rules: E
     graveyard: [],
     deckName: deck.name,
     deckId: deck.id,
+    deckPrintings: deck.printings ? structuredClone(deck.printings) : undefined,
     deckRegions: deckRegions(cards.length >= 1 ? cards : fallback),
     stats: { nexusDamageDealt: 0, spellsCast: 0, alliesSummoned: 0 },
     poisonCounters: 0,

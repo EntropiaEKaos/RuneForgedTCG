@@ -1,8 +1,9 @@
 import { FOUR_PLAYER_RULESET_V0, startingFourPlayerLife, type FourPlayerSeat } from "@/game/four-player-rules";
+import { projectFourPlayerState, type FourPlayerRuntimeState } from "@/game/four-player-mode";
 
 export const FOUR_PLAYER_ROOM_TTL_MS = 2 * 60 * 60 * 1000;
 
-export function fourPlayerRulesSnapshot(oneVsOneNexusStart: number) {
+export function fourPlayerRulesSnapshot(oneVsOneNexusStart: number, startHand = 5) {
   return {
     rulesetId: FOUR_PLAYER_RULESET_V0.id,
     seats: FOUR_PLAYER_RULESET_V0.players,
@@ -13,6 +14,7 @@ export function fourPlayerRulesSnapshot(oneVsOneNexusStart: number) {
     generalRecastTax: FOUR_PLAYER_RULESET_V0.generalRecastTax,
     firstPlayerSkipsFirstDraw: FOUR_PLAYER_RULESET_V0.firstPlayerSkipsFirstDraw,
     defaultPriority: FOUR_PLAYER_RULESET_V0.defaultPriority,
+    startHand: Math.max(0, Math.trunc(startHand)),
   };
 }
 
@@ -28,6 +30,7 @@ type RoomLike = {
   winnerPlayerId: number | null;
   rulesSnapshot: unknown;
   publicState: unknown;
+  runtimeState?: unknown;
   createdAt: Date;
   updatedAt: Date;
   expiresAt: Date;
@@ -53,21 +56,26 @@ function deckCount(snapshot: unknown): number {
 }
 
 export function projectFourPlayerRoom(room: RoomLike, seats: SeatLike[], viewerPlayerId?: number | null) {
+  const viewerSeat = seats.find((seat) => seat.playerId === viewerPlayerId)?.seat ?? null;
+  const runtime = room.runtimeState && typeof room.runtimeState === "object"
+    ? projectFourPlayerState(room.runtimeState as FourPlayerRuntimeState, viewerSeat as FourPlayerSeat | null)
+    : room.publicState;
   return {
     id: room.id,
     code: room.code,
     state: room.state,
+    hostPlayerId: room.hostPlayerId,
     activeSeat: room.activeSeat as FourPlayerSeat,
     prioritySeat: room.prioritySeat as FourPlayerSeat,
     turnNumber: room.turnNumber,
     version: room.version,
     winnerPlayerId: room.winnerPlayerId,
     rules: room.rulesSnapshot,
-    publicState: room.publicState,
+    publicState: runtime,
     createdAt: room.createdAt,
     updatedAt: room.updatedAt,
     expiresAt: room.expiresAt,
-    viewerSeat: seats.find((seat) => seat.playerId === viewerPlayerId)?.seat ?? null,
+    viewerSeat,
     seats: [...seats].sort((a, b) => a.seat - b.seat).map((seat) => ({
       seat: seat.seat as FourPlayerSeat,
       playerId: seat.playerId,

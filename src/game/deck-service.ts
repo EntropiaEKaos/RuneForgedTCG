@@ -5,6 +5,7 @@ import { validateDeck, type DeckDef } from "./decks";
 import type { DeckInput } from "./types";
 import { getRuntimeDecks } from "@/lib/control-plane";
 import { validateFormatDeck } from "./format-rules-server";
+import { loadDeckPrintingPreferences } from "@/lib/deck-printing-service";
 export { snapshotReplayBundle } from "./replay-content-snapshot";
 
 type DB = { select: any };
@@ -27,7 +28,14 @@ export async function resolveDeck(db: DB, playerId: number, deckId: string): Pro
     const check = validateDeck(cards);
     const formatCheck = await validateFormatDeck(cards, row.formatId || "eternal");
     if (!check.ok || !formatCheck.ok) throw new Error(`Deck is invalid: ${[...check.errors, ...formatCheck.errors].join(" | ")}`);
-    return { id: `custom_${row.id}`, name: row.name, cards: [...cards], formatId: formatCheck.format.id };
+    const printingRows = (await loadDeckPrintingPreferences(db, playerId, [row.id])).get(row.id) ?? [];
+    const printings = Object.fromEntries(printingRows.map((printing) => [printing.defId, {
+      variantId: printing.variantId,
+      frameId: printing.frameId,
+      finish: printing.finish,
+      serialNumber: printing.serialNumber,
+    }]));
+    return { id: `custom_${row.id}`, name: row.name, cards: [...cards], formatId: formatCheck.format.id, printings };
   }
   const runtimeDecks = await getRuntimeDecks();
   const preset = runtimeDecks.find((deck) => deck.id === deckId);
@@ -39,7 +47,7 @@ export async function resolveDeck(db: DB, playerId: number, deckId: string): Pro
 
 /** Immutable match snapshot; never read a mutable deck again during replay. */
 export function snapshotDeck(deck: DeckInput): DeckInput {
-  return { id: deck.id, name: deck.name, cards: [...deck.cards], formatId: deck.formatId };
+  return { id: deck.id, name: deck.name, cards: [...deck.cards], formatId: deck.formatId, printings: deck.printings ? structuredClone(deck.printings) : undefined };
 }
 
 export async function listPresetDecks(): Promise<DeckDef[]> {

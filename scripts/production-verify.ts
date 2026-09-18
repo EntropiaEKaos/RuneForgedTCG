@@ -63,7 +63,7 @@ async function schemaChecks() {
     ["draft_sessions", "rules_snapshot"],
     ["players", "recovery_key_hash"], ["players", "recovery_key_expires_at"], ["pvp_rooms", "ranked_config_snapshot"], ["pvp_rooms", "ranked_season_id"], ["pvp_rooms", "content_snapshot"], ["pvp_rooms", "content_hash"], ["ranked_seasons", "control_key"], ["ranked_matches", "rules_version"], ["ranked_matches", "deck_pool_version"],
     ["payment_orders", "provider_environment"], ["custom_decks", "format_id"], ["shared_decks", "format_id"],
-    ["card_catalog_meta", "art_url"], ["card_catalog_meta", "art_crop"],
+    ["card_catalog_meta", "art_url"], ["card_catalog_meta", "art_crop"], ["four_player_rooms", "runtime_state"],
   ] as const;
   for (const [table, column] of requiredColumns) {
     const n = await count("select count(*) n from information_schema.columns where table_schema='public' and table_name=$1 and column_name=$2", [table, column]);

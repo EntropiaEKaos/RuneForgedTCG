@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS "four_player_rooms" (
   "turn_number" integer NOT NULL DEFAULT 1,
   "rules_snapshot" jsonb NOT NULL DEFAULT '{}'::jsonb,
   "public_state" jsonb NOT NULL DEFAULT '{}'::jsonb,
+  "runtime_state" jsonb,
   "version" integer NOT NULL DEFAULT 0,
   "winner_player_id" integer REFERENCES "players"("id") ON DELETE SET NULL,
   "expires_at" timestamp NOT NULL,
