@@ -252,7 +252,15 @@ export function resolveCardAppearance(defId: string, explicitVariantId?: string 
   const selectedAsset = explicitAsset?.defId === defId ? explicitAsset : undefined;
   const variantId = explicitVariantId || selectedAsset?.variantId || preference?.variantId;
   const variant = variantId ? getCardCosmetic(defId, variantId) : undefined;
-  if (!variant) return { defId, variantId: "standard", name: "Standard", kind: "standard", frameId: "default", finish: "normal", assetId: selectedAsset?.assetId ?? null };
+  if (!variant) return {
+    defId,
+    variantId: "standard",
+    name: "Standard",
+    kind: "standard",
+    frameId: selectedAsset?.frameId || "default",
+    finish: selectedAsset?.finish || "normal",
+    ...(selectedAsset ? { assetId: selectedAsset.assetId } : {}),
+  };
   const serialSource = selectedAsset?.variantId === variant.variantId
     ? selectedAsset
     : preference?.variantId === variant.variantId
