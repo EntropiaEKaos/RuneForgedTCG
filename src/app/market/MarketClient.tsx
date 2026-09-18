@@ -415,7 +415,13 @@ export default function MarketClient() {
                               placeholder={selectedCosmetic.serialLimit ? `Serial 1–${selectedCosmetic.serialLimit}` : "Serial exato"}
                               aria-label={`Serial desejado de ${card?.name || request.defId}`}
                             />
-                          ) : <div className="flex items-center px-2 text-[11px] opacity-55">{request.variantId ? collectibleLabel({ ...request, defId: request.defId }) : "Sem restrição cosmética"}</div>}
+                          ) : <div className="flex items-center px-2 text-[11px] opacity-55">{request.variantId ? collectibleLabel({
+                              defId: request.defId,
+                              variantId: request.variantId,
+                              frameId: request.frameId,
+                              finish: request.finish,
+                              serialNumber: request.serialNumber ? Number(request.serialNumber) : undefined,
+                            }) : "Sem restrição cosmética"}</div>}
                         </div>
                       </div>
                     );
