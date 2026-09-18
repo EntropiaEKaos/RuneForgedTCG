@@ -42,6 +42,14 @@ export const ALPHA_P1_BATCH_3_IDS = [
   "wood_caller",
 ] as const;
 
+export const ALPHA_P1_BATCH_4_IDS = [
+  "wood_bark_rupture",
+  "wood_claw",
+  "wood_martyr",
+  "wood_recall",
+  "wood_root_prison",
+] as const;
+
 /**
  * Certified Alpha P1 physical-production registry.
  *
@@ -69,12 +77,20 @@ export const ALPHA_P1_ART_TARGETS: AlphaP1ArtTarget[] = [
   target("wood_ent", "Ironwood", "Ancient Rootcolossus: a towering living elemental rising from interlocked ancient roots, iron bark plates, amber sap seams and massive rooted limbs, overwhelming scale and patient strength rather than a humanoid tree portrait."),
   target("wood_stag", "Ironwood", "Elder Stag: an ancient forest stag standing resilient beneath colossal roots, iron-bark antlers threaded with amber sap light, calm regenerative presence and soft dawn shafts establishing age, dignity and endurance."),
   target("wood_caller", "Ironwood", "Grove Caller: an Ironwood summoner kneeling at a carved root circle as a small sapling spirit rises beside them, visible amber resource flow, druidic intent and living-fortress surroundings focused on creation rather than combat."),
+
+  // Batch 4 — next deterministic Studio P1 queue slice after Batch 3.
+  target("wood_bark_rupture", "Ironwood", "Ruptura da Casca: a massive iron-bark plate splits under concentrated living force, amber sap-light exploding through the fracture toward an enemy permanent, violent woody shards and root tension communicating direct permanent damage."),
+  target("wood_claw", "Ironwood", "Thornfang Claw: a ritual Ironwood claw-equipment carved from thornbone and living bark rests on a root-forged pedestal, amber sap runes tracing the reinforced edges, compact iconic composition focused on the +1/+1 equipment identity."),
+  target("wood_martyr", "Ironwood", "Seedbearer Martyr: a small ancient spirit kneels as its bark body dissolves into glowing seeds, two young sapling silhouettes emerging behind it, solemn amber dawn and deep grove shadows communicating sacrifice that creates new life."),
+  target("wood_recall", "Ironwood", "Nature's Grasp: colossal living roots surge from the forest floor and curl around an enemy silhouette, lifting it backward toward a luminous retreating portal, controlled force and sweeping motion communicating recall rather than destruction."),
+  target("wood_root_prison", "Ironwood", "Prisão de Raízes: interlocking ancient roots close into a rigid living cage around an enemy unit, amber binding runes at each junction and a frozen central silhouette communicating a precise Fast stun effect."),
 ];
 
 export const ALPHA_P1_ACTIVE_IDS = [
   ...ALPHA_P1_BATCH_1_IDS,
   ...ALPHA_P1_BATCH_2_IDS,
   ...ALPHA_P1_BATCH_3_IDS,
+  ...ALPHA_P1_BATCH_4_IDS,
 ] as const;
 
 const activeIds = new Set<string>(ALPHA_P1_ACTIVE_IDS);
