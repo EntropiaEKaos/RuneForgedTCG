@@ -38,7 +38,9 @@ async function main() {
       starterDecks: 6,
       starterSlots: 240,
       uniqueStarterCards: 140,
-      covered: 66,\n      missing: 74,\n      byPriority: { P0: 0, P1: 31, P2: 43 },
+      covered: 66,
+      missing: 74,
+      byPriority: { P0: 0, P1: 31, P2: 43 },
     },
     "P1 Batch 2 must remain covered while the active Batch 3 advances the global queue",
   );
