@@ -25,9 +25,8 @@ const browserScripts = walk(scriptsRoot)
   .filter(({ source }) => source.includes("function findChrome()") && source.includes('"--headless=new"'));
 
 assert.equal(
-  browserScripts.length,
-  32,
-  `expected the 32 certified headless Chrome scripts to share the bootstrap contract, found ${browserScripts.length}`,
+  browserScripts.length,\n  33,
+  `expected the 33 certified headless Chrome scripts to share the bootstrap contract, found ${browserScripts.length}`,
 );
 
 for (const { file, source } of browserScripts) {
