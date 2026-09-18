@@ -81,9 +81,12 @@ function main() {
     assert.match(cosmeticRuntime, new RegExp(`\\"${gameplayKey}\\"`), `${gameplayKey} must be explicitly forbidden in cosmetic payloads`);
   }
   assert.match(cosmeticRuntime, /variantId: "standard"/, "runtime must fail closed to the implicit Standard appearance");
+  assert.match(cosmeticRuntime, /replacePlayerCardCosmeticAssets/, "runtime must hydrate exact owned collectible copies separately from account-wide preferences");
+  assert.match(cosmeticRuntime, /explicitAssetId/, "runtime must support an exact deck-selected collectible asset without mutating gameplay identity");
 
   const cardView = read("src/components/CardView.tsx");
-  assert.match(cardView, /resolveCardAppearance\(def\.defId\)/, "shared CardView must resolve player appearance outside authoritative engine state");
+  assert.match(cardView, /resolveCardAppearance\(def\.defId, variantId, assetId\)/, "shared CardView must resolve explicit deck appearance outside authoritative engine state");
+  assert.match(cardView, /appearance\.artUrl \|\| artAssignment\?\.url/, "cosmetic printing art must take precedence in the shared renderer");
   assert.match(cardView, /data-card-variant=\{appearance\.variantId\}/, "renderer must expose printing identity for visual/browser certification");
   assert.match(cardView, /appearance\.serialNumber/, "renderer must surface exact serialized copy identity");
   assert.doesNotMatch(read("src/game/types.ts"), /interface CardInstance[\s\S]{0,300}(variantId|frameId|finish|serialNumber)/, "authoritative CardInstance must remain cosmetic-free");
@@ -109,6 +112,29 @@ function main() {
   assert.match(wardrobe, /data\.authenticated === false/, "wardrobe must explicitly model the anonymous cosmetic response");
   assert.match(wardrobe, /<SessionRequired \/>/, "anonymous wardrobe must render an identity entry state instead of pretending the inventory is empty");
   assert.doesNotMatch(wardrobe, /ensurePlayerSession/, "wardrobe must not depend on legacy implicit player-session probing");
+  assert.match(wardrobe, /Filtrar por raridade/, "collection wardrobe must support rarity filtering for collectible discovery");
+  assert.match(wardrobe, /Filtrar por acabamento/, "collection wardrobe must support finish filtering for collectible discovery");
+  assert.match(wardrobe, /Filtrar por frame/, "collection wardrobe must support frame filtering for collectible discovery");
+
+  const deckMigration = read("drizzle/0048_deck_collectible_appearances.sql");
+  assert.match(deckMigration, /appearance_assets/, "saved decks must persist a presentation-only exact collectible map");
+  const deckSchema = read("src/db/schema/gameplay.ts");
+  assert.match(deckSchema, /appearanceAssets: jsonb\("appearance_assets"\)/, "Drizzle deck schema must expose collectible appearance mapping");
+  const deckAppearanceService = read("src/lib/deck-appearance-service.ts");
+  assert.match(deckAppearanceService, /ownerPlayerId/, "deck appearance validation must enforce asset ownership");
+  assert.match(deckAppearanceService, /asset\.defId !== defId/, "deck appearance validation must bind an asset to the same gameplay defId");
+  const deckApi = read("src/app/api/decks/route.ts");
+  const deckUpdateApi = read("src/app/api/decks/[id]/route.ts");
+  assert.match(deckApi, /validateOwnedDeckAppearanceAssets/, "new deck saves must validate collectible ownership");
+  assert.match(deckUpdateApi, /validateOwnedDeckAppearanceAssets/, "deck edits must validate collectible ownership");
+  const forge = read("src/app/forge/ForgeClient.tsx");
+  assert.match(forge, /PRINTING DO DECK/, "Deck Builder must expose exact owned printing selection");
+  assert.match(forge, /appearanceAssets/, "Deck Builder must persist its presentation-only printing map");
+  const battle = read("src/app/play/BattleView.tsx");
+  assert.match(battle, /appearanceAssets\?\.\[unit\.defId\]/, "battlefield must apply the selected printing only to player-controlled cards");
+  const hand = read("src/components/game/PlayerHand.tsx");
+  assert.match(hand, /appearanceAssets\?\.\[cardInstance\.defId\]/, "player hand must preserve deck-selected printing identity");
+  assert.doesNotMatch(read("src/game/types.ts"), /appearanceAssets/, "authoritative GameState/CardInstance must remain free of deck cosmetic mappings");
 
   const admin = read("src/app/api/admin/marketplace/route.ts");
   assert.match(admin, /verifyAdminStepUp/, "economy configuration changes require admin step-up");
