@@ -38,11 +38,9 @@ async function main() {
       starterDecks: 6,
       starterSlots: 240,
       uniqueStarterCards: 140,
-      covered: 61,
-      missing: 79,
-      byPriority: { P0: 0, P1: 36, P2: 43 },
+      covered: 66,\n      missing: 74,\n      byPriority: { P0: 0, P1: 31, P2: 43 },
     },
-    "P1 Batch 2 must move exactly five starter cards from P1 to covered",
+    "P1 Batch 2 must remain covered while the active Batch 3 advances the global queue",
   );
 
   assert.equal(ALPHA_P1_ART_FORMAT.aspectRatio, "4:5");
