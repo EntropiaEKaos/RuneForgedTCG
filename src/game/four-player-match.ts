@@ -19,6 +19,8 @@ export interface FourPlayerMatchSeatState {
   seat: FourPlayerSeat;
   eliminated: boolean;
   generalCastsFromZone: number;
+  mana: number;
+  maxMana: number;
 }
 
 export type FourPlayerGeneralSelection = Record<FourPlayerSeat, string>;
@@ -42,8 +44,10 @@ const DEFAULT_GENERAL_SELECTION: FourPlayerGeneralSelection = {
 export function createFourPlayerMatchState(
   startingSeat: FourPlayerSeat = "p1",
   generalSelection: FourPlayerGeneralSelection = DEFAULT_GENERAL_SELECTION,
+  startingMana = 0,
 ): FourPlayerMatchState {
-  const seats = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, { seat, eliminated: false, generalCastsFromZone: 0 }])) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
+  if (!Number.isFinite(startingMana) || startingMana < 0) throw new Error("4P starting mana must be a non-negative finite number.");
+  const seats = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: startingMana, maxMana: startingMana }])) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
   return { seats, generals, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), status: "active" };
 }
