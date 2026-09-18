@@ -160,20 +160,6 @@ async function setSelect(cdp, selector, value) {
   await sleep(120);
 }
 
-async function setInput(cdp, selector, value) {
-  const changed = await evaluate(cdp, `(() => {
-    const input = document.querySelector(${JSON.stringify(selector)});
-    if (!(input instanceof HTMLInputElement)) return false;
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-    setter.call(input, ${JSON.stringify(value)});
-    input.dispatchEvent(new Event('input', { bubbles:true }));
-    input.dispatchEvent(new Event('change', { bubbles:true }));
-    return input.value === ${JSON.stringify(value)};
-  })()`);
-  assert.equal(changed, true, `Could not fill ${selector}`);
-  await sleep(120);
-}
-
 async function capture(cdp, filename) {
   await mkdir(outputDir, { recursive: true });
   await sleep(250);
