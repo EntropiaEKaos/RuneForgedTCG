@@ -49,13 +49,25 @@ function main() {
   assert.match(trades, /cardAssetLocks/, "direct trades must escrow offered collectible copies");
   assert.match(trades, /duplicateCap/, "direct trades must preserve the collection copy cap");
   assert.match(trades, /serialNumber: asset\.serialNumber/, "direct trade snapshots must preserve the exact offered serial number");
-  assert.doesNotMatch(trades, /proposerGold|recipientGold/, "Marketplace 1.0 direct trades are card-for-card only; Gold moves through sales");
+  assert.doesNotMatch(trades, /proposerGold|recipientGold/, "direct trades remain card-for-card only; Gold moves through sales");
+
+  const policy = read("src/lib/marketplace-policy.ts");
+  assert.match(policy, /serialNumber\?: number/, "Trading 2.0 requested collectible specs must support exact serial identity");
+  assert.match(policy, /!variantId\)\) return null/, "serial requests must require an exact printing variant");
+  assert.match(policy, /asset\.serialNumber === request\.serialNumber/, "trade matching must verify an exact requested serial");
 
   const marketClient = read("src/app/market/MarketClient.tsx");
   assert.match(marketClient, /\/api\/public\/game\/cards/, "direct trades must resolve requested cards from the safe public catalog");
   assert.match(marketClient, /Carta que você deseja receber/, "direct trade UI must expose a player-facing card picker");
   assert.match(marketClient, /getCardCosmetic/, "marketplace labels must resolve player-facing cosmetic names instead of exposing only internal variant ids");
   assert.match(marketClient, /serialNumber/, "marketplace UI must surface serialized copy identity");
+  assert.match(marketClient, /offeredAssetIds/, "Trading 2.0 UI must compose multiple exact offered copies");
+  assert.match(marketClient, /requestedAssets/, "Trading 2.0 UI must compose multiple requested collectibles");
+  assert.match(marketClient, /maxTradeCardsPerSide/, "player composer must honor the server-side cards-per-side policy");
+  assert.match(marketClient, /getCardCosmetics/, "requested cards must expose player-facing printing choices");
+  assert.match(marketClient, /Sem Gold · carta por carta/, "direct trade UI must keep the no-Gold boundary explicit");
+  assert.match(marketClient, /salePreview/, "listing UI must preview the snapshotted Gold fee and seller net");
+  assert.match(marketClient, /serialLimit/, "serialized printing requests must expose bounded serial entry");
   assert.match(marketClient, /useCatalogRevision/, "marketplace cosmetic labels must refresh when the public cosmetic catalog hydrates");
   assert.doesNotMatch(marketClient, /placeholder=["']defId da carta desejada["']/, "players must never be asked for an internal card defId");
 
@@ -109,6 +121,12 @@ function main() {
   assert.match(wardrobe, /data\.authenticated === false/, "wardrobe must explicitly model the anonymous cosmetic response");
   assert.match(wardrobe, /<SessionRequired \/>/, "anonymous wardrobe must render an identity entry state instead of pretending the inventory is empty");
   assert.doesNotMatch(wardrobe, /ensurePlayerSession/, "wardrobe must not depend on legacy implicit player-session probing");
+
+  const browserCert = read("scripts/p2p-marketplace-browser-cert.ts");
+  assert.match(browserCert, /offeredAssetIds: \[traderAAsset, traderAAsset2\]/, "browser certification must execute a real multi-card offered side");
+  assert.match(browserCert, /serialNumber: 7/, "browser certification must execute an exact serialized request");
+  assert.match(browserCert, /traderBAsset2/, "browser certification must transfer multiple requested assets");
+  assert.match(browserCert, /every offered asset must enter trade escrow/, "browser certification must prove all offered copies are escrowed");
 
   const admin = read("src/app/api/admin/marketplace/route.ts");
   assert.match(admin, /verifyAdminStepUp/, "economy configuration changes require admin step-up");
