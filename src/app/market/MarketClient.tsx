@@ -189,6 +189,57 @@ export default function MarketClient() {
   const availableAssets = useMemo(() => assets.filter((asset) => asset.tradable && !asset.locked), [assets]);
   const activeListings = useMemo(() => listings.filter((listing) => !listing.status || listing.status === "active"), [listings]);
 
+  const toggleOfferedAsset = (assetId: number) => {
+    setOfferedAssetIds((current) => {
+      if (current.includes(assetId)) return current.filter((id) => id !== assetId);
+      if (current.length >= maxTradeCardsPerSide) return current;
+      return [...current, assetId];
+    });
+  };
+
+  const addRequestedAsset = () => {
+    if (!requestedDefId || requestedAssets.length >= maxTradeCardsPerSide) return;
+    setRequestedAssets((current) => [...current, { defId: requestedDefId }]);
+    setRequestedDefId("");
+  };
+
+  const updateRequestedAsset = (index: number, patch: Partial<TradeRequestDraft>) => {
+    setRequestedAssets((current) => current.map((request, requestIndex) => requestIndex === index ? { ...request, ...patch } : request));
+  };
+
+  const removeRequestedAsset = (index: number) => {
+    setRequestedAssets((current) => current.filter((_, requestIndex) => requestIndex !== index));
+  };
+
+  const submitTrade = async () => {
+    const result = await post("/api/trades", {
+      action: "create",
+      recipientName: recipient,
+      offeredAssetIds,
+      requestedAssets: requestedAssets.map((request) => ({
+        defId: request.defId,
+        variantId: request.variantId,
+        frameId: request.frameId,
+        finish: request.finish,
+        serialNumber: request.serialNumber ? Number(request.serialNumber) : undefined,
+      })),
+      note: tradeNote,
+    }, "trade-create");
+    if (result) {
+      setOfferedAssetIds([]);
+      setRequestedAssets([]);
+      setRequestedDefId("");
+      setTradeNote("");
+    }
+  };
+
+  const salePreview = (raw: string) => {
+    const price = Number(raw);
+    if (!Number.isSafeInteger(price) || price < minPriceGold || price > maxPriceGold) return null;
+    const fee = Math.floor((price * feeBps) / 10_000);
+    return { price, fee, net: Math.max(0, price - fee) };
+  };
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
       <section className="rf-panel overflow-hidden">
