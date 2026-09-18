@@ -26,6 +26,7 @@ export interface FourPlayerMatchSeatState {
 export type FourPlayerGeneralSelection = Record<FourPlayerSeat, string>;
 export type FourPlayerGeneralPrintedCosts = Record<FourPlayerSeat, number>;
 export type FourPlayerMatchStatus = "active" | "completed";
+export const FOUR_PLAYER_MAX_MANA = 10;
 
 export interface FourPlayerMatchState {
   seats: Record<FourPlayerSeat, FourPlayerMatchSeatState>;
@@ -97,5 +98,11 @@ export function eliminateFourPlayerMatchSeat(state: FourPlayerMatchState, seat: 
 export function advanceFourPlayerMatchTurn(state: FourPlayerMatchState): FourPlayerMatchState {
   if (state.status === "completed") return state;
   const turn = advanceFourPlayerTurn(state.turn);
-  return { ...state, turn, phase: "beginning", resolution: createFourPlayerResolutionFlow(turn.activeSeat, turn.eliminatedSeats, state.resolution.priority.mode), combat: createFourPlayerCombatState(turn.activeSeat, turn.eliminatedSeats) };
+  const incoming = state.seats[turn.activeSeat];
+  const nextMaxMana = Math.min(FOUR_PLAYER_MAX_MANA, incoming.maxMana + 1);
+  const seats = {
+    ...state.seats,
+    [turn.activeSeat]: { ...incoming, maxMana: nextMaxMana, mana: nextMaxMana },
+  };
+  return { ...state, seats, turn, phase: "beginning", resolution: createFourPlayerResolutionFlow(turn.activeSeat, turn.eliminatedSeats, state.resolution.priority.mode), combat: createFourPlayerCombatState(turn.activeSeat, turn.eliminatedSeats) };
 }
