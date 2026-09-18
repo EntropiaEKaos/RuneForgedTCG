@@ -150,18 +150,19 @@ export function extractPackLiveOpsSources(resource: "events" | "promotions", row
   if (!key) return [];
 
   if (resource === "events") {
-    return rawRules(row?.rules?.packEconomy)
-      .map((value) => normalizePackLiveOpsRule(value))
-      .filter((rule): rule is PackLiveOpsRule => Boolean(rule))
-      .map((rule) => ({ key, name, kind: "event" as const, rule }));
+    const values: unknown[] = rawRules(row?.rules?.packEconomy);
+    return values
+      .map((value: unknown): PackLiveOpsRule | null => normalizePackLiveOpsRule(value))
+      .filter((rule: PackLiveOpsRule | null): rule is PackLiveOpsRule => rule !== null)
+      .map((rule: PackLiveOpsRule): PackLiveOpsSource => ({ key, name, kind: "event", rule }));
   }
 
-  const offers = Array.isArray(row?.offers) ? row.offers : [];
+  const offers: unknown[] = Array.isArray(row?.offers) ? row.offers : [];
   return offers
     .filter((offer: unknown) => isObject(offer) && String(offer.kind ?? offer.type ?? "") === "pack_modifier")
-    .map((value: unknown) => normalizePackLiveOpsRule(value))
-    .filter((rule): rule is PackLiveOpsRule => Boolean(rule))
-    .map((rule) => ({ key, name, kind: "promotion" as const, rule }));
+    .map((value: unknown): PackLiveOpsRule | null => normalizePackLiveOpsRule(value))
+    .filter((rule: PackLiveOpsRule | null): rule is PackLiveOpsRule => rule !== null)
+    .map((rule: PackLiveOpsRule): PackLiveOpsSource => ({ key, name, kind: "promotion", rule }));
 }
 
 export async function loadActivePackLiveOpsSources(now = new Date()): Promise<PackLiveOpsSource[]> {
