@@ -21,12 +21,15 @@ export interface FourPlayerMatchSeatState {
   generalCastsFromZone: number;
   mana: number;
   maxMana: number;
+  life: number;
+  generalDamageReceived: Partial<Record<FourPlayerSeat, number>>;
 }
 
 export type FourPlayerGeneralSelection = Record<FourPlayerSeat, string>;
 export type FourPlayerGeneralPrintedCosts = Record<FourPlayerSeat, number>;
 export type FourPlayerMatchStatus = "active" | "completed";
 export const FOUR_PLAYER_MAX_MANA = 10;
+export const FOUR_PLAYER_STARTING_LIFE = 30;
 
 export interface FourPlayerMatchState {
   seats: Record<FourPlayerSeat, FourPlayerMatchSeatState>;
@@ -59,7 +62,7 @@ export function createFourPlayerMatchState(
   const seats = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
     const isStartingSeat = seat === startingSeat;
     const maxMana = isStartingSeat ? Math.min(FOUR_PLAYER_MAX_MANA, startingMana + 1) : startingMana;
-    return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana }];
+    return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana, life: FOUR_PLAYER_STARTING_LIFE, generalDamageReceived: {} }];
   })) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
   return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), status: "active" };
@@ -109,4 +112,25 @@ export function advanceFourPlayerMatchTurn(state: FourPlayerMatchState): FourPla
     [turn.activeSeat]: { ...incoming, maxMana: nextMaxMana, mana: nextMaxMana },
   };
   return { ...state, seats, turn, phase: "beginning", resolution: createFourPlayerResolutionFlow(turn.activeSeat, turn.eliminatedSeats, state.resolution.priority.mode), combat: createFourPlayerCombatState(turn.activeSeat, turn.eliminatedSeats) };
+}
+
+export function applyFourPlayerDamage(
+  state: FourPlayerMatchState,
+  target: FourPlayerSeat,
+  amount: number,
+  sourceGeneral?: FourPlayerSeat,
+): FourPlayerMatchState {
+  if (state.status === "completed") return state;
+  if (state.seats[target].eliminated) throw new Error(`Cannot damage eliminated seat ${target}.`);
+  if (!Number.isFinite(amount) || amount < 0) throw new Error("4P damage must be a non-negative finite number.");
+  const current = state.seats[target];
+  const life = Math.max(0, current.life - amount);
+  const generalDamageReceived = sourceGeneral
+    ? { ...current.generalDamageReceived, [sourceGeneral]: (current.generalDamageReceived[sourceGeneral] ?? 0) + amount }
+    : current.generalDamageReceived;
+  const damaged: FourPlayerMatchState = {
+    ...state,
+    seats: { ...state.seats, [target]: { ...current, life, generalDamageReceived } },
+  };
+  return life === 0 ? eliminateFourPlayerMatchSeat(damaged, target) : damaged;
 }
