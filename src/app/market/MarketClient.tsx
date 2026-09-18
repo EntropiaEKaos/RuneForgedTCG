@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getCardCosmetic } from "@/game/card-cosmetics";
+import { getCardCosmetic, getCardCosmetics } from "@/game/card-cosmetics";
 import { useCatalogRevision } from "@/components/CatalogContext";
 
 type CardSummary = { defId: string; name: string; rarity?: string; region?: string | string[]; emoji?: string };
@@ -36,6 +36,7 @@ type Listing = {
   card: CardSummary;
 };
 type TradeAsset = { assetId?: number; defId: string; variantId?: string; frameId?: string; finish?: string; serialNumber?: number | null; card: CardSummary };
+type TradeRequestDraft = { defId: string; variantId?: string; frameId?: string; finish?: string; serialNumber?: string };
 type Trade = {
   id: number;
   proposerName: string;
@@ -78,11 +79,15 @@ export default function MarketClient() {
   const [gold, setGold] = useState(0);
   const [playerId, setPlayerId] = useState<number | null>(null);
   const [feeBps, setFeeBps] = useState(500);
+  const [minPriceGold, setMinPriceGold] = useState(1);
+  const [maxPriceGold, setMaxPriceGold] = useState(1_000_000);
+  const [maxTradeCardsPerSide, setMaxTradeCardsPerSide] = useState(5);
   const [query, setQuery] = useState("");
   const [prices, setPrices] = useState<Record<number, string>>({});
   const [recipient, setRecipient] = useState("");
-  const [offeredAssetId, setOfferedAssetId] = useState("");
+  const [offeredAssetIds, setOfferedAssetIds] = useState<number[]>([]);
   const [requestedDefId, setRequestedDefId] = useState("");
+  const [requestedAssets, setRequestedAssets] = useState<TradeRequestDraft[]>([]);
   const [tradeNote, setTradeNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -96,7 +101,12 @@ export default function MarketClient() {
       setGold(Number(data.player.gold || 0));
       setPlayerId(Number(data.player.id || 0));
     }
-    if (data.settings) setFeeBps(Number(data.settings.feeBps || 0));
+    if (data.settings) {
+      setFeeBps(Number(data.settings.feeBps || 0));
+      setMinPriceGold(Number(data.settings.minPriceGold || 1));
+      setMaxPriceGold(Number(data.settings.maxPriceGold || 1_000_000));
+      setMaxTradeCardsPerSide(Number(data.settings.maxTradeCardsPerSide || 5));
+    }
     if (view === "inventory") setAssets(data.assets || []);
     else setListings(view === "history" ? data.history || [] : data.listings || []);
   }, [query]);
