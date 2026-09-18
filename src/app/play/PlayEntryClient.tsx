@@ -23,7 +23,15 @@ export default function PlayEntryClient() {
       if(cancelled)return;
       if(current.ok){const payload=await current.json();const name=String(payload.player?.name||"");if(!name)throw new Error("Perfil de jogador inválido.");setPlayerName(name);if(name.toLowerCase().startsWith("guest-")){setNickname("");setState("nickname");return;}const completed=localStorage.getItem(ALPHA_ONBOARDING_STORAGE_KEY)===ALPHA_ONBOARDING_COMPLETE;setState(shouldShowAlphaOnboarding({created:false,completed})?"welcome":"ready");return;}
       if(current.status!==401)throw new Error("Não foi possível consultar sua sessão de jogador.");
-      const r=await fetch("/api/auth/providers",{cache:"no-store"});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.error||"Não foi possível carregar os métodos de entrada.");setProviders(d.providers||[]);const authError=new URLSearchParams(window.location.search).get("auth_error");if(authError)setMessage(authError==="identity_conflict"?"Esta identidade já pertence a outra conta.":"Não foi possível concluir a autenticação. Tente novamente.");setState("auth");
+      const r=await fetch("/api/auth/providers",{cache:"no-store"});
+      let d:{ok?:boolean;providers?:Provider[];error?:string}|null=null;
+      try{d=await r.json();}catch{
+        // Provider discovery is optional for Guest access. A proxy/runtime/database
+        // failure must not make /play unusable or hide the explicit Guest fallback.
+      }
+      if(r.ok&&d?.ok&&Array.isArray(d.providers))setProviders(d.providers);
+      else setProviders([]);
+      const authError=new URLSearchParams(window.location.search).get("auth_error");if(authError)setMessage(authError==="identity_conflict"?"Esta identidade já pertence a outra conta.":"Não foi possível concluir a autenticação. Tente novamente.");setState("auth");
     }catch(cause){if(cancelled)return;setError(cause instanceof Error?cause.message:"Não foi possível preparar sua sessão de jogador.");setState("error");}};void sync();return()=>{cancelled=true;};
   },[attempt]);
 
