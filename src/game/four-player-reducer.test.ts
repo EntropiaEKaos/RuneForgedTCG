@@ -61,7 +61,12 @@ paid = reduceFourPlayerServerEvent(paid, event("cast_general", "p1", { cost: 0, 
 assert.equal(paid.seats.p1.mana, 5);
 assert.equal(paid.generals.p1.castsFromGeneralZone, 1);
 
-const poor: FourPlayerMatchState = { ...createFourPlayerMatchState("p1", undefined, 4, printedCosts), phase: "main_1" };
+const poorBase = createFourPlayerMatchState("p1", undefined, 4, printedCosts);
+const poor: FourPlayerMatchState = {
+  ...poorBase,
+  phase: "main_1",
+  seats: { ...poorBase.seats, p1: { ...poorBase.seats.p1, mana: 4, maxMana: 4 } },
+};
 assert.throws(() => reduceFourPlayerServerEvent(poor, event("cast_general", "p1", { cost: 0, mana: 999 })), /requires 5, has 4/);
 assert.equal(poor.seats.p1.mana, 4);
 assert.equal(poor.generals.p1.location, "general_zone");
