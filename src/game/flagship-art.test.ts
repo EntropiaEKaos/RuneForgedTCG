@@ -96,9 +96,9 @@ assert.deepEqual(
     starterDecks: 6,
     starterSlots: 240,
     uniqueStarterCards: 140,
-    covered: 61,
-    missing: 79,
-    byPriority: { P0: 0, P1: 36, P2: 43 },
+    covered: 66,
+    missing: 74,
+    byPriority: { P0: 0, P1: 31, P2: 43 },
   },
   "Alpha art priority baseline must remain deterministic so Studio production queues cannot drift silently",
 );
@@ -136,6 +136,11 @@ for (const defId of [
   "forest_pack_shelter",
   "forest_summon_pack",
   "forest_packrunner",
+  "forest_entangle",
+  "forest_stalker",
+  "wood_ent",
+  "wood_stag",
+  "wood_caller",
 ]) {
   assert.equal(alphaArtExposure(defId).priority, "covered", `${defId} must leave the P1 queue after certified activation`);
 }
