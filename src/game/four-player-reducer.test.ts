@@ -53,6 +53,32 @@ timing = reduceFourPlayerServerEvent(timing, event("submit_action", "p1", { id: 
 timing = { ...timing, resolution: { ...timing.resolution, priority: { ...timing.resolution.priority, holder: "p1", consecutivePasses: 0 } } };
 assert.throws(() => reduceFourPlayerServerEvent(timing, event("cast_general", "p1")), /stack is empty/);
 
+
+// General payment is authoritative, atomic, and ignores forged client cost/mana payloads.
+const printedCosts = { p1: 5, p2: 4, p3: 3, p4: 2 } as const;
+let paid: FourPlayerMatchState = { ...createFourPlayerMatchState("p1", undefined, 10, printedCosts), phase: "main_1" };
+paid = reduceFourPlayerServerEvent(paid, event("cast_general", "p1", { cost: 0, mana: 999 }));
+assert.equal(paid.seats.p1.mana, 5);
+assert.equal(paid.generals.p1.castsFromGeneralZone, 1);
+
+const poor: FourPlayerMatchState = { ...createFourPlayerMatchState("p1", undefined, 4, printedCosts), phase: "main_1" };
+assert.throws(() => reduceFourPlayerServerEvent(poor, event("cast_general", "p1", { cost: 0, mana: 999 })), /requires 5, has 4/);
+assert.equal(poor.seats.p1.mana, 4);
+assert.equal(poor.generals.p1.location, "general_zone");
+assert.equal(poor.generals.p1.castsFromGeneralZone, 0);
+assert.equal(poor.resolution.stack.items.length, 0);
+
+// A returned General pays +2 for each previous cast from the General Zone.
+let recast: FourPlayerMatchState = { ...createFourPlayerMatchState("p1", undefined, 12, printedCosts), phase: "main_1" };
+recast = {
+  ...recast,
+  generals: { ...recast.generals, p1: { ...recast.generals.p1, castsFromGeneralZone: 1 } },
+  seats: { ...recast.seats, p1: { ...recast.seats.p1, generalCastsFromZone: 1 } },
+};
+recast = reduceFourPlayerServerEvent(recast, event("cast_general", "p1"));
+assert.equal(recast.seats.p1.mana, 5); // printed 5 + recast tax 2
+assert.equal(recast.generals.p1.castsFromGeneralZone, 2);
+
 match = createFourPlayerMatchState("p1");
 const stacked = reduceFourPlayerServerEvent(match, event("submit_action", "p1", {
   id: "spell-before-end", controller: "p1", kind: "spell", payload: {},
