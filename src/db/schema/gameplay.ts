@@ -96,6 +96,8 @@ export const customDecks = pgTable("custom_decks", {
   emoji: text("emoji").notNull().default("🎴"),
   formatId: text("format_id").notNull().default("eternal"),
   cards: text("cards").notNull(),
+  /** Presentation-only exact collectible asset per gameplay defId. */
+  appearanceAssets: jsonb("appearance_assets").$type<Record<string, number>>().notNull().default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
