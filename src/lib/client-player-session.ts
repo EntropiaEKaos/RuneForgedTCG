@@ -4,7 +4,20 @@ const PLAYER_NAME_KEY = "runeforge_playername";
 const LEGACY_RECOVERY_KEY = ["runeforge", "recovery", "code"].join("_");
 
 export const PLAYER_RECOVERY_KEY_EVENT = "runeforge:recovery-key-issued";
+const PENDING_RECOVERY_WINDOW_KEY = "__forged_pending_recovery_code__";
 let pendingRecoveryCode: string | null = null;
+
+function browserPendingRecoveryCode(): string | null {
+  if (typeof window === "undefined") return null;
+  const value = Reflect.get(window, PENDING_RECOVERY_WINDOW_KEY);
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function setBrowserPendingRecoveryCode(code: string | null) {
+  if (typeof window === "undefined") return;
+  if (code) Reflect.set(window, PENDING_RECOVERY_WINDOW_KEY, code);
+  else Reflect.deleteProperty(window, PENDING_RECOVERY_WINDOW_KEY);
+}
 
 export interface PlayerSessionPayload {
   ok: boolean;
@@ -28,7 +41,12 @@ async function json(response: Response): Promise<PlayerSessionPayload> {
 function publishRecoveryCode(code: string | undefined) {
   const normalized = code?.trim();
   if (!normalized) return;
+  // Keep the one-time secret in ephemeral browser memory as well as this module.
+  // Production chunks can hydrate independently; the window bridge lets the
+  // globally-mounted RecoveryKeyNotice reconcile a code issued before its
+  // listener is ready without persisting the secret in Web Storage.
   pendingRecoveryCode = normalized;
+  setBrowserPendingRecoveryCode(normalized);
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(PLAYER_RECOVERY_KEY_EVENT, { detail: { code: normalized } }));
   }
@@ -39,8 +57,9 @@ function rememberPlayerName(payload: PlayerSessionPayload) {
 }
 
 export function consumePendingRecoveryCode(): string | null {
-  const value = pendingRecoveryCode;
+  const value = pendingRecoveryCode ?? browserPendingRecoveryCode();
   pendingRecoveryCode = null;
+  setBrowserPendingRecoveryCode(null);
   return value;
 }
 
