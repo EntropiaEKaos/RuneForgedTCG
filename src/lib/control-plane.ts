@@ -8,6 +8,7 @@ import { LOGIN_REWARDS, PACK_DEFS, type LoginReward, type PackDef } from "@/lib/
 import { RANK_TIERS, type RankTier } from "@/lib/ranked";
 import { VANILLA_EXPERIMENTAL_DECKS } from "@/game/vanilla-experimental-decks";
 import { BUILTIN_FORMATS, type FormatDef } from "@/game/format-definitions";
+import { applyActivePackLiveOps } from "@/lib/pack-live-ops";
 
 
 async function controlPersistence() {
@@ -302,7 +303,10 @@ export const getRuntimePuzzles = () => runtimeDomain<Puzzle>("puzzles", PUZZLES,
 export const getRuntimeBosses = () => runtimeDomain<Boss>("bosses", BOSSES, (item) => item.id);
 export const getRuntimeBrawls = () => runtimeDomain<BrawlMode>("brawls", BRAWLS, (item) => item.id);
 export const getRuntimeExpeditions = () => runtimeDomain<Encounter>("expeditions", ENCOUNTERS, (item) => item.id);
-export const getRuntimePacks = () => runtimeDomain<PackDef>("packs", PACK_DEFS, (item) => item.id);
+export async function getRuntimePacks(): Promise<PackDef[]> {
+  const packs = await runtimeDomain<PackDef>("packs", PACK_DEFS, (item) => item.id);
+  return applyActivePackLiveOps(packs);
+}
 export const getRuntimeExperimentalDecks = () => runtimeDomain<DeckDef>("experimental-decks", VANILLA_EXPERIMENTAL_DECKS, (item) => item.id);
 export async function getRuntimeFormats(): Promise<FormatDef[]> {
   const formats = await runtimeDomain<FormatDef>("formats", BUILTIN_FORMATS, (item) => item.id);
