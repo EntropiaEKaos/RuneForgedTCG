@@ -122,7 +122,7 @@ function main() {
   assert.match(deckSchema, /appearanceAssets: jsonb\("appearance_assets"\)/, "Drizzle deck schema must expose collectible appearance mapping");
   const deckAppearanceService = read("src/lib/deck-appearance-service.ts");
   assert.match(deckAppearanceService, /ownerPlayerId/, "deck appearance validation must enforce asset ownership");
-  assert.match(deckAppearanceService, /asset\.defId !== defId/, "deck appearance validation must bind an asset to the same gameplay defId");
+  assert.match(deckAppearanceService, /byId\.get\(assetId\)\?\.defId !== defId/, "deck appearance validation must bind an asset to the same gameplay defId");
   const deckApi = read("src/app/api/decks/route.ts");
   const deckUpdateApi = read("src/app/api/decks/[id]/route.ts");
   assert.match(deckApi, /validateOwnedDeckAppearanceAssets/, "new deck saves must validate collectible ownership");
