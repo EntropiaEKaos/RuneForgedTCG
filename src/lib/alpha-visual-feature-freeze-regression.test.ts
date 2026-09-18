@@ -38,8 +38,8 @@ import { readFileSync } from "node:fs";
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
   "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
-  "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
-  "src/components/CardView.tsx": "edd582233b063110d7ca07028b83229236a74553",
+  "src/app/play/BattleView.tsx": "7286f077a734efdcf2309991b4ca37f506d9016b",
+  "src/components/CardView.tsx": "b91c0564a46467ce742eaea57801854aa780ef31",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
   "src/app/styles/visual-3-0-battlefield-cinematic.css": "3bf86d3b3729265db77b7ec8c92f58ae8a6bb04b",
   "src/app/styles/visual-3-1-card-presentation.css": "d5e6cafb58ce0aa759d249d2332b7753294042bd",
