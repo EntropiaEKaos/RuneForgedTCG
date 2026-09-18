@@ -1,7 +1,7 @@
 import { runtimeGate } from "@/lib/runtime-gates";
 import { NextRequest } from "next/server";
 import { db } from "@/db";
-import { players, playerCards } from "@/db/schema";
+import { cardAssets, playerCardCosmeticPreferences, players, playerCards } from "@/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { allCards } from "@/game/cards";
 import { ensureCustomCardsLoaded } from "@/game/catalog";
@@ -22,13 +22,59 @@ export async function GET(req: NextRequest) {
     if (!identity) return Response.json({ ok: false, error: "Player session required" }, { status: 401 });
     const [player] = await db.select().from(players).where(eq(players.id, identity.playerId)).limit(1);
     if (!player) return Response.json({ ok: false, error: "Player not found" }, { status: 404 });
-    const [collection, config, craftCosts] = await Promise.all([
+    const [collection, assets, cosmeticPreferences, config, craftCosts] = await Promise.all([
       db.select().from(playerCards).where(eq(playerCards.playerId, player.id)),
+      db.select({
+        id: cardAssets.id,
+        defId: cardAssets.defId,
+        variantId: cardAssets.variantId,
+        frameId: cardAssets.frameId,
+        finish: cardAssets.finish,
+        serialNumber: cardAssets.serialNumber,
+        source: cardAssets.source,
+      }).from(cardAssets).where(eq(cardAssets.ownerPlayerId, player.id)),
+      db.select({
+        defId: playerCardCosmeticPreferences.defId,
+        assetId: playerCardCosmeticPreferences.assetId,
+      }).from(playerCardCosmeticPreferences).where(eq(playerCardCosmeticPreferences.playerId, player.id)),
       loadGameConfig(),
       getRuntimeCraftCosts(),
     ]);
     const collectionMap = new Map(collection.map((c) => [c.defId, { count: c.count, shiny: c.shiny }]));
-    const detailed = allCards().map((card) => ({ ...card, owned: collectionMap.get(card.defId)?.count ?? 0, shiny: collectionMap.get(card.defId)?.shiny ?? false, dustValue: config.advanced.economy.dustValues[card.rarity], craftCost: craftCosts[card.rarity] }));
+    const assetsByDef = new Map<string, typeof assets>();
+    for (const asset of assets) {
+      const rows = assetsByDef.get(asset.defId) ?? [];
+      rows.push(asset);
+      assetsByDef.set(asset.defId, rows);
+    }
+    const equippedAssetByDef = new Map(cosmeticPreferences.map((preference) => [preference.defId, preference.assetId]));
+    const detailed = allCards().map((card) => {
+      const ownedAssets = assetsByDef.get(card.defId) ?? [];
+      const equippedAssetId = equippedAssetByDef.get(card.defId) ?? null;
+      const equippedAsset = equippedAssetId == null ? null : ownedAssets.find((asset) => asset.id === equippedAssetId) ?? null;
+      return {
+        ...card,
+        owned: collectionMap.get(card.defId)?.count ?? 0,
+        shiny: collectionMap.get(card.defId)?.shiny ?? false,
+        dustValue: config.advanced.economy.dustValues[card.rarity],
+        craftCost: craftCosts[card.rarity],
+        printings: {
+          totalCopies: ownedAssets.length,
+          specialCopies: ownedAssets.filter((asset) => asset.variantId !== "standard").length,
+          serializedCopies: ownedAssets.filter((asset) => asset.serialNumber != null).length,
+          variants: Array.from(new Set(ownedAssets.map((asset) => asset.variantId))).sort(),
+          frames: Array.from(new Set(ownedAssets.map((asset) => asset.frameId))).sort(),
+          finishes: Array.from(new Set(ownedAssets.map((asset) => asset.finish))).sort(),
+          equipped: equippedAsset ? {
+            assetId: equippedAsset.id,
+            variantId: equippedAsset.variantId,
+            frameId: equippedAsset.frameId,
+            finish: equippedAsset.finish,
+            serialNumber: equippedAsset.serialNumber,
+          } : null,
+        },
+      };
+    });
     const collectibleDetailed = detailed.filter((card) => card.collectible !== false);
     return Response.json({ ok: true, player: { name: player.name, gold: player.gold, dust: player.dust, level: player.level, xp: player.xp }, collection: detailed, totalCards: collectibleDetailed.length, ownedCards: collectibleDetailed.filter((card) => card.owned > 0).length, totalDefinitions: detailed.length, duplicateCap: config.advanced.economy.duplicateCap });
   } catch { return Response.json({ ok: false, error: "Internal server error" }, { status: 500 }); }

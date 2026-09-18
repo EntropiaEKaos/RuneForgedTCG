@@ -16,6 +16,21 @@ interface CollectionCard extends CardDef {
   shiny: boolean;
   dustValue: number;
   craftCost: number;
+  printings?: {
+    totalCopies: number;
+    specialCopies: number;
+    serializedCopies: number;
+    variants: string[];
+    frames: string[];
+    finishes: string[];
+    equipped: null | {
+      assetId: number;
+      variantId: string;
+      frameId: string;
+      finish: string;
+      serialNumber?: number | null;
+    };
+  };
 }
 
 interface PlayerInfo {
@@ -28,6 +43,7 @@ interface PlayerInfo {
 
 type OwnershipFilter = "All" | "Owned" | "Missing" | "Complete";
 type CostFilter = "All" | "0-2" | "3-5" | "6+";
+type PrintingFilter = "All" | "Special" | "Serialized" | "Equipped";
 type SortMode = "curve" | "name" | "rarity";
 
 type CollectionPayload = {
@@ -48,6 +64,7 @@ const RARITIES: Array<Rarity | "All"> = ["All", "Common", "Rare", "Epic", "Legen
 const TYPES: Array<CardType | "All"> = ["All", "Unit", "Spell", "Enchantment", "Artifact", "Equipment", "Sentinela"];
 const OWNERSHIP: OwnershipFilter[] = ["All", "Owned", "Missing", "Complete"];
 const COSTS: CostFilter[] = ["All", "0-2", "3-5", "6+"];
+const PRINTINGS: PrintingFilter[] = ["All", "Special", "Serialized", "Equipped"];
 const KEYWORDS: Array<Keyword | "All"> = ["All", "Barrier", "Challenger", "Elusive", "Fearsome", "Flying", "Haste", "Lifesteal", "Overwhelm", "QuickAttack", "Regeneration", "Tough"];
 
 const RARITY_LABEL: Record<Rarity, string> = {
@@ -131,6 +148,7 @@ export default function CollectionClient() {
   const [ownFilter, setOwnFilter] = useState<OwnershipFilter>("All");
   const [search, setSearch] = useState("");
   const [costFilter, setCostFilter] = useState<CostFilter>("All");
+  const [printingFilter, setPrintingFilter] = useState<PrintingFilter>("All");
   const [keywordFilter, setKeywordFilter] = useState<Keyword | "All">("All");
   const [sortBy, setSortBy] = useState<SortMode>("curve");
 
@@ -190,6 +208,12 @@ export default function CollectionClient() {
       .filter((card) => rarityFilter === "All" || card.rarity === rarityFilter)
       .filter((card) => typeFilter === "All" || card.type === typeFilter)
       .filter((card) => matchesCost(card.cost, costFilter))
+      .filter((card) => {
+        if (printingFilter === "Special") return (card.printings?.specialCopies ?? 0) > 0;
+        if (printingFilter === "Serialized") return (card.printings?.serializedCopies ?? 0) > 0;
+        if (printingFilter === "Equipped") return Boolean(card.printings?.equipped && card.printings.equipped.variantId !== "standard");
+        return true;
+      })
       .filter((card) => keywordFilter === "All" || (card.keywords ?? []).includes(keywordFilter))
       .filter((card) => {
         if (ownFilter === "Owned") return card.owned > 0;
@@ -213,7 +237,7 @@ export default function CollectionClient() {
         if (sortBy === "rarity") return RARITY_ORDER[a.rarity] - RARITY_ORDER[b.rarity] || a.cost - b.cost || a.name.localeCompare(b.name);
         return a.cost - b.cost || a.name.localeCompare(b.name);
       });
-  }, [cards, regionFilter, rarityFilter, typeFilter, ownFilter, costFilter, keywordFilter, sortBy, search, duplicateCap]);
+  }, [cards, regionFilter, rarityFilter, typeFilter, ownFilter, costFilter, printingFilter, keywordFilter, sortBy, search, duplicateCap]);
 
   const stats = useMemo(() => {
     const byRarity: Record<Rarity, { owned: number; total: number }> = {
@@ -239,7 +263,7 @@ export default function CollectionClient() {
 
   const completion = totalCards > 0 ? Math.round((ownedCards / totalCards) * 100) : 0;
   const missingCards = Math.max(0, totalCards - ownedCards);
-  const activeFilters = [regionFilter, rarityFilter, typeFilter, ownFilter, costFilter, keywordFilter].filter((value) => value !== "All").length + (search.trim() ? 1 : 0);
+  const activeFilters = [regionFilter, rarityFilter, typeFilter, ownFilter, costFilter, printingFilter, keywordFilter].filter((value) => value !== "All").length + (search.trim() ? 1 : 0);
 
   const clearFilters = () => {
     setRegionFilter("All");
@@ -247,6 +271,7 @@ export default function CollectionClient() {
     setTypeFilter("All");
     setOwnFilter("All");
     setCostFilter("All");
+    setPrintingFilter("All");
     setKeywordFilter("All");
     setSortBy("curve");
     setSearch("");
@@ -373,6 +398,7 @@ export default function CollectionClient() {
             <FilterSelect label="Tipo" value={typeFilter} onChange={(value) => setTypeFilter(value as CardType | "All")} options={TYPES.map((value) => ({ value, label: value === "All" ? "Todos tipos" : value }))} />
             <FilterSelect label="Posse" value={ownFilter} onChange={(value) => setOwnFilter(value as OwnershipFilter)} options={OWNERSHIP.map((value) => ({ value, label: value === "All" ? "Toda posse" : value === "Owned" ? "Obtidas" : value === "Missing" ? "Faltando" : "No limite" }))} />
             <FilterSelect label="Custo" value={costFilter} onChange={(value) => setCostFilter(value as CostFilter)} options={COSTS.map((value) => ({ value, label: value === "All" ? "Todo custo" : value }))} />
+            <FilterSelect label="Printing" value={printingFilter} onChange={(value) => setPrintingFilter(value as PrintingFilter)} options={PRINTINGS.map((value) => ({ value, label: value === "All" ? "Todas versões" : value === "Special" ? "Variantes especiais" : value === "Serialized" ? "Serializadas" : "Versão equipada" }))} />
             <FilterSelect label="Habilidade" value={keywordFilter} onChange={(value) => setKeywordFilter(value as Keyword | "All")} options={KEYWORDS.map((value) => ({ value, label: value === "All" ? "Todas habilidades" : value }))} />
             <FilterSelect label="Ordenação" value={sortBy} onChange={(value) => setSortBy(value as SortMode)} options={[{ value: "curve", label: "Curva de mana" }, { value: "name", label: "Nome" }, { value: "rarity", label: "Raridade" }]} />
           </div>
@@ -400,6 +426,7 @@ export default function CollectionClient() {
                       className={`group relative flex min-w-0 flex-col items-center gap-2 rounded-xl border p-2 text-left transition ${selected ? "border-amber-400/70 bg-amber-400/10" : "border-white/10 bg-white/[.025] hover:border-white/25 hover:bg-white/[.045]"} ${card.owned === 0 ? "opacity-55" : ""}`}
                     >
                       {card.shiny && <span className="absolute right-2 top-2 z-10 rounded-full border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-cyan-200">Brilhante</span>}
+                      {(card.printings?.specialCopies ?? 0) > 0 && <span className="absolute left-2 top-2 z-10 rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-200">{card.printings?.specialCopies} variante(s)</span>}
                       <div className={`pointer-events-none transition ${card.owned === 0 ? "grayscale" : "group-hover:-translate-y-0.5"}`}><CardTip defId={card.defId} size="sm" /></div>
                       <div className="flex w-full items-center justify-between gap-2 px-1 text-[10px]">
                         <span className={`font-black uppercase tracking-wider ${RARITY_COLOR[card.rarity]}`}>{RARITY_LABEL[card.rarity]}</span>
@@ -474,7 +501,18 @@ function CardEconomyPanel({ card, duplicateCap, dust, busy, actionKey, onAction 
       <div className="grid grid-cols-2 gap-2">
         <Metric label="Você possui" value={`${card.owned}/${duplicateCap}`} />
         <Metric label="Pó disponível" value={dust} />
+        <Metric label="Printings especiais" value={card.printings?.specialCopies ?? 0} />
+        <Metric label="Serializadas" value={card.printings?.serializedCopies ?? 0} />
       </div>
+      <section className="rounded-xl border border-violet-400/20 bg-violet-400/5 p-3" aria-label="Versões colecionáveis">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-wider text-violet-200">Printing ativa</p>
+            <p className="mt-1 text-xs text-slate-400">{card.printings?.equipped && card.printings.equipped.variantId !== "standard" ? `${card.printings.equipped.variantId} · ${card.printings.equipped.finish}` : "Standard"}</p>
+          </div>
+          <Link href="/collection/variants" className="rounded-lg border border-violet-300/20 bg-violet-300/10 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-violet-100 hover:bg-violet-300/15">ATELIÊ</Link>
+        </div>
+      </section>
 
       <section className="rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-3" aria-label="Forjar cópias">
         <div className="flex items-start justify-between gap-2"><div><p className="text-xs font-black uppercase tracking-wider text-cyan-200">Forjar</p><p className="mt-1 text-xs text-slate-400">{card.craftCost} de pó por cópia.</p></div><span className="text-lg">💠</span></div>

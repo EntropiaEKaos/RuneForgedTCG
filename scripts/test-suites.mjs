@@ -162,6 +162,7 @@ export const sourceContractTests = [
   "src/lib/mvp-2.91.test.ts",
   "src/lib/mvp-final-2.96.test.ts",
   "src/lib/p2p-marketplace-regression.test.ts",
+  "src/lib/printings-collectibles-runtime-regression.test.ts",
   "src/lib/production-certification-regression.test.ts",
   "src/lib/production-gate-regression.test.ts",
   "src/lib/public-alpha-account-deploy-hardening-regression.test.ts",
