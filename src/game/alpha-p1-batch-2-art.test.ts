@@ -38,11 +38,11 @@ async function main() {
       starterDecks: 6,
       starterSlots: 240,
       uniqueStarterCards: 140,
-      covered: 61,
-      missing: 79,
-      byPriority: { P0: 0, P1: 36, P2: 43 },
+      covered: 66,
+      missing: 74,
+      byPriority: { P0: 0, P1: 31, P2: 43 },
     },
-    "P1 Batch 2 must move exactly five starter cards from P1 to covered",
+    "P1 Batch 2 must remain covered while the active Batch 3 advances the global queue",
   );
 
   assert.equal(ALPHA_P1_ART_FORMAT.aspectRatio, "4:5");
@@ -92,7 +92,8 @@ async function main() {
   await mkdir(dirname(evidencePath), { recursive: true });
   await sharp({ create: { width: tiles.length * 300, height: 420, channels: 4, background: "#050608" } }).composite(tiles.map((input, index) => ({ input, left: index * 300, top: 0 }))).png().toFile(evidencePath);
 
-  console.log("FORGED ALPHA P1 ART BATCH 2: 5/5 physical masters · 1536x1920 WebP · 61 covered / 79 backlog / 36 P1 pending / 43 P2 pending · contact sheet 54 PASS");
+  execFileSync(process.execPath, ["--import", "tsx", "src/game/alpha-p1-batch-3-art.test.ts"], { cwd: process.cwd(), stdio: "inherit" });
+  console.log("FORGED ALPHA P1 ART BATCH 2+3: 10 physical masters chained · Batch 3 contract certified");
 }
 
 void main().catch((error) => {

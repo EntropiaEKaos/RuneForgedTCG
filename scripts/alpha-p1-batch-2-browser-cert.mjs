@@ -220,7 +220,9 @@ async function main() {
     await openSubjectViewer(cdp);
     await capture(cdp);
 
-    console.log("ALPHA P1 BATCH 2 BROWSER CERT: PASS — 5 Batch 2 WebPs served + ember_blade runtime viewer certified");
+    const batch3 = spawnSync(process.execPath, ["scripts/alpha-p1-batch-3-browser-cert.mjs"], { cwd: process.cwd(), stdio: "inherit", env: { ...process.env, E2E_BASE_URL: baseUrl, ALPHA_VISUAL_DIR: outputDir } });
+    assert.equal(batch3.status, 0, "P1 Batch 3 browser certification must pass after Batch 2");
+    console.log("ALPHA P1 BATCH 2+3 BROWSER CERT: PASS — 10 active P1 WebPs served + runtime viewers certified");
   } finally {
     try { cdp?.close(); } catch {}
     if (chrome.exitCode == null && chrome.signalCode == null) chrome.kill("SIGTERM");
