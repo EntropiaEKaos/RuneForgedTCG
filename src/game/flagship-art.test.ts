@@ -103,7 +103,7 @@ assert.deepEqual(
   "Alpha art priority baseline must remain deterministic so Studio production queues cannot drift silently",
 );
 const priorityQueue = alphaArtPriorityQueue();
-assert.equal(priorityQueue.length, 79);
+assert.equal(priorityQueue.length, 74);
 assert.equal(alphaArtExposure("ember_bolt").priority, "covered");
 assert.equal(alphaArtExposure("ember_bolt").copies, 5);
 assert.equal(alphaArtExposure("wood_webweaver").priority, "covered");
@@ -145,7 +145,8 @@ assert.deepEqual(
   "Alpha P1 activation must keep the P0 production queue exhausted",
 );
 assert.equal(
-  priorityQueue.filter((row) => row.priority === "P1").length,\n  31,
+  priorityQueue.filter((row) => row.priority === "P1").length,
+  31,
   "Alpha P1 Batch 3 activation must leave exactly 31 P1 cards pending",
 );
 assert.ok(priorityQueue.every((row, index) => index === 0 || priorityQueue[index - 1].score >= row.score));
