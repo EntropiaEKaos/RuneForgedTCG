@@ -1,6 +1,6 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { cardAssetLocks, cardAssets, marketListings, marketplaceSettings, playerCardCosmeticPreferences, playerCards, tradeOffers } from "@/db/schema";
+import { cardAssetLocks, cardAssets, deckCardPrintingPreferences, marketListings, marketplaceSettings, playerCardCosmeticPreferences, playerCards, tradeOffers } from "@/db/schema";
 
 export async function getMarketplaceSettings(tx: any = db) {
   const [settings] = await tx.select().from(marketplaceSettings).where(eq(marketplaceSettings.id, 1)).limit(1);
@@ -67,6 +67,12 @@ export async function transferAsset(tx: any, assetId: number, fromPlayerId: numb
   await tx.delete(playerCardCosmeticPreferences).where(and(
     eq(playerCardCosmeticPreferences.playerId, fromPlayerId),
     eq(playerCardCosmeticPreferences.assetId, assetId),
+  ));
+  // Deck-scoped appearance pointers are presentation-only, but they also bind
+  // to the exact collectible copy. A sale/trade must clear them atomically.
+  await tx.delete(deckCardPrintingPreferences).where(and(
+    eq(deckCardPrintingPreferences.playerId, fromPlayerId),
+    eq(deckCardPrintingPreferences.assetId, assetId),
   ));
   await tx.update(cardAssets).set({ ownerPlayerId: toPlayerId }).where(eq(cardAssets.id, assetId));
   await adjustPlayerCardCount(tx, fromPlayerId, asset.defId, -1);

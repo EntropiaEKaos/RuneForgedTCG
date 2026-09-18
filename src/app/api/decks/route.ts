@@ -7,6 +7,7 @@ import { ensureConfigLoaded } from "@/game/settings";
 import { requireStablePlayerIdentity } from "@/lib/player-session";
 import { validateFormatDeck } from "@/game/format-rules-server";
 import { ensureCustomCardsLoaded } from "@/game/catalog";
+import { DeckPrintingValidationError, loadDeckPrintingPreferences, replaceDeckPrintingPreferences } from "@/lib/deck-printing-service";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +33,14 @@ export async function GET(req: Request) {
       .from(customDecks)
       .where(eq(customDecks.ownerPlayerId, identity.playerId))
       .orderBy(desc(customDecks.updatedAt));
+    const printings = await loadDeckPrintingPreferences(db, identity.playerId, rows.map((row) => row.id));
 
     return Response.json({
       ok: true,
-      decks: rows.map((r) => ({
-        ...r,
-        cards: parseCards(r.cards),
+      decks: rows.map((row) => ({
+        ...row,
+        cards: parseCards(row.cards),
+        printings: printings.get(row.id) ?? [],
       })),
     });
   } catch {
@@ -59,19 +62,29 @@ export async function POST(req: Request) {
     const emoji = String(body.emoji ?? "🎴").slice(0, 8) || "🎴";
     const cards = parseCards(body.cards);
     const formatId = String(body.formatId || "eternal").trim().toLowerCase();
-    const check = validateDeck(cards);
+    const deckValidation = validateDeck(cards);
     const formatCheck = await validateFormatDeck(cards, formatId);
-    if (!check.ok || !formatCheck.ok) {
-      return Response.json({ ok: false, errors: [...check.errors, ...formatCheck.errors] }, { status: 400 });
+    if (!deckValidation.ok || !formatCheck.ok) {
+      return Response.json({ ok: false, errors: [...deckValidation.errors, ...formatCheck.errors] }, { status: 400 });
     }
 
-    const [row] = await db
-      .insert(customDecks)
-      .values({ ownerName, ownerPlayerId: identity.playerId, name, emoji, formatId, cards: JSON.stringify(cards) })
-      .returning();
+    const result = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(customDecks)
+        .values({ ownerName, ownerPlayerId: identity.playerId, name, emoji, formatId, cards: JSON.stringify(cards) })
+        .returning();
+      const printings = await replaceDeckPrintingPreferences(tx, {
+        deckId: row.id,
+        playerId: identity.playerId!,
+        cards,
+        printings: body.printings,
+      });
+      return { row, printings };
+    });
 
-    return Response.json({ ok: true, deck: { ...row, cards } });
-  } catch {
+    return Response.json({ ok: true, deck: { ...result.row, cards, printings: result.printings } });
+  } catch (error) {
+    if (error instanceof DeckPrintingValidationError) return Response.json({ ok: false, error: error.message }, { status: 400 });
     return Response.json({ ok: false, error: "Internal server error" }, { status: 500 });
   }
 }
