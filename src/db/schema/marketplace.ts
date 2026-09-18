@@ -92,6 +92,7 @@ export type TradeRequestedAsset = {
   variantId?: string;
   frameId?: string;
   finish?: string;
+  serialNumber?: number;
 };
 
 export type TradeOfferedAsset = {
