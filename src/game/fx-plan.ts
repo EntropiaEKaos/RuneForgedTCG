@@ -6,10 +6,10 @@ import { ensureRuntimeFxAssociationsLoaded, getRuntimeFxAssociations } from "./f
 
 export type FxQuality = "low" | "medium" | "high" | "ultra";
 export interface FxCapabilities { quality: FxQuality; reducedMotion: boolean; constrained: boolean; }
-export interface FxExecutionPlan extends ResolvedFx { renderer: FxRenderer; intensity: FxIntensity; durationMs: number; particleBudget: number; allowScreenShake: boolean; allowTargetFlash: boolean; }
+export interface FxExecutionPlan extends ResolvedFx { renderer: FxRenderer; intensity: FxIntensity; durationMs: number; particleBudget: number; allowScreenShake: boolean; allowTargetFlash: boolean; comboDepth: number; comboScale: number; }
 const QUALITY_PARTICLE_SCALE: Record<FxQuality, number> = { low: 0, medium: 0.45, high: 0.75, ultra: 1 };
 function reducedDuration(preset: FxPreset, capabilities: FxCapabilities): number { if (capabilities.reducedMotion) return Math.min(120, preset.durationMs); if (capabilities.constrained) return Math.min(360, preset.durationMs); return preset.durationMs; }
-export function buildFxExecutionPlan(resolved: ResolvedFx, capabilities: FxCapabilities): FxExecutionPlan { const scale = capabilities.reducedMotion || capabilities.constrained ? 0 : QUALITY_PARTICLE_SCALE[capabilities.quality]; return { ...resolved, renderer: resolved.preset.renderer, intensity: resolved.preset.intensity, durationMs: reducedDuration(resolved.preset, capabilities), particleBudget: Math.floor((resolved.preset.particleBudget ?? 0) * scale), allowScreenShake: Boolean(resolved.preset.screenShake) && !capabilities.reducedMotion && !capabilities.constrained, allowTargetFlash: Boolean(resolved.preset.targetFlashMs) && !capabilities.reducedMotion }; }
+export function buildFxExecutionPlan(resolved: ResolvedFx, capabilities: FxCapabilities): FxExecutionPlan { const scale = capabilities.reducedMotion || capabilities.constrained ? 0 : QUALITY_PARTICLE_SCALE[capabilities.quality]; return { ...resolved, renderer: resolved.preset.renderer, intensity: resolved.preset.intensity, durationMs: reducedDuration(resolved.preset, capabilities), particleBudget: Math.floor((resolved.preset.particleBudget ?? 0) * scale), allowScreenShake: Boolean(resolved.preset.screenShake) && !capabilities.reducedMotion && !capabilities.constrained, allowTargetFlash: Boolean(resolved.preset.targetFlashMs) && !capabilities.reducedMotion, comboDepth: 0, comboScale: 1 }; }
 export function buildGameEventFxPlans(events: readonly GameEvent[], capabilities: FxCapabilities, overrides?: FxPresetOverrides, contexts?: ReadonlyMap<GameEvent, FxAssociationContext>, associations?: readonly FxAssociation[]): FxExecutionPlan[] {
   // Both config snapshots load without blocking or replaying authoritative events.
   ensureRuntimeFxPresetsLoaded();
@@ -19,5 +19,11 @@ export function buildGameEventFxPlans(events: readonly GameEvent[], capabilities
   return resolveGameEventBatchFx(events)
     .map((resolved) => applyFxAssociation(resolved, contexts?.get(resolved.event) ?? null, activeAssociations))
     .map((resolved) => applyFxPresetOverrides(resolved, activeOverrides))
-    .map((resolved) => buildFxExecutionPlan(resolved, capabilities));
+    .map((resolved) => buildFxExecutionPlan(resolved, capabilities))
+    .map((plan, index, plans) => {
+      const previous = plans.slice(0, index).filter((candidate) => candidate.event.type === plan.event.type).length;
+      const comboDepth = Math.min(4, previous);
+      const comboScale = capabilities.reducedMotion || capabilities.constrained ? 1 : 1 + comboDepth * 0.08;
+      return { ...plan, comboDepth, comboScale, particleBudget: Math.min(48, Math.round(plan.particleBudget * comboScale)) };
+    });
 }
