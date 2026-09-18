@@ -21,7 +21,7 @@ export function playFxGpuOverlay(target: Element | null, event: GameEvent, plan:
 
   const canvas = document.createElement("canvas");
   const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
-  const size = Math.max(96, Math.min(320, Math.ceil(Math.max(rect.width, rect.height) * 1.7)));
+  const size = Math.max(96, Math.min(360, Math.ceil(Math.max(rect.width, rect.height) * 1.7 * plan.comboScale)));
   canvas.width = Math.ceil(size * dpr);
   canvas.height = Math.ceil(size * dpr);
   Object.assign(canvas.style, { position: "fixed", left: `${rect.left + rect.width / 2 - size / 2}px`, top: `${rect.top + rect.height / 2 - size / 2}px`, width: `${size}px`, height: `${size}px`, pointerEvents: "none", zIndex: "92", mixBlendMode: "screen" });
@@ -93,7 +93,7 @@ export function playFxGpuOverlay(target: Element | null, event: GameEvent, plan:
     document.body.appendChild(canvas);
 
     const started = performance.now();
-    const duration = Math.max(260, Math.min(900, plan.durationMs + 120));
+    const duration = Math.max(260, Math.min(1000, plan.durationMs + 120 + plan.comboDepth * 45));
     let stopped = false;
     const draw = (now: number) => {
       if (stopped || cleaned) return;

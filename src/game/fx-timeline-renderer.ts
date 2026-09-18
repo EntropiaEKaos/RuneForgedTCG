@@ -45,7 +45,7 @@ export async function playFxTimeline(
     document.body.appendChild(overlay);
 
     let cancelled = false;
-    const duration = Math.max(0.18, Math.min(0.9, plan.durationMs / 1000));
+    const duration = Math.max(0.18, Math.min(1, plan.durationMs / 1000 + plan.comboDepth * 0.035));
     const timeline = gsap.timeline({
       onComplete: () => {
         if (!cancelled) overlay.remove();
@@ -55,10 +55,10 @@ export async function playFxTimeline(
     timeline.fromTo(
       overlay,
       { autoAlpha: 0, scale: 0.9, rotateZ: event.type === "UNIT_DIED" ? -2 : 0 },
-      { autoAlpha: 0.95, scale: 1.025, rotateZ: 0, duration: duration * 0.34, ease: "power2.out" },
+      { autoAlpha: Math.min(1, 0.9 + plan.comboDepth * 0.025), scale: 1 + 0.025 * plan.comboScale, rotateZ: 0, duration: duration * 0.34, ease: "power2.out" },
     ).to(overlay, {
       autoAlpha: 0,
-      scale: event.type === "UNIT_DIED" ? 0.86 : 1.07,
+      scale: event.type === "UNIT_DIED" ? Math.max(0.78, 0.86 - plan.comboDepth * 0.015) : 1.07 + plan.comboDepth * 0.012,
       filter: event.type === "UNIT_DIED" ? "blur(6px) grayscale(1)" : "blur(2px)",
       duration: duration * 0.66,
       ease: "power2.inOut",
