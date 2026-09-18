@@ -28,7 +28,7 @@ async function count(sql: string, values: unknown[] = []): Promise<number> {
 }
 
 async function schemaChecks() {
-  const required = ["players", "player_cards", "player_packs", "economy_transactions", "economy_action_receipts", "matches", "match_tokens", "replays", "pvp_rooms", "pvp_action_receipts", "pvp_spectator_snapshots", "matchmaking_queue", "ranked_matches", "ranked_seasons", "api_rate_limits", "shared_decks", "shared_deck_downloads", "payment_gateway_settings", "payment_orders", "collection_reward_claims", "admin_sandbox_sessions", "telemetry_events", "runeforge_schema_meta"];
+  const required = ["players", "player_cards", "player_packs", "economy_transactions", "economy_action_receipts", "matches", "match_tokens", "replays", "pvp_rooms", "pvp_action_receipts", "pvp_spectator_snapshots", "matchmaking_queue", "ranked_matches", "ranked_seasons", "api_rate_limits", "shared_decks", "shared_deck_downloads", "payment_gateway_settings", "payment_orders", "collection_reward_claims", "admin_sandbox_sessions", "telemetry_events", "runeforge_schema_meta", "deck_card_printing_preferences", "collectible_campaign_claims", "four_player_decks", "four_player_rooms", "four_player_seats", "four_player_action_receipts"];
   const result = await pool.query<{ table_name: string }>(
     "select table_name from information_schema.tables where table_schema='public' and table_name = any($1::text[])",
     [required],
@@ -89,6 +89,9 @@ async function schemaChecks() {
     "balance_matchup_decks_idx", "matches_player_mode_idx", "match_tokens_player_mode_idx", "pvp_rooms_mode_state_idx",
     "replays_match_mode_idx", "matches_opponent_idx", "player_dailies_player_quest_unique",
     "mode_attempts_player_deck_lookup", "pack_openings_player_seed_idx", "admin_card_archetypes_enabled_idx", "admin_users_enabled_idx",
+    "deck_card_printing_preferences_deck_def_uidx", "collectible_campaign_claims_identity_uidx",
+    "four_player_decks_owner_idx", "four_player_rooms_state_created_idx", "four_player_rooms_expires_idx",
+    "four_player_seats_room_seat_uidx", "four_player_seats_room_player_uidx", "four_player_action_receipts_identity_uidx",
   ];
   const indexRows = await pool.query<{ indexname: string }>(
     "select indexname from pg_indexes where schemaname='public' and indexname = any($1::text[])", [requiredIndexes],

@@ -12,6 +12,8 @@ export * from "./schema/admin-ops";
 export * from "./schema/commerce";
 export * from "./schema/marketplace";
 export * from "./schema/cosmetics";
+export * from "./schema/collectible-runtime";
+export * from "./schema/four-player";
 export * from "./schema/identity-auth";
 
 export * from "./schema/site-content";
