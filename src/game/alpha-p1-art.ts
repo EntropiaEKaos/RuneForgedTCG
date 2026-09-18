@@ -34,6 +34,14 @@ export const ALPHA_P1_BATCH_2_IDS = [
   "forest_packrunner",
 ] as const;
 
+export const ALPHA_P1_BATCH_3_IDS = [
+  "forest_entangle",
+  "forest_stalker",
+  "wood_ent",
+  "wood_stag",
+  "wood_caller",
+] as const;
+
 /**
  * Certified Alpha P1 physical-production registry.
  *
@@ -54,11 +62,19 @@ export const ALPHA_P1_ART_TARGETS: AlphaP1ArtTarget[] = [
   target("forest_pack_shelter", "Florestia", "Abrigo da Matilha: an ancestral living shelter formed by colossal roots, broad leaves and pack-marked stone, warm interior pollen light and several protective beast silhouettes establishing safety and community."),
   target("forest_summon_pack", "Florestia", "Convocar a Matilha: a primal caller raises a moonlit pack signal as multiple beasts converge through layered jungle paths, coordinated arrival and communal momentum rather than a single monster portrait."),
   target("forest_packrunner", "Florestia", "Corredora da Matilha: a swift Florestia scout sprinting low through luminous undergrowth beside blurred pack tracks, athletic beast-hunter silhouette, turquoise moonlight and pollen-gold accents emphasizing speed and belonging."),
+
+  // Batch 3 — next deterministic Studio P1 queue slice.
+  target("forest_entangle", "Florestia", "Embaraçar: luminous jungle vines snap inward around an enemy silhouette at the instant movement is stopped, layered emerald coils, moonlit turquoise edges and pollen-gold motes reading as precise control rather than generic vegetation."),
+  target("forest_stalker", "Florestia", "Espreitadora da Floresta: a vigilant winged pack hunter perched beneath the high canopy, long reaching silhouette scanning an aerial approach, moonlit turquoise foliage and warm natural accents emphasizing watchfulness over aggression."),
+  target("wood_ent", "Ironwood", "Ancient Rootcolossus: a towering living elemental rising from interlocked ancient roots, iron bark plates, amber sap seams and massive rooted limbs, overwhelming scale and patient strength rather than a humanoid tree portrait."),
+  target("wood_stag", "Ironwood", "Elder Stag: an ancient forest stag standing resilient beneath colossal roots, iron-bark antlers threaded with amber sap light, calm regenerative presence and soft dawn shafts establishing age, dignity and endurance."),
+  target("wood_caller", "Ironwood", "Grove Caller: an Ironwood summoner kneeling at a carved root circle as a small sapling spirit rises beside them, visible amber resource flow, druidic intent and living-fortress surroundings focused on creation rather than combat."),
 ];
 
 export const ALPHA_P1_ACTIVE_IDS = [
   ...ALPHA_P1_BATCH_1_IDS,
   ...ALPHA_P1_BATCH_2_IDS,
+  ...ALPHA_P1_BATCH_3_IDS,
 ] as const;
 
 const activeIds = new Set<string>(ALPHA_P1_ACTIVE_IDS);
