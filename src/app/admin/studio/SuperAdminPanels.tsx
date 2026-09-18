@@ -10,6 +10,7 @@ export function Overview({ onTab, visibleResources }: { onTab: (resource: Resour
   const cards = visibleResources.filter((item) => item.id !== "overview");
   const hasLiveOps = visibleResources.some((item) => item.capability === "liveops");
   const hasPlayerOps = visibleResources.some((item) => item.capability === "players");
+  const canManageOperators = visibleResources.some((item) => item.capability === "operators");
   return <div>
     <section className="studio-hero mb-6">
       <p className="studio-kicker">Operations / Content Command Center</p>
@@ -18,6 +19,7 @@ export function Overview({ onTab, visibleResources }: { onTab: (resource: Resour
       <div className="mt-4 flex flex-wrap gap-2"><span className="studio-pill live">● Engine authoritative</span><span className="studio-pill">Content pipeline online</span><span className="studio-command">Quick actions <kbd>⌘K</kbd></span></div>
     </section>
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{cards.map((item) => <button key={item.id} onClick={() => onTab(item.id)} className="studio-section p-5 text-left transition hover:-translate-y-0.5 hover:border-amber-400/30"><div className="text-2xl">{item.icon}</div><div className="mt-3 font-black">{item.label}</div><div className="mt-1 text-xs text-slate-500">Open workspace →</div></button>)}</div>
+    {canManageOperators && <section className="studio-section mt-8 p-5"><div className="studio-kicker">Security</div><div className="mt-3 grid gap-3 sm:grid-cols-2"><Link href="/admin/studio/operators" className="rounded-xl border border-white/10 bg-white/[.025] p-4 transition hover:border-cyan-400/30"><div className="font-black">Admin Operators</div><div className="mt-1 text-xs text-slate-500">RBAC, MFA and administrative sessions →</div></Link><Link href="/admin/studio/identity" className="rounded-xl border border-white/10 bg-white/[.025] p-4 transition hover:border-cyan-400/30"><div className="font-black">Identity &amp; Auth</div><div className="mt-1 text-xs text-slate-500">Google, Discord and e-mail login providers →</div></Link></div></section>}
     <div className="mt-8 grid gap-4 lg:grid-cols-3">
       <ArchitectureCard title="Content Graph" body="Card → Collection → Race/Class → Keyword → Effect → Interaction. Every content primitive has a stable key." />
       {hasLiveOps && <ArchitectureCard title="Live Ops" body="Events and promotions are time-bounded objects with rules, rewards, offers and metadata." />}
