@@ -56,7 +56,8 @@ const castEvent: FourPlayerServerEvent = {
   type: "cast_general",
   payload: {},
 };
-let generalMatch = reduceFourPlayerServerEvent(createFourPlayerMatchState("p1"), castEvent);
+let generalMatch: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "main_1" };
+generalMatch = reduceFourPlayerServerEvent(generalMatch, castEvent);
 assert.equal(generalMatch.generals.p1.location, "stack");
 assert.equal(generalMatch.resolution.stack.items[0]?.kind, "general_cast");
 generalMatch = passAllLiving(generalMatch);
