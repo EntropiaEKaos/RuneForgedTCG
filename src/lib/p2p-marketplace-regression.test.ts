@@ -128,6 +128,15 @@ function main() {
   assert.match(browserCert, /traderBAsset2/, "browser certification must transfer multiple requested assets");
   assert.match(browserCert, /every offered asset must enter trade escrow/, "browser certification must prove all offered copies are escrowed");
 
+  const tradingVisual = read("scripts/alpha-trading-2-visual-cert.mjs");
+  assert.match(tradingVisual, /61-trading-2-multicard-composer\.png/, "Trading 2 must produce inspectable visual evidence");
+  assert.match(tradingVisual, /selectedOffers, 2/, "visual evidence must retain two exact offered copies");
+  assert.match(tradingVisual, /requestedPrintingSelectors, 2/, "visual evidence must retain two requested cards");
+  assert.match(tradingVisual, /serialValue, "7"/, "visual evidence must retain the exact serial request");
+  assert.match(tradingVisual, /goldInDirectTrade: false/, "visual manifest must preserve the card-for-card boundary");
+  const ci = read(".github/workflows/ci.yml");
+  assert.match(ci, /node scripts\/alpha-trading-2-visual-cert\.mjs/, "Trading 2 visual certification must run in the full browser gate");
+
   const admin = read("src/app/api/admin/marketplace/route.ts");
   assert.match(admin, /verifyAdminStepUp/, "economy configuration changes require admin step-up");
   assert.match(admin, /adminAuditLogs/, "economy configuration changes must be audited");
