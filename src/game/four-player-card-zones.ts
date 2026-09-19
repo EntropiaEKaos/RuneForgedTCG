@@ -18,7 +18,7 @@ export function createFourPlayerCardZones(
     const deck = [...decks[seat]];
     if (openingHandSize > deck.length) throw new Error(`Seat ${seat} cannot draw an opening hand larger than its deck.`);
     return [seat, { hand: deck.slice(0, openingHandSize), deck: deck.slice(openingHandSize) }];
-  })) as FourPlayerCardZones;
+  })) as unknown as FourPlayerCardZones;
 }
 
 export interface FourPlayerDrawResult {
