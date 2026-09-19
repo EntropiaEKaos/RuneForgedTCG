@@ -9,7 +9,8 @@ import type { TargetKind } from "./types";
 
 export type FourPlayerTargetRef =
   | { kind: "player"; seat: FourPlayerSeat }
-  | { kind: "battlefield"; objectId: string };
+  | { kind: "battlefield"; objectId: string }
+  | { kind: "graveyard"; seat: FourPlayerSeat; instanceId: string };
 
 export function parseFourPlayerTargetRef(value: unknown): FourPlayerTargetRef | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
@@ -19,6 +20,15 @@ export function parseFourPlayerTargetRef(value: unknown): FourPlayerTargetRef | 
   }
   if (row.kind === "battlefield" && typeof row.objectId === "string" && row.objectId.trim()) {
     return { kind: "battlefield", objectId: row.objectId.trim() };
+  }
+  if (
+    row.kind === "graveyard"
+    && typeof row.seat === "string"
+    && FOUR_PLAYER_SEATS.includes(row.seat as FourPlayerSeat)
+    && typeof row.instanceId === "string"
+    && row.instanceId.trim()
+  ) {
+    return { kind: "graveyard", seat: row.seat as FourPlayerSeat, instanceId: row.instanceId.trim() };
   }
   return undefined;
 }
@@ -68,4 +78,22 @@ export function assertFourPlayerTargetObject(
     throw new Error(`Enemy target ${object.id} has Hexproof.`);
   }
   return object;
+}
+
+export function assertFourPlayerGraveyardTarget(
+  match: FourPlayerMatchState,
+  actor: FourPlayerSeat,
+  target: FourPlayerTargetRef | undefined,
+  targetKind: TargetKind,
+): { seat: FourPlayerSeat; instanceId: string } {
+  if (!target || target.kind !== "graveyard") throw new Error("4P effect requires a graveyard target.");
+  if (match.seats[target.seat].eliminated) throw new Error(`Eliminated seat ${target.seat} graveyard cannot be targeted.`);
+  const allied = target.seat === actor;
+  if (targetKind === "allyGraveyardCard" && !allied) throw new Error("4P effect requires an allied graveyard card.");
+  if (targetKind === "allyGraveyardUnit" && !allied) throw new Error("4P effect requires an allied graveyard Unit.");
+  if (targetKind === "enemyGraveyardCard" && allied) throw new Error("4P effect requires an enemy graveyard card.");
+  if (!["allyGraveyardCard", "allyGraveyardUnit", "enemyGraveyardCard", "anyGraveyardCard"].includes(targetKind)) {
+    throw new Error(`4P target kind ${targetKind} is not a graveyard target.`);
+  }
+  return { seat: target.seat, instanceId: target.instanceId };
 }

@@ -4,7 +4,7 @@
 
 Commander 4P is a separate experimental multiplayer mode. It does not replace Casual PvP or Ranked and it does not widen the certified binary `PlayerId = "player" | "ai"` engine contract.
 
-The current Alpha carries the recovered four-player combat authority through physical card play, targeting, combat, General casting, circular priority, Fast/Burst reactions and a LIFO stack while remaining isolated from the certified 1v1 engine.
+The current Alpha carries the recovered four-player combat authority through physical card play, targeting, combat, General casting, circular priority, Fast/Burst reactions, a LIFO stack, public graveyard interaction and provenance-safe Equipment attachments while remaining isolated from the certified 1v1 engine.
 
 ## Rules snapshot
 
@@ -68,14 +68,17 @@ This slice certifies:
 9. LIFO stack resolution, `negateSpell`, counter filters and `uncounterable`;
 10. counter-of-counter chains where removing the counter allows the original object to resolve;
 11. Fast/Burst catalog coverage including `recall`, `damagePermanent`, `destroyPermanent` and `mill`;
-12. client-visible stack state without exposing private deck or opponent-hand identities;
-13. isolation from Casual PvP, Ranked and the binary 1v1 `PlayerId` engine.
+12. public graveyard targeting by physical instance identity, including `selfMill`, return-to-hand, reanimation and banish;
+13. physical Equipment attachment with a two-slot cap plus generated `attachEquipment` effects;
+14. Equipment provenance: physical attachments can settle to graveyard with a destroyed/recalled bearer while generated attachments never manufacture cards;
+15. client-visible stack, battlefield attachments and graveyards without exposing private deck or opponent-hand identities;
+16. isolation from Casual PvP, Ranked and the binary 1v1 `PlayerId` engine.
 
 ## Deliberately not claimed yet
 
-This Alpha still does not claim parity with every authored card effect or every activated/reaction ability in the full catalog, nor Ranked/tournament support for Commander. Unsupported effects remain fail-closed and are expanded only behind explicit behavioral certification.
+This Alpha still does not claim parity with every authored card effect, summon/trigger interaction or activated/reaction ability in the full catalog, nor Ranked/tournament support for Commander. Unsupported effects remain fail-closed and are expanded only behind explicit behavioral certification.
 
 
 ## Certification base
 
-The recovered Commander 4P combat branch is based on certified production `main` `b6891a54b1629183d031156dc1fe644ea22f3420`. The expanded reaction/zone state uses Commander combat envelope version 2 so older persisted Alpha rooms fail closed and must restart. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
+The recovered Commander 4P combat branch is based on certified production `main` `b6891a54b1629183d031156dc1fe644ea22f3420`. The graveyard/Equipment state uses Commander combat envelope version 3 so older persisted Alpha rooms fail closed and must restart. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.

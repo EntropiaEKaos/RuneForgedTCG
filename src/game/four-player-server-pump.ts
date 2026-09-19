@@ -33,7 +33,10 @@ function applyResolvedStackItem(
   counteredStackItems: readonly FourPlayerStackItem[];
   zoneActions: readonly FourPlayerEffectZoneAction[];
 } {
-  if (item.kind === "card_cast") return { match: resolveFourPlayerCardCast(match, item), destroyedObjects: [], drawRequests: {}, counteredStackItems: [], zoneActions: [] };
+  if (item.kind === "card_cast") {
+    const resolved = resolveFourPlayerCardCast(match, item);
+    return { match: resolved.match, destroyedObjects: [], drawRequests: {}, counteredStackItems: [], zoneActions: resolved.zoneActions };
+  }
   if (item.kind === "spell_cast") {
     const resolved = resolveFourPlayerSpellCast(match, item);
     return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws, counteredStackItems: resolved.countered, zoneActions: resolved.zoneActions ?? [] };
@@ -87,6 +90,7 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
           turnAdvanced: false,
           combatResolved: true,
           destroyedObjects: combat.destroyed,
+          ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
         };
       }
       const advanced = advanceFourPlayerPhase(combat.match);
@@ -98,6 +102,7 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
         turnAdvanced: advanced.turnAdvanced,
         combatResolved: true,
         destroyedObjects: combat.destroyed,
+        ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
       };
     }
     const advanced = advanceFourPlayerPhase(match);

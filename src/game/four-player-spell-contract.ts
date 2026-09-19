@@ -21,6 +21,11 @@ export const FOUR_PLAYER_RESOLVER_EFFECT_KINDS = [
   "damagePermanent",
   "destroyPermanent",
   "mill",
+  "selfMill",
+  "returnGraveyardToHand",
+  "reanimateUnit",
+  "banishGraveyardCard",
+  "attachEquipment",
 ] as const;
 
 export const FOUR_PLAYER_SUPPORTED_SPELL_EFFECT_KINDS = [

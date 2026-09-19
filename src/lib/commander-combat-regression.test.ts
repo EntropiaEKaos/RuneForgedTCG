@@ -29,7 +29,7 @@ assert.match(bridge,/EXPOSED_COMMANDS/,"only an explicit command allowlist may c
 assert.match(bridge,/pass_priority/);
 assert.match(bridge,/cast_general/);
 assert.match(bridge,/play_card/);
-assert.match(bridge,/COMMANDER_COMBAT_ENGINE_VERSION = 2/, "state-shape expansion must fail closed on legacy Commander envelopes");
+assert.match(bridge,/COMMANDER_COMBAT_ENGINE_VERSION = 3/, "graveyard + Equipment state-shape expansion must fail closed on legacy Commander envelopes");
 assert.match(bridge,/fourPlayerStackActionKind/, "bridge must project the authoritative 4P stack taxonomy");
 assert.match(bridge,/fourPlayerStackItemIsUncounterable/, "stack projection must publish authoritative uncounterable state");
 assert.match(bridge,/settleFourPlayerEffectZoneActions/, "ordered draw, mill and recall zone actions must settle through the bridge");
@@ -56,6 +56,9 @@ assert.match(client,/isFourPlayerSpellChainSupported/,"Commander UI must share t
 assert.match(client,/legalCounterTargets/,"Commander UI must filter counters before offering stack targets");
 assert.match(client,/uncounterable/,"Commander UI must honor authoritative uncounterable projection");
 assert.match(client,/PERMANENT_TARGETS/,"Commander UI must expose permanent targeting for reaction spells");
+assert.match(client,/GRAVEYARD_TARGETS/,"Commander UI must expose certified public graveyard targeting");
+assert.match(client,/kind:"graveyard"/,"Commander UI must send authoritative graveyard instance targets");
+assert.match(client,/type==="Equipment"/,"Commander UI must route physical Equipment through allied-unit targeting");
 assert.match(client,/archetypeKey!=="trap"/,"Commander UI must not offer semantic Traps proactively");
 assert.match(client,/mill/,"Commander UI must request an explicit opponent for 4P mill");
 assert.match(client,/negateSpell/,"Commander UI must expose the certified negateSpell subset");
@@ -63,7 +66,7 @@ assert.match(client,/Stack 4P/,"Commander UI must render the authoritative circu
 assert.match(client,/Responder/,"Commander UI must expose legal Fast\/Burst reaction affordances");
 assert.match(client,/stackTargetId/,"Commander UI must send explicit stack targets for counters");
 assert.match(client,/Selecionar alvo/);
-assert.match(client,/Alvo da Spell/);
+assert.match(client,/Alvo da carta/);
 assert.match(client,/kind:"player"/);
 assert.match(client,/kind:"battlefield"/);
 assert.match(client,/combatCommand\("declare_attacker"/);
@@ -84,9 +87,18 @@ assert.match(spellContract,/recall/);
 assert.match(spellContract,/damagePermanent/);
 assert.match(spellContract,/destroyPermanent/);
 assert.match(spellContract,/mill/);
+assert.match(spellContract,/selfMill/);
+assert.match(spellContract,/returnGraveyardToHand/);
+assert.match(spellContract,/reanimateUnit/);
+assert.match(spellContract,/banishGraveyardCard/);
+assert.match(spellContract,/attachEquipment/);
 assert.match(effectZones,/return_to_hand/);
 assert.match(effectZones,/millFourPlayerCards/);
+assert.match(effectZones,/reanimate_unit/);
+assert.match(effectZones,/banish_graveyard/);
 assert.match(battlefield,/FourPlayerDurability/);
+assert.match(battlefield,/FourPlayerEquipmentAttachment/);
+assert.match(battlefield,/attachFourPlayerEquipment/);
 assert.match(battlefield,/applyFourPlayerPermanentDamage/);
 
 assert.match(commanderSchema,/commander_rooms/);

@@ -149,6 +149,7 @@ export const behavioralTests = [
   "src/game/four-player-reactions.test.ts",
   "src/game/four-player-fast-burst-catalog.test.ts",
   "src/game/four-player-fast-burst-effects.test.ts",
+  "src/game/four-player-graveyard-equipment.test.ts",
   "src/game/four-player-projection.test.ts",
   "src/game/four-player-protocol.test.ts",
   "src/game/four-player-reconnect.harness.test.ts",

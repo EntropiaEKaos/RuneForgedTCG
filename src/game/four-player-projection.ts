@@ -1,4 +1,4 @@
-import type { FourPlayerBattlefieldObject, FourPlayerDurability } from "./four-player-battlefield";
+import type { FourPlayerBattlefieldObject, FourPlayerDurability, FourPlayerEquipmentAttachment } from "./four-player-battlefield";
 import type { FourPlayerCardInstance } from "./four-player-card-zones";
 import type { FourPlayerCombatBody } from "./four-player-combat-body";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
@@ -29,6 +29,7 @@ export interface FourPlayerProjectedBattlefieldObject {
   keywords: readonly string[];
   combat?: FourPlayerCombatBody;
   durability?: FourPlayerDurability;
+  equipment: readonly FourPlayerEquipmentAttachment[];
   stunned: boolean;
   attackedThisTurn: boolean;
 }
@@ -97,6 +98,7 @@ export function projectFourPlayerStateForSeat(
             },
           } : {}),
           ...(object.durability ? { durability: { ...object.durability } } : {}),
+          equipment: (object.equipment ?? []).map((entry) => ({ ...entry, keywords: [...entry.keywords] })),
           stunned: object.stunned,
           attackedThisTurn: object.attackedThisTurn,
         }))

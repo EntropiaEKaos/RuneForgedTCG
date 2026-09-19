@@ -122,6 +122,35 @@ export function millFourPlayerCards(
   };
 }
 
+export function findFourPlayerGraveyardCard(
+  zones: FourPlayerCardZones,
+  seat: FourPlayerSeat,
+  instanceId: string,
+): FourPlayerCardInstance {
+  const id = String(instanceId || "").trim();
+  const card = zones[seat].graveyard.find((entry) => entry.instanceId === id);
+  if (!card) throw new Error(`Card instance ${id || "<empty>"} is not in ${seat}'s graveyard.`);
+  return card;
+}
+
+export function takeFourPlayerCardFromGraveyard(
+  zones: FourPlayerCardZones,
+  seat: FourPlayerSeat,
+  instanceId: string,
+): { zones: FourPlayerCardZones; card: FourPlayerCardInstance } | undefined {
+  const id = String(instanceId || "").trim();
+  const source = zones[seat];
+  const card = source.graveyard.find((entry) => entry.instanceId === id);
+  if (!card) return undefined;
+  return {
+    card,
+    zones: {
+      ...zones,
+      [seat]: { ...source, graveyard: source.graveyard.filter((entry) => entry.instanceId !== id) },
+    },
+  };
+}
+
 export function putFourPlayerCardInGraveyard(
   zones: FourPlayerCardZones,
   card: FourPlayerCardInstance,

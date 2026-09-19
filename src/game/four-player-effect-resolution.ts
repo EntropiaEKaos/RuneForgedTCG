@@ -1,6 +1,7 @@
 import {
   applyFourPlayerBattlefieldDamage,
   applyFourPlayerPermanentDamage,
+  attachFourPlayerEquipment,
   createFourPlayerBattlefieldState,
   findFourPlayerBattlefieldObject,
   putFourPlayerBattlefieldObject,
@@ -21,6 +22,7 @@ import {
   updateMatchGeneral,
 } from "./four-player-match";
 import {
+  assertFourPlayerGraveyardTarget,
   assertFourPlayerTargetObject,
   assertFourPlayerTargetPlayer,
   type FourPlayerTargetRef,
@@ -39,7 +41,11 @@ export interface FourPlayerEffectResolutionContext {
 export type FourPlayerEffectZoneAction =
   | { kind: "draw"; seat: FourPlayerSeat; amount: number }
   | { kind: "mill"; seat: FourPlayerSeat; amount: number }
-  | { kind: "return_to_hand"; card: { instanceId: string; defId: string; ownerSeat: FourPlayerSeat } };
+  | { kind: "return_to_hand"; card: { instanceId: string; defId: string; ownerSeat: FourPlayerSeat } }
+  | { kind: "put_graveyard"; card: { instanceId: string; defId: string; ownerSeat: FourPlayerSeat } }
+  | { kind: "graveyard_to_hand"; seat: FourPlayerSeat; instanceId: string }
+  | { kind: "banish_graveyard"; seat: FourPlayerSeat; instanceId: string }
+  | { kind: "reanimate_unit"; seat: FourPlayerSeat; instanceId: string; controllerSeat: FourPlayerSeat };
 
 export interface FourPlayerEffectResolutionResult {
   match: FourPlayerMatchState;
@@ -51,6 +57,7 @@ export interface FourPlayerEffectResolutionResult {
 interface FourPlayerEffectRuntime {
   tokenNamespace: string;
   tokenOrdinal: number;
+  attachmentOrdinal: number;
 }
 
 function destinationFor(object: FourPlayerBattlefieldObject): FourPlayerCombatDestroyedObject["destination"] {
@@ -66,6 +73,14 @@ function cleanupDestroyed(match: FourPlayerMatchState): FourPlayerEffectResoluti
   );
   if (dead.length === 0) return { match, destroyed: [], draws: {} };
 
+  const attachmentActions: FourPlayerEffectZoneAction[] = dead.flatMap((object) =>
+    (object.equipment ?? [])
+      .filter((equipment) => equipment.physical)
+      .map((equipment) => ({
+        kind: "put_graveyard" as const,
+        card: { instanceId: equipment.instanceId, defId: equipment.defId, ownerSeat: equipment.ownerSeat },
+      })),
+  );
   const destroyed: FourPlayerCombatDestroyedObject[] = dead.map((object) => ({
     id: object.id,
     defId: object.defId,
@@ -85,7 +100,12 @@ function cleanupDestroyed(match: FourPlayerMatchState): FourPlayerEffectResoluti
       next = updateMatchGeneral(next, object.ownerSeat, moveGeneralFromBattlefield(general, "graveyard", true));
     }
   }
-  return { match: next, destroyed, draws: {} };
+  return {
+    match: next,
+    destroyed,
+    draws: {},
+    ...(attachmentActions.length > 0 ? { zoneActions: attachmentActions } : {}),
+  };
 }
 
 function replaceObject(
@@ -197,6 +217,36 @@ function resolveSingle(
         ...(effect.amount > 0 ? { zoneActions: [{ kind: "mill" as const, seat, amount: effect.amount }] } : {}),
       },
       fallbackOpponent: seat,
+    };
+  }
+
+  if (effect.kind === "selfMill") {
+    if (!Number.isInteger(effect.amount)) throw new Error("4P selfMill amount must be a non-negative integer.");
+    return {
+      result: {
+        match,
+        destroyed: [],
+        draws: {},
+        ...(effect.amount > 0 ? { zoneActions: [{ kind: "mill" as const, seat: actor, amount: effect.amount }] } : {}),
+      },
+      fallbackOpponent,
+    };
+  }
+
+  if (
+    effect.kind === "returnGraveyardToHand"
+    || effect.kind === "reanimateUnit"
+    || effect.kind === "banishGraveyardCard"
+  ) {
+    const graveyard = assertFourPlayerGraveyardTarget(match, actor, target, effect.target);
+    const zoneAction: FourPlayerEffectZoneAction = effect.kind === "returnGraveyardToHand"
+      ? { kind: "graveyard_to_hand", seat: graveyard.seat, instanceId: graveyard.instanceId }
+      : effect.kind === "reanimateUnit"
+        ? { kind: "reanimate_unit", seat: graveyard.seat, instanceId: graveyard.instanceId, controllerSeat: actor }
+        : { kind: "banish_graveyard", seat: graveyard.seat, instanceId: graveyard.instanceId };
+    return {
+      result: { match, destroyed: [], draws: {}, zoneActions: [zoneAction] },
+      fallbackOpponent: graveyard.seat === actor ? fallbackOpponent : graveyard.seat,
     };
   }
 
@@ -315,7 +365,33 @@ function resolveSingle(
   const inferredOpponent = object.controllerSeat !== actor ? object.controllerSeat : fallbackOpponent;
   let battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
 
+  if (effect.kind === "attachEquipment") {
+    const equipmentDefId = String(effect.equipmentDefId || "").trim();
+    if (!equipmentDefId) throw new Error("4P attachEquipment requires an authoritative equipmentDefId.");
+    const definition = getCard(equipmentDefId);
+    if (definition.type !== "Equipment" || !definition.equipment) {
+      throw new Error(`4P attachment ${equipmentDefId} must resolve to an Equipment definition.`);
+    }
+    runtime.attachmentOrdinal += 1;
+    battlefield = attachFourPlayerEquipment(battlefield, object.id, {
+      instanceId: `effect-eq:${actor}:${runtime.tokenNamespace}:${runtime.attachmentOrdinal}`,
+      defId: definition.defId,
+      ownerSeat: actor,
+      physical: false,
+      buffPower: definition.equipment.buffPower,
+      buffHealth: definition.equipment.buffHealth,
+      keywords: definition.equipment.keywords ?? [],
+    });
+    return { result: { match: { ...match, battlefield }, destroyed: [], draws: {} }, fallbackOpponent: inferredOpponent };
+  }
+
   if (effect.kind === "recall") {
+    const attachmentActions: FourPlayerEffectZoneAction[] = (object.equipment ?? [])
+      .filter((equipment) => equipment.physical)
+      .map((equipment) => ({
+        kind: "put_graveyard" as const,
+        card: { instanceId: equipment.instanceId, defId: equipment.defId, ownerSeat: equipment.ownerSeat },
+      }));
     let next: FourPlayerMatchState = {
       ...match,
       battlefield: { objects: battlefield.objects.filter((candidate) => candidate.id !== object.id) },
@@ -323,17 +399,36 @@ function resolveSingle(
     if (object.kind === "general") {
       const general = next.generals[object.ownerSeat];
       if (general.location === "battlefield") next = updateMatchGeneral(next, object.ownerSeat, returnGeneralToZone(general));
-      return { result: { match: next, destroyed: [], draws: {} }, fallbackOpponent: inferredOpponent };
+      return {
+        result: {
+          match: next,
+          destroyed: [],
+          draws: {},
+          ...(attachmentActions.length > 0 ? { zoneActions: attachmentActions } : {}),
+        },
+        fallbackOpponent: inferredOpponent,
+      };
     }
     if (object.kind === "token") {
-      return { result: { match: next, destroyed: [], draws: {} }, fallbackOpponent: inferredOpponent };
+      return {
+        result: {
+          match: next,
+          destroyed: [],
+          draws: {},
+          ...(attachmentActions.length > 0 ? { zoneActions: attachmentActions } : {}),
+        },
+        fallbackOpponent: inferredOpponent,
+      };
     }
     return {
       result: {
         match: next,
         destroyed: [],
         draws: {},
-        zoneActions: [{ kind: "return_to_hand", card: { instanceId: object.id, defId: object.defId, ownerSeat: object.ownerSeat } }],
+        zoneActions: [
+          ...attachmentActions,
+          { kind: "return_to_hand", card: { instanceId: object.id, defId: object.defId, ownerSeat: object.ownerSeat } },
+        ],
       },
       fallbackOpponent: inferredOpponent,
     };
@@ -418,7 +513,7 @@ export function resolveFourPlayerEffect(
   const draws: Partial<Record<FourPlayerSeat, number>> = {};
   const zoneActions: FourPlayerEffectZoneAction[] = [];
   const namespace = String(context.tokenNamespace || `preview:${actor}:${match.turn.turn}`).trim() || `preview:${actor}:${match.turn.turn}`;
-  const runtime: FourPlayerEffectRuntime = { tokenNamespace: namespace, tokenOrdinal: 0 };
+  const runtime: FourPlayerEffectRuntime = { tokenNamespace: namespace, tokenOrdinal: 0, attachmentOrdinal: 0 };
 
   for (let guard = 0; cursor && guard < 32; guard += 1) {
     const resolved = resolveSingle(current, actor, cursor, first ? target : undefined, fallbackOpponent, runtime);

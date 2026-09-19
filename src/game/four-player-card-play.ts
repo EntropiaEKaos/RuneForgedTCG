@@ -1,6 +1,9 @@
 import { getCard } from "./cards";
 import {
+  attachFourPlayerEquipment,
+  canAttachFourPlayerEquipment,
   createFourPlayerBattlefieldState,
+  findFourPlayerBattlefieldObject,
   putFourPlayerBattlefieldObject,
   type FourPlayerBattlefieldKind,
   type FourPlayerDurability,
@@ -8,6 +11,7 @@ import {
 import { createFourPlayerCombatBodySnapshot, type FourPlayerCombatBody } from "./four-player-combat-body";
 import { resolveFourPlayerEffect, type FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
 import {
+  findFourPlayerGraveyardCard,
   findFourPlayerHandCard,
   takeFourPlayerCardFromHand,
   type FourPlayerCardInstance,
@@ -23,10 +27,10 @@ import {
 import { canFourPlayerCounterStackItem, canFourPlayerReactWithCard } from "./four-player-reactions";
 import { isFourPlayerSpellChainSupported } from "./four-player-spell-contract";
 import { semanticProactivePlayAllowed, semanticReactionAllowed } from "./semantic-card-types";
-import type { FourPlayerTargetRef } from "./four-player-targeting";
+import { assertFourPlayerGraveyardTarget, assertFourPlayerTargetObject, type FourPlayerTargetRef } from "./four-player-targeting";
 import type { CardEffect, CardType, Keyword } from "./types";
 
-export const FOUR_PLAYER_STAGEABLE_CARD_TYPES = ["Unit", "Enchantment", "Artifact", "Sentinela", "Spell"] as const;
+export const FOUR_PLAYER_STAGEABLE_CARD_TYPES = ["Unit", "Enchantment", "Artifact", "Equipment", "Sentinela", "Spell"] as const;
 export type FourPlayerStageableCardType = (typeof FOUR_PLAYER_STAGEABLE_CARD_TYPES)[number];
 
 export interface FourPlayerCardCastPayload {
@@ -37,6 +41,7 @@ export interface FourPlayerCardCastPayload {
   keywords: readonly Keyword[];
   combat?: FourPlayerCombatBody;
   durability?: FourPlayerDurability;
+  equipment?: { buffPower: number; buffHealth: number; keywords: readonly Keyword[] };
   effect?: CardEffect;
   target?: FourPlayerTargetRef;
   speed?: "Fast" | "Burst";
@@ -59,6 +64,28 @@ function permanentDurability(definition: ReturnType<typeof getCard>): FourPlayer
   const maxHealth = definition.maxHealth ?? 3;
   if (!Number.isFinite(maxHealth) || maxHealth <= 0) throw new Error(`Permanent ${definition.defId} has invalid maxHealth.`);
   return { health: maxHealth, maxHealth };
+}
+
+const FOUR_PLAYER_GRAVEYARD_TARGETS = new Set([
+  "allyGraveyardCard",
+  "enemyGraveyardCard",
+  "anyGraveyardCard",
+  "allyGraveyardUnit",
+]);
+
+function assertGraveyardSpellTarget(
+  match: FourPlayerMatchState,
+  zones: FourPlayerCardZones,
+  actor: FourPlayerSeat,
+  effect: CardEffect,
+  target?: FourPlayerTargetRef,
+): void {
+  if (!FOUR_PLAYER_GRAVEYARD_TARGETS.has(effect.target)) return;
+  const graveyard = assertFourPlayerGraveyardTarget(match, actor, target, effect.target);
+  const card = findFourPlayerGraveyardCard(zones, graveyard.seat, graveyard.instanceId);
+  if (effect.target === "allyGraveyardUnit" && getCard(card.defId).type !== "Unit") {
+    throw new Error(`4P graveyard target ${card.instanceId} is not a Unit.`);
+  }
 }
 
 function assertCardPlayTiming(
@@ -127,6 +154,13 @@ export function stageFourPlayerCardCast(
   if (!Number.isFinite(definition.cost) || definition.cost < 0) {
     throw new Error(`Card ${definition.defId} has invalid authoritative cost.`);
   }
+  if (definition.type === "Equipment") {
+    if (!definition.equipment) throw new Error(`Equipment ${definition.defId} has no authoritative Equipment definition.`);
+    const equipmentTarget = assertFourPlayerTargetObject(match, actor, target, "allyUnit");
+    if (!canAttachFourPlayerEquipment(equipmentTarget)) {
+      throw new Error(`4P Equipment target ${equipmentTarget.id} has no free Equipment slot.`);
+    }
+  }
   const seat = match.seats[actor];
   if (seat.mana < definition.cost) {
     throw new Error(`Insufficient mana to play ${definition.defId}: requires ${definition.cost}, has ${seat.mana}.`);
@@ -146,6 +180,7 @@ export function stageFourPlayerCardCast(
     if (!isFourPlayerSpellChainSupported(definition.spell)) {
       throw new Error(`Spell ${definition.defId} contains an effect outside the certified 4P spell contract.`);
     }
+    assertGraveyardSpellTarget(match, zones, actor, definition.spell, target);
     if (definition.spell.kind !== "negateSpell") {
       resolveFourPlayerEffect(match, actor, definition.spell, target);
     }
@@ -158,6 +193,14 @@ export function stageFourPlayerCardCast(
     keywords: [...(definition.keywords ?? [])],
     ...(combat ? { combat } : {}),
     ...(durability ? { durability } : {}),
+    ...(definition.type === "Equipment" && definition.equipment ? {
+      equipment: {
+        buffPower: definition.equipment.buffPower,
+        buffHealth: definition.equipment.buffHealth,
+        keywords: [...(definition.equipment.keywords ?? [])],
+      },
+      ...(target ? { target } : {}),
+    } : {}),
     ...(definition.type === "Spell" && definition.spell ? {
       effect: structuredClone(definition.spell),
       ...(target ? { target } : {}),
@@ -178,7 +221,7 @@ export function stageFourPlayerCardCast(
   };
 }
 
-function battlefieldKind(type: Exclude<FourPlayerStageableCardType, "Spell">): FourPlayerBattlefieldKind {
+function battlefieldKind(type: Exclude<FourPlayerStageableCardType, "Spell" | "Equipment">): FourPlayerBattlefieldKind {
   if (type === "Unit") return "unit";
   if (type === "Sentinela") return "sentinela";
   return "permanent";
@@ -187,8 +230,8 @@ function battlefieldKind(type: Exclude<FourPlayerStageableCardType, "Spell">): F
 export function resolveFourPlayerCardCast(
   match: FourPlayerMatchState,
   item: FourPlayerStackItem,
-): FourPlayerMatchState {
-  if (item.kind !== "card_cast") return match;
+): { match: FourPlayerMatchState; zoneActions: readonly FourPlayerEffectZoneAction[] } {
+  if (item.kind !== "card_cast") return { match, zoneActions: [] };
   const payload = item.payload as Partial<FourPlayerCardCastPayload>;
   if (!payload.instanceId || !payload.defId || !payload.ownerSeat || !payload.cardType) {
     throw new Error("Resolved 4P card cast is missing authoritative identity.");
@@ -199,22 +242,61 @@ export function resolveFourPlayerCardCast(
   if (!(FOUR_PLAYER_STAGEABLE_CARD_TYPES as readonly string[]).includes(payload.cardType) || payload.cardType === "Spell") {
     throw new Error(`Resolved 4P permanent type ${payload.cardType} is unsupported.`);
   }
+  if (payload.cardType === "Equipment") {
+    const equipment = payload.equipment;
+    const targetId = payload.target?.kind === "battlefield" ? payload.target.objectId : "";
+    if (!equipment || !targetId) {
+      throw new Error("Resolved 4P Equipment cast is missing authoritative attachment data.");
+    }
+    try {
+      const sourceBattlefield = match.battlefield ?? createFourPlayerBattlefieldState();
+      const currentTarget = findFourPlayerBattlefieldObject(sourceBattlefield, targetId);
+      if (currentTarget.controllerSeat !== item.controller || !canAttachFourPlayerEquipment(currentTarget)) {
+        throw new Error(`4P Equipment target ${targetId} is no longer a legal allied attachment target.`);
+      }
+      const battlefield = attachFourPlayerEquipment(
+        sourceBattlefield,
+        targetId,
+        {
+          instanceId: payload.instanceId,
+          defId: payload.defId,
+          ownerSeat: payload.ownerSeat,
+          physical: true,
+          buffPower: equipment.buffPower,
+          buffHealth: equipment.buffHealth,
+          keywords: equipment.keywords ?? [],
+        },
+      );
+      return { match: { ...match, battlefield }, zoneActions: [] };
+    } catch {
+      return {
+        match,
+        zoneActions: [{
+          kind: "put_graveyard",
+          card: { instanceId: payload.instanceId, defId: payload.defId, ownerSeat: payload.ownerSeat },
+        }],
+      };
+    }
+  }
   return {
-    ...match,
-    battlefield: putFourPlayerBattlefieldObject(
-      match.battlefield ?? createFourPlayerBattlefieldState(),
-      {
-        id: payload.instanceId,
-        defId: payload.defId,
-        kind: battlefieldKind(payload.cardType as Exclude<FourPlayerStageableCardType, "Spell">),
-        ownerSeat: payload.ownerSeat,
-        controllerSeat: item.controller,
-        enteredTurn: match.turn.turn,
-        keywords: payload.keywords ?? [],
-        combat: payload.combat,
-        durability: payload.durability,
-      },
-    ),
+    match: {
+      ...match,
+      battlefield: putFourPlayerBattlefieldObject(
+        match.battlefield ?? createFourPlayerBattlefieldState(),
+        {
+          id: payload.instanceId,
+          defId: payload.defId,
+          kind: battlefieldKind(payload.cardType as Exclude<FourPlayerStageableCardType, "Spell" | "Equipment">),
+          ownerSeat: payload.ownerSeat,
+          controllerSeat: item.controller,
+          enteredTurn: match.turn.turn,
+          keywords: payload.keywords ?? [],
+          combat: payload.combat,
+          durability: payload.durability,
+        },
+      ),
+    },
+    zoneActions: [],
   };
 }
 

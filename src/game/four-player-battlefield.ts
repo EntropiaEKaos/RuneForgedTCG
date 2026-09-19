@@ -11,6 +11,18 @@ export interface FourPlayerDurability {
   maxHealth: number;
 }
 
+export interface FourPlayerEquipmentAttachment {
+  instanceId: string;
+  defId: string;
+  ownerSeat: FourPlayerSeat;
+  physical: boolean;
+  buffPower: number;
+  buffHealth: number;
+  keywords: readonly Keyword[];
+}
+
+export const FOUR_PLAYER_MAX_EQUIPMENT = 2;
+
 export interface FourPlayerBattlefieldObject {
   id: string;
   defId: string;
@@ -22,6 +34,7 @@ export interface FourPlayerBattlefieldObject {
   keywords: readonly Keyword[];
   combat?: FourPlayerCombatBody;
   durability?: FourPlayerDurability;
+  equipment?: readonly FourPlayerEquipmentAttachment[];
   stunned: boolean;
   attackedThisTurn: boolean;
 }
@@ -36,6 +49,7 @@ export interface FourPlayerBattlefieldObjectInput {
   keywords?: readonly Keyword[];
   combat?: FourPlayerCombatBody;
   durability?: FourPlayerDurability;
+  equipment?: readonly FourPlayerEquipmentAttachment[];
   stunned?: boolean;
   attackedThisTurn?: boolean;
 }
@@ -86,6 +100,7 @@ export function putFourPlayerBattlefieldObject(
     keywords: [...(input.keywords ?? [])],
     ...(input.combat ? { combat: cloneFourPlayerCombatBody(input.combat) } : {}),
     ...(input.durability ? { durability: { ...input.durability } } : {}),
+    equipment: (input.equipment ?? []).map((entry) => ({ ...entry, keywords: [...entry.keywords] })),
     stunned: Boolean(input.stunned),
     attackedThisTurn: Boolean(input.attackedThisTurn),
   };
@@ -100,6 +115,57 @@ export function findFourPlayerBattlefieldObject(
   const object = state.objects.find((candidate) => candidate.id === id);
   if (!object) throw new Error(`4P battlefield object ${id || "<empty>"} is not present.`);
   return object;
+}
+
+export function canAttachFourPlayerEquipment(object: FourPlayerBattlefieldObject): boolean {
+  return Boolean(
+    ["unit", "general", "token"].includes(object.kind)
+    && object.combat
+    && object.combat.health > 0
+    && (object.equipment?.length ?? 0) < FOUR_PLAYER_MAX_EQUIPMENT,
+  );
+}
+
+export function attachFourPlayerEquipment(
+  state: FourPlayerBattlefieldState,
+  targetId: string,
+  attachment: FourPlayerEquipmentAttachment,
+): FourPlayerBattlefieldState {
+  const target = findFourPlayerBattlefieldObject(state, targetId);
+  if (!canAttachFourPlayerEquipment(target) || !target.combat) {
+    throw new Error(`4P battlefield object ${target.id} has no free Equipment slot.`);
+  }
+  if (!String(attachment.instanceId || "").trim() || !String(attachment.defId || "").trim()) {
+    throw new Error("4P Equipment attachment requires authoritative identity.");
+  }
+  if (state.objects.some((object) => (object.equipment ?? []).some((entry) => entry.instanceId === attachment.instanceId))) {
+    throw new Error(`4P Equipment attachment ${attachment.instanceId} already exists.`);
+  }
+  if (!Number.isFinite(attachment.buffPower) || !Number.isFinite(attachment.buffHealth)) {
+    throw new Error("4P Equipment attachment stat deltas must be finite.");
+  }
+  const maxHealth = Math.max(0, target.combat.maxHealth + attachment.buffHealth);
+  const health = attachment.buffHealth >= 0
+    ? Math.min(maxHealth, target.combat.health + attachment.buffHealth)
+    : Math.min(target.combat.health, maxHealth);
+  const keywords = [...new Set([...target.keywords, ...attachment.keywords])];
+  const combat = {
+    ...target.combat,
+    power: Math.max(0, target.combat.power + attachment.buffPower),
+    maxHealth,
+    health,
+    barrier: target.combat.barrier || attachment.keywords.includes("Barrier"),
+  };
+  return {
+    objects: state.objects.map((object) => object.id === target.id
+      ? {
+        ...object,
+        keywords,
+        combat,
+        equipment: [...(object.equipment ?? []), { ...attachment, keywords: [...attachment.keywords] }],
+      }
+      : object),
+  };
 }
 
 export function assertFourPlayerAttackerObject(

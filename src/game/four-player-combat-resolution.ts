@@ -6,6 +6,7 @@ import {
   type FourPlayerBattlefieldState,
 } from "./four-player-battlefield";
 import { createFourPlayerCombatState } from "./four-player-combat";
+import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
 import { moveGeneralFromBattlefield } from "./four-player-general-zone";
 import {
   FOUR_PLAYER_POISON_LETHAL,
@@ -32,6 +33,7 @@ export interface FourPlayerCombatResolutionResult {
   nexusDamage: Partial<Record<FourPlayerSeat, number>>;
   poisonAdded: Partial<Record<FourPlayerSeat, number>>;
   healing: Partial<Record<FourPlayerSeat, number>>;
+  zoneActions: readonly FourPlayerEffectZoneAction[];
 }
 
 interface NexusHit {
@@ -348,6 +350,14 @@ export function resolveFourPlayerCombat(match: FourPlayerMatchState): FourPlayer
     kind: object.kind,
     destination: destinationFor(object),
   }));
+  const zoneActions: FourPlayerEffectZoneAction[] = destroyedObjects.flatMap((object) =>
+    (object.equipment ?? [])
+      .filter((equipment) => equipment.physical)
+      .map((equipment) => ({
+        kind: "put_graveyard" as const,
+        card: { instanceId: equipment.instanceId, defId: equipment.defId, ownerSeat: equipment.ownerSeat },
+      })),
+  );
 
   let nextMatch: FourPlayerMatchState = {
     ...match,
@@ -384,5 +394,5 @@ export function resolveFourPlayerCombat(match: FourPlayerMatchState): FourPlayer
   }
 
   nextMatch = applySeatTotals(nextMatch, nexusDamage, generalDamage, poisonAdded, healing);
-  return { match: nextMatch, destroyed, nexusDamage, poisonAdded, healing };
+  return { match: nextMatch, destroyed, nexusDamage, poisonAdded, healing, zoneActions };
 }
