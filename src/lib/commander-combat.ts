@@ -1,6 +1,8 @@
 import { ensureCustomCardsLoaded } from "@/game/catalog";
 import { acceptAuthoritativeFourPlayerCommand, processAuthoritativeFourPlayerCommand, assertPriorityHolder } from "@/game/four-player-authority";
 import { stageFourPlayerCardCast } from "@/game/four-player-card-play";
+import { returnGeneralToZone } from "@/game/four-player-general-zone";
+import { fourPlayerStackActionKind } from "@/game/four-player-reactions";
 import { parseFourPlayerTargetRef } from "@/game/four-player-targeting";
 import { settleFourPlayerEffectDraws } from "@/game/four-player-effect-zones";
 import { submitFourPlayerAction } from "@/game/four-player-flow";
@@ -16,6 +18,7 @@ import {
 } from "@/game/four-player-general";
 import {
   createFourPlayerMatchStateFromCatalog,
+  updateMatchGeneral,
   type FourPlayerGeneralSelection,
   type FourPlayerMatchState,
 } from "@/game/four-player-match";
@@ -187,6 +190,20 @@ export function projectCommanderCombatState(
     phase: envelope.match.phase,
     status: envelope.match.status,
     winnerSeat: envelope.match.winner ? commanderSeatIndex(envelope.match.winner) : null,
+    stack: envelope.match.resolution.stack.items.map((item) => {
+      const payload = item.payload && typeof item.payload === "object" && !Array.isArray(item.payload)
+        ? item.payload as Record<string, unknown>
+        : {};
+      return {
+        id: item.id,
+        kind: item.kind,
+        actionKind: fourPlayerStackActionKind(item),
+        controllerSeat: commanderSeatIndex(item.controller),
+        defId: typeof payload.defId === "string" ? payload.defId : null,
+        cardType: typeof payload.cardType === "string" ? payload.cardType : null,
+        speed: payload.speed === "Fast" || payload.speed === "Burst" ? payload.speed : null,
+      };
+    }),
     combat: {
       attackers: envelope.match.combat.attackers.map((attacker) => ({
         unitId: attacker.unitId,
@@ -291,9 +308,10 @@ export function processCommanderCombatCommand(
       command,
       validateExposedCommand,
     );
-    const payload = command.payload as { instanceId?: unknown; target?: unknown };
+    const payload = command.payload as { instanceId?: unknown; target?: unknown; stackTargetId?: unknown };
     const instanceId = typeof payload.instanceId === "string" ? payload.instanceId.trim() : "";
     const target = parseFourPlayerTargetRef(payload.target);
+    const stackTargetId = typeof payload.stackTargetId === "string" ? payload.stackTargetId.trim() : undefined;
     if (!instanceId) throw new Error("Commander play_card requires a card instanceId.");
     const staged = stageFourPlayerCardCast(
       envelope.match,
@@ -302,6 +320,7 @@ export function processCommanderCombatCommand(
       instanceId,
       accepted.event.eventId,
       target,
+      stackTargetId,
     );
     const reducedMatch: FourPlayerMatchState = {
       ...staged.match,
@@ -329,6 +348,29 @@ export function processCommanderCombatCommand(
   for (const resolved of accepted.pump?.resolved ?? []) {
     if (resolved.kind !== "spell_cast") continue;
     const payload = resolved.payload as { instanceId?: unknown; defId?: unknown; ownerSeat?: unknown };
+    if (
+      typeof payload.instanceId === "string"
+      && typeof payload.defId === "string"
+      && typeof payload.ownerSeat === "string"
+      && FOUR_PLAYER_SEATS.includes(payload.ownerSeat as FourPlayerSeat)
+    ) {
+      zones = putFourPlayerCardInGraveyard(zones, {
+        instanceId: payload.instanceId,
+        defId: payload.defId,
+        ownerSeat: payload.ownerSeat as FourPlayerSeat,
+      });
+    }
+  }
+  for (const countered of accepted.pump?.counteredStackItems ?? []) {
+    if (countered.kind === "general_cast") {
+      const general = match.generals[countered.controller];
+      if (general.location === "stack") {
+        match = updateMatchGeneral(match, countered.controller, returnGeneralToZone(general));
+      }
+      continue;
+    }
+    if (countered.kind !== "spell_cast" && countered.kind !== "card_cast") continue;
+    const payload = countered.payload as { instanceId?: unknown; defId?: unknown; ownerSeat?: unknown };
     if (
       typeof payload.instanceId === "string"
       && typeof payload.defId === "string"

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { putFourPlayerBattlefieldObject } from "../game/four-player-battlefield";
 import { collectibleCards } from "../game/cards";
+import { canFourPlayerCounterStackItem } from "../game/four-player-reactions";
 import {
   type CommanderCombatEnvelope,
   commanderCombatPersistence,
@@ -89,7 +90,7 @@ async function main() {
   assert.equal(played.match.resolution.priority.holder, "p2");
 
   const burn = collectibleCards().find((card) =>
-    card.collectible !== false && card.type === "Spell" && card.cost <= 10 && card.spell?.kind === "damageNexus"
+    card.collectible !== false && card.type === "Spell" && card.cost <= 10 && card.spell?.kind === "damageNexus" && !(card.customKeywords ?? []).includes("uncounterable")
   );
   assert.ok(burn, "fixture requires a direct damage Spell");
   const spellSeats = generals.map((general, index) => ({
@@ -124,6 +125,75 @@ async function main() {
   assert.equal(spellPlayed.match.seats.p2.life, 30 - burn.spell!.amount);
   assert.equal(spellPlayed.zones.p1.graveyard.some((card)=>card.instanceId===spellInstance.instanceId),true);
   assert.equal(spellPlayed.match.resolution.stack.items.length,0);
+
+  const counter = collectibleCards().find((card) =>
+    card.collectible !== false
+    && card.type === "Spell"
+    && card.speed === "Burst"
+    && card.cost <= 10
+    && card.spell?.kind === "negateSpell"
+    && canFourPlayerCounterStackItem(card, {
+      id: "fixture-pending-spell",
+      controller: "p1",
+      kind: "spell_cast",
+      payload: { defId: burn.defId, cardType: "Spell" },
+    }),
+  );
+  assert.ok(counter, "fixture requires a compatible Burst negateSpell");
+  const reactionSeats = generals.map((general, index) => ({
+    seat: index as 0 | 1 | 2 | 3,
+    playerId: 100 + index,
+    playerName: `Commander Reaction P${index + 1}`,
+    deckCards: Array.from({ length: 60 }, () => index === 1 ? counter.defId : burn.defId),
+    generalDefId: general.defId,
+  }));
+  const reactionInitial = await createCommanderCombatEnvelope("commander:reaction-room", 50, 0x31415926, reactionSeats);
+  let reactionEnvelope: CommanderCombatEnvelope = {
+    ...reactionInitial,
+    match: {
+      ...reactionInitial.match,
+      phase: "main_1" as const,
+      seats: {
+        ...reactionInitial.match.seats,
+        p1: { ...reactionInitial.match.seats.p1, mana: 10, maxMana: 10 },
+        p2: { ...reactionInitial.match.seats.p2, mana: 10, maxMana: 10 },
+      },
+    },
+  };
+  const reactionBurn = reactionEnvelope.zones.p1.hand[0]!;
+  reactionEnvelope = processCommanderCombatCommand(reactionEnvelope, 100, 0, {
+    commandId: "cmd-reaction-burn",
+    expectedRevision: 50,
+    type: "play_card",
+    payload: { instanceId: reactionBurn.instanceId, target: { kind: "player", seat: "p2" } },
+  });
+  const pendingId = reactionEnvelope.match.resolution.stack.items.at(-1)!.id;
+  const p2ReactionProjection = projectCommanderCombatState(reactionEnvelope, 1);
+  assert.equal(p2ReactionProjection.stack.length, 1);
+  assert.equal(p2ReactionProjection.stack[0]?.actionKind, "spell");
+  assert.equal(p2ReactionProjection.stack[0]?.defId, burn.defId);
+  assert.equal(p2ReactionProjection.prioritySeat, 1);
+
+  const reactionCounter = reactionEnvelope.zones.p2.hand[0]!;
+  reactionEnvelope = processCommanderCombatCommand(reactionEnvelope, 101, 1, {
+    commandId: "cmd-reaction-counter",
+    expectedRevision: 51,
+    type: "play_card",
+    payload: { instanceId: reactionCounter.instanceId, stackTargetId: pendingId },
+  });
+  assert.equal(reactionEnvelope.match.resolution.stack.items.length, 2);
+  assert.equal(reactionEnvelope.match.resolution.priority.holder, "p3");
+
+  reactionEnvelope = processCommanderCombatCommand(reactionEnvelope, 102, 2, { commandId: "cmd-reaction-pass-p3", expectedRevision: 52, type: "pass_priority" });
+  reactionEnvelope = processCommanderCombatCommand(reactionEnvelope, 103, 3, { commandId: "cmd-reaction-pass-p4", expectedRevision: 53, type: "pass_priority" });
+  reactionEnvelope = processCommanderCombatCommand(reactionEnvelope, 100, 0, { commandId: "cmd-reaction-pass-p1", expectedRevision: 54, type: "pass_priority" });
+  reactionEnvelope = processCommanderCombatCommand(reactionEnvelope, 101, 1, { commandId: "cmd-reaction-pass-p2", expectedRevision: 55, type: "pass_priority" });
+
+  assert.equal(reactionEnvelope.protocol.revision, 56);
+  assert.equal(reactionEnvelope.match.seats.p2.life, 30, "countered burn must not damage the target");
+  assert.equal(reactionEnvelope.match.resolution.stack.items.length, 0, "counter resolution must consume the target stack object");
+  assert.equal(reactionEnvelope.zones.p1.graveyard.some((card) => card.instanceId === reactionBurn.instanceId), true, "countered spell goes to owner graveyard");
+  assert.equal(reactionEnvelope.zones.p2.graveyard.some((card) => card.instanceId === reactionCounter.instanceId), true, "resolved counter goes to owner graveyard");
 
   const drawSpell = collectibleCards().find((card)=>card.defId==="tide_draw");
   assert.ok(drawSpell?.spell?.kind==="draw","fixture requires tide_draw");

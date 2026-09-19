@@ -14,7 +14,12 @@ import {
 } from "./four-player-card-zones";
 import type { FourPlayerSeat } from "./four-player-general";
 import type { FourPlayerMatchState } from "./four-player-match";
-import type { FourPlayerStackItem } from "./four-player-stack";
+import {
+  findFourPlayerStackItem,
+  removeFourPlayerStackItemById,
+  type FourPlayerStackItem,
+} from "./four-player-stack";
+import { canFourPlayerCounterStackItem, canFourPlayerReactWithCard } from "./four-player-reactions";
 import type { FourPlayerTargetRef } from "./four-player-targeting";
 import type { CardEffect, CardType, Keyword } from "./types";
 
@@ -30,6 +35,8 @@ export interface FourPlayerCardCastPayload {
   combat?: FourPlayerCombatBody;
   effect?: CardEffect;
   target?: FourPlayerTargetRef;
+  speed?: "Fast" | "Burst";
+  stackTargetId?: string;
 }
 
 export interface FourPlayerStagedCardCast {
@@ -43,20 +50,45 @@ function isStageableType(type: CardType): type is FourPlayerStageableCardType {
   return (FOUR_PLAYER_STAGEABLE_CARD_TYPES as readonly CardType[]).includes(type);
 }
 
-function assertCardPlayTiming(match: FourPlayerMatchState, actor: FourPlayerSeat): void {
+function assertCardPlayTiming(
+  match: FourPlayerMatchState,
+  actor: FourPlayerSeat,
+  definition: ReturnType<typeof getCard>,
+  stackTargetId?: string,
+): void {
   if (match.status !== "active") throw new Error("Completed four-player matches cannot stage cards.");
   if (match.seats[actor].eliminated) throw new Error(`Eliminated seat ${actor} cannot stage cards.`);
   if (match.resolution.priority.holder !== actor) {
     throw new Error(`Seat ${actor} does not hold priority; ${match.resolution.priority.holder} does.`);
+  }
+
+  const pending = match.resolution.stack.items[match.resolution.stack.items.length - 1];
+  if (pending) {
+    if (!canFourPlayerReactWithCard(definition, pending)) {
+      throw new Error("Only legal Fast/Burst reaction spells may be staged while the 4P stack is open.");
+    }
+    if (definition.spell?.kind === "negateSpell") {
+      const targetId = String(stackTargetId || "").trim();
+      if (!targetId) throw new Error("4P negateSpell requires a stackTargetId.");
+      const target = findFourPlayerStackItem(match.resolution.stack, targetId);
+      if (!target) throw new Error(`4P stack target ${targetId} does not exist.`);
+      if (!canFourPlayerCounterStackItem(definition, target)) {
+        throw new Error(`4P negateSpell cannot counter stack item ${targetId}.`);
+      }
+    } else if (definition.spell?.target === "spellOnStack") {
+      throw new Error("Only negateSpell may target the 4P reaction stack.");
+    }
+    return;
+  }
+
+  if (definition.spell?.kind === "negateSpell" || definition.spell?.target === "spellOnStack") {
+    throw new Error("4P stack-targeted reactions require a pending stack item.");
   }
   if (match.turn.activeSeat !== actor) {
     throw new Error(`Only active seat ${match.turn.activeSeat} may stage sorcery-speed cards.`);
   }
   if (match.phase !== "main_1" && match.phase !== "main_2") {
     throw new Error("4P physical card staging requires a main phase.");
-  }
-  if (match.resolution.stack.items.length > 0) {
-    throw new Error("4P physical card staging requires an empty stack.");
   }
 }
 
@@ -67,10 +99,11 @@ export function stageFourPlayerCardCast(
   instanceId: string,
   eventId: string,
   target?: FourPlayerTargetRef,
+  stackTargetId?: string,
 ): FourPlayerStagedCardCast {
-  assertCardPlayTiming(match, actor);
   const card = findFourPlayerHandCard(zones, actor, instanceId);
   const definition = getCard(card.defId);
+  assertCardPlayTiming(match, actor, definition, stackTargetId);
   if (!isStageableType(definition.type)) {
     throw new Error(`Card type ${definition.type} is not stageable by 4P physical play authority yet.`);
   }
@@ -92,7 +125,9 @@ export function stageFourPlayerCardCast(
   const combat = createFourPlayerCombatBodySnapshot(definition);
   if (definition.type === "Spell") {
     if (!definition.spell) throw new Error(`Spell ${definition.defId} has no authoritative effect.`);
-    resolveFourPlayerEffect(match, actor, definition.spell, target);
+    if (definition.spell.kind !== "negateSpell") {
+      resolveFourPlayerEffect(match, actor, definition.spell, target);
+    }
   }
   const payload: FourPlayerCardCastPayload = {
     instanceId: card.instanceId,
@@ -101,7 +136,12 @@ export function stageFourPlayerCardCast(
     cardType: definition.type,
     keywords: [...(definition.keywords ?? [])],
     ...(combat ? { combat } : {}),
-    ...(definition.type === "Spell" && definition.spell ? { effect: structuredClone(definition.spell), ...(target ? { target } : {}) } : {}),
+    ...(definition.type === "Spell" && definition.spell ? {
+      effect: structuredClone(definition.spell),
+      ...(target ? { target } : {}),
+      ...(definition.speed ? { speed: definition.speed } : {}),
+      ...(stackTargetId ? { stackTargetId } : {}),
+    } : {}),
   };
   return {
     match: paidMatch,
@@ -163,8 +203,9 @@ export function resolveFourPlayerSpellCast(
   match: FourPlayerMatchState;
   destroyed: readonly import("./four-player-combat-resolution").FourPlayerCombatDestroyedObject[];
   draws: Partial<Record<FourPlayerSeat, number>>;
+  countered: readonly FourPlayerStackItem[];
 } {
-  if (item.kind !== "spell_cast") return { match, destroyed: [], draws: {} };
+  if (item.kind !== "spell_cast") return { match, destroyed: [], draws: {}, countered: [] };
   const payload = item.payload as Partial<FourPlayerCardCastPayload>;
   if (!payload.instanceId || !payload.defId || !payload.ownerSeat || payload.cardType !== "Spell" || !payload.effect) {
     throw new Error("Resolved 4P spell cast is missing authoritative identity or effect.");
@@ -172,5 +213,30 @@ export function resolveFourPlayerSpellCast(
   if (payload.ownerSeat !== item.controller) {
     throw new Error("Resolved 4P spell owner/controller identity mismatch.");
   }
-  return resolveFourPlayerEffect(match, item.controller, payload.effect, payload.target, { tokenNamespace: item.id });
+  if (payload.effect.kind === "negateSpell") {
+    const targetId = String(payload.stackTargetId || "").trim();
+    if (!targetId) throw new Error("Resolved 4P negateSpell is missing stackTargetId.");
+    const target = findFourPlayerStackItem(match.resolution.stack, targetId);
+    if (!target) return { match, destroyed: [], draws: {}, countered: [] };
+    const counterDef = getCard(payload.defId);
+    if (!canFourPlayerCounterStackItem(counterDef, target)) {
+      return { match, destroyed: [], draws: {}, countered: [] };
+    }
+    const removed = removeFourPlayerStackItemById(match.resolution.stack, targetId);
+    let nextMatch: FourPlayerMatchState = {
+      ...match,
+      resolution: { ...match.resolution, stack: removed.state },
+    };
+    let destroyed: readonly import("./four-player-combat-resolution").FourPlayerCombatDestroyedObject[] = [];
+    let draws: Partial<Record<FourPlayerSeat, number>> = {};
+    if (payload.effect.also) {
+      const secondary = resolveFourPlayerEffect(nextMatch, item.controller, payload.effect.also, undefined, { tokenNamespace: item.id });
+      nextMatch = secondary.match;
+      destroyed = secondary.destroyed;
+      draws = secondary.draws;
+    }
+    return { match: nextMatch, destroyed, draws, countered: removed.removed ? [removed.removed] : [] };
+  }
+  const resolved = resolveFourPlayerEffect(match, item.controller, payload.effect, payload.target, { tokenNamespace: item.id });
+  return { ...resolved, countered: [] };
 }

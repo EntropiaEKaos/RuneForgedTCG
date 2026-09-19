@@ -33,6 +33,20 @@ export function removeFourPlayerStackItemsByController(
   return { ...state, items: state.items.filter((item) => item.controller !== controller) };
 }
 
+export function findFourPlayerStackItem(state: FourPlayerStackState, itemId: string): FourPlayerStackItem | undefined {
+  const id = String(itemId || "").trim();
+  return id ? state.items.find((item) => item.id === id) : undefined;
+}
+
+export function removeFourPlayerStackItemById(
+  state: FourPlayerStackState,
+  itemId: string,
+): { state: FourPlayerStackState; removed?: FourPlayerStackItem } {
+  const removed = findFourPlayerStackItem(state, itemId);
+  if (!removed) return { state };
+  return { state: { ...state, items: state.items.filter((item) => item.id !== removed.id) }, removed };
+}
+
 export function peekFourPlayerStack(state: FourPlayerStackState): FourPlayerStackItem | undefined {
   return state.items[state.items.length - 1];
 }

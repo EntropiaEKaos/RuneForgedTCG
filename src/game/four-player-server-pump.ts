@@ -18,6 +18,7 @@ export interface FourPlayerServerPumpResult {
   combatResolved?: boolean;
   destroyedObjects?: readonly FourPlayerCombatDestroyedObject[];
   drawRequests?: Partial<Record<FourPlayerSeat, number>>;
+  counteredStackItems?: readonly FourPlayerStackItem[];
 }
 
 function applyResolvedStackItem(
@@ -27,13 +28,14 @@ function applyResolvedStackItem(
   match: FourPlayerMatchState;
   destroyedObjects: readonly FourPlayerCombatDestroyedObject[];
   drawRequests: Partial<Record<FourPlayerSeat, number>>;
+  counteredStackItems: readonly FourPlayerStackItem[];
 } {
-  if (item.kind === "card_cast") return { match: resolveFourPlayerCardCast(match, item), destroyedObjects: [], drawRequests: {} };
+  if (item.kind === "card_cast") return { match: resolveFourPlayerCardCast(match, item), destroyedObjects: [], drawRequests: {}, counteredStackItems: [] };
   if (item.kind === "spell_cast") {
     const resolved = resolveFourPlayerSpellCast(match, item);
-    return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws };
+    return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws, counteredStackItems: resolved.countered };
   }
-  if (item.kind !== "general_cast") return { match, destroyedObjects: [], drawRequests: {} };
+  if (item.kind !== "general_cast") return { match, destroyedObjects: [], drawRequests: {}, counteredStackItems: [] };
   const general = match.generals[item.controller];
   if (general.location !== "stack") throw new Error(`Resolved General for ${item.controller} is not on the General stack.`);
   const payload = item.payload as { owner?: string; defId?: string };
@@ -53,7 +55,7 @@ function applyResolvedStackItem(
       withGeneral.generalKeywords?.[item.controller] ?? [],
       withGeneral.generalCombatBodies?.[item.controller],
     ),
-  }, destroyedObjects: [], drawRequests: {} };
+  }, destroyedObjects: [], drawRequests: {}, counteredStackItems: [] };
 }
 
 /**
@@ -125,5 +127,6 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
     turnAdvanced: false,
     ...(applied.destroyedObjects.length > 0 ? { destroyedObjects: applied.destroyedObjects } : {}),
     ...(Object.keys(applied.drawRequests).length > 0 ? { drawRequests: applied.drawRequests } : {}),
+    ...(applied.counteredStackItems.length > 0 ? { counteredStackItems: applied.counteredStackItems } : {}),
   };
 }
