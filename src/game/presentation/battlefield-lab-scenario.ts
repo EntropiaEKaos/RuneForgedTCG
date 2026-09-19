@@ -46,3 +46,43 @@ export function buildBattlefieldLabScenario(mode: BattlefieldLabMode, requestedU
   });
   return { schemaVersion: 1, seed: mode === "commander-4p" ? 404240 : 101240, mode, players, entities };
 }
+
+
+export type BattlefieldLabPoint = { x: number; y: number; angle: number };
+
+export function layoutBattlefieldEntities(
+  scenario: BattlefieldLabScenario,
+  width: number,
+  height: number,
+): Record<string, BattlefieldLabPoint> {
+  const result: Record<string, BattlefieldLabPoint> = {};
+  const fourPlayer = scenario.players.length === 4;
+  const cols = fourPlayer ? 2 : 1;
+  const rows = Math.ceil(scenario.players.length / cols);
+  const zoneW = width / cols;
+  const zoneH = height / rows;
+
+  scenario.players.forEach((player, playerIndex) => {
+    const entities = scenario.entities.filter((entity) => entity.controllerId === player.id);
+    const col = playerIndex % cols;
+    const row = Math.floor(playerIndex / cols);
+    const x0 = col * zoneW;
+    const y0 = row * zoneH;
+    const unitCols = Math.max(4, Math.min(10, Math.ceil(Math.sqrt(entities.length * 1.6))));
+    const availableW = zoneW - 30;
+    const availableH = zoneH - 55;
+    const gapX = availableW / unitCols;
+    const unitRows = Math.max(1, Math.ceil(entities.length / unitCols));
+    const gapY = availableH / unitRows;
+
+    entities.forEach((entity, index) => {
+      result[entity.id] = {
+        x: x0 + 16 + (index % unitCols) * gapX + gapX / 2,
+        y: y0 + 48 + Math.floor(index / unitCols) * gapY + gapY / 2,
+        angle: entity.tapped ? 18 : 0,
+      };
+    });
+  });
+
+  return result;
+}
