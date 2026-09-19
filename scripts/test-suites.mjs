@@ -112,6 +112,7 @@ export const behavioralTests = [
   "src/game/four-player-server-pump.test.ts",
   "src/game/four-player-session.test.ts",
   "src/game/four-player-turn-manager.test.ts",
+  "src/game/four-player-turn-start.test.ts",
   "src/lib/admin-multiuser.test.ts",
   "src/lib/alpha-onboarding.test.ts",
   "src/lib/brawl-rule-authority.test.ts",
