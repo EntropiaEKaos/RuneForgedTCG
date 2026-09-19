@@ -86,3 +86,31 @@ export function layoutBattlefieldEntities(
 
   return result;
 }
+
+
+export type BattlefieldInteractionIntent =
+  | { type: "select"; sourceId: string }
+  | { type: "target"; sourceId: string; targetId: string }
+  | { type: "cancel"; sourceId?: string };
+
+export type BattlefieldTargetPreview = {
+  sourceId: string;
+  targetId: string;
+  relation: "friendly" | "opponent";
+};
+
+export function previewBattlefieldTarget(
+  scenario: BattlefieldLabScenario,
+  sourceId: string,
+  targetId: string,
+): BattlefieldTargetPreview | null {
+  if (sourceId === targetId) return null;
+  const source = scenario.entities.find((entity) => entity.id === sourceId);
+  const target = scenario.entities.find((entity) => entity.id === targetId);
+  if (!source || !target) return null;
+  return {
+    sourceId,
+    targetId,
+    relation: source.controllerId === target.controllerId ? "friendly" : "opponent",
+  };
+}
