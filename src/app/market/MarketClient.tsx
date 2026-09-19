@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getCardCosmetic } from "@/game/card-cosmetics";
+import { getCardCosmetic, getCardCosmetics } from "@/game/card-cosmetics";
 import { useCatalogRevision } from "@/components/CatalogContext";
 
 type CardSummary = { defId: string; name: string; rarity?: string; region?: string | string[]; emoji?: string };
@@ -36,6 +36,7 @@ type Listing = {
   card: CardSummary;
 };
 type TradeAsset = { assetId?: number; defId: string; variantId?: string; frameId?: string; finish?: string; serialNumber?: number | null; card: CardSummary };
+type TradeRequestDraft = { defId: string; variantId?: string; frameId?: string; finish?: string; serialNumber?: string };
 type Trade = {
   id: number;
   proposerName: string;
@@ -78,11 +79,15 @@ export default function MarketClient() {
   const [gold, setGold] = useState(0);
   const [playerId, setPlayerId] = useState<number | null>(null);
   const [feeBps, setFeeBps] = useState(500);
+  const [minPriceGold, setMinPriceGold] = useState(1);
+  const [maxPriceGold, setMaxPriceGold] = useState(1_000_000);
+  const [maxTradeCardsPerSide, setMaxTradeCardsPerSide] = useState(5);
   const [query, setQuery] = useState("");
   const [prices, setPrices] = useState<Record<number, string>>({});
   const [recipient, setRecipient] = useState("");
-  const [offeredAssetId, setOfferedAssetId] = useState("");
+  const [offeredAssetIds, setOfferedAssetIds] = useState<number[]>([]);
   const [requestedDefId, setRequestedDefId] = useState("");
+  const [requestedAssets, setRequestedAssets] = useState<TradeRequestDraft[]>([]);
   const [tradeNote, setTradeNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -96,7 +101,12 @@ export default function MarketClient() {
       setGold(Number(data.player.gold || 0));
       setPlayerId(Number(data.player.id || 0));
     }
-    if (data.settings) setFeeBps(Number(data.settings.feeBps || 0));
+    if (data.settings) {
+      setFeeBps(Number(data.settings.feeBps || 0));
+      setMinPriceGold(Number(data.settings.minPriceGold || 1));
+      setMaxPriceGold(Number(data.settings.maxPriceGold || 1_000_000));
+      setMaxTradeCardsPerSide(Number(data.settings.maxTradeCardsPerSide || 5));
+    }
     if (view === "inventory") setAssets(data.assets || []);
     else setListings(view === "history" ? data.history || [] : data.listings || []);
   }, [query]);
@@ -179,6 +189,57 @@ export default function MarketClient() {
   const availableAssets = useMemo(() => assets.filter((asset) => asset.tradable && !asset.locked), [assets]);
   const activeListings = useMemo(() => listings.filter((listing) => !listing.status || listing.status === "active"), [listings]);
 
+  const toggleOfferedAsset = (assetId: number) => {
+    setOfferedAssetIds((current) => {
+      if (current.includes(assetId)) return current.filter((id) => id !== assetId);
+      if (current.length >= maxTradeCardsPerSide) return current;
+      return [...current, assetId];
+    });
+  };
+
+  const addRequestedAsset = () => {
+    if (!requestedDefId || requestedAssets.length >= maxTradeCardsPerSide) return;
+    setRequestedAssets((current) => [...current, { defId: requestedDefId }]);
+    setRequestedDefId("");
+  };
+
+  const updateRequestedAsset = (index: number, patch: Partial<TradeRequestDraft>) => {
+    setRequestedAssets((current) => current.map((request, requestIndex) => requestIndex === index ? { ...request, ...patch } : request));
+  };
+
+  const removeRequestedAsset = (index: number) => {
+    setRequestedAssets((current) => current.filter((_, requestIndex) => requestIndex !== index));
+  };
+
+  const submitTrade = async () => {
+    const result = await post("/api/trades", {
+      action: "create",
+      recipientName: recipient,
+      offeredAssetIds,
+      requestedAssets: requestedAssets.map((request) => ({
+        defId: request.defId,
+        variantId: request.variantId,
+        frameId: request.frameId,
+        finish: request.finish,
+        serialNumber: request.serialNumber ? Number(request.serialNumber) : undefined,
+      })),
+      note: tradeNote,
+    }, "trade-create");
+    if (result) {
+      setOfferedAssetIds([]);
+      setRequestedAssets([]);
+      setRequestedDefId("");
+      setTradeNote("");
+    }
+  };
+
+  const salePreview = (raw: string) => {
+    const price = Number(raw);
+    if (!Number.isSafeInteger(price) || price < minPriceGold || price > maxPriceGold) return null;
+    const fee = Math.floor((price * feeBps) / 10_000);
+    return { price, fee, net: Math.max(0, price - fee) };
+  };
+
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6">
       <section className="rf-panel overflow-hidden">
@@ -236,9 +297,15 @@ export default function MarketClient() {
               <small className="opacity-60">Cópia #{asset.id} · {collectibleLabel(asset)}</small>
               <h2 className="mt-1 text-lg font-bold">{asset.card.emoji || "◆"} {asset.card.name}</h2>
               {asset.locked ? <p className="mt-3 text-sm">Em escrow: {asset.lockKind === "trade" ? "troca" : "anúncio"}</p> : (
-                <div className="mt-4 flex gap-2">
-                  <input className="rf-input min-w-0 flex-1" type="number" min={1} value={prices[asset.id] || ""} onChange={(event) => setPrices((old) => ({ ...old, [asset.id]: event.target.value }))} placeholder="Preço em Gold" />
-                  <button className="rf-button rf-button-primary" disabled={busy || !asset.tradable} onClick={() => void post("/api/market", { action: "list", assetId: asset.id, priceGold: Number(prices[asset.id]) }, "market-list")}>Anunciar</button>
+                <div className="mt-4">
+                  <div className="flex gap-2">
+                    <input className="rf-input min-w-0 flex-1" type="number" min={minPriceGold} max={maxPriceGold} value={prices[asset.id] || ""} onChange={(event) => setPrices((old) => ({ ...old, [asset.id]: event.target.value }))} placeholder="Preço em Gold" />
+                    <button className="rf-button rf-button-primary" disabled={busy || !asset.tradable || !salePreview(prices[asset.id] || "")} onClick={() => void post("/api/market", { action: "list", assetId: asset.id, priceGold: Number(prices[asset.id]) }, "market-list")}>Anunciar</button>
+                  </div>
+                  {salePreview(prices[asset.id] || "") && (() => {
+                    const preview = salePreview(prices[asset.id] || "")!;
+                    return <p className="mt-2 text-[11px] opacity-65">Taxa ¤ {preview.fee.toLocaleString("pt-BR")} · você recebe ¤ {preview.net.toLocaleString("pt-BR")}</p>;
+                  })()}
                 </div>
               )}
             </article>
@@ -262,21 +329,113 @@ export default function MarketClient() {
       {tab === "trades" && (
         <section className="mt-6 space-y-6">
           <div className="rf-panel p-6">
-            <h2 className="text-xl font-bold">Propor troca direta</h2>
-            <p className="mt-1 text-sm opacity-70">A sua cópia ficará em escrow até a outra pessoa aceitar, recusar, expirar ou você cancelar.</p>
-            <div className="mt-4 grid gap-3 lg:grid-cols-4">
-              <input className="rf-input" value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Nome exato do jogador" />
-              <select className="rf-input" value={offeredAssetId} onChange={(event) => setOfferedAssetId(event.target.value)}>
-                <option value="">Carta que você oferece</option>
-                {availableAssets.map((asset) => <option key={asset.id} value={asset.id}>#{asset.id} — {asset.card.name} ({collectibleLabel(asset)})</option>)}
-              </select>
-              <select className="rf-input" value={requestedDefId} onChange={(event) => setRequestedDefId(event.target.value)} aria-label="Carta que você deseja receber">
-                <option value="">Carta que você deseja receber</option>
-                {tradeCatalog.map((card) => <option key={card.defId} value={card.defId}>{catalogCardLabel(card)}</option>)}
-              </select>
-              <button className="rf-button rf-button-primary" disabled={busy || !recipient || !offeredAssetId || !requestedDefId} onClick={() => void post("/api/trades", { action: "create", recipientName: recipient, offeredAssetIds: [Number(offeredAssetId)], requestedAssets: [{ defId: requestedDefId }], note: tradeNote }, "trade-create")}>Propor troca</button>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold">Propor troca direta</h2>
+                <p className="mt-1 text-sm opacity-70">Monte uma oferta de até {maxTradeCardsPerSide} carta(s) por lado. Suas cópias ficam em escrow até aceitar, recusar, expirar ou cancelar.</p>
+              </div>
+              <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-wider opacity-70">Sem Gold · carta por carta</span>
             </div>
-            <input className="rf-input mt-3 w-full" value={tradeNote} onChange={(event) => setTradeNote(event.target.value)} maxLength={240} placeholder="Mensagem opcional" />
+
+            <div className="mt-5 grid gap-4 xl:grid-cols-2">
+              <div className="rounded-xl border border-white/10 bg-black/15 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div><small className="font-black uppercase tracking-wider opacity-55">Você oferece</small><p className="text-sm opacity-70">Selecione cópias físicas exatas do seu acervo.</p></div>
+                  <b>{offeredAssetIds.length}/{maxTradeCardsPerSide}</b>
+                </div>
+                <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+                  {availableAssets.map((asset) => {
+                    const selected = offeredAssetIds.includes(asset.id);
+                    const limitReached = !selected && offeredAssetIds.length >= maxTradeCardsPerSide;
+                    return (
+                      <button
+                        type="button"
+                        key={asset.id}
+                        aria-pressed={selected}
+                        disabled={limitReached}
+                        onClick={() => toggleOfferedAsset(asset.id)}
+                        className={`w-full rounded-lg border p-3 text-left transition ${selected ? "border-amber-300/50 bg-amber-300/[.08]" : "border-white/10 bg-white/[.02] hover:border-white/20"} disabled:cursor-not-allowed disabled:opacity-35`}
+                      >
+                        <span className="font-bold">{selected ? "✓ " : ""}{asset.card.name}</span>
+                        <small className="mt-1 block opacity-60">Cópia #{asset.id} · {collectibleLabel(asset)}</small>
+                      </button>
+                    );
+                  })}
+                  {!availableAssets.length && <p className="py-6 text-center text-sm opacity-55">Nenhuma cópia desbloqueada disponível.</p>}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-black/15 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div><small className="font-black uppercase tracking-wider opacity-55">Você pede</small><p className="text-sm opacity-70">Aceite qualquer versão ou exija uma impressão/serial específico.</p></div>
+                  <b>{requestedAssets.length}/{maxTradeCardsPerSide}</b>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <select className="rf-input min-w-0 flex-1" value={requestedDefId} onChange={(event) => setRequestedDefId(event.target.value)} aria-label="Carta que você deseja receber">
+                    <option value="">Adicionar carta desejada…</option>
+                    {tradeCatalog.map((card) => <option key={card.defId} value={card.defId}>{catalogCardLabel(card)}</option>)}
+                  </select>
+                  <button type="button" className="rf-button rf-button-secondary" disabled={!requestedDefId || requestedAssets.length >= maxTradeCardsPerSide} onClick={addRequestedAsset}>Adicionar</button>
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  {requestedAssets.map((request, index) => {
+                    const card = tradeCatalog.find((entry) => entry.defId === request.defId);
+                    const cosmetics = getCardCosmetics(request.defId);
+                    const selectedCosmetic = request.variantId ? getCardCosmetic(request.defId, request.variantId) : undefined;
+                    return (
+                      <div key={`${request.defId}:${index}`} className="rounded-lg border border-white/10 bg-white/[.025] p-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div><b>{card?.name || request.defId}</b><small className="mt-1 block opacity-55">{card ? catalogCardLabel(card) : "Carta desejada"}</small></div>
+                          <button type="button" className="text-xs font-black opacity-55 hover:opacity-100" onClick={() => removeRequestedAsset(index)} aria-label={`Remover ${card?.name || request.defId}`}>✕</button>
+                        </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          <select
+                            className="rf-input"
+                            value={request.variantId || ""}
+                            onChange={(event) => {
+                              const cosmetic = event.target.value ? getCardCosmetic(request.defId, event.target.value) : undefined;
+                              updateRequestedAsset(index, cosmetic
+                                ? { variantId: cosmetic.variantId, frameId: cosmetic.frameId, finish: cosmetic.finish, serialNumber: undefined }
+                                : { variantId: undefined, frameId: undefined, finish: undefined, serialNumber: undefined });
+                            }}
+                            aria-label={`Versão desejada de ${card?.name || request.defId}`}
+                          >
+                            <option value="">Qualquer versão</option>
+                            {cosmetics.map((cosmetic) => <option key={cosmetic.variantId} value={cosmetic.variantId}>{cosmetic.name}{cosmetic.edition ? ` · ${cosmetic.edition}` : ""}</option>)}
+                          </select>
+                          {selectedCosmetic?.kind === "serialized" ? (
+                            <input
+                              className="rf-input"
+                              type="number"
+                              min={1}
+                              max={selectedCosmetic.serialLimit || undefined}
+                              value={request.serialNumber || ""}
+                              onChange={(event) => updateRequestedAsset(index, { serialNumber: event.target.value })}
+                              placeholder={selectedCosmetic.serialLimit ? `Serial 1–${selectedCosmetic.serialLimit}` : "Serial exato"}
+                              aria-label={`Serial desejado de ${card?.name || request.defId}`}
+                            />
+                          ) : <div className="flex items-center px-2 text-[11px] opacity-55">{request.variantId ? collectibleLabel({
+                              defId: request.defId,
+                              variantId: request.variantId,
+                              frameId: request.frameId,
+                              finish: request.finish,
+                              serialNumber: request.serialNumber ? Number(request.serialNumber) : undefined,
+                            }) : "Sem restrição cosmética"}</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {!requestedAssets.length && <p className="py-5 text-center text-sm opacity-55">Adicione ao menos uma carta desejada.</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1.5fr_auto]">
+              <input className="rf-input" value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="Nome exato do jogador" />
+              <input className="rf-input" value={tradeNote} onChange={(event) => setTradeNote(event.target.value)} maxLength={240} placeholder="Mensagem opcional" />
+              <button className="rf-button rf-button-primary" disabled={busy || !recipient || offeredAssetIds.length < 1 || requestedAssets.length < 1} onClick={() => void submitTrade()}>Propor troca</button>
+            </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">

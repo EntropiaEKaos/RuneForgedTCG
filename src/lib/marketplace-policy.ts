@@ -16,6 +16,7 @@ export type RequestedCollectible = {
   variantId?: string;
   frameId?: string;
   finish?: string;
+  serialNumber?: number;
 };
 
 export function marketplaceFee(priceGold: number, feeBps: number) {
@@ -58,22 +59,30 @@ export function normalizeRequestedCollectibles(input: unknown, max: number): Req
       const text = typeof value === "string" ? value.trim().slice(0, limit) : "";
       return text || undefined;
     };
+    const variantId = optional(record.variantId, 80);
+    const serialRaw = record.serialNumber;
+    const serialNumber = serialRaw === undefined || serialRaw === null || serialRaw === ""
+      ? undefined
+      : Number(serialRaw);
+    if (serialNumber !== undefined && (!Number.isSafeInteger(serialNumber) || serialNumber < 1 || !variantId)) return null;
     normalized.push({
       defId,
-      variantId: optional(record.variantId, 80),
+      variantId,
       frameId: optional(record.frameId, 80),
       finish: optional(record.finish, 40),
+      serialNumber,
     });
   }
   return normalized;
 }
 
 export function collectibleMatches(
-  asset: { defId: string; variantId: string; frameId: string; finish: string },
+  asset: { defId: string; variantId: string; frameId: string; finish: string; serialNumber?: number | null },
   request: RequestedCollectible,
 ) {
   return asset.defId === request.defId
     && (!request.variantId || asset.variantId === request.variantId)
     && (!request.frameId || asset.frameId === request.frameId)
-    && (!request.finish || asset.finish === request.finish);
+    && (!request.finish || asset.finish === request.finish)
+    && (!request.serialNumber || asset.serialNumber === request.serialNumber);
 }
