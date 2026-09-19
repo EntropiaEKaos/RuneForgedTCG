@@ -14,6 +14,15 @@ const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: fals
 const pool = new Pool({ connectionString: databaseUrl, max: 2, connectionTimeoutMillis: 5_000 });
 const sleep = (ms) => new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
 
+function isExpectedBootstrapNetworkLog(message) {
+  if (message.method !== "Log.entryAdded") return false;
+  const entry = message.params?.entry;
+  const url = String(entry?.url || "");
+  const text = String(entry?.text || "");
+  if (text.includes("401 (Unauthorized)") && url.endsWith("/api/player")) return true;
+  return text.includes("404 (Not Found)") && url.endsWith("/favicon.ico");
+}
+
 function findChrome() {
   const candidates = [process.env.CHROME_BIN, "google-chrome", "google-chrome-stable", "chromium", "chromium-browser"].filter(Boolean);
   for (const candidate of candidates) {
@@ -319,7 +328,11 @@ async function main() {
 
     const severe = cdp.notifications.filter((message) =>
       message.method === "Runtime.exceptionThrown"
-      || (message.method === "Log.entryAdded" && ["error", "assert"].includes(message.params?.entry?.level)),
+      || (
+        message.method === "Log.entryAdded"
+        && ["error", "assert"].includes(message.params?.entry?.level)
+        && !isExpectedBootstrapNetworkLog(message)
+      ),
     );
     assert.equal(severe.length, 0, `Trading 2 browser emitted runtime errors: ${JSON.stringify(severe.slice(0, 3))}`);
 
