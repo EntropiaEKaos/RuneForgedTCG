@@ -20,7 +20,7 @@ function deltaLabel(delta:number|null) { if (delta == null) return "sem base ant
 export function CommandCenterIntelligencePanel({ intelligence }: { intelligence:CommandCenterIntelligenceData }) {
   return <section className="border border-amber-200/12 bg-[#080d14]/90">
     <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/8 px-5 py-4">
-      <div><p className="text-[8px] font-bold uppercase tracking-[.24em] text-amber-200/45">INTELLIGENCE 1.7 · SERVER PROJECTION</p><h2 className="mt-1 font-[var(--font-display)] text-lg font-bold text-[#eadfc7]">Saúde operacional e movimento do funil</h2></div>
+      <div><p className="text-[8px] font-bold uppercase tracking-[.24em] text-amber-200/45">INTELLIGENCE 2.0 · SERVER PROJECTION</p><h2 className="mt-1 font-[var(--font-display)] text-lg font-bold text-[#eadfc7]">Saúde operacional, Trading e movimento do funil</h2></div>
       <span className="text-[9px] uppercase tracking-[.14em] text-slate-600">24h atuais × 24h anteriores · sem reconstrução no client</span>
     </div>
     <div className="grid gap-5 p-5 xl:grid-cols-[1.05fr_1.4fr]">

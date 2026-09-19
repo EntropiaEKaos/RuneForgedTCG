@@ -117,7 +117,7 @@ async function main() {
     await login(cdp);
     await cdp.call("Page.navigate", { url:`${baseUrl}/admin/studio/command-center` });
     await waitUntil(() => evaluate(cdp, `["interactive","complete"].includes(document.readyState)`), "Command Center navigation");
-    await waitUntil(() => evaluate(cdp, `document.body?.innerText?.includes('INTELLIGENCE 1.7') && document.body?.innerText?.includes('Saúde operacional e movimento do funil')`), "Intelligence 1.7 panel");
+    await waitUntil(() => evaluate(cdp, `document.body?.innerText?.includes('INTELLIGENCE 2.0') && document.body?.innerText?.includes('Saúde operacional, Trading e movimento do funil')`), "Intelligence 2.0 panel");
     await waitUntil(() => evaluate(cdp, `document.body?.innerText?.toLocaleLowerCase('pt-BR')?.includes('24h atuais') && document.body?.innerText?.toLocaleLowerCase('pt-BR')?.includes('maior vazamento absoluto')`), "Intelligence comparison contract");
     const evidence = await evaluate(cdp, `(() => {
       const text = (document.body?.innerText || '').replace(/\\s+/g,' ').trim();\n      const normalizedText = text.toLocaleLowerCase('pt-BR');
@@ -126,12 +126,12 @@ async function main() {
         href: location.href,
         innerWidth: window.innerWidth,
         scrollWidth: root.scrollWidth,
-        intelligence: text.includes('INTELLIGENCE 1.7'),
-        title: text.includes('Saúde operacional e movimento do funil'),
+        intelligence: text.includes('INTELLIGENCE 2.0'),
+        title: text.includes('Saúde operacional, Trading e movimento do funil'),
         absoluteLeak: normalizedText.includes('maior vazamento absoluto'),
         comparison: normalizedText.includes('24h atuais') && normalizedText.includes('24h anteriores'),
         neutralDirection: normalizedText.includes('setas descrevem direção matemática, não julgamento.'),
-        signalLabels: ['dau / mau','dau / wau','conclusão pvp 24h','aprovação pagamentos 24h'].filter((label) => normalizedText.includes(label)),
+        signalLabels: ['dau / mau','dau / wau','conclusão pvp 24h','aprovação pagamentos 24h','aceitação de trocas 24h'].filter((label) => normalizedText.includes(label)),
       };
     })()`);
     assert.equal(evidence.intelligence, true);
@@ -139,11 +139,11 @@ async function main() {
     assert.equal(evidence.absoluteLeak, true);
     assert.equal(evidence.comparison, true);
     assert.equal(evidence.neutralDirection, true);
-    assert.equal(evidence.signalLabels.length, 4, `Missing operational signals: ${JSON.stringify(evidence)}`);
+    assert.equal(evidence.signalLabels.length, 5, `Missing operational signals: ${JSON.stringify(evidence)}`);
     assert.ok(evidence.scrollWidth <= evidence.innerWidth + 2, `Command Center has horizontal overflow: ${evidence.scrollWidth}px > ${evidence.innerWidth}px`);
     const screenshot = await cdp.call("Page.captureScreenshot", { format:"png", fromSurface:true, captureBeyondViewport:false });
     await writeFile(join(outputDir, "44-studio-command-center-intelligence.png"), Buffer.from(screenshot.data, "base64"));
-    await writeFile(join(outputDir, "command-center-intelligence-manifest.json"), `${JSON.stringify({ version:"1.8", viewport, evidence, screenshots:["44-studio-command-center-intelligence.png"] }, null, 2)}\n`, "utf8");
+    await writeFile(join(outputDir, "command-center-intelligence-manifest.json"), `${JSON.stringify({ version:"2.0", viewport, evidence, screenshots:["44-studio-command-center-intelligence.png"] }, null, 2)}\n`, "utf8");
     console.log("Command Center Intelligence browser certification PASS", JSON.stringify(evidence));
   } finally {
     cdp?.close();
