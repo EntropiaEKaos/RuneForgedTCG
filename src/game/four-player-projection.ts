@@ -48,6 +48,7 @@ export interface FourPlayerProjectedSeatState {
   life?: number;
   mana?: number;
   maxMana?: number;
+  spellMana?: number;
   poisonCounters?: number;
   generalDamageReceived?: Partial<Record<FourPlayerSeat, number>>;
   battlefield?: readonly FourPlayerProjectedBattlefieldObject[];
@@ -121,6 +122,7 @@ export function projectFourPlayerStateForSeat(
         life: match.seats[seat].life,
         mana: match.seats[seat].mana,
         maxMana: match.seats[seat].maxMana,
+        spellMana: match.seats[seat].spellMana,
         poisonCounters: match.seats[seat].poisonCounters,
         generalDamageReceived: { ...match.seats[seat].generalDamageReceived },
         battlefield,

@@ -181,17 +181,43 @@ try {
   const modalPayload = stagedModal.stackItem.payload as { modeId?: string; effect?: { kind?: string } };
   assert.equal(modalPayload.modeId, "heal-mode");
   assert.equal(modalPayload.effect?.kind, "healNexus");
+  const spellManaReady: FourPlayerMatchState = {
+    ...mainPump.match,
+    seats: {
+      ...mainPump.match.seats,
+      p1: { ...mainPump.match.seats.p1, spellMana: 1 },
+    },
+  };
+  const stagedSpellMana = stageFourPlayerActivatedAbility(
+    spellManaReady,
+    stagedMain.zones,
+    "p1",
+    "ability-source-p1",
+    "main",
+    modalIndex + 1,
+    "e-spell-mana-paid",
+  );
+  assert.equal(stagedSpellMana.match.seats.p1.spellMana, 0);
+  assert.equal(stagedSpellMana.match.seats.p1.mana, spellManaReady.seats.p1.mana);
+  const spellManaMissing: FourPlayerMatchState = {
+    ...mainPump.match,
+    seats: {
+      ...mainPump.match.seats,
+      p1: { ...mainPump.match.seats.p1, mana: 10, spellMana: 0 },
+    },
+  };
   assert.throws(
     () => stageFourPlayerActivatedAbility(
-      mainPump.match,
+      spellManaMissing,
       stagedMain.zones,
       "p1",
       "ability-source-p1",
       "main",
       modalIndex + 1,
-      "e-spell-mana-unsupported",
+      "e-spell-mana-missing",
     ),
-    /spellMana costs are not supported yet/,
+    /Not enough spell mana/,
+    "regular mana must never pay an explicit spellMana ability cost",
   );
 } finally {
   sourceDef.activatedAbilities = originalMainAbilities;

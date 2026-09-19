@@ -42,7 +42,7 @@ import { seededShuffle } from "@/game/rng";
 import { COMMANDER_ALPHA_RULES, type CommanderSeatIndex } from "@/lib/commander-rules";
 
 export const COMMANDER_COMBAT_ENGINE_KIND = "commander_4p_combat_v1" as const;
-export const COMMANDER_COMBAT_ENGINE_VERSION = 4 as const;
+export const COMMANDER_COMBAT_ENGINE_VERSION = 5 as const;
 
 export interface CommanderCombatSeatInput {
   seat: CommanderSeatIndex;

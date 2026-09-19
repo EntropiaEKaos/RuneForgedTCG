@@ -6,6 +6,7 @@ export const COMMANDER_ALPHA_RULES = {
   deckSize: 60,
   startingNexus: 30,
   startingHand: 5,
+  maxSpellMana: 3,
   maxCopiesPerCard: 3,
   turnOrder: "clockwise" as const,
   generalZone: "command" as const,

@@ -30,6 +30,7 @@ export interface FourPlayerMatchSeatState {
   generalCastsFromZone: number;
   mana: number;
   maxMana: number;
+  spellMana: number;
   life: number;
   poisonCounters: number;
   generalDamageReceived: Partial<Record<FourPlayerSeat, number>>;
@@ -41,6 +42,7 @@ export type FourPlayerGeneralKeywords = Record<FourPlayerSeat, readonly Keyword[
 export type FourPlayerGeneralCombatBodies = Partial<Record<FourPlayerSeat, FourPlayerCombatBody>>;
 export type FourPlayerMatchStatus = "active" | "completed";
 export const FOUR_PLAYER_MAX_MANA = 10;
+export const FOUR_PLAYER_MAX_SPELL_MANA = 3;
 export const FOUR_PLAYER_STARTING_LIFE = 30;
 export const FOUR_PLAYER_POISON_LETHAL = 10;
 
@@ -81,7 +83,7 @@ export function createFourPlayerMatchState(
   const seats = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
     const isStartingSeat = seat === startingSeat;
     const maxMana = isStartingSeat ? Math.min(FOUR_PLAYER_MAX_MANA, startingMana + 1) : startingMana;
-    return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana, life: FOUR_PLAYER_STARTING_LIFE, poisonCounters: 0, generalDamageReceived: {} }];
+    return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana, spellMana: 0, life: FOUR_PLAYER_STARTING_LIFE, poisonCounters: 0, generalDamageReceived: {} }];
   })) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
   const keywordSnapshot: FourPlayerGeneralKeywords = {
@@ -146,9 +148,10 @@ export function advanceFourPlayerMatchTurn(state: FourPlayerMatchState): FourPla
   const turn = advanceFourPlayerTurn(state.turn);
   const incoming = state.seats[turn.activeSeat];
   const nextMaxMana = Math.min(FOUR_PLAYER_MAX_MANA, incoming.maxMana + 1);
+  const nextSpellMana = Math.min(FOUR_PLAYER_MAX_SPELL_MANA, incoming.spellMana + incoming.mana);
   const seats = {
     ...state.seats,
-    [turn.activeSeat]: { ...incoming, maxMana: nextMaxMana, mana: nextMaxMana },
+    [turn.activeSeat]: { ...incoming, maxMana: nextMaxMana, mana: nextMaxMana, spellMana: nextSpellMana },
   };
   const battlefield = resetFourPlayerBattlefieldForTurn(
     state.battlefield ?? createFourPlayerBattlefieldState(),

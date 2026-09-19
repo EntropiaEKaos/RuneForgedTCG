@@ -66,6 +66,7 @@ export interface FourPlayerActivatedAbilityOption {
   modeDescription?: string;
   targetKind: FourPlayerAbilityTargetKind;
   manaCost: number;
+  spellManaCost: number;
   nexusHealthCost: number;
   discardCount: number;
   exhaustSelf: boolean;
@@ -256,9 +257,9 @@ function validateCosts(
   const spellMana = validateNonNegativeInteger(ability.cost?.spellMana, "ability spell mana cost");
   const nexusHealth = validateNonNegativeInteger(ability.cost?.nexusHealth, "ability Nexus health cost");
   const discardCount = validateNonNegativeInteger(ability.cost?.discardFromHand, "ability discard cost");
-  if (spellMana > 0) throw new Error("4P Commander ability spellMana costs are not supported yet.");
   if (discardCount > 10) throw new Error("4P ability discard cost must be at most 10.");
   if (match.seats[actor].mana < mana) throw new Error("Not enough regular mana for 4P activated ability.");
+  if (match.seats[actor].spellMana < spellMana) throw new Error("Not enough spell mana for 4P activated ability.");
   if (nexusHealth > 0 && match.seats[actor].life <= nexusHealth) {
     throw new Error("4P activated ability Nexus health cost cannot be paid lethally.");
   }
@@ -480,6 +481,7 @@ function payAndCommitCosts(
       [actor]: {
         ...seat,
         mana: seat.mana - (ability.cost?.mana ?? 0),
+        spellMana: seat.spellMana - (ability.cost?.spellMana ?? 0),
         life: seat.life - (ability.cost?.nexusHealth ?? 0),
       },
     },
@@ -680,6 +682,7 @@ function optionFromDescriptor(
     ...(descriptor.choice.modeId ? { modeId: descriptor.choice.modeId, modeDescription: descriptor.choice.description } : {}),
     targetKind: optionTargetKind(descriptor.choice.effect),
     manaCost: cost?.mana ?? 0,
+    spellManaCost: cost?.spellMana ?? 0,
     nexusHealthCost: cost?.nexusHealth ?? 0,
     discardCount: cost?.discardFromHand ?? 0,
     exhaustSelf: Boolean(cost?.exhaustSelf),

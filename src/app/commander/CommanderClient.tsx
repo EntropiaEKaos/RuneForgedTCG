@@ -21,14 +21,14 @@ type BattlefieldObject = {
 };
 type CombatSeat = {
   seat:number; handCount:number; deckCount:number; graveyard:ProjectedCard[]; publicBoard:string[];
-  nexusHealth:number; eliminated:boolean; life?:number; mana?:number; maxMana?:number; poisonCounters?:number;
+  nexusHealth:number; eliminated:boolean; life?:number; mana?:number; maxMana?:number; spellMana?:number; poisonCounters?:number;
   battlefield?:BattlefieldObject[]; hand?:ProjectedCard[];
   general:{defId:string;zone:string;castCount:number};
 };
 type ProjectedStackItem = {id:string;kind:string;actionKind:string|null;controllerSeat:number;defId:string|null;cardType:string|null;speed:string|null;sourceId?:string|null;abilityDescription?:string|null;abilityTiming?:string|null;uncounterable:boolean};
 type AbilityOption = {
   sourceId:string; sourceDefId:string; sourceKind:string; abilityIndex:number; timing:"main"|"reaction"; description:string;
-  modeId?:string; modeDescription?:string; targetKind:string; manaCost:number; nexusHealthCost:number; discardCount:number;
+  modeId?:string; modeDescription?:string; targetKind:string; manaCost:number; spellManaCost:number; nexusHealthCost:number; discardCount:number;
   exhaustSelf:boolean; consumeBarrier:boolean; sacrificeSelf:boolean; loyaltyDelta?:number; maxUsesPerRound?:number|null;
   respondsTo?:string[]; stackTargetId?:string;
 };
@@ -49,6 +49,10 @@ const PERMANENT_TARGETS = new Set(["enemyPermanent","allyPermanent","anyPermanen
 const SENTINELA_TARGETS = new Set(["enemySentinela","allySentinela","anySentinela"]);
 const GRAVEYARD_TARGETS = new Set(["allyGraveyardCard","enemyGraveyardCard","anyGraveyardCard","allyGraveyardUnit"]);
 function countOf(cards:string[], defId:string){ return cards.filter((id)=>id===defId).length; }
+function cardCanUseSpellMana(card:CollectionCard|undefined){
+  if(!card||card.archetypeKey==="structure")return false;
+  return card.type!=="Unit"&&card.type!=="Sentinela";
+}
 function legalCounterTargets(card:CollectionCard,items:ProjectedStackItem[]){
   if(card.spell?.kind!=="negateSpell")return items;
   const authored=new Set(card.customKeywords||[]);
@@ -283,7 +287,7 @@ export default function CommanderClient(){
               const priority=room.state==="playing"&&combat?.prioritySeat===seatIndex;
               return <article key={seatIndex} className={`min-h-40 border p-4 ${active?"border-amber-200/40 bg-amber-100/[.06]":"border-white/10 bg-black/20"} ${runtime?.eliminated?"opacity-50 grayscale":""}`}>
                 <div className="flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-[.16em] text-slate-500">Assento {seatIndex+1}</span><div className="flex gap-2">{active&&<b className="text-xs text-amber-200">TURNO</b>}{priority&&<b className="text-xs text-cyan-200">PRIORIDADE</b>}</div></div>
-                {seat?<><h3 className="mt-3 text-lg font-black">{seat.playerName}{seat.isHost?" · HOST":""}</h3><p className="mt-2 text-xs text-slate-400">General: <b className="text-slate-200">{seat.generalDefId}</b>{runtime&&<> · <span className="text-cyan-200">{runtime.general.zone}</span> · casts {runtime.general.castCount}</>}</p>{runtime?<><div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><div className="border border-white/10 p-2"><b>{runtime.life??runtime.nexusHealth}</b><small className="block text-slate-500">Nexus</small></div><div className="border border-white/10 p-2"><b>{runtime.mana??0}/{runtime.maxMana??0}</b><small className="block text-slate-500">mana</small></div><div className="border border-white/10 p-2"><b>{runtime.handCount}/{runtime.deckCount}</b><small className="block text-slate-500">mão/deck</small></div></div>{runtime.eliminated&&<p className="mt-2 text-xs font-black text-rose-300">ELIMINADO</p>}</>:<p className="mt-1 text-xs text-slate-500">{seat.cardCount} cartas · {seat.ready?"PRONTO":"PREPARANDO"}</p>}</>:<p className="mt-8 text-sm text-slate-600">Aguardando jogador…</p>}
+                {seat?<><h3 className="mt-3 text-lg font-black">{seat.playerName}{seat.isHost?" · HOST":""}</h3><p className="mt-2 text-xs text-slate-400">General: <b className="text-slate-200">{seat.generalDefId}</b>{runtime&&<> · <span className="text-cyan-200">{runtime.general.zone}</span> · casts {runtime.general.castCount}</>}</p>{runtime?<><div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><div className="border border-white/10 p-2"><b>{runtime.life??runtime.nexusHealth}</b><small className="block text-slate-500">Nexus</small></div><div className="border border-white/10 p-2"><b>{runtime.mana??0}/{runtime.maxMana??0}</b><small className="block text-slate-500">mana · ✦ {runtime.spellMana??0}</small></div><div className="border border-white/10 p-2"><b>{runtime.handCount}/{runtime.deckCount}</b><small className="block text-slate-500">mão/deck</small></div></div>{runtime.eliminated&&<p className="mt-2 text-xs font-black text-rose-300">ELIMINADO</p>}</>:<p className="mt-1 text-xs text-slate-500">{seat.cardCount} cartas · {seat.ready?"PRONTO":"PREPARANDO"}</p>}</>:<p className="mt-8 text-sm text-slate-600">Aguardando jogador…</p>}
               </article>
             })}
           </div>
@@ -319,7 +323,7 @@ export default function CommanderClient(){
               <div className="mt-3 grid gap-2 sm:grid-cols-2">{combat.abilities.map((option,index)=>{
                 const source=battlefieldObjects.find(object=>object.id===option.sourceId);
                 const sourceName=collection.find(card=>card.defId===option.sourceDefId)?.name||option.sourceDefId;
-                const cost=[option.manaCost?String(option.manaCost)+" mana":"",option.nexusHealthCost?String(option.nexusHealthCost)+" Nexus":"",option.discardCount?"descartar "+String(option.discardCount):"",option.exhaustSelf?"exaurir":"",option.consumeBarrier?"Barreira":"",option.sacrificeSelf?"sacrificar":"",option.loyaltyDelta!==undefined?(option.loyaltyDelta>=0?"+":"")+String(option.loyaltyDelta)+" lealdade":""].filter(Boolean).join(" · ");
+                const cost=[option.manaCost?String(option.manaCost)+" mana":"",option.spellManaCost?String(option.spellManaCost)+" ✦ magia":"",option.nexusHealthCost?String(option.nexusHealthCost)+" Nexus":"",option.discardCount?"descartar "+String(option.discardCount):"",option.exhaustSelf?"exaurir":"",option.consumeBarrier?"Barreira":"",option.sacrificeSelf?"sacrificar":"",option.loyaltyDelta!==undefined?(option.loyaltyDelta>=0?"+":"")+String(option.loyaltyDelta)+" lealdade":""].filter(Boolean).join(" · ");
                 return <button key={option.sourceId+":"+option.timing+":"+String(option.abilityIndex)+":"+(option.modeId||String(index))} className="border border-emerald-200/15 p-3 text-left text-xs disabled:opacity-35" disabled={busy} onClick={()=>beginAbility(option)}>
                   <b className="block text-emerald-100">{sourceName}{source?.loyalty!==undefined?" · L"+String(source.loyalty):""}</b>
                   <span className="mt-1 block text-slate-300">{option.modeDescription||option.description}</span>
@@ -335,7 +339,8 @@ export default function CommanderClient(){
                   const physical=["Unit","Enchantment","Artifact","Equipment","Sentinela"].includes(definition?.type||"");
                   const spell=definition?.type==="Spell"&&isFourPlayerSpellChainSupported(definition.spell);
                   const stageable=physical||spell;
-                  const affordable=(definition?.cost??0)<=(viewerRuntime.mana??0);
+                  const availableMana=(viewerRuntime.mana??0)+(cardCanUseSpellMana(definition)?(viewerRuntime.spellMana??0):0);
+                  const affordable=(definition?.cost??0)<=availableMana;
                   const counterTargets=definition?legalCounterTargets(definition,stackItems):[];
                   const proactive=definition?.archetypeKey!=="trap";
                   const reactive=Boolean(spell&&definition?.speed&&stackTop&&stackTop.actionKind&&(stackTop.actionKind!=="spell"||definition.speed==="Burst")&&(definition.spell?.kind!=="negateSpell"||counterTargets.length>0));
@@ -349,7 +354,7 @@ export default function CommanderClient(){
                   );
                   return <button key={card.instanceId} className="border border-white/10 p-3 text-left text-xs disabled:cursor-not-allowed disabled:opacity-35" disabled={busy||!canStage} onClick={()=>void playHandCard(card,definition)}>
                     <b className="block text-slate-100">{definition?.name||card.defId}</b>
-                    <span className="mt-1 block text-slate-500">{definition?.type||"carta"} · custo {definition?.cost??"?"}{definition?.speed?` · ${definition.speed}`:""}</span>
+                    <span className="mt-1 block text-slate-500">{definition?.type||"carta"} · custo {definition?.cost??"?"}{cardCanUseSpellMana(definition)?" · usa ✦":""}{definition?.speed?` · ${definition.speed}`:""}</span>
                     <span className="mt-2 block font-black uppercase text-amber-200">{reactive?(needsTarget?"Responder com alvo":"Responder"):(needsTarget?"Selecionar alvo":"Jogar")}</span>
                   </button>
                 })}

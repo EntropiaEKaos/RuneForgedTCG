@@ -26,7 +26,7 @@ import {
 } from "./four-player-stack";
 import { canFourPlayerCounterStackItem, canFourPlayerReactWithCard } from "./four-player-reactions";
 import { isFourPlayerSpellChainSupported } from "./four-player-spell-contract";
-import { semanticProactivePlayAllowed, semanticReactionAllowed } from "./semantic-card-types";
+import { cardUsesSpellMana, semanticProactivePlayAllowed, semanticReactionAllowed } from "./semantic-card-types";
 import { assertFourPlayerGraveyardTarget, assertFourPlayerTargetObject, type FourPlayerTargetRef } from "./four-player-targeting";
 import type { CardEffect, CardType, Keyword } from "./types";
 
@@ -163,15 +163,25 @@ export function stageFourPlayerCardCast(
     }
   }
   const seat = match.seats[actor];
-  if (seat.mana < definition.cost) {
-    throw new Error(`Insufficient mana to play ${definition.defId}: requires ${definition.cost}, has ${seat.mana}.`);
+  const usesSpellMana = cardUsesSpellMana(definition);
+  const availableMana = seat.mana + (usesSpellMana ? seat.spellMana : 0);
+  if (availableMana < definition.cost) {
+    throw new Error(
+      `Insufficient mana to play ${definition.defId}: requires ${definition.cost}, has ${seat.mana} regular + ${usesSpellMana ? seat.spellMana : 0} spell mana.`,
+    );
   }
+  const regularPaid = usesSpellMana ? Math.min(seat.mana, definition.cost) : definition.cost;
+  const spellManaPaid = usesSpellMana ? definition.cost - regularPaid : 0;
   const taken = takeFourPlayerCardFromHand(zones, actor, card.instanceId);
   const paidMatch: FourPlayerMatchState = {
     ...match,
     seats: {
       ...match.seats,
-      [actor]: { ...seat, mana: seat.mana - definition.cost },
+      [actor]: {
+        ...seat,
+        mana: seat.mana - regularPaid,
+        spellMana: seat.spellMana - spellManaPaid,
+      },
     },
   };
   const combat = createFourPlayerCombatBodySnapshot(definition);
