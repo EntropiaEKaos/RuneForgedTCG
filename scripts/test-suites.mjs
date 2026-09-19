@@ -122,7 +122,7 @@ export const behavioralTests = [
   "src/lib/security.test.ts",
   "src/lib/site-content.test.ts",
   "src/lib/studio-baseline-sync.test.ts",
-  "src/lib/vanilla-runtime-smoke.test.ts"
+  "src/lib/vanilla-runtime-smoke.test.ts",
   "src/game/four-player-ascension.test.ts",
   "src/game/four-player-authority.test.ts",
   "src/game/four-player-broadcast.test.ts",
