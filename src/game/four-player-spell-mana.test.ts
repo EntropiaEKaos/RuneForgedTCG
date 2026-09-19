@@ -5,6 +5,8 @@ import { createFourPlayerCardZones } from "./four-player-card-zones";
 import { stageFourPlayerCardCast } from "./four-player-card-play";
 import { collectibleCards } from "./cards";
 import { createFourPlayerCombatBodySnapshot } from "./four-player-combat-body";
+import { clearRegisteredCustomCards, registerCustomCards } from "./custom-registry";
+import type { CardDef } from "./types";
 import {
   advanceFourPlayerMatchTurn,
   createFourPlayerMatchState,
@@ -126,14 +128,27 @@ for (const definition of [unit, structure]) {
 }
 
 // Explicit activated-ability spellMana is a separate pool: no regular fallback.
-const sourceDef = unit;
-const originalAbilities = sourceDef.activatedAbilities;
-sourceDef.activatedAbilities = [{
-  description: "Spell-mana authority probe",
-  cost: { spellMana: 2 },
-  maxUsesPerRound: 1,
-  effect: { kind: "draw", amount: 1, target: "none" },
-}];
+// Register the probe through the authoritative catalog registry instead of
+// mutating a collectibleCards() snapshot.
+const sourceDef: CardDef = {
+  defId: "four_player_spell_mana_probe",
+  name: "Four Player Spell Mana Probe",
+  region: "Tidecall",
+  type: "Unit",
+  cost: 1,
+  power: 1,
+  health: 3,
+  rarity: "Common",
+  description: "4P spell-mana authority fixture.",
+  emoji: "✦",
+  activatedAbilities: [{
+    description: "Spell-mana authority probe",
+    cost: { spellMana: 2 },
+    maxUsesPerRound: 1,
+    effect: { kind: "draw", amount: 1, target: "none" },
+  }],
+};
+registerCustomCards([sourceDef]);
 try {
   const body = createFourPlayerCombatBodySnapshot(sourceDef)!;
   const abilityZones = createFourPlayerCardZones({
@@ -218,7 +233,7 @@ try {
   assert.equal(projection.seats.p1.spellMana, 2);
   assert.equal(projection.seats.p2.spellMana, 0);
 } finally {
-  sourceDef.activatedAbilities = originalAbilities;
+  clearRegisteredCustomCards();
 }
 
 console.log("FOUR PLAYER SPELL MANA: PASS — banking cap, mixed card payment, regular-only card types, ability-only pool and public projection");
