@@ -7,11 +7,23 @@ type CollectionCard = {
   isChampion?:boolean; isLegend?:boolean; collectible?:boolean;
 };
 type Seat = { seat:number; playerId:number; playerName:string; generalDefId:string; ready:boolean; isHost:boolean; cardCount:number };
-type Room = { code:string; state:string; activeSeat:number; round:number; version:number; viewerSeat:number|null; hostPlayerId:number; seats:Seat[]; rules:any; gameState:any };
+type CombatSeat = {
+  seat:number; handCount:number; deckCount:number; graveyard:string[]; publicBoard:string[];
+  nexusHealth:number; eliminated:boolean; life?:number; mana?:number; maxMana?:number; hand?:string[];
+  general:{defId:string;zone:string;castCount:number};
+};
+type CombatState = {
+  kind:string; engineVersion:number; revision:number; viewerSeat:number; activeSeat:number; prioritySeat:number;
+  round:number; turn:number; phase:string; status:string; winnerSeat:number|null; seats:CombatSeat[];
+};
+type Room = { code:string; state:string; activeSeat:number; round:number; version:number; viewerSeat:number|null; hostPlayerId:number; seats:Seat[]; rules:any; gameState:any; combat?:CombatState|null; engineKind?:string|null };
 type LobbySummary = { code:string; state:string; seatCount:number; viewerJoined:boolean };
 
 const COUNT = 60;
 function countOf(cards:string[], defId:string){ return cards.filter((id)=>id===defId).length; }
+function phaseLabel(phase:string){
+  return ({beginning:"INÍCIO",main_1:"PRINCIPAL I",combat:"COMBATE",main_2:"PRINCIPAL II",ending:"ENCERRAMENTO"} as Record<string,string>)[phase]||phase.toUpperCase();
+}
 
 export default function CommanderClient(){
   const [collection,setCollection]=useState<CollectionCard[]>([]);
@@ -67,8 +79,24 @@ export default function CommanderClient(){
       await loadRooms();
     }catch(e){setError(e instanceof Error?e.message:"Falha no Commander")}finally{setBusy(false)}
   }
+  async function combatCommand(commandType:"pass_priority"|"cast_general"|"end_turn"|"concede",payload:Record<string,unknown>={}) {
+    if(!room?.combat)return;
+    await mutate(`/api/commander/${room.code}`,{
+      action:"combat-command",
+      commandType,
+      expectedRevision:room.combat.revision,
+      commandId:crypto.randomUUID(),
+      payload,
+    });
+  }
   const loadout={deckCards:deck,generalDefId:general};
   const canSubmit=deck.length===COUNT&&Boolean(general)&&!busy;
+  const combat=room?.combat??null;
+  const viewerRuntime=combat?.seats.find(seat=>seat.seat===room?.viewerSeat);
+  const viewerHasPriority=Boolean(combat&&room?.viewerSeat!=null&&combat.prioritySeat===room.viewerSeat&&combat.status==="active");
+  const viewerIsActive=Boolean(combat&&room?.viewerSeat!=null&&combat.activeSeat===room.viewerSeat&&combat.status==="active");
+  const viewerAlive=Boolean(viewerRuntime&&!viewerRuntime.eliminated&&combat?.status==="active");
+  const canCastGeneral=Boolean(viewerHasPriority&&viewerIsActive&&(combat?.phase==="main_1"||combat?.phase==="main_2")&&viewerRuntime?.general.zone==="general_zone");
 
   return <main className="min-h-screen bg-[#06090e] text-slate-100">
     <div className="mx-auto max-w-[1500px] px-5 py-8">
@@ -88,14 +116,30 @@ export default function CommanderClient(){
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             {[0,1,2,3].map(seatIndex=>{
               const seat=room.seats.find(item=>item.seat===seatIndex);
-              const active=room.state==="playing"&&room.activeSeat===seatIndex;
-              return <article key={seatIndex} className={`min-h-40 border p-4 ${active?"border-amber-200/40 bg-amber-100/[.06]":"border-white/10 bg-black/20"}`}>
-                <div className="flex items-center justify-between"><span className="text-[10px] font-black uppercase tracking-[.16em] text-slate-500">Assento {seatIndex+1}</span>{active&&<b className="text-xs text-amber-200">TURNO ATIVO</b>}</div>
-                {seat?<><h3 className="mt-3 text-lg font-black">{seat.playerName}{seat.isHost?" · HOST":""}</h3><p className="mt-2 text-xs text-slate-400">General: <b className="text-slate-200">{seat.generalDefId}</b></p><p className="mt-1 text-xs text-slate-500">{seat.cardCount} cartas · {seat.ready?"PRONTO":"PREPARANDO"}</p></>:<p className="mt-8 text-sm text-slate-600">Aguardando jogador…</p>}
+              const runtime=combat?.seats.find(item=>item.seat===seatIndex);
+              const active=room.state==="playing"&&(combat?.activeSeat??room.activeSeat)===seatIndex;
+              const priority=room.state==="playing"&&combat?.prioritySeat===seatIndex;
+              return <article key={seatIndex} className={`min-h-40 border p-4 ${active?"border-amber-200/40 bg-amber-100/[.06]":"border-white/10 bg-black/20"} ${runtime?.eliminated?"opacity-50 grayscale":""}`}>
+                <div className="flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-[.16em] text-slate-500">Assento {seatIndex+1}</span><div className="flex gap-2">{active&&<b className="text-xs text-amber-200">TURNO</b>}{priority&&<b className="text-xs text-cyan-200">PRIORIDADE</b>}</div></div>
+                {seat?<><h3 className="mt-3 text-lg font-black">{seat.playerName}{seat.isHost?" · HOST":""}</h3><p className="mt-2 text-xs text-slate-400">General: <b className="text-slate-200">{seat.generalDefId}</b>{runtime&&<> · <span className="text-cyan-200">{runtime.general.zone}</span> · casts {runtime.general.castCount}</>}</p>{runtime?<><div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs"><div className="border border-white/10 p-2"><b>{runtime.life??runtime.nexusHealth}</b><small className="block text-slate-500">Nexus</small></div><div className="border border-white/10 p-2"><b>{runtime.mana??0}/{runtime.maxMana??0}</b><small className="block text-slate-500">mana</small></div><div className="border border-white/10 p-2"><b>{runtime.handCount}/{runtime.deckCount}</b><small className="block text-slate-500">mão/deck</small></div></div>{runtime.eliminated&&<p className="mt-2 text-xs font-black text-rose-300">ELIMINADO</p>}</>:<p className="mt-1 text-xs text-slate-500">{seat.cardCount} cartas · {seat.ready?"PRONTO":"PREPARANDO"}</p>}</>:<p className="mt-8 text-sm text-slate-600">Aguardando jogador…</p>}
               </article>
             })}
           </div>
-          {room.state==="playing"&&<div className="mt-5 border border-white/10 p-4"><p className="text-sm">Rodada <b>{room.round}</b> · ordem horária · Nexus inicial 30.</p>{room.viewerSeat===room.activeSeat&&<button className="btn-primary mt-3" disabled={busy} onClick={()=>void mutate(`/api/commander/${room.code}`,{action:"pass-turn"})}>Passar turno</button>}</div>}
+          {room.state==="playing"&&<div className="mt-5 border border-white/10 p-4">
+            {combat?<><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div><small className="text-slate-500">FASE</small><b className="block text-amber-100">{phaseLabel(combat.phase)}</b></div>
+              <div><small className="text-slate-500">TURNO</small><b className="block">P{combat.activeSeat+1} · #{combat.turn}</b></div>
+              <div><small className="text-slate-500">PRIORIDADE</small><b className="block text-cyan-200">P{combat.prioritySeat+1}</b></div>
+              <div><small className="text-slate-500">AUTORIDADE</small><b className="block">rev {combat.revision}</b></div>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              <button className="btn-ghost" disabled={busy||!viewerHasPriority} onClick={()=>void combatCommand("pass_priority")}>Passar prioridade</button>
+              <button className="btn-ghost" disabled={busy||!canCastGeneral} onClick={()=>void combatCommand("cast_general")}>Conjurar General</button>
+              <button className="btn-primary" disabled={busy||!viewerIsActive||!viewerHasPriority} onClick={()=>void combatCommand("end_turn")}>Encerrar turno</button>
+              <button className="border border-rose-400/25 px-3 py-2 text-xs font-black uppercase text-rose-200 disabled:opacity-30" disabled={busy||!viewerAlive} onClick={()=>void combatCommand("concede")}>Conceder partida</button>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">Comandos enviados com revisionamento autoritativo; ações fora de prioridade, turno ou timing são recusadas pelo servidor.</p></>:<><p className="text-sm">Rodada <b>{room.round}</b> · compatibilidade de sala anterior.</p>{room.viewerSeat===room.activeSeat&&<button className="btn-primary mt-3" disabled={busy} onClick={()=>void mutate(`/api/commander/${room.code}`,{action:"pass-turn"})}>Passar turno</button>}</>}
+          </div>}
         </div>
         <aside className="border border-white/10 bg-black/20 p-5">
           <h3 className="font-black">Controles do lobby</h3>
