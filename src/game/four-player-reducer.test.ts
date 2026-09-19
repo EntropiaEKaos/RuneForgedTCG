@@ -48,6 +48,17 @@ assert.equal(match.combat.attackers[0]?.defendingSeat, "p3");
 assert.equal(match.battlefield?.objects.find((object) => object.id === "u1")?.attackedThisTurn, true);
 assert.throws(
   () => reduceFourPlayerServerEvent(match, event("declare_attacker", "p2", { unitId: "u2", defendingSeat: "p4" })),
+  /Only priority holder p1/,
+);
+const p2Priority: FourPlayerMatchState = {
+  ...match,
+  resolution: {
+    ...match.resolution,
+    priority: { ...match.resolution.priority, holder: "p2", consecutivePasses: 0 },
+  },
+};
+assert.throws(
+  () => reduceFourPlayerServerEvent(p2Priority, event("declare_attacker", "p2", { unitId: "u2", defendingSeat: "p4" })),
   /Only active seat p1/,
 );
 
