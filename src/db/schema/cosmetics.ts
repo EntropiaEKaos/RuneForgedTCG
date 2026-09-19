@@ -53,5 +53,17 @@ export const playerCardCosmeticPreferences = pgTable("player_card_cosmetic_prefe
   assetIdx: index("player_card_cosmetic_preferences_asset_idx").on(t.assetId),
 }));
 
+export const playerCollectionShowcases = pgTable("player_collection_showcases", {
+  playerId: integer("player_id").primaryKey().references(() => players.id, { onDelete: "cascade" }),
+  assetIds: jsonb("asset_ids").$type<number[]>().notNull().default([]),
+  visibility: text("visibility").notNull().default("friends"),
+  tagline: text("tagline").notNull().default(""),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (t) => ({
+  visibilityValid: check("player_collection_showcases_visibility_valid", sql`${t.visibility} IN ('public','friends','private')`),
+  taglineBounds: check("player_collection_showcases_tagline_bounds", sql`char_length(${t.tagline}) <= 120`),
+}));
+
+export type PlayerCollectionShowcase = typeof playerCollectionShowcases.$inferSelect;
 export type CardCosmeticVariantRow = typeof cardCosmeticVariants.$inferSelect;
 export type PlayerCardCosmeticPreference = typeof playerCardCosmeticPreferences.$inferSelect;

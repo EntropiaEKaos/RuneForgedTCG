@@ -10,6 +10,9 @@ const metrics = read("src/app/api/admin/metrics/overview/route.ts");
 const commandCenter = read("src/app/admin/studio/command-center/CommandCenterClient.tsx");
 const p1Registry = read("src/game/alpha-p1-art.ts");
 const nextConfig = read("next.config.ts");
+const showcaseApi = read("src/app/api/collection/showcase/route.ts");
+const showcaseClient = read("src/app/collection/showcase/CollectorShowcaseClient.tsx");
+const cosmeticsSchema = read("src/db/schema/cosmetics.ts");
 
 // Profile 2.0 keeps the competitive-client information architecture while
 // preserving existing account recovery and Ranked authority boundaries.
@@ -50,6 +53,15 @@ assert.match(commandCenter, /Primeiro pack/);
 assert.match(commandCenter, /Primeiro deck/);
 assert.match(commandCenter, /Primeira partida/);
 assert.match(commandCenter, /Primeira vitória/);
+
+// Collector Showcase remains exact-copy, privacy-aware and cosmetic-only.
+assert.match(cosmeticsSchema, /playerCollectionShowcases/, "collector showcase must persist independently from gameplay card identity");
+assert.match(showcaseApi, /MAX_SHOWCASE_ASSETS = 6/, "collector showcase must have a bounded six-copy surface");
+assert.match(showcaseApi, /Every showcase slot must reference an exact owned collectible copy/, "showcase must fail closed on ownership");
+assert.match(showcaseApi, /visibility==="friends"/, "showcase must enforce friends-only privacy server-side");
+assert.match(showcaseApi, /resolveCardCosmeticPrestige/, "showcase prestige must reuse existing cosmetic probability authority");
+assert.doesNotMatch(showcaseApi, /cardRarity.*update|rarity.*set/, "showcase must never mutate gameplay rarity");
+assert.match(showcaseClient, /METAGAME SOCIAL · PRESTÍGIO COSMÉTICO/, "collector showcase must expose the social metagame surface");
 
 // Alpha P1 Batch 2 is additive, explicit and build-materialized.
 for (const defId of ["ember_blade", "ember_phantom", "forest_pack_shelter", "forest_summon_pack", "forest_packrunner"]) {

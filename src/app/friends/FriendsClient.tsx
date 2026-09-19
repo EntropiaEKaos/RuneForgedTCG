@@ -198,13 +198,10 @@ export default function FriendsClient() {
                         </p>
                       </div>
                     </div>
-                    <Link
-                      href={`/pvp?friend=${encodeURIComponent(f.name)}`}
-                      className="rf-button rf-button-secondary min-h-9 shrink-0 !px-3"
-                      aria-label={`Desafiar ${f.name} para um duelo PvP`}
-                    >
-                      ⚔ DESAFIAR
-                    </Link>
+                    <div className="flex shrink-0 gap-1.5">
+                      <Link href={`/collection/showcase?player=${encodeURIComponent(f.name)}`} className="rf-button rf-button-secondary min-h-9 !px-3" aria-label={`Ver vitrine de ${f.name}`}>◇ VITRINE</Link>
+                      <Link href={`/pvp?friend=${encodeURIComponent(f.name)}`} className="rf-button rf-button-secondary min-h-9 !px-3" aria-label={`Desafiar ${f.name} para um duelo PvP`}>⚔ DESAFIAR</Link>
+                    </div>
                   </article>
                 ))}
               </div>

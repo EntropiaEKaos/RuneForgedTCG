@@ -31,6 +31,7 @@ const freshFiles = [
   "drizzle/0045_identity_auth.sql",
   "drizzle/0046_admin_fx_presets.sql",
   "drizzle/0047_admin_fx_associations.sql",
+  "drizzle/0050_collector_showcase.sql",
 ];
 const readMany = (files) => files.map((file) => fs.readFileSync(path.join(root, file), "utf8")).join("\n");
 const historical = readMany(historicalFiles.map((file) => `drizzle/${file}`));
