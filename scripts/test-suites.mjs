@@ -93,6 +93,7 @@ export const behavioralTests = [
   "src/game/four-player-broadcast.test.ts",
   "src/game/four-player-combat.test.ts",
   "src/game/four-player-catalog-match.test.ts",
+  "src/game/four-player-card-zones.test.ts",
   "src/game/four-player-damage.test.ts",
   "src/game/four-player-elimination.test.ts",
   "src/game/four-player-flow.test.ts",
