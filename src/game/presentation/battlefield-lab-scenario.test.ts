@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldTarget } from "./battlefield-lab-scenario";
+import { buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldCombat, previewBattlefieldTarget } from "./battlefield-lab-scenario";
 
 const duel = buildBattlefieldLabScenario("duel-1v1", 32);
 assert.equal(duel.players.length, 2);
@@ -34,3 +34,27 @@ assert.equal(previewBattlefieldTarget(commander, source.id, friendly.id)?.relati
 assert.equal(previewBattlefieldTarget(commander, source.id, opponent.id)?.relation, "opponent");
 assert.equal(previewBattlefieldTarget(commander, source.id, source.id), null);
 assert.equal(previewBattlefieldTarget(commander, source.id, "missing"), null);
+
+
+const attacker = commander.entities[0];
+const defendingPlayer = commander.players.find((player) => player.id !== attacker.controllerId);
+assert.ok(defendingPlayer);
+assert.deepEqual(
+  previewBattlefieldCombat(commander, { type: "declare-attacker", attackerId: attacker.id, defendingPlayerId: defendingPlayer.id }),
+  { attackerId: attacker.id, defendingPlayerId: defendingPlayer.id },
+);
+assert.equal(
+  previewBattlefieldCombat(commander, { type: "declare-attacker", attackerId: attacker.id, defendingPlayerId: attacker.controllerId }),
+  null,
+);
+const blocker = commander.entities.find((entity) => entity.controllerId === defendingPlayer.id);
+assert.ok(blocker);
+assert.deepEqual(
+  previewBattlefieldCombat(commander, { type: "declare-blocker", blockerId: blocker.id, attackerId: attacker.id }),
+  { attackerId: attacker.id, blockerId: blocker.id, defendingPlayerId: blocker.controllerId },
+);
+assert.equal(
+  previewBattlefieldCombat(commander, { type: "declare-blocker", blockerId: friendly.id, attackerId: attacker.id }),
+  null,
+);
+assert.equal(previewBattlefieldCombat(commander, { type: "clear-combat" }), null);
