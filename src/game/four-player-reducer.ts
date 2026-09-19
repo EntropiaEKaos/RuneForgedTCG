@@ -89,6 +89,9 @@ export function reduceFourPlayerServerEvent(
       return { ...state, combat: declareFourPlayerBlocker(state.combat, event.actor, unitId, attackerId) };
     }
 
+    case "play_card":
+      throw new Error("play_card requires zone-aware Commander authority and cannot be reduced without card zones.");
+
     case "cast_general": {
       assertPriorityHolder(state, event.actor);
       assertGeneralCastTiming(state.turn.activeSeat, state.phase, state.resolution.stack.items.length, event.actor);

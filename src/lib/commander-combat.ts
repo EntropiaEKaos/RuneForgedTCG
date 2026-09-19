@@ -1,5 +1,8 @@
 import { ensureCustomCardsLoaded } from "@/game/catalog";
-import { processAuthoritativeFourPlayerCommand, assertPriorityHolder } from "@/game/four-player-authority";
+import { acceptAuthoritativeFourPlayerCommand, processAuthoritativeFourPlayerCommand, assertPriorityHolder } from "@/game/four-player-authority";
+import { stageFourPlayerCardCast } from "@/game/four-player-card-play";
+import { submitFourPlayerAction } from "@/game/four-player-flow";
+import { pumpFourPlayerServer } from "@/game/four-player-server-pump";
 import {
   createFourPlayerCardZones,
   type FourPlayerCardZones,
@@ -61,6 +64,7 @@ export interface CommanderCombatCommandInput {
 const EXPOSED_COMMANDS = new Set<FourPlayerCommandType>([
   "pass_priority",
   "cast_general",
+  "play_card",
   "end_turn",
   "concede",
 ]);
@@ -241,6 +245,36 @@ export function processCommanderCombatCommand(
   sessions = bindFourPlayerSession(sessions, sessionId, seat);
   const authority = { match: envelope.match, protocol: envelope.protocol, sessions };
   const previousActiveSeat = envelope.match.turn.activeSeat;
+  if (command.type === "play_card") {
+    const accepted = acceptAuthoritativeFourPlayerCommand(
+      authority,
+      sessionId,
+      command,
+      validateExposedCommand,
+    );
+    const payload = command.payload as { instanceId?: unknown };
+    const instanceId = typeof payload.instanceId === "string" ? payload.instanceId.trim() : "";
+    if (!instanceId) throw new Error("Commander play_card requires a card instanceId.");
+    const staged = stageFourPlayerCardCast(
+      envelope.match,
+      envelope.zones,
+      seat,
+      instanceId,
+      accepted.event.eventId,
+    );
+    const reducedMatch: FourPlayerMatchState = {
+      ...staged.match,
+      resolution: submitFourPlayerAction(staged.match.resolution, staged.stackItem),
+    };
+    const pumped = pumpFourPlayerServer(reducedMatch);
+    return {
+      ...envelope,
+      match: pumped.match,
+      zones: staged.zones,
+      protocol: accepted.state.protocol,
+    };
+  }
+
   const accepted = processAuthoritativeFourPlayerCommand(
     authority,
     sessionId,

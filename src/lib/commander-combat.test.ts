@@ -15,12 +15,18 @@ async function main() {
 
   const pool = collectibleCards().filter((card) => card.collectible !== false).slice(0, 24);
   assert.ok(pool.length >= 20, "fixture requires a broad collectible pool");
+  const playable = collectibleCards().find((card) =>
+    card.collectible !== false
+    && ["Unit", "Enchantment", "Artifact", "Sentinela"].includes(card.type)
+    && card.cost <= 10,
+  );
+  assert.ok(playable, "fixture requires a stageable physical card");
 
   const seats = generals.map((general, index) => ({
     seat: index as 0 | 1 | 2 | 3,
     playerId: 100 + index,
     playerName: `Commander P${index + 1}`,
-    deckCards: Array.from({ length: 60 }, (_, cardIndex) => pool[cardIndex % pool.length].defId),
+    deckCards: Array.from({ length: 60 }, () => playable.defId),
     generalDefId: general.defId,
   }));
 
@@ -39,6 +45,46 @@ async function main() {
   assert.ok(p1.seats[0].hand?.[0]?.defId);
   assert.equal(p1.seats[1].hand, undefined, "viewer must not receive opponent hand identities");
   assert.equal("deck" in p1.seats[0], false, "future deck identities must never be projected");
+
+  const playableEnvelope = {
+    ...initial,
+    match: {
+      ...initial.match,
+      phase: "main_1" as const,
+      seats: {
+        ...initial.match.seats,
+        p1: { ...initial.match.seats.p1, mana: 10, maxMana: 10 },
+      },
+    },
+  };
+  const cardInstance = playableEnvelope.zones.p1.hand[0]!;
+  assert.throws(
+    () => processCommanderCombatCommand(playableEnvelope, 100, 0, {
+      commandId: "cmd-play-forged",
+      expectedRevision: 5,
+      type: "play_card",
+      payload: { instanceId: "p1:card:9999" },
+    }),
+    /is not in p1's hand/,
+    "server must reject forged card instance ids",
+  );
+  const played = processCommanderCombatCommand(playableEnvelope, 100, 0, {
+    commandId: "cmd-play-1",
+    expectedRevision: 5,
+    type: "play_card",
+    payload: { instanceId: cardInstance.instanceId, defId: "__ignored-client-def__", cost: 0 },
+  });
+  assert.equal(played.protocol.revision, 6);
+  assert.equal(played.zones.p1.hand.length, 4);
+  assert.equal(played.zones.p1.hand.some((card) => card.instanceId === cardInstance.instanceId), false);
+  assert.equal(played.match.resolution.stack.items.at(-1)?.kind, "card_cast");
+  assert.equal(
+    (played.match.resolution.stack.items.at(-1)?.payload as { defId?: string })?.defId,
+    playable.defId,
+    "server must derive defId from the authoritative hand instance",
+  );
+  assert.equal(played.match.seats.p1.mana, 10 - playable.cost);
+  assert.equal(played.match.resolution.priority.holder, "p2");
 
   assert.throws(
     () => processCommanderCombatCommand(initial, 100, 0, {

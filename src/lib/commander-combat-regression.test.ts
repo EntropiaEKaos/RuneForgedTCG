@@ -24,6 +24,9 @@ assert.match(bridge,/projectFourPlayerStateForSeat/,"bridge must preserve hidden
 assert.match(bridge,/EXPOSED_COMMANDS/,"only an explicit command allowlist may cross the public bridge");
 assert.match(bridge,/pass_priority/);
 assert.match(bridge,/cast_general/);
+assert.match(bridge,/play_card/);
+assert.match(bridge,/stageFourPlayerCardCast/,"play_card must derive authoritative card identity from zones");
+assert.match(bridge,/acceptAuthoritativeFourPlayerCommand/,"play_card must still consume the canonical revision/idempotency protocol");
 assert.match(bridge,/end_turn/);
 assert.match(bridge,/concede/);
 
@@ -32,6 +35,8 @@ assert.match(client,/expectedRevision:room\.combat\.revision/,"Commander UI must
 assert.match(client,/crypto\.randomUUID\(\)/,"Commander UI commands need unique command ids");
 assert.match(client,/combatCommand\("pass_priority"\)/);
 assert.match(client,/combatCommand\("cast_general"\)/);
+assert.match(client,/combatCommand\("play_card"/);
+assert.match(client,/Jogar/);
 assert.match(client,/combatCommand\("end_turn"\)/);
 assert.match(client,/combatCommand\("concede"\)/);
 assert.match(client,/Passar prioridade/);

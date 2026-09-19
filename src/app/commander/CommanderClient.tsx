@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 type CollectionCard = {
   defId:string; name:string; region:string; rarity:string; owned:number;
-  isChampion?:boolean; isLegend?:boolean; collectible?:boolean;
+  cost?:number; type?:string; isChampion?:boolean; isLegend?:boolean; collectible?:boolean;
 };
 type Seat = { seat:number; playerId:number; playerName:string; generalDefId:string; ready:boolean; isHost:boolean; cardCount:number };
 type ProjectedCard = { instanceId:string; defId:string };
@@ -80,7 +80,7 @@ export default function CommanderClient(){
       await loadRooms();
     }catch(e){setError(e instanceof Error?e.message:"Falha no Commander")}finally{setBusy(false)}
   }
-  async function combatCommand(commandType:"pass_priority"|"cast_general"|"end_turn"|"concede",payload:Record<string,unknown>={}) {
+  async function combatCommand(commandType:"pass_priority"|"cast_general"|"play_card"|"end_turn"|"concede",payload:Record<string,unknown>={}) {
     if(!room?.combat)return;
     await mutate(`/api/commander/${room.code}`,{
       action:"combat-command",
@@ -97,7 +97,9 @@ export default function CommanderClient(){
   const viewerHasPriority=Boolean(combat&&room?.viewerSeat!=null&&combat.prioritySeat===room.viewerSeat&&combat.status==="active");
   const viewerIsActive=Boolean(combat&&room?.viewerSeat!=null&&combat.activeSeat===room.viewerSeat&&combat.status==="active");
   const viewerAlive=Boolean(viewerRuntime&&!viewerRuntime.eliminated&&combat?.status==="active");
-  const canCastGeneral=Boolean(viewerHasPriority&&viewerIsActive&&(combat?.phase==="main_1"||combat?.phase==="main_2")&&viewerRuntime?.general.zone==="general_zone");
+  const isMainPhase=Boolean(combat?.phase==="main_1"||combat?.phase==="main_2");
+  const canCastGeneral=Boolean(viewerHasPriority&&viewerIsActive&&isMainPhase&&viewerRuntime?.general.zone==="general_zone");
+  const canPlayPhysicalCard=Boolean(viewerHasPriority&&viewerIsActive&&isMainPhase&&viewerAlive);
 
   return <main className="min-h-screen bg-[#06090e] text-slate-100">
     <div className="mx-auto max-w-[1500px] px-5 py-8">
@@ -133,6 +135,21 @@ export default function CommanderClient(){
               <div><small className="text-slate-500">PRIORIDADE</small><b className="block text-cyan-200">P{combat.prioritySeat+1}</b></div>
               <div><small className="text-slate-500">AUTORIDADE</small><b className="block">rev {combat.revision}</b></div>
             </div>
+            {viewerRuntime?.hand&&viewerRuntime.hand.length>0&&<div className="mt-4 border border-white/10 bg-black/20 p-3">
+              <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-slate-400">Sua mão</b><span className="text-[10px] text-slate-600">instâncias autoritativas</span></div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {viewerRuntime.hand.map(card=>{
+                  const definition=collection.find(item=>item.defId===card.defId);
+                  const stageable=["Unit","Enchantment","Artifact","Sentinela"].includes(definition?.type||"");
+                  const affordable=(definition?.cost??0)<=(viewerRuntime.mana??0);
+                  return <button key={card.instanceId} className="border border-white/10 p-3 text-left text-xs disabled:cursor-not-allowed disabled:opacity-35" disabled={busy||!canPlayPhysicalCard||!stageable||!affordable} onClick={()=>void combatCommand("play_card",{instanceId:card.instanceId})}>
+                    <b className="block text-slate-100">{definition?.name||card.defId}</b>
+                    <span className="mt-1 block text-slate-500">{definition?.type||"carta"} · custo {definition?.cost??"?"}</span>
+                    <span className="mt-2 block font-black uppercase text-amber-200">Jogar</span>
+                  </button>
+                })}
+              </div>
+            </div>}
             <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <button className="btn-ghost" disabled={busy||!viewerHasPriority} onClick={()=>void combatCommand("pass_priority")}>Passar prioridade</button>
               <button className="btn-ghost" disabled={busy||!canCastGeneral} onClick={()=>void combatCommand("cast_general")}>Conjurar General</button>
