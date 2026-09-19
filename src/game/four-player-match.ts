@@ -78,9 +78,12 @@ export function createFourPlayerMatchState(
     return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana, life: FOUR_PLAYER_STARTING_LIFE, generalDamageReceived: {} }];
   })) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
-  const keywordSnapshot = Object.fromEntries(
-    FOUR_PLAYER_SEATS.map((seat) => [seat, [...(generalKeywords[seat] ?? [])]]),
-  ) as FourPlayerGeneralKeywords;
+  const keywordSnapshot: FourPlayerGeneralKeywords = {
+    p1: [...(generalKeywords.p1 ?? [])],
+    p2: [...(generalKeywords.p2 ?? [])],
+    p3: [...(generalKeywords.p3 ?? [])],
+    p4: [...(generalKeywords.p4 ?? [])],
+  };
   return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, generalKeywords: keywordSnapshot, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), battlefield: createFourPlayerBattlefieldState(), status: "active" };
 }
 
@@ -177,8 +180,11 @@ export function createFourPlayerMatchStateFromCatalog(
     if (!Number.isFinite(card.cost) || card.cost < 0) throw new Error(`General printed cost for ${seat} must be a non-negative finite number.`);
     return [seat, card.cost];
   })) as FourPlayerGeneralPrintedCosts;
-  const generalKeywords = Object.fromEntries(
-    FOUR_PLAYER_SEATS.map((seat) => [seat, [...(cards[seat].keywords ?? [])]]),
-  ) as FourPlayerGeneralKeywords;
+  const generalKeywords: FourPlayerGeneralKeywords = {
+    p1: [...(cards.p1.keywords ?? [])],
+    p2: [...(cards.p2.keywords ?? [])],
+    p3: [...(cards.p3.keywords ?? [])],
+    p4: [...(cards.p4.keywords ?? [])],
+  };
   return createFourPlayerMatchState(startingSeat, generalSelection, startingMana, generalPrintedCosts, generalKeywords);
 }
