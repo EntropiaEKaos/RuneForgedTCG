@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { BattlefieldLabScenario } from "../battlefield-lab-scenario";
+import { layoutBattlefieldEntities, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
 
 type Props = { scenario: BattlefieldLabScenario };
 
@@ -36,6 +36,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
             const rows = Math.ceil(scenario.players.length / cols);
             const zoneW = width / cols;
             const zoneH = height / rows;
+            const entityLayout = layoutBattlefieldEntities(scenario, width, height);
 
             scenario.players.forEach((player, playerIndex) => {
               const col = playerIndex % cols;
@@ -47,23 +48,19 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
               this.add.text(x0 + 16, y0 + 14, `${player.label} · ${player.life}`, { fontFamily: "system-ui", fontSize: "13px", color: "#e2e8f0" });
 
               const entities = scenario.entities.filter((entity) => entity.controllerId === player.id);
-              const unitCols = Math.max(4, Math.min(10, Math.ceil(Math.sqrt(entities.length * 1.6))));
-              const availableW = zoneW - 30;
-              const availableH = zoneH - 55;
-              const gapX = availableW / unitCols;
-              const unitRows = Math.max(1, Math.ceil(entities.length / unitCols));
-              const gapY = availableH / unitRows;
-              const cardW = Math.max(12, Math.min(34, gapX * 0.72));
+              const cardW = Math.max(12, Math.min(34, zoneW / Math.max(8, Math.ceil(Math.sqrt(entities.length * 1.6)))));
               const cardH = cardW * 1.32;
 
-              entities.forEach((entity, index) => {
-                const ux = x0 + 16 + (index % unitCols) * gapX + gapX / 2;
-                const uy = y0 + 48 + Math.floor(index / unitCols) * gapY + gapY / 2;
+              entities.forEach((entity) => {
+                const point = entityLayout[entity.id];
+                if (!point) return;
+                const ux = point.x;
+                const uy = point.y;
                 const fill = entity.kind === "token" ? 0x7c3aed : 0x0891b2;
                 const unit = this.add.rectangle(ux, uy, cardW, cardH, fill, 0.68)
                   .setStrokeStyle(1, entity.tapped ? 0xf59e0b : 0xcbd5e1, 0.65)
                   .setInteractive({ useHandCursor: true });
-                if (entity.tapped) unit.setAngle(18);
+                unit.setAngle(point.angle);
                 unit.on("pointerover", () => unit.setAlpha(1));
                 unit.on("pointerout", () => unit.setAlpha(0.68));
               });
