@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { putFourPlayerBattlefieldObject } from "../game/four-player-battlefield";
 import { collectibleCards } from "../game/cards";
 import {
   commanderCombatPersistence,
@@ -86,16 +87,77 @@ async function main() {
   assert.equal(played.match.seats.p1.mana, 10 - playable.cost);
   assert.equal(played.match.resolution.priority.holder, "p2");
 
+  let combatBoard = putFourPlayerBattlefieldObject(initial.match.battlefield!, {
+    id: "battle:p1:attacker",
+    defId: "fixture-attacker",
+    kind: "unit",
+    ownerSeat: "p1",
+    enteredTurn: 0,
+    combat: { basePower:3, power:3, health:4, maxHealth:4, races:[], classes:[], barrier:false, frostbitten:false },
+  });
+  combatBoard = putFourPlayerBattlefieldObject(combatBoard, {
+    id: "battle:p2:blocker",
+    defId: "fixture-blocker",
+    kind: "unit",
+    ownerSeat: "p2",
+    enteredTurn: 0,
+    combat: { basePower:2, power:2, health:2, maxHealth:2, races:[], classes:[], barrier:false, frostbitten:false },
+  });
+  const combatEnvelope = { ...initial, match: { ...initial.match, phase: "combat" as const, battlefield: combatBoard } };
   assert.throws(
-    () => processCommanderCombatCommand(initial, 100, 0, {
+    () => processCommanderCombatCommand(combatEnvelope, 100, 0, {
       commandId: "cmd-forged-attacker",
       expectedRevision: 5,
       type: "declare_attacker",
-      payload: { unitId: "forged-client-id", defendingSeat: "p2" },
+      payload: { unitId: "forged-client-id", defendingSeat: 1 },
     }),
-    /not exposed by the PostgreSQL bridge yet/,
-    "attack declarations remain closed until battlefield authority is exposed deliberately",
+    /is not present/,
+    "attack declarations must reject forged battlefield ids",
   );
+  const attacked = processCommanderCombatCommand(combatEnvelope, 100, 0, {
+    commandId: "cmd-attack-p2",
+    expectedRevision: 5,
+    type: "declare_attacker",
+    payload: { unitId: "battle:p1:attacker", defendingSeat: 1, controller: "forged" },
+  });
+  assert.equal(attacked.protocol.revision, 6);
+  assert.equal(attacked.match.combat.attackers[0]?.defendingSeat, "p2");
+  assert.equal(attacked.match.battlefield?.objects.find((object) => object.id === "battle:p1:attacker")?.attackedThisTurn, true);
+
+  const attackPassed = processCommanderCombatCommand(attacked, 100, 0, {
+    commandId: "cmd-pass-after-attack",
+    expectedRevision: 6,
+    type: "pass_priority",
+  });
+  const blocked = processCommanderCombatCommand(attackPassed, 101, 1, {
+    commandId: "cmd-block",
+    expectedRevision: 7,
+    type: "declare_blocker",
+    payload: { unitId: "battle:p2:blocker", attackerId: "battle:p1:attacker", controller: "forged" },
+  });
+  assert.equal(blocked.protocol.revision, 8);
+  assert.equal(blocked.match.combat.blockers[0]?.controller, "p2");
+
+  const p2Passed = processCommanderCombatCommand(blocked, 101, 1, {
+    commandId: "cmd-p2-pass-combat",
+    expectedRevision: 8,
+    type: "pass_priority",
+  });
+  const p3Passed = processCommanderCombatCommand(p2Passed, 102, 2, {
+    commandId: "cmd-p3-pass-combat",
+    expectedRevision: 9,
+    type: "pass_priority",
+  });
+  const combatResolved = processCommanderCombatCommand(p3Passed, 103, 3, {
+    commandId: "cmd-p4-pass-combat",
+    expectedRevision: 10,
+    type: "pass_priority",
+  });
+  assert.equal(combatResolved.protocol.revision, 11);
+  assert.equal(combatResolved.match.phase, "main_2");
+  assert.equal(combatResolved.match.battlefield?.objects.find((object) => object.id === "battle:p1:attacker")?.combat?.health, 2);
+  assert.equal(combatResolved.match.battlefield?.objects.some((object) => object.id === "battle:p2:blocker"), false);
+  assert.equal(combatResolved.zones.p2.graveyard.some((card) => card.instanceId === "battle:p2:blocker"), true);
 
   const passed = processCommanderCombatCommand(initial, 100, 0, {
     commandId: "cmd-pass-1",

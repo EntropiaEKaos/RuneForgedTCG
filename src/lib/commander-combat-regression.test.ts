@@ -25,6 +25,9 @@ assert.match(bridge,/EXPOSED_COMMANDS/,"only an explicit command allowlist may c
 assert.match(bridge,/pass_priority/);
 assert.match(bridge,/cast_general/);
 assert.match(bridge,/play_card/);
+assert.match(bridge,/declare_attacker/);
+assert.match(bridge,/declare_blocker/);
+assert.match(bridge,/destroyedObjects/,"combat casualties must settle into authoritative zones");
 assert.match(bridge,/stageFourPlayerCardCast/,"play_card must derive authoritative card identity from zones");
 assert.match(bridge,/acceptAuthoritativeFourPlayerCommand/,"play_card must still consume the canonical revision/idempotency protocol");
 assert.match(bridge,/end_turn/);
@@ -36,6 +39,10 @@ assert.match(client,/crypto\.randomUUID\(\)/,"Commander UI commands need unique 
 assert.match(client,/combatCommand\("pass_priority"\)/);
 assert.match(client,/combatCommand\("cast_general"\)/);
 assert.match(client,/combatCommand\("play_card"/);
+assert.match(client,/combatCommand\("declare_attacker"/);
+assert.match(client,/combatCommand\("declare_blocker"/);
+assert.match(client,/Atacar P/);
+assert.match(client,/Bloquear/);
 assert.match(client,/Jogar/);
 assert.match(client,/combatCommand\("end_turn"\)/);
 assert.match(client,/combatCommand\("concede"\)/);

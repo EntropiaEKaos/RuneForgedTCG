@@ -25,6 +25,8 @@ export interface FourPlayerProjectedBattlefieldObject {
   kind: FourPlayerBattlefieldObject["kind"];
   ownerSeat: FourPlayerSeat;
   controllerSeat: FourPlayerSeat;
+  enteredTurn: number;
+  keywords: readonly string[];
   combat?: FourPlayerCombatBody;
   stunned: boolean;
   attackedThisTurn: boolean;
@@ -41,6 +43,7 @@ export interface FourPlayerProjectedSeatState {
   life?: number;
   mana?: number;
   maxMana?: number;
+  poisonCounters?: number;
   generalDamageReceived?: Partial<Record<FourPlayerSeat, number>>;
   battlefield?: readonly FourPlayerProjectedBattlefieldObject[];
   hand?: readonly FourPlayerProjectedCardInstance[];
@@ -83,6 +86,8 @@ export function projectFourPlayerStateForSeat(
           kind: object.kind,
           ownerSeat: object.ownerSeat,
           controllerSeat: object.controllerSeat,
+          enteredTurn: object.enteredTurn,
+          keywords: [...object.keywords],
           ...(object.combat ? {
             combat: {
               ...object.combat,
@@ -106,6 +111,7 @@ export function projectFourPlayerStateForSeat(
         life: match.seats[seat].life,
         mana: match.seats[seat].mana,
         maxMana: match.seats[seat].maxMana,
+        poisonCounters: match.seats[seat].poisonCounters,
         generalDamageReceived: { ...match.seats[seat].generalDamageReceived },
         battlefield,
       } : {}),

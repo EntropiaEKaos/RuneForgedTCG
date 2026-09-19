@@ -19,6 +19,11 @@ assert.deepEqual(attackersForDefender(combat, "p4").map((a) => a.unitId), ["elem
 combat = declareFourPlayerBlocker(combat, "p2", "shield-p2", "dragon");
 combat = declareFourPlayerBlocker(combat, "p3", "guard-p3", "warrior");
 assert.equal(combat.blockers.length, 2);
+assert.throws(
+  () => declareFourPlayerBlocker(combat, "p2", "shield-p2-b", "dragon"),
+  /already blocked/,
+  "one attacker accepts one blocker until multi-block ordering is explicitly modeled",
+);
 
 assert.throws(
   () => declareFourPlayerBlocker(combat, "p4", "illegal-p4", "dragon"),

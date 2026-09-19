@@ -8,14 +8,21 @@ type CollectionCard = {
 };
 type Seat = { seat:number; playerId:number; playerName:string; generalDefId:string; ready:boolean; isHost:boolean; cardCount:number };
 type ProjectedCard = { instanceId:string; defId:string };
+type CombatBody = { power:number; health:number; maxHealth:number; barrier:boolean; frostbitten:boolean };
+type BattlefieldObject = {
+  id:string; defId:string; kind:string; ownerSeat:string; controllerSeat:string; enteredTurn:number;
+  keywords:string[]; combat?:CombatBody; stunned:boolean; attackedThisTurn:boolean;
+};
 type CombatSeat = {
   seat:number; handCount:number; deckCount:number; graveyard:ProjectedCard[]; publicBoard:string[];
-  nexusHealth:number; eliminated:boolean; life?:number; mana?:number; maxMana?:number; hand?:ProjectedCard[];
+  nexusHealth:number; eliminated:boolean; life?:number; mana?:number; maxMana?:number; poisonCounters?:number;
+  battlefield?:BattlefieldObject[]; hand?:ProjectedCard[];
   general:{defId:string;zone:string;castCount:number};
 };
 type CombatState = {
   kind:string; engineVersion:number; revision:number; viewerSeat:number; activeSeat:number; prioritySeat:number;
   round:number; turn:number; phase:string; status:string; winnerSeat:number|null; seats:CombatSeat[];
+  combat:{attackers:{unitId:string;controllerSeat:number;defendingSeat:number}[];blockers:{unitId:string;controllerSeat:number;attackerId:string}[]};
 };
 type Room = { code:string; state:string; activeSeat:number; round:number; version:number; viewerSeat:number|null; hostPlayerId:number; seats:Seat[]; rules:any; gameState:any; combat?:CombatState|null; engineKind?:string|null };
 type LobbySummary = { code:string; state:string; seatCount:number; viewerJoined:boolean };
@@ -80,7 +87,7 @@ export default function CommanderClient(){
       await loadRooms();
     }catch(e){setError(e instanceof Error?e.message:"Falha no Commander")}finally{setBusy(false)}
   }
-  async function combatCommand(commandType:"pass_priority"|"cast_general"|"play_card"|"end_turn"|"concede",payload:Record<string,unknown>={}) {
+  async function combatCommand(commandType:"pass_priority"|"cast_general"|"play_card"|"declare_attacker"|"declare_blocker"|"end_turn"|"concede",payload:Record<string,unknown>={}) {
     if(!room?.combat)return;
     await mutate(`/api/commander/${room.code}`,{
       action:"combat-command",
@@ -100,6 +107,27 @@ export default function CommanderClient(){
   const isMainPhase=Boolean(combat?.phase==="main_1"||combat?.phase==="main_2");
   const canCastGeneral=Boolean(viewerHasPriority&&viewerIsActive&&isMainPhase&&viewerRuntime?.general.zone==="general_zone");
   const canPlayPhysicalCard=Boolean(viewerHasPriority&&viewerIsActive&&isMainPhase&&viewerAlive);
+  const inCombat=Boolean(combat?.phase==="combat");
+  const battlefieldObjects=combat?.seats.flatMap(seat=>seat.battlefield||[])||[];
+  const assignedAttackerIds=new Set(combat?.combat.attackers.map(attacker=>attacker.unitId)||[]);
+  const assignedBlockerIds=new Set(combat?.combat.blockers.map(blocker=>blocker.unitId)||[]);
+  const blockedAttackerIds=new Set(combat?.combat.blockers.map(blocker=>blocker.attackerId)||[]);
+  const attackable=(viewerRuntime?.battlefield||[]).filter(object=>
+    ["unit","general","token"].includes(object.kind)
+    && Boolean(object.combat&&object.combat.health>0)
+    && !object.stunned
+    && !object.attackedThisTurn
+    && !assignedAttackerIds.has(object.id)
+    && (object.enteredTurn<(combat?.turn??0)||object.keywords.includes("Haste"))
+  );
+  const incomingAttackers=(combat?.combat.attackers||[]).filter(attacker=>attacker.defendingSeat===room?.viewerSeat&&!blockedAttackerIds.has(attacker.unitId));
+  const blockable=(viewerRuntime?.battlefield||[]).filter(object=>
+    ["unit","general","token"].includes(object.kind)
+    && Boolean(object.combat&&object.combat.health>0)
+    && !object.stunned
+    && !assignedBlockerIds.has(object.id)
+  );
+  const livingOpponents=(combat?.seats||[]).filter(seat=>!seat.eliminated&&seat.seat!==room?.viewerSeat);
 
   return <main className="min-h-screen bg-[#06090e] text-slate-100">
     <div className="mx-auto max-w-[1500px] px-5 py-8">
@@ -135,6 +163,22 @@ export default function CommanderClient(){
               <div><small className="text-slate-500">PRIORIDADE</small><b className="block text-cyan-200">P{combat.prioritySeat+1}</b></div>
               <div><small className="text-slate-500">AUTORIDADE</small><b className="block">rev {combat.revision}</b></div>
             </div>
+            {inCombat&&viewerHasPriority&&<div className="mt-4 border border-cyan-300/15 bg-cyan-950/10 p-3">
+              <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-cyan-100">Combate autoritativo</b><span className="text-[10px] text-cyan-300/50">split attack 4P</span></div>
+              {viewerIsActive?<div className="mt-3 space-y-2">
+                {attackable.map(object=><div key={object.id} className="border border-white/10 p-3 text-xs">
+                  <div className="flex items-center justify-between gap-2"><b>{collection.find(card=>card.defId===object.defId)?.name||object.defId}</b><span className="text-slate-500">{object.combat?.power??0}/{object.combat?.health??0}</span></div>
+                  <div className="mt-2 flex flex-wrap gap-2">{livingOpponents.map(target=><button key={target.seat} className="btn-ghost" disabled={busy} onClick={()=>void combatCommand("declare_attacker",{unitId:object.id,defendingSeat:target.seat})}>Atacar P{target.seat+1}</button>)}</div>
+                </div>)}
+                {!attackable.length&&<p className="text-xs text-slate-500">Nenhuma unidade elegível para novo ataque.</p>}
+              </div>:<div className="mt-3 space-y-3">
+                {incomingAttackers.map(attacker=>{const source=battlefieldObjects.find(object=>object.id===attacker.unitId);return <div key={attacker.unitId} className="border border-white/10 p-3 text-xs">
+                  <b>{collection.find(card=>card.defId===source?.defId)?.name||source?.defId||attacker.unitId}</b><span className="ml-2 text-rose-200">atacando seu Nexus</span>
+                  <div className="mt-2 flex flex-wrap gap-2">{blockable.map(blocker=><button key={blocker.id} className="btn-ghost" disabled={busy} onClick={()=>void combatCommand("declare_blocker",{unitId:blocker.id,attackerId:attacker.unitId})}>Bloquear com {collection.find(card=>card.defId===blocker.defId)?.name||blocker.defId}</button>)}</div>
+                </div>})}
+                {!incomingAttackers.length&&<p className="text-xs text-slate-500">Nenhum atacante aguardando bloqueio contra você.</p>}
+              </div>}
+            </div>}
             {viewerRuntime?.hand&&viewerRuntime.hand.length>0&&<div className="mt-4 border border-white/10 bg-black/20 p-3">
               <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-slate-400">Sua mão</b><span className="text-[10px] text-slate-600">instâncias autoritativas</span></div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">

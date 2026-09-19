@@ -5,6 +5,7 @@ import { submitFourPlayerAction } from "@/game/four-player-flow";
 import { pumpFourPlayerServer } from "@/game/four-player-server-pump";
 import {
   createFourPlayerCardZones,
+  putFourPlayerCardInGraveyard,
   type FourPlayerCardZones,
 } from "@/game/four-player-card-zones";
 import {
@@ -65,6 +66,8 @@ const EXPOSED_COMMANDS = new Set<FourPlayerCommandType>([
   "pass_priority",
   "cast_general",
   "play_card",
+  "declare_attacker",
+  "declare_blocker",
   "end_turn",
   "concede",
 ]);
@@ -182,6 +185,18 @@ export function projectCommanderCombatState(
     phase: envelope.match.phase,
     status: envelope.match.status,
     winnerSeat: envelope.match.winner ? commanderSeatIndex(envelope.match.winner) : null,
+    combat: {
+      attackers: envelope.match.combat.attackers.map((attacker) => ({
+        unitId: attacker.unitId,
+        controllerSeat: commanderSeatIndex(attacker.controller),
+        defendingSeat: commanderSeatIndex(attacker.defendingSeat),
+      })),
+      blockers: envelope.match.combat.blockers.map((blocker) => ({
+        unitId: blocker.unitId,
+        controllerSeat: commanderSeatIndex(blocker.controller),
+        attackerId: blocker.attackerId,
+      })),
+    },
     seats: FOUR_PLAYER_SEATS.map((seat) => ({
       ...projection.seats[seat],
       seat: commanderSeatIndex(seat),
@@ -198,7 +213,12 @@ function validateExposedCommand(match: FourPlayerMatchState, command: FourPlayer
   if (!EXPOSED_COMMANDS.has(command.type)) {
     throw new Error(`Commander combat command ${command.type} is not exposed by the PostgreSQL bridge yet.`);
   }
-  if (command.type === "pass_priority" || command.type === "cast_general") {
+  if (
+    command.type === "pass_priority"
+    || command.type === "cast_general"
+    || command.type === "declare_attacker"
+    || command.type === "declare_blocker"
+  ) {
     assertPriorityHolder(match, command.seat);
   }
 }
@@ -231,13 +251,30 @@ export function processCommanderCombatCommand(
   const commandId = String(input.commandId || "").trim();
   if (!commandId) throw new Error("Commander commandId is required.");
   const seat = commanderSeatKey(seatIndex);
+  let sanitizedPayload: unknown = input.payload ?? {};
+  if (input.type === "declare_attacker") {
+    const row = sanitizedPayload && typeof sanitizedPayload === "object" ? sanitizedPayload as Record<string, unknown> : {};
+    const unitId = typeof row.unitId === "string" ? row.unitId.trim() : "";
+    const rawDefender = row.defendingSeat;
+    const defendingSeat = typeof rawDefender === "number"
+      ? commanderSeatKey(rawDefender as CommanderSeatIndex)
+      : rawDefender;
+    sanitizedPayload = { unitId, defendingSeat };
+  } else if (input.type === "declare_blocker") {
+    const row = sanitizedPayload && typeof sanitizedPayload === "object" ? sanitizedPayload as Record<string, unknown> : {};
+    sanitizedPayload = {
+      unitId: typeof row.unitId === "string" ? row.unitId.trim() : "",
+      attackerId: typeof row.attackerId === "string" ? row.attackerId.trim() : "",
+    };
+  }
+
   const command: FourPlayerClientCommand = {
     commandId,
     matchId: envelope.protocol.matchId,
     seat,
     expectedRevision: input.expectedRevision,
     type: input.type,
-    payload: input.payload ?? {},
+    payload: sanitizedPayload,
   };
 
   let sessions = createFourPlayerSessionRegistry();
@@ -285,6 +322,14 @@ export function processCommanderCombatCommand(
 
   let match = accepted.state.match;
   let zones = envelope.zones;
+  for (const destroyed of accepted.pump?.destroyedObjects ?? []) {
+    if (destroyed.destination !== "graveyard") continue;
+    zones = putFourPlayerCardInGraveyard(zones, {
+      instanceId: destroyed.id,
+      defId: destroyed.defId,
+      ownerSeat: destroyed.ownerSeat,
+    });
+  }
   if (match.status === "active" && match.turn.activeSeat !== previousActiveSeat) {
     const settled = settleIncomingTurn(match, zones, envelope.startingSeat);
     match = settled.match;

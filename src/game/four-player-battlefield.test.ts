@@ -11,6 +11,11 @@ import {
 } from "./four-player-battlefield";
 import { collectibleCards } from "./cards";
 
+const body = (power:number, health:number) => ({
+  basePower: power, power, health, maxHealth: health, races: [], classes: [],
+  barrier: false, frostbitten: false,
+});
+
 let battlefield = createFourPlayerBattlefieldState();
 battlefield = putFourPlayerBattlefieldObject(battlefield, {
   id: "p1-slow",
@@ -18,6 +23,7 @@ battlefield = putFourPlayerBattlefieldObject(battlefield, {
   kind: "unit",
   ownerSeat: "p1",
   enteredTurn: 1,
+  combat: body(2,2),
 });
 battlefield = putFourPlayerBattlefieldObject(battlefield, {
   id: "p1-haste",
@@ -26,6 +32,7 @@ battlefield = putFourPlayerBattlefieldObject(battlefield, {
   ownerSeat: "p1",
   enteredTurn: 1,
   keywords: ["Haste"],
+  combat: body(3,2),
 });
 battlefield = putFourPlayerBattlefieldObject(battlefield, {
   id: "p2-guard",
@@ -33,6 +40,7 @@ battlefield = putFourPlayerBattlefieldObject(battlefield, {
   kind: "unit",
   ownerSeat: "p2",
   enteredTurn: 0,
+  combat: body(3,4),
 });
 battlefield = putFourPlayerBattlefieldObject(battlefield, {
   id: "p1-stolen-by-p3",
@@ -41,6 +49,7 @@ battlefield = putFourPlayerBattlefieldObject(battlefield, {
   ownerSeat: "p1",
   controllerSeat: "p3",
   enteredTurn: 0,
+  combat: body(2,3),
 });
 battlefield = putFourPlayerBattlefieldObject(battlefield, {
   id: "p3-owned",
@@ -48,6 +57,7 @@ battlefield = putFourPlayerBattlefieldObject(battlefield, {
   kind: "unit",
   ownerSeat: "p3",
   enteredTurn: 0,
+  combat: body(1,1),
 });
 
 assert.throws(

@@ -48,6 +48,9 @@ export function declareFourPlayerBlocker(
   if (!attacker) throw new Error(`Unknown attacker ${attackerId}.`);
   if (attacker.defendingSeat !== blockerSeat) throw new Error(`Seat ${blockerSeat} cannot block an attacker assigned to ${attacker.defendingSeat}.`);
   if (state.blockers.some((blocker) => blocker.unitId === unitId)) throw new Error(`Unit ${unitId} is already blocking.`);
+  if (state.blockers.some((blocker) => blocker.attackerId === attackerId)) {
+    throw new Error(`Attacker ${attackerId} is already blocked; multi-block ordering is not enabled yet.`);
+  }
   return { ...state, blockers: [...state.blockers, { unitId, controller: blockerSeat, attackerId }] };
 }
 

@@ -1,7 +1,9 @@
 import {
   assertFourPlayerAttackerObject,
   assertFourPlayerBlockerObject,
+  canFourPlayerBlockObjects,
   createFourPlayerBattlefieldState,
+  findFourPlayerBattlefieldObject,
   markFourPlayerBattlefieldObjectAttacked,
 } from "./four-player-battlefield";
 import { declareFourPlayerAttacker, declareFourPlayerBlocker } from "./four-player-combat";
@@ -60,6 +62,7 @@ export function reduceFourPlayerServerEvent(
     }
 
     case "declare_attacker": {
+      assertPriorityHolder(state, event.actor);
       if (state.turn.activeSeat !== event.actor) throw new Error(`Only active seat ${state.turn.activeSeat} may declare attackers.`);
       if (state.phase !== "combat") throw new Error("Attackers may only be declared during the combat phase.");
       const payload = event.payload as Partial<DeclareAttackerPayload>;
@@ -78,6 +81,7 @@ export function reduceFourPlayerServerEvent(
     }
 
     case "declare_blocker": {
+      assertPriorityHolder(state, event.actor);
       if (state.phase !== "combat") throw new Error("Blockers may only be declared during the combat phase.");
       const payload = event.payload as Partial<DeclareBlockerPayload>;
       const unitId = typeof payload.unitId === "string" ? payload.unitId.trim() : "";
@@ -85,7 +89,11 @@ export function reduceFourPlayerServerEvent(
       if (!unitId) throw new Error("Blocker unitId is required.");
       if (!attackerId) throw new Error("Blocker attackerId is required.");
       const battlefield = state.battlefield ?? createFourPlayerBattlefieldState();
-      assertFourPlayerBlockerObject(battlefield, event.actor, unitId);
+      const blocker = assertFourPlayerBlockerObject(battlefield, event.actor, unitId);
+      const attacker = findFourPlayerBattlefieldObject(battlefield, attackerId);
+      if (!canFourPlayerBlockObjects(attacker, blocker)) {
+        throw new Error(`Blocker ${unitId} cannot legally block attacker ${attackerId}.`);
+      }
       return { ...state, combat: declareFourPlayerBlocker(state.combat, event.actor, unitId, attackerId) };
     }
 

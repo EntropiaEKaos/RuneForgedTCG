@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { collectibleCards } from "./cards";
+import { putFourPlayerBattlefieldObject } from "./four-player-battlefield";
+import { createFourPlayerCombatState, declareFourPlayerAttacker } from "./four-player-combat";
 import { passFourPlayerFlow, submitFourPlayerAction } from "./four-player-flow";
 import { createFourPlayerMatchState, createFourPlayerMatchStateFromCatalog, eliminateFourPlayerMatchSeat, type FourPlayerMatchState } from "./four-player-match";
 import type { FourPlayerServerEvent } from "./four-player-protocol";
@@ -114,6 +116,28 @@ assert.equal(emptyPump.match.resolution.priority.consecutivePasses, 0);
 assert.equal(emptyPump.phaseAdvanced, true);
 assert.equal(emptyPump.turnAdvanced, false);
 assert.equal(emptyPump.awaitingClientInput, true);
+
+// Combat all-pass resolves physical combat before advancing to main II.
+let combatPhase: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "combat" };
+combatPhase = {
+  ...combatPhase,
+  battlefield: putFourPlayerBattlefieldObject(combatPhase.battlefield!, {
+    id: "combat-direct",
+    defId: "combat-direct",
+    kind: "unit",
+    ownerSeat: "p1",
+    enteredTurn: 0,
+    combat: { basePower:4, power:4, health:4, maxHealth:4, races:[], classes:[], barrier:false, frostbitten:false },
+  }),
+  combat: declareFourPlayerAttacker(createFourPlayerCombatState("p1"), "combat-direct", "p2"),
+};
+combatPhase = passAllLiving(combatPhase);
+const combatPump = pumpFourPlayerServer(combatPhase);
+assert.equal(combatPump.combatResolved, true);
+assert.equal(combatPump.match.phase, "main_2");
+assert.equal(combatPump.match.seats.p2.life, 26);
+assert.equal(combatPump.match.combat.attackers.length, 0);
+assert.equal(combatPump.phaseAdvanced, true);
 
 // Ending all-pass advances to the next living player's beginning.
 let ending: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "ending" };

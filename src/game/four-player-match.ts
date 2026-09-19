@@ -31,6 +31,7 @@ export interface FourPlayerMatchSeatState {
   mana: number;
   maxMana: number;
   life: number;
+  poisonCounters: number;
   generalDamageReceived: Partial<Record<FourPlayerSeat, number>>;
 }
 
@@ -41,6 +42,7 @@ export type FourPlayerGeneralCombatBodies = Partial<Record<FourPlayerSeat, FourP
 export type FourPlayerMatchStatus = "active" | "completed";
 export const FOUR_PLAYER_MAX_MANA = 10;
 export const FOUR_PLAYER_STARTING_LIFE = 30;
+export const FOUR_PLAYER_POISON_LETHAL = 10;
 
 export interface FourPlayerMatchState {
   seats: Record<FourPlayerSeat, FourPlayerMatchSeatState>;
@@ -79,7 +81,7 @@ export function createFourPlayerMatchState(
   const seats = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
     const isStartingSeat = seat === startingSeat;
     const maxMana = isStartingSeat ? Math.min(FOUR_PLAYER_MAX_MANA, startingMana + 1) : startingMana;
-    return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana, life: FOUR_PLAYER_STARTING_LIFE, generalDamageReceived: {} }];
+    return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana, life: FOUR_PLAYER_STARTING_LIFE, poisonCounters: 0, generalDamageReceived: {} }];
   })) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
   const keywordSnapshot: FourPlayerGeneralKeywords = {

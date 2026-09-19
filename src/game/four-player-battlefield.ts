@@ -102,7 +102,8 @@ export function assertFourPlayerAttackerObject(
 ): FourPlayerBattlefieldObject {
   const object = findFourPlayerBattlefieldObject(state, objectId);
   if (!isCombatBody(object.kind)) throw new Error(`4P battlefield object ${object.id} cannot attack.`);
-  if (object.combat && object.combat.health <= 0) throw new Error(`Destroyed object ${object.id} cannot attack.`);
+  if (!object.combat) throw new Error(`4P battlefield object ${object.id} has no combat body.`);
+  if (object.combat.health <= 0) throw new Error(`Destroyed object ${object.id} cannot attack.`);
   if (object.controllerSeat !== actor) throw new Error(`Seat ${actor} does not control attacker ${object.id}.`);
   if (object.stunned) throw new Error(`Stunned object ${object.id} cannot attack.`);
   if (object.attackedThisTurn) throw new Error(`Object ${object.id} has already attacked this turn.`);
@@ -119,7 +120,8 @@ export function assertFourPlayerBlockerObject(
 ): FourPlayerBattlefieldObject {
   const object = findFourPlayerBattlefieldObject(state, objectId);
   if (!isCombatBody(object.kind)) throw new Error(`4P battlefield object ${object.id} cannot block.`);
-  if (object.combat && object.combat.health <= 0) throw new Error(`Destroyed object ${object.id} cannot block.`);
+  if (!object.combat) throw new Error(`4P battlefield object ${object.id} has no combat body.`);
+  if (object.combat.health <= 0) throw new Error(`Destroyed object ${object.id} cannot block.`);
   if (object.controllerSeat !== actor) throw new Error(`Seat ${actor} does not control blocker ${object.id}.`);
   if (object.stunned) throw new Error(`Stunned object ${object.id} cannot block.`);
   return object;
@@ -173,6 +175,18 @@ export function applyFourPlayerBattlefieldDamage(
     barrierConsumed,
     destroyed: combat.health <= 0,
   };
+}
+
+export function canFourPlayerBlockObjects(
+  attacker: FourPlayerBattlefieldObject,
+  blocker: FourPlayerBattlefieldObject,
+): boolean {
+  if (!attacker.combat || !blocker.combat) return false;
+  if (attacker.keywords.includes("Unblockable") && !blocker.keywords.includes("Unblockable")) return false;
+  if (attacker.keywords.includes("Elusive") && !blocker.keywords.includes("Elusive") && !blocker.keywords.includes("Reach")) return false;
+  if (attacker.keywords.includes("Flying") && !blocker.keywords.includes("Flying") && !blocker.keywords.includes("Reach")) return false;
+  if (attacker.keywords.includes("Fearsome") && blocker.combat.power < 3) return false;
+  return true;
 }
 
 export function markFourPlayerBattlefieldObjectAttacked(

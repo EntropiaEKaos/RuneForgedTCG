@@ -1,5 +1,6 @@
 import { createFourPlayerBattlefieldState, placeResolvedGeneralOnBattlefield } from "./four-player-battlefield";
 import { resolveFourPlayerCardCast } from "./four-player-card-play";
+import { resolveFourPlayerCombat, type FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
 import { resolveFourPlayerFlow } from "./four-player-flow";
 import { resolveGeneralToBattlefield } from "./four-player-general-zone";
 import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-match";
@@ -13,6 +14,8 @@ export interface FourPlayerServerPumpResult {
   awaitingClientInput: boolean;
   phaseAdvanced: boolean;
   turnAdvanced: boolean;
+  combatResolved?: boolean;
+  destroyedObjects?: readonly FourPlayerCombatDestroyedObject[];
 }
 
 function applyResolvedStackItem(match: FourPlayerMatchState, item: FourPlayerStackItem): FourPlayerMatchState {
@@ -55,6 +58,30 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
     return { match, resolved: [], awaitingClientInput: true, phaseAdvanced: false, turnAdvanced: false };
   }
   if (match.resolution.stack.items.length === 0) {
+    if (match.phase === "combat") {
+      const combat = resolveFourPlayerCombat(match);
+      if (combat.match.status === "completed") {
+        return {
+          match: combat.match,
+          resolved: [],
+          awaitingClientInput: false,
+          phaseAdvanced: false,
+          turnAdvanced: false,
+          combatResolved: true,
+          destroyedObjects: combat.destroyed,
+        };
+      }
+      const advanced = advanceFourPlayerPhase(combat.match);
+      return {
+        match: advanced.match,
+        resolved: [],
+        awaitingClientInput: true,
+        phaseAdvanced: true,
+        turnAdvanced: advanced.turnAdvanced,
+        combatResolved: true,
+        destroyedObjects: combat.destroyed,
+      };
+    }
     const advanced = advanceFourPlayerPhase(match);
     return {
       match: advanced.match,

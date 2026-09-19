@@ -36,6 +36,7 @@ match = {
     kind: "unit",
     ownerSeat: "p1",
     enteredTurn: 0,
+    combat: { basePower:3, power:3, health:3, maxHealth:3, races:[], classes:[], barrier:false, frostbitten:false },
   }),
 };
 assert.throws(
