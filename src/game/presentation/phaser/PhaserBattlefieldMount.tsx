@@ -10,6 +10,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
   const gameRef = useRef<{ destroy: (removeCanvas: boolean, noReturn?: boolean) => void } | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [metrics, setMetrics] = useState({ fps: 0, objects: 0, renderer: "pending" });
+  const [interaction, setInteraction] = useState({ selected: "", target: "" });
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +39,9 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
             const zoneH = height / rows;
             const entityLayout = layoutBattlefieldEntities(scenario, width, height);
 
+            let selectedUnit: { id: string; shape: Phaser.GameObjects.Rectangle } | null = null;
+            let targetLine: Phaser.GameObjects.Line | null = null;
+
             scenario.players.forEach((player, playerIndex) => {
               const col = playerIndex % cols;
               const row = Math.floor(playerIndex / cols);
@@ -62,7 +66,29 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                   .setInteractive({ useHandCursor: true });
                 unit.setAngle(point.angle);
                 unit.on("pointerover", () => unit.setAlpha(1));
-                unit.on("pointerout", () => unit.setAlpha(0.68));
+                unit.on("pointerout", () => unit.setAlpha(selectedUnit?.id === entity.id ? 1 : 0.68));
+                unit.on("pointerdown", () => {
+                  if (!selectedUnit) {
+                    selectedUnit = { id: entity.id, shape: unit };
+                    unit.setAlpha(1).setStrokeStyle(3, 0x22d3ee, 1);
+                    setInteraction({ selected: entity.id, target: "" });
+                    return;
+                  }
+                  if (selectedUnit.id === entity.id) {
+                    selectedUnit.shape.setAlpha(0.68).setStrokeStyle(1, entity.tapped ? 0xf59e0b : 0xcbd5e1, 0.65);
+                    selectedUnit = null;
+                    targetLine?.destroy();
+                    targetLine = null;
+                    setInteraction({ selected: "", target: "" });
+                    return;
+                  }
+                  targetLine?.destroy();
+                  targetLine = this.add.line(0, 0, selectedUnit.shape.x, selectedUnit.shape.y, unit.x, unit.y, 0xf43f5e, 0.9)
+                    .setOrigin(0, 0)
+                    .setLineWidth(2)
+                    .setDepth(18);
+                  setInteraction({ selected: selectedUnit.id, target: entity.id });
+                });
               });
             });
 
@@ -110,6 +136,8 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
         <span className="rounded bg-black/70 px-2 py-1">{metrics.renderer}</span>
         <span className="rounded bg-black/70 px-2 py-1">{metrics.fps} FPS</span>
         <span className="rounded bg-black/70 px-2 py-1">{metrics.objects} objects</span>
+        {interaction.selected && <span className="rounded bg-cyan-950/80 px-2 py-1">selected: {interaction.selected}</span>}
+        {interaction.target && <span className="rounded bg-rose-950/80 px-2 py-1">target: {interaction.target}</span>}
       </div>
       <div ref={hostRef} className="min-h-[560px] w-full" aria-label="Phaser Battlefield Lab canvas" />
       {status !== "ready" && (
