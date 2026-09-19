@@ -252,13 +252,6 @@ async function main() {
       () => evaluate(cdp, `[...document.querySelectorAll('select')].some((node) => [...node.options].some((option) => option.value === ${JSON.stringify(variantId)}))`),
       "published serialized printing in trade composer",
     );
-    const printingSelector = await evaluate(cdp, `(() => {
-      const selects = [...document.querySelectorAll('select')];
-      const index = selects.findIndex((node) => node.getAttribute('aria-label')?.startsWith('Versão desejada de'));
-      return index < 0 ? null : `select:nth-of-type(${index + 1})`;
-    })()`);
-    assert.ok(printingSelector, "Could not resolve printing selector");
-
     const printingSelected = await evaluate(cdp, `(() => {
       const input = [...document.querySelectorAll('select')].find((node) => node.getAttribute('aria-label')?.startsWith('Versão desejada de'));
       if (!input) return false;
