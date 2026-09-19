@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { getCardArt } from "@/game/card-art";
 import { getCard } from "@/game/cards";
+import { resolveCardAppearance } from "@/game/card-cosmetics";
 import { activatedAbilitiesForInstance, activatedAbilityChoices } from "@/game/engine";
 import { activatedAbilityCostDescription, activatedAbilityCostLabel, activatedAbilityUiState } from "@/game/activated-ability-presentation";
 import ActivatedAbilityIntelligence from "./ActivatedAbilityIntelligence";
@@ -18,11 +19,12 @@ export interface CardTipProps extends CardViewProps { onActivateAbility?: (abili
 export default function CardTip({ onActivateAbility, artViewer, ...cardProps }: CardTipProps) {
   const pathname = usePathname();
   const [artViewerOpen, setArtViewerOpen] = useState(false);
-  const { defId, definition, unit, state, costOverride } = cardProps;
+  const { defId, definition, unit, state, costOverride, variantId, assetId } = cardProps;
   const def = definition ?? getCard(defId);
+  const appearance = resolveCardAppearance(defId, variantId, assetId);
   const abilities = state && unit && onActivateAbility ? activatedAbilitiesForInstance(state, unit.owner, unit.instanceId) : [];
   const artViewerEnabled = artViewer ?? (pathname === "/codex" || pathname === "/collection");
-  const artUrl = getCardArt(defId)?.url ?? def.art ?? null;
+  const artUrl = appearance.artUrl ?? getCardArt(defId)?.url ?? def.art ?? null;
   const restoreCollectionPointerEvents = pathname === "/collection";
   const legendaryPresentation = def.rarity === "Legend" || def.isLegend === true;
 

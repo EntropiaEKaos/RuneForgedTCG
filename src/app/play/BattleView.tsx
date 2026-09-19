@@ -38,6 +38,7 @@ type PendingSentinelaAbility = { sentinelaId: string; abilityIndex: number; targ
 export interface BattleViewProps {
   state: GameState;
   presetDecks: DeckDef[];
+  appearanceAssets?: Record<string, number>;
   activeEncounter: Encounter | null;
   matchReward: MatchReward | null;
   reaction: ReactionPending | null;
@@ -81,7 +82,7 @@ export interface BattleViewProps {
 
 export function BattleView(props: BattleViewProps) {
   const {
-    state, presetDecks, activeEncounter, matchReward, reaction, pendingSpell, pendingReaction,
+    state, presetDecks, appearanceAssets, activeEncounter, matchReward, reaction, pendingSpell, pendingReaction,
     pendingSentinelaAbility, selectedAttackers, selectedChallengers, selectedBlocker, challenges,
     blockAssignments, isPlayerMain, isPlayerBlocking, canAttackNow, timeLeft, firstInfo,
     presentation, pvp, isValidSpellTarget, reactionTargetOk, activatedTargetOk, handlePermanentClick,
@@ -187,7 +188,7 @@ export function BattleView(props: BattleViewProps) {
           {ai.permanents.map((permanent) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "permanent", perm: permanent, owner: "ai" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("ai", { kind: "permanent" }));
-            return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} />;
+            return <CardTip key={permanent.instanceId} defId={permanent.defId} assetId={appearanceAssets?.[permanent.defId]} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} />;
           })}
           {ai.sentinelas.map((sentinela) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: "ai" });
@@ -231,7 +232,7 @@ export function BattleView(props: BattleViewProps) {
                 const blockerId = lockedAttackers.includes(attacker.instanceId) ? lockedBlocks[attacker.instanceId] : (blockAssignments[attacker.instanceId] ?? lockedBlocks[attacker.instanceId]);
                 const blocker = player.bench.find((unit) => unit.instanceId === blockerId);
                 const isLocked = lockedAttackers.includes(attacker.instanceId);
-                return <CombatLane key={attacker.instanceId} attacker={attacker} blocker={blocker} state={state} locked={isLocked} attackerClassName={unitFxClass(attacker)} onAttackerClick={isLocked ? undefined : () => handleUnitClick(attacker)} />;
+                return <CombatLane key={attacker.instanceId} attacker={attacker} blocker={blocker} state={state} appearanceAssets={appearanceAssets} locked={isLocked} attackerClassName={unitFxClass(attacker)} onAttackerClick={isLocked ? undefined : () => handleUnitClick(attacker)} />;
               })}
             </div>
           )}
@@ -240,7 +241,7 @@ export function BattleView(props: BattleViewProps) {
               {playerAttackers.map((attacker) => {
                 const blockerId = state.combat?.blocks[attacker.instanceId];
                 const blocker = ai.bench.find((unit) => unit.instanceId === blockerId);
-                return <CombatLane key={attacker.instanceId} attacker={attacker} blocker={blocker} state={state} attackerClassName={unitFxClass(attacker)} />;
+                return <CombatLane key={attacker.instanceId} attacker={attacker} blocker={blocker} state={state} appearanceAssets={appearanceAssets} attackerClassName={unitFxClass(attacker)} />;
               })}
             </div>
           )}
@@ -265,7 +266,7 @@ export function BattleView(props: BattleViewProps) {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "player" });
             const selectable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || (reaction && !!pendingReaction && reactionTargetOk("player")) || (normalActionsOpen && isPlayerMain && canAttackNow) || isPlayerBlocking;
             return (
-              <CardTip key={unit.instanceId} defId={unit.defId} unit={unit} state={state} size="sm" className={unitFxClass(unit)}
+              <CardTip key={unit.instanceId} defId={unit.defId} assetId={appearanceAssets?.[unit.defId]} unit={unit} state={state} size="sm" className={unitFxClass(unit)}
                 selected={selectedAttackers.includes(unit.instanceId) || selectedBlocker === unit.instanceId || Object.values(blockAssignments).includes(unit.instanceId) || Object.values(lockedBlocks).includes(unit.instanceId)}
                 targetable={abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || !!(reaction && pendingReaction && reactionTargetOk("player"))}
                 onClick={selectable ? () => handleUnitClick(unit) : undefined}
@@ -276,7 +277,7 @@ export function BattleView(props: BattleViewProps) {
 
         <div className="tcg-divider" aria-hidden="true" />
         <PlayerBar player={player} active={state.activePlayer === "player"} hasToken={state.attackToken === "player"} flash={nexusFlash.player} />
-        <PlayerHand state={state} reaction={reaction} pendingSpell={pendingSpell} pendingReaction={pendingReaction} isPlayerMain={normalActionsOpen && isPlayerMain} expanded={handExpanded} onToggle={() => setHandExpanded((value) => !value)} onCardClick={handleHandClick} />
+        <PlayerHand state={state} appearanceAssets={appearanceAssets} reaction={reaction} pendingSpell={pendingSpell} pendingReaction={pendingReaction} isPlayerMain={normalActionsOpen && isPlayerMain} expanded={handExpanded} onToggle={() => setHandExpanded((value) => !value)} onCardClick={handleHandClick} />
 
         <div className="tcg-actions flex flex-wrap items-center justify-center gap-3 border-t border-white/10 px-3 py-3">
           <AttackForecast state={state} selectedIds={selectedAttackers} />

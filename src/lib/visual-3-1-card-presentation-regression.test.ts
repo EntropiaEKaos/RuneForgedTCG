@@ -13,7 +13,7 @@ assert.ok(
 
 // Art resilience: a primary/editorial URL must never remove the shipped regional art underneath it.
 for (const contract of [
-  "const primaryArtUrl = artAssignment?.url || def.art || configuredFallbackArt || null",
+  "const primaryArtUrl = appearance.artUrl || artAssignment?.url || def.art || configuredFallbackArt || null",
   "cssBackgroundUrl(primaryArtUrl)",
   "cssBackgroundUrl(style.art)",
   "data-card-art-source={artSource}",
@@ -25,8 +25,8 @@ assert.ok(
   "primary art must be layered over regional fallback rather than replacing it",
 );
 assert.ok(
-  cardView.includes('artSource !== "editorial" && artSource !== "definition"'),
-  "cards without dedicated art must retain the visible fallback identity treatment",
+  cardView.includes('artSource !== "editorial" && artSource !== "definition" && artSource !== "cosmetic"'),
+  "cards without cosmetic, editorial or definition art must retain the visible fallback identity treatment",
 );
 
 // Semantic identity stays sourced from the authoritative semantic-card contract.

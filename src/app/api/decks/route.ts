@@ -7,6 +7,7 @@ import { ensureConfigLoaded } from "@/game/settings";
 import { requireStablePlayerIdentity } from "@/lib/player-session";
 import { validateFormatDeck } from "@/game/format-rules-server";
 import { ensureCustomCardsLoaded } from "@/game/catalog";
+import { validateOwnedDeckAppearanceAssets } from "@/lib/deck-appearance-service";
 
 export const dynamic = "force-dynamic";
 
@@ -64,10 +65,12 @@ export async function POST(req: Request) {
     if (!check.ok || !formatCheck.ok) {
       return Response.json({ ok: false, errors: [...check.errors, ...formatCheck.errors] }, { status: 400 });
     }
+    const appearanceCheck = await validateOwnedDeckAppearanceAssets(identity.playerId, cards, body.appearanceAssets);
+    if (!appearanceCheck.ok) return Response.json({ ok: false, error: appearanceCheck.error }, { status: 400 });
 
     const [row] = await db
       .insert(customDecks)
-      .values({ ownerName, ownerPlayerId: identity.playerId, name, emoji, formatId, cards: JSON.stringify(cards) })
+      .values({ ownerName, ownerPlayerId: identity.playerId, name, emoji, formatId, cards: JSON.stringify(cards), appearanceAssets: appearanceCheck.value })
       .returning();
 
     return Response.json({ ok: true, deck: { ...row, cards } });

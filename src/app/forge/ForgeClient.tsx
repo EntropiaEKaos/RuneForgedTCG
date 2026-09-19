@@ -8,6 +8,7 @@ import { REGION_STYLE } from "@/components/CardView";
 import SiteNav from "@/components/SiteNav";
 import { CARD_REGIONS } from "@/game/card-authoring";
 import { collectibleCards, getCard } from "@/game/cards";
+import { getCardCosmetic, getPlayerCardCosmeticAssets } from "@/game/card-cosmetics";
 import { analyzeDeck, type DeckInsight } from "@/game/deck-insights";
 import { validateDeck } from "@/game/decks";
 import type { FormatDef } from "@/game/format-definitions";
@@ -25,6 +26,7 @@ interface SavedDeck {
   emoji: string;
   cards: string[];
   formatId?: string;
+  appearanceAssets?: Record<string, number>;
 }
 
 type DeckApiPayload = {
@@ -58,7 +60,8 @@ function isSavedDeck(value: unknown): value is SavedDeck {
     && typeof deck.name === "string"
     && typeof deck.emoji === "string"
     && Array.isArray(deck.cards)
-    && deck.cards.every((card) => typeof card === "string");
+    && deck.cards.every((card) => typeof card === "string")
+    && (deck.appearanceAssets === undefined || (typeof deck.appearanceAssets === "object" && deck.appearanceAssets !== null && !Array.isArray(deck.appearanceAssets)));
 }
 
 function isFormatDef(value: unknown): value is FormatDef {
@@ -90,6 +93,7 @@ export default function ForgeClient() {
   const [formatId, setFormatId] = useState("vanilla");
   const [formats, setFormats] = useState<FormatDef[]>([FALLBACK_FORMAT]);
   const [focusCard, setFocusCard] = useState<string | null>(null);
+  const [appearanceAssets, setAppearanceAssets] = useState<Record<string, number>>({});
   const [loadingDecks, setLoadingDecks] = useState(true);
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -165,6 +169,10 @@ export default function ForgeClient() {
     void catalogRevision;
     return focusCard ? recommendSynergies(focusCard, 6).filter((item) => !counts.has(item.defId)) : [];
   }, [focusCard, counts, catalogRevision]);
+  const focusAssets = useMemo(() => {
+    void catalogRevision;
+    return focusCard ? getPlayerCardCosmeticAssets(focusCard).filter((asset) => asset.variantId !== "standard") : [];
+  }, [focusCard, catalogRevision]);
 
   const selectedFormat = formats.find((format) => format.id === formatId) ?? formats[0] ?? FALLBACK_FORMAT;
   const identity = check.regions.length > 0 ? identityForRegions(check.regions) : null;
@@ -207,6 +215,7 @@ export default function ForgeClient() {
     setMessage("");
     setFormatId(formats.some((format) => format.id === "vanilla") ? "vanilla" : (formats[0]?.id ?? "vanilla"));
     setFocusCard(null);
+    setAppearanceAssets({});
   };
 
   const loadDeck = (deck: SavedDeck) => {
@@ -215,6 +224,7 @@ export default function ForgeClient() {
     setEmoji(deck.emoji);
     setList(deck.cards);
     setFormatId(deck.formatId && formats.some((format) => format.id === deck.formatId) ? deck.formatId : (formats[0]?.id ?? "vanilla"));
+    setAppearanceAssets(deck.appearanceAssets || {});
     setMessage(`✏️ Editando ${deck.name}.`);
     setFocusCard(null);
   };
@@ -230,7 +240,7 @@ export default function ForgeClient() {
       const response = await fetch(editingId ? `/api/decks/${editingId}` : "/api/decks", {
         method: editingId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, emoji, formatId, cards: list }),
+        body: JSON.stringify({ name, emoji, formatId, cards: list, appearanceAssets }),
       });
       const payload = await response.json() as DeckApiPayload;
       if (!payload.ok || !isSavedDeck(payload.deck)) {
@@ -241,6 +251,7 @@ export default function ForgeClient() {
       setName(payload.deck.name);
       setEmoji(payload.deck.emoji);
       setFormatId(payload.deck.formatId || formatId);
+      setAppearanceAssets(payload.deck.appearanceAssets || appearanceAssets);
       await loadDecks(true);
       setMessage("✅ Deck salvo e pronto para jogar.");
     } catch {
@@ -442,7 +453,7 @@ export default function ForgeClient() {
                 {pool.map((card) => {
                   const amount = counts.get(card.defId) ?? 0;
                   const disabled = amount >= maxCopies || list.length >= deckMax;
-                  return <CardTip key={card.defId} defId={card.defId} size="md" count={amount || undefined} dimmed={disabled} onClick={() => { addCard(card.defId); setFocusCard(card.defId); }} />;
+                  return <CardTip key={card.defId} defId={card.defId} assetId={appearanceAssets[card.defId]} size="md" count={amount || undefined} dimmed={disabled} onClick={() => { addCard(card.defId); setFocusCard(card.defId); }} />;
                 })}
               </div>
             )}
@@ -455,6 +466,28 @@ export default function ForgeClient() {
             </div>
 
             <DeckInsightPanel insight={insight} />
+
+            {focusCard && counts.has(focusCard) && (
+              <section className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[.05] p-3" aria-label="Printing visual da carta selecionada">
+                <div className="flex items-start gap-3">
+                  <CardTip defId={focusCard} assetId={appearanceAssets[focusCard]} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <small className="font-black uppercase tracking-[.15em] text-amber-300">PRINTING DO DECK</small>
+                    <b className="mt-1 block truncate text-sm text-white">{getCard(focusCard).name}</b>
+                    <p className="mt-1 text-[10px] leading-4 text-slate-400">A escolha é só visual. Regras, custo e legalidade continuam presas ao mesmo <code>defId</code>.</p>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-1">
+                  <button type="button" onClick={() => setAppearanceAssets((current) => { const next = { ...current }; delete next[focusCard]; return next; })} className={!appearanceAssets[focusCard] ? "rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-2 py-2 text-left text-[10px] font-black text-emerald-100" : "rounded-lg border border-white/10 px-2 py-2 text-left text-[10px] text-slate-300 hover:bg-white/[.04]"}>STANDARD / PREFERÊNCIA GLOBAL</button>
+                  {focusAssets.map((asset) => {
+                    const cosmetic = getCardCosmetic(focusCard, asset.variantId);
+                    const selected = appearanceAssets[focusCard] === asset.assetId;
+                    return <button type="button" key={asset.assetId} onClick={() => setAppearanceAssets((current) => ({ ...current, [focusCard]: asset.assetId }))} className={selected ? "rounded-lg border border-amber-300/40 bg-amber-300/10 px-2 py-2 text-left text-[10px] font-black text-amber-100" : "rounded-lg border border-white/10 px-2 py-2 text-left text-[10px] text-slate-300 hover:bg-white/[.04]"}>{cosmetic?.name || asset.variantId}{asset.serialNumber ? ` · #${asset.serialNumber}` : ""} · {asset.finish}</button>;
+                  })}
+                  {focusAssets.length === 0 && <p className="text-[10px] leading-4 text-slate-500">Nenhuma printing especial possuída desta carta. Novas variantes entram pelo Ateliê, packs, eventos ou marketplace.</p>}
+                </div>
+              </section>
+            )}
 
             <ul className="mt-3 max-h-[360px] space-y-1 overflow-y-auto pr-1 text-xs">
               {[...counts.entries()].sort((a, b) => getCard(a[0]).cost - getCard(b[0]).cost || getCard(a[0]).name.localeCompare(getCard(b[0]).name)).map(([id, amount]) => {

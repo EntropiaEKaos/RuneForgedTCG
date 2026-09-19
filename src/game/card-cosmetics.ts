@@ -44,6 +44,11 @@ export interface PlayerCardCosmeticPreference {
   serialNumber?: number | null;
 }
 
+export interface PlayerCardCosmeticAsset extends PlayerCardCosmeticPreference {
+  source?: string;
+  acquiredAt?: string;
+}
+
 export interface ResolvedCardAppearance {
   defId: string;
   variantId: string;
@@ -69,6 +74,8 @@ export const CARD_COSMETIC_FORBIDDEN_KEYS = new Set([
 
 const variantsByCard: Record<string, Record<string, CardCosmeticVariant>> = {};
 const preferenceByCard: Record<string, PlayerCardCosmeticPreference> = {};
+const assetById: Record<number, PlayerCardCosmeticAsset> = {};
+const assetsByCard: Record<string, PlayerCardCosmeticAsset[]> = {};
 
 const COSMETIC_PRESTIGE: Record<CardCosmeticPrestigeId, CardCosmeticPrestige> = {
   forged: {
@@ -211,6 +218,22 @@ export function replacePlayerCardCosmeticPreferences(rows: PlayerCardCosmeticPre
   }
 }
 
+export function replacePlayerCardCosmeticAssets(rows: PlayerCardCosmeticAsset[]) {
+  for (const key of Object.keys(assetById)) delete assetById[Number(key)];
+  for (const key of Object.keys(assetsByCard)) delete assetsByCard[key];
+  for (const row of rows) {
+    if (!row?.defId || !row?.variantId || !Number.isInteger(row.assetId)) continue;
+    const value = { ...row };
+    assetById[value.assetId] = value;
+    (assetsByCard[value.defId] ||= []).push(value);
+  }
+  for (const rowsForCard of Object.values(assetsByCard)) rowsForCard.sort((a, b) => a.assetId - b.assetId);
+}
+
+export function getPlayerCardCosmeticAssets(defId: string): PlayerCardCosmeticAsset[] {
+  return [...(assetsByCard[defId] || [])];
+}
+
 export function getCardCosmetics(defId: string): CardCosmeticVariant[] {
   return Object.values(variantsByCard[defId] || {});
 }
@@ -223,25 +246,40 @@ export function getPreferredCardCosmetic(defId: string): PlayerCardCosmeticPrefe
   return preferenceByCard[defId];
 }
 
-export function resolveCardAppearance(defId: string, explicitVariantId?: string | null): ResolvedCardAppearance {
+export function resolveCardAppearance(defId: string, explicitVariantId?: string | null, explicitAssetId?: number | null): ResolvedCardAppearance {
   const preference = preferenceByCard[defId];
-  const variantId = explicitVariantId || preference?.variantId;
+  const explicitAsset = explicitAssetId != null ? assetById[explicitAssetId] : undefined;
+  const selectedAsset = explicitAsset?.defId === defId ? explicitAsset : undefined;
+  const variantId = explicitVariantId || selectedAsset?.variantId || preference?.variantId;
   const variant = variantId ? getCardCosmetic(defId, variantId) : undefined;
-  if (!variant) return { defId, variantId: "standard", name: "Standard", kind: "standard", frameId: "default", finish: "normal" };
+  if (!variant) return {
+    defId,
+    variantId: "standard",
+    name: "Standard",
+    kind: "standard",
+    frameId: selectedAsset?.frameId || "default",
+    finish: selectedAsset?.finish || "normal",
+    ...(selectedAsset ? { assetId: selectedAsset.assetId } : {}),
+  };
+  const serialSource = selectedAsset?.variantId === variant.variantId
+    ? selectedAsset
+    : preference?.variantId === variant.variantId
+      ? preference
+      : undefined;
   return {
     defId,
     variantId: variant.variantId,
     name: variant.name,
     kind: variant.kind,
-    frameId: variant.frameId,
-    finish: variant.finish,
+    frameId: selectedAsset?.frameId || variant.frameId,
+    finish: selectedAsset?.finish || variant.finish,
     artUrl: variant.artUrl,
     animationUrl: variant.animationUrl,
     artCrop: variant.artCrop,
     edition: variant.edition,
     serialLimit: variant.serialLimit,
-    serialNumber: preference?.variantId === variant.variantId ? preference.serialNumber : null,
-    assetId: preference?.variantId === variant.variantId ? preference.assetId : null,
+    serialNumber: serialSource?.serialNumber ?? null,
+    assetId: serialSource?.assetId ?? null,
   };
 }
 

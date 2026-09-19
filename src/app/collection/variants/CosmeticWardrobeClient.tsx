@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import SiteNav from "@/components/SiteNav";
 import {
   cosmeticDropChancePercent,
+  replacePlayerCardCosmeticAssets,
   replacePlayerCardCosmeticPreferences,
   resolveCardCosmeticPrestige,
 } from "@/game/card-cosmetics";
@@ -62,6 +63,9 @@ export default function CosmeticWardrobeClient() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
+  const [rarityFilter, setRarityFilter] = useState("all");
+  const [finishFilter, setFinishFilter] = useState("all");
+  const [frameFilter, setFrameFilter] = useState("all");
 
   const load = useCallback(async () => {
     const response = await fetch("/api/player/cosmetics", { cache: "no-store" });
@@ -80,6 +84,7 @@ export default function CosmeticWardrobeClient() {
     setAuthenticated(true);
     setAssets(nextAssets);
     setPreferences(nextPreferences);
+    replacePlayerCardCosmeticAssets(nextAssets);
     replacePlayerCardCosmeticPreferences(nextPreferences);
     trackClientEvent("collection.variants_viewed", {
       authenticated: true,
@@ -99,8 +104,16 @@ export default function CosmeticWardrobeClient() {
   const special = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return assets.filter((asset) => asset.variantId !== "standard" && asset.cosmetic)
-      .filter((asset) => !needle || `${asset.cardName} ${asset.cosmetic?.name || ""} ${asset.variantId} ${asset.finish} ${asset.cosmetic?.edition || ""}`.toLowerCase().includes(needle));
-  }, [assets, query]);
+      .filter((asset) => !needle || `${asset.cardName} ${asset.cosmetic?.name || ""} ${asset.variantId} ${asset.finish} ${asset.frameId} ${asset.cosmetic?.edition || ""}`.toLowerCase().includes(needle))
+      .filter((asset) => rarityFilter === "all" || asset.cardRarity === rarityFilter)
+      .filter((asset) => finishFilter === "all" || asset.finish === finishFilter)
+      .filter((asset) => frameFilter === "all" || asset.frameId === frameFilter);
+  }, [assets, query, rarityFilter, finishFilter, frameFilter]);
+  const filterOptions = useMemo(() => ({
+    rarities: [...new Set(assets.filter((asset) => asset.variantId !== "standard").map((asset) => asset.cardRarity))].sort(),
+    finishes: [...new Set(assets.filter((asset) => asset.variantId !== "standard").map((asset) => asset.finish))].sort(),
+    frames: [...new Set(assets.filter((asset) => asset.variantId !== "standard").map((asset) => asset.frameId))].sort(),
+  }), [assets]);
   const prefByDef = useMemo(() => new Map(preferences.map((item) => [item.defId, item])), [preferences]);
   const uniqueCards = useMemo(() => new Set(special.map((asset) => asset.defId)).size, [special]);
   const relics = useMemo(() => special.filter((asset) => resolveCardCosmeticPrestige(asset.cosmetic).id === "relic").length, [special]);
@@ -162,7 +175,14 @@ export default function CosmeticWardrobeClient() {
         <div className="cosmetic-authority-note mb-5 rounded-2xl border border-emerald-400/15 bg-emerald-400/[.05] p-4 text-sm text-slate-300"><b className="text-emerald-300">100% cosmético.</b> O prestígio visual é derivado da chance real de drop da variante e nunca altera raridade de gameplay, stats, efeitos, limite de cópias, matchmaking ou regras competitivas.</div>
         {message && <div className="mb-5 rounded-xl border border-amber-300/20 bg-amber-300/[.07] p-3 text-sm text-amber-100" role="status">{message}</div>}
 
-        <div className="cosmetic-wardrobe-search mb-5 rounded-2xl border border-white/10 bg-slate-950/45 p-4"><input className="input w-full" placeholder="Buscar carta, variante, finish ou edição…" value={query} onChange={(event) => setQuery(event.target.value)} /></div>
+        <div className="cosmetic-wardrobe-search mb-5 rounded-2xl border border-white/10 bg-slate-950/45 p-4">
+          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_160px_160px_180px]">
+            <input className="input w-full" placeholder="Buscar carta, variante, frame, finish ou edição…" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <select className="input" aria-label="Filtrar por raridade" value={rarityFilter} onChange={(event) => setRarityFilter(event.target.value)}><option value="all">Todas raridades</option>{filterOptions.rarities.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+            <select className="input" aria-label="Filtrar por acabamento" value={finishFilter} onChange={(event) => setFinishFilter(event.target.value)}><option value="all">Todos finishes</option>{filterOptions.finishes.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+            <select className="input" aria-label="Filtrar por frame" value={frameFilter} onChange={(event) => setFrameFilter(event.target.value)}><option value="all">Todos frames</option>{filterOptions.frames.map((value) => <option key={value} value={value}>{value}</option>)}</select>
+          </div>
+        </div>
 
         {loading ? <Empty title="Sincronizando Ateliê" text="Carregando suas cópias colecionáveis individuais." /> : authenticated === false ? <SessionRequired /> : special.length === 0 ? <Empty title="Nenhuma variante especial encontrada" text="Quando uma cópia Full Art, Foil, Premium, Animated ou Serialized entrar no seu inventário ela aparecerá aqui. Suas cartas Standard continuam intactas." /> : (
           <section className="cosmetic-wardrobe-grid grid gap-5 md:grid-cols-2 xl:grid-cols-3" aria-label="Variantes cosméticas possuídas">

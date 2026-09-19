@@ -170,6 +170,12 @@ export default function GameClient() {
     recordAction, setAiToast, pvpRoomCode, matchToken, actionLogRef, modeAttemptTokenRef, seedRef, savedRef, setMatchReward,
   });
 
+  const selectedAppearanceAssets = useMemo(() => {
+    if (!deckKey.startsWith("custom:")) return {} as Record<string, number>;
+    const id = Number(deckKey.slice(7));
+    return customDecks.find((deck) => deck.id === id)?.appearanceAssets || {};
+  }, [deckKey, customDecks]);
+
   const isPlayerMain = !!state && state.phase === "main" && state.activePlayer === "player";
   const isPlayerBlocking =
     !!state && state.phase === "blocking" && state.combat?.attackerId === "ai";
@@ -484,7 +490,7 @@ export default function GameClient() {
   }
 
   if (!state.mulliganDone.player) {
-    return <MulliganView state={state} selection={mulliganSelection} onToggle={(instanceId) => setMulliganSelection((previous) => previous.includes(instanceId) ? previous.filter((id) => id !== instanceId) : [...previous, instanceId])} onConfirm={() => {
+    return <MulliganView state={state} appearanceAssets={selectedAppearanceAssets} selection={mulliganSelection} onToggle={(instanceId) => setMulliganSelection((previous) => previous.includes(instanceId) ? previous.filter((id) => id !== instanceId) : [...previous, instanceId])} onConfirm={() => {
       void import("@/lib/sounds").then(({ sfx }) => sfx.mulligan()).catch(() => {});
       const action: GameAction = mulliganSelection.length > 0 ? { type: "mulligan", player: "player", cardIds: mulliganSelection } : { type: "skipMulligan", player: "player" };
       if (isPvp) void sendPvpAction(action);
@@ -501,7 +507,7 @@ export default function GameClient() {
   return (
     <>
       <BattleView
-        state={state} presetDecks={presetDecks} activeEncounter={activeEncounter} matchReward={matchReward}
+        state={state} presetDecks={presetDecks} appearanceAssets={selectedAppearanceAssets} activeEncounter={activeEncounter} matchReward={matchReward}
         reaction={reaction} pendingSpell={pendingSpell} pendingReaction={pendingReaction} pendingSentinelaAbility={pendingSentinelaAbility}
         selectedAttackers={selectedAttackers} selectedChallengers={selectedChallengers} selectedBlocker={selectedBlocker}
         challenges={challenges} blockAssignments={blockAssignments} isPlayerMain={isPlayerMain} isPlayerBlocking={isPlayerBlocking}

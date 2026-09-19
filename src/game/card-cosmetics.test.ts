@@ -3,6 +3,7 @@ import {
   cosmeticClassNames,
   cosmeticDropChancePercent,
   normalizeCardCosmeticInput,
+  replacePlayerCardCosmeticAssets,
   replacePlayerCardCosmeticPreferences,
   replaceRegisteredCardCosmetics,
   resolveCardAppearance,
@@ -53,6 +54,7 @@ function main() {
 
   replaceRegisteredCardCosmetics([]);
   replacePlayerCardCosmeticPreferences([]);
+  replacePlayerCardCosmeticAssets([]);
   assert.deepEqual(resolveCardAppearance("van_tide_u15"), {
     defId: "van_tide_u15",
     variantId: "standard",
@@ -65,6 +67,10 @@ function main() {
   const variant = normalizeCardCosmeticInput(valid({ kind: "serialized", finish: "holo", edition: "First Edition", serialLimit: 500, packEligible: false, dropWeight: 0 })).value!;
   replaceRegisteredCardCosmetics([{ ...variant, id: 7, status: "published", enabled: true }]);
   replacePlayerCardCosmeticPreferences([{ defId: variant.defId, assetId: 41, variantId: variant.variantId, frameId: variant.frameId, finish: variant.finish, serialNumber: 17 }]);
+  replacePlayerCardCosmeticAssets([
+    { defId: variant.defId, assetId: 41, variantId: variant.variantId, frameId: variant.frameId, finish: variant.finish, serialNumber: 17 },
+    { defId: variant.defId, assetId: 42, variantId: variant.variantId, frameId: "first_forge_alt", finish: "etched", serialNumber: 18 },
+  ]);
   const resolved = resolveCardAppearance(variant.defId);
   assert.equal(resolved.variantId, variant.variantId);
   assert.equal(resolved.kind, "serialized");
@@ -72,6 +78,11 @@ function main() {
   assert.equal(resolved.serialLimit, 500);
   assert.equal(resolved.assetId, 41, "equipped appearance must preserve exact collectible copy identity");
   assert.equal(resolved.artUrl, "/uploads/tide-first-forge.webp");
+  const explicitAsset = resolveCardAppearance(variant.defId, null, 42);
+  assert.equal(explicitAsset.assetId, 42, "explicit deck/runtime asset must override the account-wide equipped copy");
+  assert.equal(explicitAsset.serialNumber, 18);
+  assert.equal(explicitAsset.frameId, "first_forge_alt");
+  assert.equal(explicitAsset.finish, "etched");
   assert.ok(cosmeticClassNames(resolved).includes("card-prestige-exclusive"), "shared CardView class contract must surface cosmetic prestige without changing CardInstance");
 
   replaceRegisteredCardCosmetics([]);

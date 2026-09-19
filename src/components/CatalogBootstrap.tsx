@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { replaceRegisteredCustomCards } from "@/game/custom-registry";
 import { replaceRegisteredCardCollections } from "@/game/card-collections";
 import { replaceRegisteredCardArt } from "@/game/card-art";
-import { replacePlayerCardCosmeticPreferences, replaceRegisteredCardCosmetics } from "@/game/card-cosmetics";
+import { replacePlayerCardCosmeticAssets, replacePlayerCardCosmeticPreferences, replaceRegisteredCardCosmetics } from "@/game/card-cosmetics";
 import { cardFramePresetCss, replaceRegisteredCardFramePresets } from "@/game/card-frame-presets";
 import { hydrateClientRuntimeConfig } from "@/game/client-game-config";
 import { useDeferredEffect } from "@/hooks/useDeferredEffect";
@@ -60,9 +60,11 @@ export default function CatalogBootstrap({ children }: { children: React.ReactNo
       if (!response.ok) return;
       const data = await response.json();
       if (!data.ok || !Array.isArray(data.preferences)) return;
-      const revision = JSON.stringify(data.preferences);
+      const wardrobe = Array.isArray(data.wardrobe) ? data.wardrobe : [];
+      const revision = JSON.stringify([data.preferences, wardrobe]);
       if (revision === lastPlayerCosmeticRevision.current) return;
       replacePlayerCardCosmeticPreferences(data.preferences);
+      replacePlayerCardCosmeticAssets(wardrobe);
       lastPlayerCosmeticRevision.current = revision;
       setCatalogRevision((current) => current + 1);
     } catch {}
