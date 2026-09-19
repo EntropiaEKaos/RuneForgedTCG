@@ -7,7 +7,7 @@ type Props = { scenario: BattlefieldLabScenario };
 
 export default function PhaserBattlefieldMount({ scenario }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
-  const gameRef = useRef<{ destroy: (removeCanvas?: boolean) => void } | null>(null);
+  const gameRef = useRef<{ destroy: (removeCanvas: boolean, noReturn?: boolean) => void } | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
 
   useEffect(() => {
