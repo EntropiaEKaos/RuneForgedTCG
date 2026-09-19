@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { putFourPlayerBattlefieldObject } from "./four-player-battlefield";
 import { resolveFourPlayerEffect } from "./four-player-effect-resolution";
-import { createFourPlayerMatchState, FOUR_PLAYER_STARTING_LIFE } from "./four-player-match";
+import { createFourPlayerMatchState, FOUR_PLAYER_POISON_LETHAL, FOUR_PLAYER_STARTING_LIFE } from "./four-player-match";
 import { assertFourPlayerTargetObject, parseFourPlayerTargetRef } from "./four-player-targeting";
 
 function body(power:number, health:number) {
@@ -88,6 +88,65 @@ assert.equal(nexusHit.match.seats.p4.life,FOUR_PLAYER_STARTING_LIFE-3);
 assert.throws(
   ()=>resolveFourPlayerEffect(match,"p1",{kind:"damageNexus",amount:3,target:"none"},{kind:"player",seat:"p1"}),
   /must target an opponent/,
+);
+
+const buffed = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"buffUnit",amount:0,target:"allyUnit",buffPower:2,buffHealth:3},
+  {kind:"battlefield",objectId:"ally-unit"},
+);
+const buffedBody = buffed.match.battlefield?.objects.find((object)=>object.id==="ally-unit")?.combat;
+assert.equal(buffedBody?.power,4);
+assert.equal(buffedBody?.health,5);
+assert.equal(buffedBody?.maxHealth,5);
+
+const barriered = resolveFourPlayerEffect(
+  buffed.match,
+  "p1",
+  {kind:"grantBarrier",amount:0,target:"allyUnit"},
+  {kind:"battlefield",objectId:"ally-unit"},
+);
+const barrierObject = barriered.match.battlefield?.objects.find((object)=>object.id==="ally-unit");
+assert.equal(barrierObject?.combat?.barrier,true);
+assert.equal(barrierObject?.keywords.includes("Barrier"),true);
+
+const keyworded = resolveFourPlayerEffect(
+  barriered.match,
+  "p1",
+  {kind:"grantKeyword",amount:0,target:"allyUnit",keyword:"Flying"},
+  {kind:"battlefield",objectId:"ally-unit"},
+);
+const keywordObject = keyworded.match.battlefield?.objects.find((object)=>object.id==="ally-unit");
+assert.equal(keywordObject?.keywords.filter((keyword)=>keyword==="Flying").length,1);
+
+const aoeBase = {
+  ...match,
+  battlefield: putFourPlayerBattlefieldObject(match.battlefield!,{
+    id:"enemy-p4",defId:"enemy-p4",kind:"unit",ownerSeat:"p4",controllerSeat:"p4",enteredTurn:0,combat:body(1,2),
+  }),
+};
+const aoe = resolveFourPlayerEffect(aoeBase,"p1",{kind:"aoeEnemy",amount:2,target:"none"});
+assert.equal(aoe.match.battlefield?.objects.some((object)=>object.id==="enemy-p4"),false);
+assert.equal(aoe.match.battlefield?.objects.find((object)=>object.id==="enemy-unit")?.combat?.health,2);
+assert.equal(aoe.match.battlefield?.objects.find((object)=>object.id==="ally-unit")?.combat?.health,2);
+assert.equal(aoe.match.battlefield?.objects.find((object)=>object.id==="hexproof-unit")?.combat?.health,1,"AoE is non-targeted and bypasses Hexproof");
+
+const poisonBase = {
+  ...match,
+  seats:{...match.seats,p2:{...match.seats.p2,poisonCounters:FOUR_PLAYER_POISON_LETHAL-1}},
+};
+const poisoned = resolveFourPlayerEffect(
+  poisonBase,
+  "p1",
+  {kind:"poison",amount:1,target:"none"},
+  {kind:"player",seat:"p2"},
+);
+assert.equal(poisoned.match.seats.p2.poisonCounters,FOUR_PLAYER_POISON_LETHAL);
+assert.equal(poisoned.match.seats.p2.eliminated,true);
+assert.throws(
+  ()=>resolveFourPlayerEffect(match,"p1",{kind:"poison",amount:1,target:"none"}),
+  /explicit opponent target/,
 );
 
 console.log("FOUR PLAYER TARGETING + EFFECT AUTHORITY: PASS — player/unit targets, Hexproof, damage, chained Nexus, heal, stun, frostbite and kill");

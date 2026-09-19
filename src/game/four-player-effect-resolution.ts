@@ -9,8 +9,10 @@ import type { FourPlayerCombatDestroyedObject } from "./four-player-combat-resol
 import type { FourPlayerSeat } from "./four-player-general";
 import { moveGeneralFromBattlefield } from "./four-player-general-zone";
 import {
+  FOUR_PLAYER_POISON_LETHAL,
   FOUR_PLAYER_STARTING_LIFE,
   applyFourPlayerDamage,
+  eliminateFourPlayerMatchSeat,
   type FourPlayerMatchState,
   updateMatchGeneral,
 } from "./four-player-match";
@@ -26,6 +28,11 @@ export const FOUR_PLAYER_SUPPORTED_EFFECT_KINDS = [
   "damageNexus",
   "healUnit",
   "healNexus",
+  "buffUnit",
+  "aoeEnemy",
+  "grantBarrier",
+  "grantKeyword",
+  "poison",
   "frostbite",
   "stun",
   "killUnit",
@@ -80,6 +87,35 @@ function replaceObject(
   return { objects: state.objects.map((object) => object.id === current.id ? update(object) : object) };
 }
 
+function matchesEffectRace(object: FourPlayerBattlefieldObject, effect: CardEffect): boolean {
+  const races = effect.races ?? (effect.race ? [effect.race] : undefined);
+  if (!races?.length) return true;
+  return Boolean(object.combat?.races.some((race) => races.includes(race)));
+}
+
+function addKeyword(object: FourPlayerBattlefieldObject, keyword: NonNullable<CardEffect["keyword"]>): FourPlayerBattlefieldObject {
+  const keywords = object.keywords.includes(keyword) ? object.keywords : [...object.keywords, keyword];
+  return {
+    ...object,
+    keywords,
+    ...(keyword === "Barrier" && object.combat ? { combat: { ...object.combat, barrier: true } } : {}),
+  };
+}
+
+function applyPoison(match: FourPlayerMatchState, seat: FourPlayerSeat, amount: number): FourPlayerMatchState {
+  if (match.seats[seat].eliminated) throw new Error(`Eliminated seat ${seat} cannot receive poison.`);
+  const poisonCounters = match.seats[seat].poisonCounters + Math.max(1, amount);
+  let next: FourPlayerMatchState = {
+    ...match,
+    seats: {
+      ...match.seats,
+      [seat]: { ...match.seats[seat], poisonCounters },
+    },
+  };
+  if (poisonCounters >= FOUR_PLAYER_POISON_LETHAL) next = eliminateFourPlayerMatchSeat(next, seat);
+  return next;
+}
+
 function resolveSingle(
   match: FourPlayerMatchState,
   actor: FourPlayerSeat,
@@ -117,6 +153,38 @@ function resolveSingle(
     };
   }
 
+  if (effect.kind === "poison") {
+    const seat = target?.kind === "player"
+      ? assertFourPlayerTargetPlayer(match, actor, target, "opponent")
+      : fallbackOpponent;
+    if (!seat) throw new Error("4P poison requires an explicit opponent target.");
+    return { result: { match: applyPoison(match, seat, effect.amount), destroyed: [] }, fallbackOpponent: seat };
+  }
+
+  if (effect.kind === "aoeEnemy") {
+    let battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
+    const targetIds = battlefield.objects
+      .filter((object) => object.controllerSeat !== actor && !match.seats[object.controllerSeat].eliminated && object.combat && object.combat.health > 0)
+      .map((object) => object.id);
+    for (const objectId of targetIds) {
+      battlefield = applyFourPlayerBattlefieldDamage(battlefield, objectId, effect.amount).state;
+    }
+    const cleaned = cleanupDestroyed({ ...match, battlefield });
+    return { result: cleaned, fallbackOpponent };
+  }
+
+  if ((effect.kind === "grantBarrier" || effect.kind === "grantKeyword") && effect.target === "none") {
+    if (effect.kind === "grantKeyword" && !effect.keyword) throw new Error("4P grantKeyword requires an authoritative keyword.");
+    const battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
+    const objects = battlefield.objects.map((object) => {
+      if (object.controllerSeat !== actor || !object.combat || object.combat.health <= 0 || !matchesEffectRace(object, effect)) return object;
+      return effect.kind === "grantBarrier"
+        ? addKeyword(object, "Barrier")
+        : addKeyword(object, effect.keyword!);
+    });
+    return { result: { match: { ...match, battlefield: { objects } }, destroyed: [] }, fallbackOpponent };
+  }
+
   const object = assertFourPlayerTargetObject(match, actor, target, effect.target);
   const inferredOpponent = object.controllerSeat !== actor ? object.controllerSeat : fallbackOpponent;
   let battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
@@ -132,6 +200,40 @@ function resolveSingle(
         ...current,
         combat: current.combat ? { ...current.combat, health: Math.min(current.combat.maxHealth, current.combat.health + effect.amount) } : current.combat,
       }));
+      break;
+    }
+    case "buffUnit": {
+      if (!object.combat) throw new Error(`Target ${object.id} has no combat body.`);
+      const powerDelta = effect.buffPower ?? 0;
+      const healthDelta = effect.buffHealth ?? 0;
+      if (!Number.isFinite(powerDelta) || !Number.isFinite(healthDelta)) throw new Error("4P buffUnit requires finite stat deltas.");
+      battlefield = replaceObject(battlefield, object.id, (current) => {
+        if (!current.combat) return current;
+        const maxHealth = Math.max(0, current.combat.maxHealth + healthDelta);
+        const health = healthDelta >= 0
+          ? Math.min(maxHealth, current.combat.health + healthDelta)
+          : Math.min(current.combat.health, maxHealth);
+        return {
+          ...current,
+          combat: {
+            ...current.combat,
+            power: Math.max(0, current.combat.power + powerDelta),
+            maxHealth,
+            health,
+          },
+        };
+      });
+      break;
+    }
+    case "grantBarrier": {
+      if (!object.combat) throw new Error(`Target ${object.id} has no combat body.`);
+      battlefield = replaceObject(battlefield, object.id, (current) => addKeyword(current, "Barrier"));
+      break;
+    }
+    case "grantKeyword": {
+      if (!effect.keyword) throw new Error("4P grantKeyword requires an authoritative keyword.");
+      if (!object.combat) throw new Error(`Target ${object.id} has no combat body.`);
+      battlefield = replaceObject(battlefield, object.id, (current) => addKeyword(current, effect.keyword!));
       break;
     }
     case "frostbite": {

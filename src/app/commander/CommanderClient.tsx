@@ -30,7 +30,7 @@ type Room = { code:string; state:string; activeSeat:number; round:number; versio
 type LobbySummary = { code:string; state:string; seatCount:number; viewerJoined:boolean };
 
 const COUNT = 60;
-const SUPPORTED_4P_SPELL_EFFECTS = new Set(["damageUnit","damageNexus","healUnit","healNexus","frostbite","stun","killUnit"]);
+const SUPPORTED_4P_SPELL_EFFECTS = new Set(["damageUnit","damageNexus","healUnit","healNexus","buffUnit","aoeEnemy","grantBarrier","grantKeyword","poison","frostbite","stun","killUnit"]);
 function countOf(cards:string[], defId:string){ return cards.filter((id)=>id===defId).length; }
 function spellChainSupported(effect:SpellEffect|undefined){
   let current=effect;
@@ -160,7 +160,7 @@ export default function CommanderClient(){
       return;
     }
     if(!definition.spell||!spellChainSupported(definition.spell))return;
-    if(["enemyUnit","allyUnit","anyUnit"].includes(definition.spell.target)||definition.spell.kind==="damageNexus"){
+    if(["enemyUnit","allyUnit","anyUnit"].includes(definition.spell.target)||definition.spell.kind==="damageNexus"||definition.spell.kind==="poison"){
       setPendingSpellInstanceId(card.instanceId);
       return;
     }
@@ -231,7 +231,7 @@ export default function CommanderClient(){
                   const spell=definition?.type==="Spell"&&spellChainSupported(definition.spell);
                   const stageable=physical||spell;
                   const affordable=(definition?.cost??0)<=(viewerRuntime.mana??0);
-                  const needsTarget=Boolean(spell&&definition?.spell&&(["enemyUnit","allyUnit","anyUnit"].includes(definition.spell.target)||definition.spell.kind==="damageNexus"));
+                  const needsTarget=Boolean(spell&&definition?.spell&&(["enemyUnit","allyUnit","anyUnit"].includes(definition.spell.target)||definition.spell.kind==="damageNexus"||definition.spell.kind==="poison"));
                   return <button key={card.instanceId} className="border border-white/10 p-3 text-left text-xs disabled:cursor-not-allowed disabled:opacity-35" disabled={busy||!canPlayPhysicalCard||!stageable||!affordable} onClick={()=>void playHandCard(card,definition)}>
                     <b className="block text-slate-100">{definition?.name||card.defId}</b>
                     <span className="mt-1 block text-slate-500">{definition?.type||"carta"} · custo {definition?.cost??"?"}{definition?.speed?` · ${definition.speed}`:""}</span>
@@ -244,7 +244,7 @@ export default function CommanderClient(){
                   <div><b className="text-xs uppercase tracking-[.16em] text-amber-100">Alvo da Spell</b><p className="mt-1 text-xs text-slate-400">{pendingSpellDef.name}</p></div>
                   <button className="text-xs text-slate-500 underline" onClick={()=>setPendingSpellInstanceId(null)}>Cancelar</button>
                 </div>
-                {pendingSpellDef.spell?.kind==="damageNexus"?<div className="mt-3 flex flex-wrap gap-2">
+                {(pendingSpellDef.spell?.kind==="damageNexus"||pendingSpellDef.spell?.kind==="poison")?<div className="mt-3 flex flex-wrap gap-2">
                   {livingOpponents.map(target=><button key={target.seat} className="btn-ghost" disabled={busy} onClick={()=>void playPendingSpell({kind:"player",seat:`p${target.seat+1}`})}>Nexus P{target.seat+1}</button>)}
                 </div>:<div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {pendingUnitTargets.map(target=><button key={target.id} className="btn-ghost text-left" disabled={busy} onClick={()=>void playPendingSpell({kind:"battlefield",objectId:target.id})}>
