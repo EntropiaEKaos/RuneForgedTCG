@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { StudioBreadcrumb, StudioCommandPalette } from "../StudioChrome";
 import { buildBattlefieldLabScenario, type BattlefieldLabMode } from "@/game/presentation/battlefield-lab-scenario";
+import PhaserBattlefieldMount from "@/game/presentation/phaser/PhaserBattlefieldMount";
 
 export default function BattlefieldLabClient() {
   const [mode, setMode] = useState<BattlefieldLabMode>("commander-4p");
@@ -25,7 +26,7 @@ export default function BattlefieldLabClient() {
           <div className="mt-4 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-emerald-200">read-only snapshots</span>
             <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-slate-300">deterministic seed: {scenario.seed}</span>
-            <span className="rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1 text-amber-200">Phaser mount: próximo slice</span>
+            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-emerald-200">Phaser mount: isolated</span>
           </div>
         </header>
 
@@ -51,20 +52,8 @@ export default function BattlefieldLabClient() {
               <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-fuchsia-300">Presentation Contract</p><h2 className="mt-1 text-xl font-black text-white">Spatial snapshot</h2></div>
               <span className="font-mono text-xs text-slate-500">{scenario.mode}</span>
             </div>
-            <div className="mt-5 grid min-h-[520px] gap-3 rounded-[2rem] border border-white/10 bg-black/30 p-4 sm:grid-cols-2">
-              {scenario.players.map((player) => (
-                <article key={player.id} className="rounded-3xl border border-white/10 bg-white/[0.035] p-4">
-                  <div className="flex justify-between gap-3"><b className="text-white">{player.label}</b><span className="text-xs text-slate-400">{player.life} life</span></div>
-                  <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-6">
-                    {scenario.entities.filter((entity) => entity.controllerId === player.id).map((entity) => (
-                      <div key={entity.id} title={entity.id} className="aspect-[3/4] rounded-lg border border-cyan-200/15 bg-gradient-to-b from-cyan-300/10 to-fuchsia-300/5 p-1">
-                        <span className="block truncate text-[8px] font-bold text-slate-400">{entity.kind}</span>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              ))}
-            </div>
+            <div className="mt-5"><PhaserBattlefieldMount scenario={scenario} /></div>
+          
           </section>
         </div>
       </div>
