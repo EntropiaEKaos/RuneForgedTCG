@@ -139,9 +139,10 @@ export function isCommanderCombatEnvelope(value: unknown): value is CommanderCom
 }
 
 function privateStates(envelope: CommanderCombatEnvelope): Record<FourPlayerSeat, FourPlayerPrivateSeatState> {
-  return Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
+  const states = {} as Record<FourPlayerSeat, FourPlayerPrivateSeatState>;
+  for (const seat of FOUR_PLAYER_SEATS) {
     const general = envelope.match.generals[seat];
-    return [seat, {
+    states[seat] = {
       seat,
       hand: [...envelope.zones[seat].hand],
       deck: [...envelope.zones[seat].deck],
@@ -149,8 +150,9 @@ function privateStates(envelope: CommanderCombatEnvelope): Record<FourPlayerSeat
       publicBoard: general.location === "battlefield" ? [general.defId] : [],
       nexusHealth: envelope.match.seats[seat].life,
       eliminated: envelope.match.seats[seat].eliminated,
-    }];
-  })) as Record<FourPlayerSeat, FourPlayerPrivateSeatState>;
+    };
+  }
+  return states;
 }
 
 export function projectCommanderCombatState(
@@ -172,8 +174,8 @@ export function projectCommanderCombatState(
     status: envelope.match.status,
     winnerSeat: envelope.match.winner ? commanderSeatIndex(envelope.match.winner) : null,
     seats: FOUR_PLAYER_SEATS.map((seat) => ({
-      seat: commanderSeatIndex(seat),
       ...projection.seats[seat],
+      seat: commanderSeatIndex(seat),
       general: {
         defId: envelope.match.generals[seat].defId,
         zone: envelope.match.generals[seat].location,
