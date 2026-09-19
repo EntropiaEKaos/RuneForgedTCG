@@ -1,15 +1,20 @@
 import assert from "node:assert/strict";
 import { putFourPlayerBattlefieldObject } from "./four-player-battlefield";
+import type { FourPlayerCardInstance } from "./four-player-card-zones";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import { applyFourPlayerDamage, createFourPlayerMatchState } from "./four-player-match";
 import { projectFourPlayerStateForSeat, type FourPlayerPrivateSeatState } from "./four-player-projection";
 
+function card(seat: FourPlayerSeat, zone: string, index: number): FourPlayerCardInstance {
+  return { instanceId: `${seat}:${zone}:${index}`, defId: `${seat}-${zone}-${index}`, ownerSeat: seat };
+}
+
 const states = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivateSeatState>>((result, seat, index) => {
   result[seat] = {
     seat,
-    hand: [`${seat}-hand-a`, `${seat}-hand-b`],
-    deck: [`${seat}-deck-secret`],
-    graveyard: [`${seat}-grave-public`],
+    hand: [card(seat, "hand", 1), card(seat, "hand", 2)],
+    deck: [card(seat, "deck-secret", 1)],
+    graveyard: [card(seat, "grave-public", 1)],
     publicBoard: [`${seat}-board-public`],
     nexusHealth: 30 - index,
     eliminated: false,
@@ -34,7 +39,10 @@ const match = { ...authoritativeMatch, phase: "combat" as const };
 
 for (const viewer of FOUR_PLAYER_SEATS) {
   const projection = projectFourPlayerStateForSeat(states, viewer, match);
-  assert.deepEqual(projection.seats[viewer].hand, states[viewer].hand);
+  assert.deepEqual(
+    projection.seats[viewer].hand,
+    states[viewer].hand.map((entry) => ({ instanceId: entry.instanceId, defId: entry.defId })),
+  );
   assert.deepEqual(projection.match, {
     activeSeat: "p3",
     round: 1,
@@ -45,7 +53,7 @@ for (const viewer of FOUR_PLAYER_SEATS) {
   const serialized = JSON.stringify(projection);
 
   for (const seat of FOUR_PLAYER_SEATS) {
-    assert.equal(serialized.includes(`${seat}-deck-secret`), false, `${viewer} must never receive ${seat} future deck identity`);
+    assert.equal(serialized.includes(`${seat}-deck-secret-1`), false, `${viewer} must never receive ${seat} future deck identity`);
     assert.equal(projection.seats[seat].deckCount, 1);
     assert.equal(projection.seats[seat].life, match.seats[seat].life);
     assert.equal(projection.seats[seat].nexusHealth, match.seats[seat].life);
@@ -58,9 +66,12 @@ for (const viewer of FOUR_PLAYER_SEATS) {
   for (const opponent of FOUR_PLAYER_SEATS.filter((seat) => seat !== viewer)) {
     const projected = projection.seats[opponent];
     assert.equal(projected.hand, undefined, `${viewer} must not receive ${opponent} hand identities`);
-    assert.equal(serialized.includes(`${opponent}-hand-a`), false);
+    assert.equal(serialized.includes(`${opponent}-hand-1`), false);
     assert.equal(projected.handCount, 2);
-    assert.deepEqual(projected.graveyard, states[opponent].graveyard);
+    assert.deepEqual(
+      projected.graveyard,
+      states[opponent].graveyard.map((entry) => ({ instanceId: entry.instanceId, defId: entry.defId })),
+    );
     assert.deepEqual(projected.publicBoard, states[opponent].publicBoard);
   }
 }

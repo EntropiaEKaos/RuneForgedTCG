@@ -7,9 +7,10 @@ type CollectionCard = {
   isChampion?:boolean; isLegend?:boolean; collectible?:boolean;
 };
 type Seat = { seat:number; playerId:number; playerName:string; generalDefId:string; ready:boolean; isHost:boolean; cardCount:number };
+type ProjectedCard = { instanceId:string; defId:string };
 type CombatSeat = {
-  seat:number; handCount:number; deckCount:number; graveyard:string[]; publicBoard:string[];
-  nexusHealth:number; eliminated:boolean; life?:number; mana?:number; maxMana?:number; hand?:string[];
+  seat:number; handCount:number; deckCount:number; graveyard:ProjectedCard[]; publicBoard:string[];
+  nexusHealth:number; eliminated:boolean; life?:number; mana?:number; maxMana?:number; hand?:ProjectedCard[];
   general:{defId:string;zone:string;castCount:number};
 };
 type CombatState = {

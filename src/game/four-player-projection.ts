@@ -1,15 +1,21 @@
 import type { FourPlayerBattlefieldObject } from "./four-player-battlefield";
+import type { FourPlayerCardInstance } from "./four-player-card-zones";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import type { FourPlayerMatchState, FourPlayerMatchStatus, FourPlayerPhase } from "./four-player-match";
 
 export interface FourPlayerPrivateSeatState {
   seat: FourPlayerSeat;
-  hand: readonly string[];
-  deck: readonly string[];
-  graveyard: readonly string[];
+  hand: readonly FourPlayerCardInstance[];
+  deck: readonly FourPlayerCardInstance[];
+  graveyard: readonly FourPlayerCardInstance[];
   publicBoard: readonly string[];
   nexusHealth: number;
   eliminated: boolean;
+}
+
+export interface FourPlayerProjectedCardInstance {
+  instanceId: string;
+  defId: string;
 }
 
 export interface FourPlayerProjectedBattlefieldObject {
@@ -26,7 +32,7 @@ export interface FourPlayerProjectedSeatState {
   seat: FourPlayerSeat;
   handCount: number;
   deckCount: number;
-  graveyard: readonly string[];
+  graveyard: readonly FourPlayerProjectedCardInstance[];
   publicBoard: readonly string[];
   nexusHealth: number;
   eliminated: boolean;
@@ -35,7 +41,7 @@ export interface FourPlayerProjectedSeatState {
   maxMana?: number;
   generalDamageReceived?: Partial<Record<FourPlayerSeat, number>>;
   battlefield?: readonly FourPlayerProjectedBattlefieldObject[];
-  hand?: readonly string[];
+  hand?: readonly FourPlayerProjectedCardInstance[];
 }
 
 export interface FourPlayerPublicMatchFlow {
@@ -83,7 +89,7 @@ export function projectFourPlayerStateForSeat(
       seat,
       handCount: source.hand.length,
       deckCount: source.deck.length,
-      graveyard: [...source.graveyard],
+      graveyard: source.graveyard.map((card) => ({ instanceId: card.instanceId, defId: card.defId })),
       publicBoard: [...source.publicBoard],
       nexusHealth: match ? match.seats[seat].life : source.nexusHealth,
       eliminated: match ? match.seats[seat].eliminated : source.eliminated,
@@ -94,7 +100,7 @@ export function projectFourPlayerStateForSeat(
         generalDamageReceived: { ...match.seats[seat].generalDamageReceived },
         battlefield,
       } : {}),
-      ...(own ? { hand: [...source.hand] } : {}),
+      ...(own ? { hand: source.hand.map((card) => ({ instanceId: card.instanceId, defId: card.defId })) } : {}),
     };
     return [seat, value];
   })) as Record<FourPlayerSeat, FourPlayerProjectedSeatState>;

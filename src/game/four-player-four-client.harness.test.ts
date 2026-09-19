@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { assertPriorityHolder, processAuthoritativeFourPlayerCommand } from "./four-player-authority";
 import { createFourPlayerBroadcasts } from "./four-player-broadcast";
+import type { FourPlayerCardInstance } from "./four-player-card-zones";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import { createFourPlayerMatchState } from "./four-player-match";
 import type { FourPlayerPrivateSeatState } from "./four-player-projection";
@@ -17,11 +18,15 @@ let authority = {
   sessions,
 };
 
+function card(seat: FourPlayerSeat, label: string): FourPlayerCardInstance {
+  return { instanceId: `${seat}:${label}`, defId: `${seat}-${label}`, ownerSeat: seat };
+}
+
 const privateStates = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivateSeatState>>((result, seat) => {
   result[seat] = {
     seat,
-    hand: [`${seat}-hand-secret`],
-    deck: [`${seat}-future-deck-secret`],
+    hand: [card(seat, "hand-secret")],
+    deck: [card(seat, "future-deck-secret")],
     graveyard: [],
     publicBoard: [`${seat}-public-unit`],
     nexusHealth: 30,
@@ -52,7 +57,10 @@ function certifyBroadcasts(): void {
     assert.equal(envelope.projection.match?.phase, authority.match.phase);
     assert.equal(envelope.projection.match?.priorityHolder, authority.match.resolution.priority.holder);
     assert.equal(envelope.projection.match?.status, authority.match.status);
-    assert.deepEqual(envelope.projection.seats[viewer].hand, privateStates[viewer].hand);
+    assert.deepEqual(
+      envelope.projection.seats[viewer].hand,
+      privateStates[viewer].hand.map((entry) => ({ instanceId: entry.instanceId, defId: entry.defId })),
+    );
     const serialized = JSON.stringify(envelope);
     for (const seat of FOUR_PLAYER_SEATS) assert.equal(serialized.includes(`${seat}-future-deck-secret`), false);
     for (const opponent of FOUR_PLAYER_SEATS.filter((seat) => seat !== viewer)) {

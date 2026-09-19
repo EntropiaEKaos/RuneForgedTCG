@@ -35,6 +35,8 @@ async function main() {
   assert.equal(p1.revision, 5);
   assert.equal(p1.viewerSeat, 0);
   assert.equal(p1.seats[0].hand?.length, 5, "viewer receives own hand identities");
+  assert.match(p1.seats[0].hand?.[0]?.instanceId ?? "", /^p1:card:\d+$/);
+  assert.ok(p1.seats[0].hand?.[0]?.defId);
   assert.equal(p1.seats[1].hand, undefined, "viewer must not receive opponent hand identities");
   assert.equal("deck" in p1.seats[0], false, "future deck identities must never be projected");
 

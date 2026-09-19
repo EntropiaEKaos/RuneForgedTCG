@@ -1,15 +1,20 @@
 import assert from "node:assert/strict";
 import { createFourPlayerBroadcasts } from "./four-player-broadcast";
+import type { FourPlayerCardInstance } from "./four-player-card-zones";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import { createFourPlayerMatchState } from "./four-player-match";
 import type { FourPlayerPrivateSeatState } from "./four-player-projection";
 
+function card(seat: FourPlayerSeat, label: string): FourPlayerCardInstance {
+  return { instanceId: `${seat}:${label}`, defId: `${seat}-${label}`, ownerSeat: seat };
+}
+
 const privateStates = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivateSeatState>>((result, seat, index) => {
   result[seat] = {
     seat,
-    hand: [`${seat}-hand-secret-a`, `${seat}-hand-secret-b`],
-    deck: [`${seat}-future-deck-a`, `${seat}-future-deck-b`],
-    graveyard: [`${seat}-grave-public`],
+    hand: [card(seat, "hand-secret-a"), card(seat, "hand-secret-b")],
+    deck: [card(seat, "future-deck-a"), card(seat, "future-deck-b")],
+    graveyard: [card(seat, "grave-public")],
     publicBoard: [`${seat}-board-public`],
     nexusHealth: 30 - index,
     eliminated: false,
@@ -26,7 +31,10 @@ for (const viewer of FOUR_PLAYER_SEATS) {
   assert.equal(envelope.matchId, "broadcast-4p-001");
   assert.equal(envelope.revision, 42);
   assert.equal(envelope.projection.viewer, viewer);
-  assert.deepEqual(envelope.projection.seats[viewer].hand, privateStates[viewer].hand);
+  assert.deepEqual(
+    envelope.projection.seats[viewer].hand,
+    privateStates[viewer].hand.map((entry) => ({ instanceId: entry.instanceId, defId: entry.defId })),
+  );
   assert.deepEqual(envelope.projection.match, {
     activeSeat: "p2",
     round: 1,

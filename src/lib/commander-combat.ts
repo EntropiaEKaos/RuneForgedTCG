@@ -149,7 +149,7 @@ function privateStates(envelope: CommanderCombatEnvelope): Record<FourPlayerSeat
       seat,
       hand: [...envelope.zones[seat].hand],
       deck: [...envelope.zones[seat].deck],
-      graveyard: [],
+      graveyard: [...envelope.zones[seat].graveyard],
       publicBoard: physicalBoard.length > 0
         ? physicalBoard
         : general.location === "battlefield" ? [general.defId] : [],

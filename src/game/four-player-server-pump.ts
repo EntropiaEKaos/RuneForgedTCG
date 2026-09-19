@@ -1,4 +1,5 @@
 import { createFourPlayerBattlefieldState, placeResolvedGeneralOnBattlefield } from "./four-player-battlefield";
+import { resolveFourPlayerCardCast } from "./four-player-card-play";
 import { resolveFourPlayerFlow } from "./four-player-flow";
 import { resolveGeneralToBattlefield } from "./four-player-general-zone";
 import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-match";
@@ -15,6 +16,7 @@ export interface FourPlayerServerPumpResult {
 }
 
 function applyResolvedStackItem(match: FourPlayerMatchState, item: FourPlayerStackItem): FourPlayerMatchState {
+  if (item.kind === "card_cast") return resolveFourPlayerCardCast(match, item);
   if (item.kind !== "general_cast") return match;
   const general = match.generals[item.controller];
   if (general.location !== "stack") throw new Error(`Resolved General for ${item.controller} is not on the General stack.`);

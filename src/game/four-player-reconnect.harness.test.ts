@@ -3,6 +3,7 @@ import { assertSessionControlsSeat } from "./four-player-session";
 import { bindFourPlayerSession, createFourPlayerSessionRegistry, disconnectFourPlayerSession, sessionForSeat } from "./four-player-session";
 import { createFourPlayerProtocolState } from "./four-player-protocol";
 import { decideFourPlayerResync, createFourPlayerResyncSnapshot } from "./four-player-resync";
+import type { FourPlayerCardInstance } from "./four-player-card-zones";
 import { projectFourPlayerStateForSeat, type FourPlayerPrivateSeatState } from "./four-player-projection";
 import { createFourPlayerMatchState } from "./four-player-match";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
@@ -28,11 +29,15 @@ assert.equal(sessionForSeat(sessions, "p2")?.connectionEpoch, 2);
 assert.throws(() => assertSessionControlsSeat(sessions, "session-p2", "p2", 1), /Stale connection epoch/);
 assertSessionControlsSeat(sessions, "session-p2", "p2", 2);
 
+function card(seat: FourPlayerSeat, label: string): FourPlayerCardInstance {
+  return { instanceId: `${seat}:${label}`, defId: `${seat}-${label}`, ownerSeat: seat };
+}
+
 const privateStates = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivateSeatState>>((result, seat) => {
   result[seat] = {
     seat,
-    hand: [`${seat}-hand-secret`],
-    deck: [`${seat}-deck-future-secret`],
+    hand: [card(seat, "hand-secret")],
+    deck: [card(seat, "deck-future-secret")],
     graveyard: [],
     publicBoard: [`${seat}-public-unit`],
     nexusHealth: 30,
@@ -47,7 +52,7 @@ const projection = projectFourPlayerStateForSeat(privateStates, "p2", match);
 const snapshot = createFourPlayerResyncSnapshot(matchId, protocol.revision, projection);
 assert.equal(snapshot.revision, 21);
 assert.equal(snapshot.viewer, "p2");
-assert.deepEqual(snapshot.projection.seats.p2.hand, ["p2-hand-secret"]);
+assert.deepEqual(snapshot.projection.seats.p2.hand, [{ instanceId: "p2:hand-secret", defId: "p2-hand-secret" }]);
 assert.deepEqual(snapshot.projection.match, {
   activeSeat: "p3",
   round: 1,

@@ -1,11 +1,26 @@
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 
+export interface FourPlayerCardInstance {
+  instanceId: string;
+  defId: string;
+  ownerSeat: FourPlayerSeat;
+}
+
 export interface FourPlayerCardZoneState {
-  hand: readonly string[];
-  deck: readonly string[];
+  hand: readonly FourPlayerCardInstance[];
+  deck: readonly FourPlayerCardInstance[];
+  graveyard: readonly FourPlayerCardInstance[];
 }
 
 export type FourPlayerCardZones = Record<FourPlayerSeat, FourPlayerCardZoneState>;
+
+function createDeckInstances(seat: FourPlayerSeat, deck: readonly string[]): FourPlayerCardInstance[] {
+  return deck.map((defId, index) => ({
+    instanceId: `${seat}:card:${index + 1}`,
+    defId,
+    ownerSeat: seat,
+  }));
+}
 
 export function createFourPlayerCardZones(
   decks: Record<FourPlayerSeat, readonly string[]>,
@@ -15,14 +30,15 @@ export function createFourPlayerCardZones(
     throw new Error("4P opening hand size must be a non-negative integer.");
   }
   return Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
-    const deck = [...decks[seat]];
+    const deck = createDeckInstances(seat, decks[seat]);
     if (openingHandSize > deck.length) throw new Error(`Seat ${seat} cannot draw an opening hand larger than its deck.`);
-    return [seat, { hand: deck.slice(0, openingHandSize), deck: deck.slice(openingHandSize) }];
+    return [seat, { hand: deck.slice(0, openingHandSize), deck: deck.slice(openingHandSize), graveyard: [] }];
   })) as unknown as FourPlayerCardZones;
 }
 
 export interface FourPlayerDrawResult {
   zones: FourPlayerCardZones;
+  drawnCard?: FourPlayerCardInstance;
   drawnDefId?: string;
   deckOut: boolean;
 }
@@ -30,14 +46,57 @@ export interface FourPlayerDrawResult {
 export function drawFourPlayerCard(zones: FourPlayerCardZones, seat: FourPlayerSeat): FourPlayerDrawResult {
   const source = zones[seat];
   if (source.deck.length === 0) return { zones, deckOut: true };
-  const [drawnDefId, ...deck] = source.deck;
+  const [drawnCard, ...deck] = source.deck;
   return {
     zones: {
       ...zones,
-      [seat]: { hand: [...source.hand, drawnDefId], deck },
+      [seat]: { ...source, hand: [...source.hand, drawnCard], deck },
     },
-    drawnDefId,
+    drawnCard,
+    drawnDefId: drawnCard.defId,
     deckOut: false,
+  };
+}
+
+export function findFourPlayerHandCard(
+  zones: FourPlayerCardZones,
+  seat: FourPlayerSeat,
+  instanceId: string,
+): FourPlayerCardInstance {
+  const id = String(instanceId || "").trim();
+  const card = zones[seat].hand.find((entry) => entry.instanceId === id);
+  if (!card) throw new Error(`Card instance ${id || "<empty>"} is not in ${seat}'s hand.`);
+  if (card.ownerSeat !== seat) throw new Error(`Card instance ${card.instanceId} has invalid owner ${card.ownerSeat} for ${seat}'s hand.`);
+  return card;
+}
+
+export function takeFourPlayerCardFromHand(
+  zones: FourPlayerCardZones,
+  seat: FourPlayerSeat,
+  instanceId: string,
+): { zones: FourPlayerCardZones; card: FourPlayerCardInstance } {
+  const card = findFourPlayerHandCard(zones, seat, instanceId);
+  const source = zones[seat];
+  return {
+    card,
+    zones: {
+      ...zones,
+      [seat]: { ...source, hand: source.hand.filter((entry) => entry.instanceId !== card.instanceId) },
+    },
+  };
+}
+
+export function putFourPlayerCardInGraveyard(
+  zones: FourPlayerCardZones,
+  card: FourPlayerCardInstance,
+): FourPlayerCardZones {
+  const source = zones[card.ownerSeat];
+  if (source.graveyard.some((entry) => entry.instanceId === card.instanceId)) {
+    throw new Error(`Card instance ${card.instanceId} is already in the graveyard.`);
+  }
+  return {
+    ...zones,
+    [card.ownerSeat]: { ...source, graveyard: [...source.graveyard, card] },
   };
 }
 
@@ -50,10 +109,10 @@ export function shouldDrawAtFourPlayerTurnStart(
   return !(round === 1 && seat === startingSeat);
 }
 
-
 export interface FourPlayerTurnStartDrawResult {
   zones: FourPlayerCardZones;
   drew: boolean;
+  drawnCard?: FourPlayerCardInstance;
   drawnDefId?: string;
   deckOut: boolean;
 }
