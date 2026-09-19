@@ -47,7 +47,10 @@ type Trade = {
   requestedAssets: TradeAsset[];
   note?: string;
   expiresAt: string;
+  completedAt?: string | null;
+  events?: Array<{ id: number; eventType: string; actorPlayerId?: number | null; createdAt: string; payload?: Record<string, unknown> }>;
 };
+type TradeMetrics = { total: number; active: number; accepted: number; declined: number; cancelled: number; expired: number; acceptanceRate: number | null; averageResolutionMinutes: number | null };
 type Tab = "market" | "inventory" | "mine" | "trades" | "history";
 
 function operationId(prefix: string) {
@@ -75,6 +78,10 @@ export default function MarketClient() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [trades, setTrades] = useState<Trade[]>([]);
+  const [tradeMetrics, setTradeMetrics] = useState<TradeMetrics | null>(null);
+  const [tradeStatus, setTradeStatus] = useState("all");
+  const [tradeDirection, setTradeDirection] = useState("all");
+  const [tradeQuery, setTradeQuery] = useState("");
   const [tradeCatalog, setTradeCatalog] = useState<PublicCatalogCard[]>([]);
   const [gold, setGold] = useState(0);
   const [playerId, setPlayerId] = useState<number | null>(null);
@@ -112,11 +119,16 @@ export default function MarketClient() {
   }, [query]);
 
   const loadTrades = useCallback(async () => {
-    const response = await fetch("/api/trades", { credentials: "include", cache: "no-store" });
+    const params = new URLSearchParams();
+    if (tradeStatus !== "all") params.set("status", tradeStatus);
+    if (tradeDirection !== "all") params.set("direction", tradeDirection);
+    if (tradeQuery.trim()) params.set("q", tradeQuery.trim());
+    const response = await fetch(`/api/trades${params.size ? `?${params.toString()}` : ""}`, { credentials: "include", cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Falha ao carregar trocas");
     setTrades(data.trades || []);
-  }, []);
+    setTradeMetrics(data.metrics || null);
+  }, [tradeDirection, tradeQuery, tradeStatus]);
 
   const loadTradeCatalog = useCallback(async () => {
     const firstResponse = await fetch("/api/public/game/cards?page=1&pageSize=100&sort=name-asc", { cache: "no-store" });
@@ -438,6 +450,24 @@ export default function MarketClient() {
             </div>
           </div>
 
+          <div className="mb-4 rounded-xl border border-white/10 bg-black/15 p-4">
+            <div className="grid gap-3 lg:grid-cols-[1fr_180px_180px_auto]">
+              <input className="rf-input" value={tradeQuery} onChange={(event) => setTradeQuery(event.target.value)} placeholder="Buscar jogador, carta, versão ou serial" />
+              <select className="rf-input" value={tradeStatus} onChange={(event) => setTradeStatus(event.target.value)} aria-label="Filtrar trocas por status">
+                <option value="all">Todos os status</option><option value="active">Ativas</option><option value="accepted">Aceitas</option><option value="declined">Recusadas</option><option value="cancelled">Canceladas</option><option value="expired">Expiradas</option>
+              </select>
+              <select className="rf-input" value={tradeDirection} onChange={(event) => setTradeDirection(event.target.value)} aria-label="Filtrar trocas por direção">
+                <option value="all">Todas as direções</option><option value="incoming">Recebidas</option><option value="outgoing">Enviadas</option>
+              </select>
+              <button className="rf-button rf-button-secondary" disabled={busy} onClick={() => void loadTrades()}>Aplicar filtros</button>
+            </div>
+            {tradeMetrics && <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-wider opacity-70">
+              <span>{tradeMetrics.active} ativas</span><span>·</span><span>{tradeMetrics.accepted} aceitas</span><span>·</span><span>{tradeMetrics.expired} expiradas</span>
+              {tradeMetrics.acceptanceRate != null && <><span>·</span><span>{Math.round(tradeMetrics.acceptanceRate * 100)}% aceitação</span></>}
+              {tradeMetrics.averageResolutionMinutes != null && <><span>·</span><span>{tradeMetrics.averageResolutionMinutes} min resolução média</span></>}
+            </div>}
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-2">
             {trades.map((trade) => (
               <article key={trade.id} className="rf-panel p-5">
@@ -447,6 +477,7 @@ export default function MarketClient() {
                   <div><small className="opacity-60">PEDE</small>{trade.requestedAssets.map((asset, index) => <p key={`${asset.defId}:${index}`}>{asset.card.name}{(asset.variantId || asset.frameId || asset.finish || asset.serialNumber) && <small className="ml-1 opacity-60">({collectibleLabel(asset)})</small>}</p>)}</div>
                 </div>
                 {trade.note && <p className="mt-3 text-sm opacity-70">“{trade.note}”</p>}
+                {!!trade.events?.length && <details className="mt-3 rounded-lg border border-white/10 bg-black/10 p-3 text-xs"><summary className="cursor-pointer font-black uppercase tracking-wider opacity-65">Atividade · {trade.events.length}</summary><div className="mt-2 space-y-1">{trade.events.slice(0, 6).map((event) => <p key={event.id}><b>{event.eventType}</b> · {new Date(event.createdAt).toLocaleString("pt-BR")}</p>)}</div></details>}
                 {trade.effectiveStatus === "active" && trade.direction === "incoming" && <div className="mt-4 flex gap-2"><button className="rf-button rf-button-primary" disabled={busy} onClick={() => void post("/api/trades", { action: "accept", tradeId: trade.id }, "trade-accept")}>Aceitar</button><button className="rf-button rf-button-secondary" disabled={busy} onClick={() => void post("/api/trades", { action: "decline", tradeId: trade.id }, "trade-decline")}>Recusar</button></div>}
                 {trade.effectiveStatus === "active" && trade.direction === "outgoing" && <button className="rf-button rf-button-secondary mt-4" disabled={busy} onClick={() => void post("/api/trades", { action: "cancel", tradeId: trade.id }, "trade-cancel")}>Cancelar</button>}
               </article>

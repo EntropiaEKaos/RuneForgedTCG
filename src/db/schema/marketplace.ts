@@ -122,6 +122,20 @@ export const tradeOffers = pgTable("trade_offers", {
   differentPlayers: check("trade_offers_different_players", sql`${t.proposerPlayerId} <> ${t.recipientPlayerId}`),
 }));
 
+export const tradeOfferEvents = pgTable("trade_offer_events", {
+  id: serial("id").primaryKey(),
+  tradeId: integer("trade_id").notNull().references(() => tradeOffers.id, { onDelete: "cascade" }),
+  actorPlayerId: integer("actor_player_id").references(() => players.id, { onDelete: "set null" }),
+  eventType: text("event_type").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  tradeIdx: index("trade_offer_events_trade_idx").on(t.tradeId, t.createdAt),
+  actorIdx: index("trade_offer_events_actor_idx").on(t.actorPlayerId, t.createdAt),
+  eventTypeValid: check("trade_offer_events_type_valid", sql`${t.eventType} IN ('created','accepted','declined','cancelled','expired')`),
+}));
+
 export type CardAsset = typeof cardAssets.$inferSelect;
 export type MarketListing = typeof marketListings.$inferSelect;
 export type TradeOffer = typeof tradeOffers.$inferSelect;
+export type TradeOfferEvent = typeof tradeOfferEvents.$inferSelect;

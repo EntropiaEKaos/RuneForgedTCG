@@ -1,6 +1,6 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { cardAssetLocks, cardAssets, marketListings, marketplaceSettings, playerCardCosmeticPreferences, playerCards, tradeOffers } from "@/db/schema";
+import { cardAssetLocks, cardAssets, marketListings, marketplaceSettings, playerCardCosmeticPreferences, playerCards, tradeOfferEvents, tradeOffers } from "@/db/schema";
 
 export async function getMarketplaceSettings(tx: any = db) {
   const [settings] = await tx.select().from(marketplaceSettings).where(eq(marketplaceSettings.id, 1)).limit(1);
@@ -11,15 +11,38 @@ export async function getMarketplaceSettings(tx: any = db) {
  * Expiry is finalized opportunistically inside market mutations. Locks also
  * carry an expiry timestamp, so stale rows are never considered valid escrow.
  */
+export async function recordTradeEvent(
+  tx: any,
+  tradeId: number,
+  eventType: "created" | "accepted" | "declined" | "cancelled" | "expired",
+  actorPlayerId: number | null,
+  payload: Record<string, unknown> = {},
+) {
+  await tx.insert(tradeOfferEvents).values({ tradeId, eventType, actorPlayerId, payload });
+}
+
 export async function cleanupExpiredMarketplace(tx: any, now = new Date()) {
   await tx.update(marketListings).set({ status: "expired", completedAt: now }).where(and(
     eq(marketListings.status, "active"),
     lte(marketListings.expiresAt, now),
   ));
-  await tx.update(tradeOffers).set({ status: "expired", completedAt: now }).where(and(
+  const expiredTrades = await tx.select({ id: tradeOffers.id }).from(tradeOffers).where(and(
     eq(tradeOffers.status, "active"),
     lte(tradeOffers.expiresAt, now),
-  ));
+  )).for("update");
+  if (expiredTrades.length) {
+    await tx.update(tradeOffers).set({ status: "expired", completedAt: now }).where(and(
+      eq(tradeOffers.status, "active"),
+      lte(tradeOffers.expiresAt, now),
+    ));
+    await tx.insert(tradeOfferEvents).values(expiredTrades.map((trade: { id: number }) => ({
+      tradeId: trade.id,
+      actorPlayerId: null,
+      eventType: "expired",
+      payload: { source: "marketplace-cleanup" },
+      createdAt: now,
+    })));
+  }
   await tx.delete(cardAssetLocks).where(lte(cardAssetLocks.expiresAt, now));
 }
 

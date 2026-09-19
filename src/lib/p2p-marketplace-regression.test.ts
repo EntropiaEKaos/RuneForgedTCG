@@ -14,6 +14,11 @@ function main() {
   assert.match(migration, /"min_account_age_hours" integer NOT NULL DEFAULT 24/, "fresh marketplace must impose an account-age barrier against disposable-account Gold funneling");
   assert.match(migration, /2\.97-market-1\.0/, "marketplace schema provenance must be recorded");
 
+  const trading21Migration = read("drizzle/0048_trading_2_1.sql");
+  assert.match(trading21Migration, /CREATE TABLE IF NOT EXISTS "trade_offer_events"/, "Trading 2.1 must persist an append-only trade activity trail");
+  assert.match(trading21Migration, /'created','accepted','declined','cancelled','expired'/, "Trading 2.1 event types must cover the full trade lifecycle");
+  assert.match(trading21Migration, /2\.97-trading-2\.1/, "Trading 2.1 schema provenance must be recorded");
+
   const cosmeticsMigration = read("drizzle/0044_card_cosmetics.sql");
   for (const table of ["card_cosmetic_variants", "player_card_cosmetic_preferences"]) {
     assert.ok(cosmeticsMigration.includes(`CREATE TABLE IF NOT EXISTS "${table}"`), `${table} must be part of the cosmetic migration`);
@@ -49,6 +54,12 @@ function main() {
   assert.match(trades, /cardAssetLocks/, "direct trades must escrow offered collectible copies");
   assert.match(trades, /duplicateCap/, "direct trades must preserve the collection copy cap");
   assert.match(trades, /serialNumber: asset\.serialNumber/, "direct trade snapshots must preserve the exact offered serial number");
+  assert.match(trades, /tradeOfferEvents/, "Trading 2.1 reads must expose persisted activity");
+  assert.match(trades, /acceptanceRate/, "Trading 2.1 reads must expose operational conversion telemetry");
+  assert.match(trades, /averageResolutionMinutes/, "Trading 2.1 reads must expose time-to-resolution telemetry");
+  assert.match(trades, /statusFilter/, "Trading 2.1 must support status filtering");
+  assert.match(trades, /directionFilter/, "Trading 2.1 must support incoming/outgoing filtering");
+  assert.match(trades, /recordTradeEvent/, "trade mutations must append lifecycle audit events");
   assert.doesNotMatch(trades, /proposerGold|recipientGold/, "direct trades remain card-for-card only; Gold moves through sales");
 
   const policy = read("src/lib/marketplace-policy.ts");
@@ -68,6 +79,10 @@ function main() {
   assert.match(marketClient, /Sem Gold · carta por carta/, "direct trade UI must keep the no-Gold boundary explicit");
   assert.match(marketClient, /salePreview/, "listing UI must preview the snapshotted Gold fee and seller net");
   assert.match(marketClient, /serialLimit/, "serialized printing requests must expose bounded serial entry");
+  assert.match(marketClient, /tradeStatus/, "Trading 2.1 UI must expose status filters");
+  assert.match(marketClient, /tradeDirection/, "Trading 2.1 UI must expose direction filters");
+  assert.match(marketClient, /Atividade/, "Trading 2.1 UI must expose the trade event timeline");
+  assert.match(marketClient, /acceptanceRate/, "Trading 2.1 UI must surface conversion telemetry");
   assert.match(marketClient, /useCatalogRevision/, "marketplace cosmetic labels must refresh when the public cosmetic catalog hydrates");
   assert.doesNotMatch(marketClient, /placeholder=["']defId da carta desejada["']/, "players must never be asked for an internal card defId");
 
