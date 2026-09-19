@@ -5,6 +5,7 @@ import {
   type FourPlayerBattlefieldKind,
 } from "./four-player-battlefield";
 import { createFourPlayerCombatBodySnapshot, type FourPlayerCombatBody } from "./four-player-combat-body";
+import { resolveFourPlayerEffect } from "./four-player-effect-resolution";
 import {
   findFourPlayerHandCard,
   takeFourPlayerCardFromHand,
@@ -14,9 +15,10 @@ import {
 import type { FourPlayerSeat } from "./four-player-general";
 import type { FourPlayerMatchState } from "./four-player-match";
 import type { FourPlayerStackItem } from "./four-player-stack";
-import type { CardType, Keyword } from "./types";
+import type { FourPlayerTargetRef } from "./four-player-targeting";
+import type { CardEffect, CardType, Keyword } from "./types";
 
-export const FOUR_PLAYER_STAGEABLE_CARD_TYPES = ["Unit", "Enchantment", "Artifact", "Sentinela"] as const;
+export const FOUR_PLAYER_STAGEABLE_CARD_TYPES = ["Unit", "Enchantment", "Artifact", "Sentinela", "Spell"] as const;
 export type FourPlayerStageableCardType = (typeof FOUR_PLAYER_STAGEABLE_CARD_TYPES)[number];
 
 export interface FourPlayerCardCastPayload {
@@ -26,6 +28,8 @@ export interface FourPlayerCardCastPayload {
   cardType: FourPlayerStageableCardType;
   keywords: readonly Keyword[];
   combat?: FourPlayerCombatBody;
+  effect?: CardEffect;
+  target?: FourPlayerTargetRef;
 }
 
 export interface FourPlayerStagedCardCast {
@@ -62,6 +66,7 @@ export function stageFourPlayerCardCast(
   actor: FourPlayerSeat,
   instanceId: string,
   eventId: string,
+  target?: FourPlayerTargetRef,
 ): FourPlayerStagedCardCast {
   assertCardPlayTiming(match, actor);
   const card = findFourPlayerHandCard(zones, actor, instanceId);
@@ -85,6 +90,10 @@ export function stageFourPlayerCardCast(
     },
   };
   const combat = createFourPlayerCombatBodySnapshot(definition);
+  if (definition.type === "Spell") {
+    if (!definition.spell) throw new Error(`Spell ${definition.defId} has no authoritative effect.`);
+    resolveFourPlayerEffect(match, actor, definition.spell, target);
+  }
   const payload: FourPlayerCardCastPayload = {
     instanceId: card.instanceId,
     defId: card.defId,
@@ -92,6 +101,7 @@ export function stageFourPlayerCardCast(
     cardType: definition.type,
     keywords: [...(definition.keywords ?? [])],
     ...(combat ? { combat } : {}),
+    ...(definition.type === "Spell" && definition.spell ? { effect: structuredClone(definition.spell), ...(target ? { target } : {}) } : {}),
   };
   return {
     match: paidMatch,
@@ -100,13 +110,13 @@ export function stageFourPlayerCardCast(
     stackItem: {
       id: `card:${card.instanceId}:${eventId}`,
       controller: actor,
-      kind: "card_cast",
+      kind: definition.type === "Spell" ? "spell_cast" : "card_cast",
       payload,
     },
   };
 }
 
-function battlefieldKind(type: FourPlayerStageableCardType): FourPlayerBattlefieldKind {
+function battlefieldKind(type: Exclude<FourPlayerStageableCardType, "Spell">): FourPlayerBattlefieldKind {
   if (type === "Unit") return "unit";
   if (type === "Sentinela") return "sentinela";
   return "permanent";
@@ -124,8 +134,8 @@ export function resolveFourPlayerCardCast(
   if (payload.ownerSeat !== item.controller) {
     throw new Error("Resolved 4P card owner/controller identity mismatch.");
   }
-  if (!(FOUR_PLAYER_STAGEABLE_CARD_TYPES as readonly string[]).includes(payload.cardType)) {
-    throw new Error(`Resolved 4P card type ${payload.cardType} is unsupported.`);
+  if (!(FOUR_PLAYER_STAGEABLE_CARD_TYPES as readonly string[]).includes(payload.cardType) || payload.cardType === "Spell") {
+    throw new Error(`Resolved 4P permanent type ${payload.cardType} is unsupported.`);
   }
   return {
     ...match,
@@ -134,7 +144,7 @@ export function resolveFourPlayerCardCast(
       {
         id: payload.instanceId,
         defId: payload.defId,
-        kind: battlefieldKind(payload.cardType as FourPlayerStageableCardType),
+        kind: battlefieldKind(payload.cardType as Exclude<FourPlayerStageableCardType, "Spell">),
         ownerSeat: payload.ownerSeat,
         controllerSeat: item.controller,
         enteredTurn: match.turn.turn,
@@ -143,4 +153,20 @@ export function resolveFourPlayerCardCast(
       },
     ),
   };
+}
+
+
+export function resolveFourPlayerSpellCast(
+  match: FourPlayerMatchState,
+  item: FourPlayerStackItem,
+): { match: FourPlayerMatchState; destroyed: readonly import("./four-player-combat-resolution").FourPlayerCombatDestroyedObject[] } {
+  if (item.kind !== "spell_cast") return { match, destroyed: [] };
+  const payload = item.payload as Partial<FourPlayerCardCastPayload>;
+  if (!payload.instanceId || !payload.defId || !payload.ownerSeat || payload.cardType !== "Spell" || !payload.effect) {
+    throw new Error("Resolved 4P spell cast is missing authoritative identity or effect.");
+  }
+  if (payload.ownerSeat !== item.controller) {
+    throw new Error("Resolved 4P spell owner/controller identity mismatch.");
+  }
+  return resolveFourPlayerEffect(match, item.controller, payload.effect, payload.target);
 }

@@ -73,4 +73,32 @@ assert.equal(permanent?.combat?.maxHealth, physical.health ?? 1);
 assert.equal(permanent?.combat?.barrier, Boolean(physical.keywords?.includes("Barrier")));
 assert.equal(pumped.match.resolution.stack.items.length, 0);
 
+const spell = collectibleCards().find((card) =>
+  card.collectible !== false
+  && card.type === "Spell"
+  && card.cost <= 10
+  && card.spell?.kind === "damageNexus"
+);
+assert.ok(spell, "fixture requires a direct damage Spell");
+const spellZones = createFourPlayerCardZones({ p1:[spell.defId], p2:[spell.defId], p3:[spell.defId], p4:[spell.defId] },1);
+const spellCard = spellZones.p1.hand[0]!;
+const spellStaged = stageFourPlayerCardCast(
+  base,
+  spellZones,
+  "p1",
+  spellCard.instanceId,
+  "e-spell",
+  { kind:"player", seat:"p2" },
+);
+assert.equal(spellStaged.stackItem.kind,"spell_cast");
+let spellMatch = { ...spellStaged.match, resolution: submitFourPlayerAction(spellStaged.match.resolution, spellStaged.stackItem) };
+for (let index = 0; index < 4; index += 1) spellMatch = { ...spellMatch, resolution: passFourPlayerFlow(spellMatch.resolution) };
+const spellPump = pumpFourPlayerServer(spellMatch);
+assert.equal(spellPump.match.seats.p2.life, 30 - spell.spell!.amount);
+assert.equal(spellPump.resolved[0]?.kind,"spell_cast");
+assert.throws(
+  () => stageFourPlayerCardCast(base, spellZones, "p1", spellCard.instanceId, "e-spell-self", { kind:"player", seat:"p1" }),
+  /must target an opponent/,
+);
+
 console.log("FOUR PLAYER CARD PLAY AUTHORITY: PASS — hand identity, mana payment, stack identity and physical pump resolution");

@@ -1,6 +1,7 @@
 import { ensureCustomCardsLoaded } from "@/game/catalog";
 import { acceptAuthoritativeFourPlayerCommand, processAuthoritativeFourPlayerCommand, assertPriorityHolder } from "@/game/four-player-authority";
 import { stageFourPlayerCardCast } from "@/game/four-player-card-play";
+import { parseFourPlayerTargetRef } from "@/game/four-player-targeting";
 import { submitFourPlayerAction } from "@/game/four-player-flow";
 import { pumpFourPlayerServer } from "@/game/four-player-server-pump";
 import {
@@ -289,8 +290,9 @@ export function processCommanderCombatCommand(
       command,
       validateExposedCommand,
     );
-    const payload = command.payload as { instanceId?: unknown };
+    const payload = command.payload as { instanceId?: unknown; target?: unknown };
     const instanceId = typeof payload.instanceId === "string" ? payload.instanceId.trim() : "";
+    const target = parseFourPlayerTargetRef(payload.target);
     if (!instanceId) throw new Error("Commander play_card requires a card instanceId.");
     const staged = stageFourPlayerCardCast(
       envelope.match,
@@ -298,6 +300,7 @@ export function processCommanderCombatCommand(
       seat,
       instanceId,
       accepted.event.eventId,
+      target,
     );
     const reducedMatch: FourPlayerMatchState = {
       ...staged.match,
@@ -322,6 +325,22 @@ export function processCommanderCombatCommand(
 
   let match = accepted.state.match;
   let zones = envelope.zones;
+  for (const resolved of accepted.pump?.resolved ?? []) {
+    if (resolved.kind !== "spell_cast") continue;
+    const payload = resolved.payload as { instanceId?: unknown; defId?: unknown; ownerSeat?: unknown };
+    if (
+      typeof payload.instanceId === "string"
+      && typeof payload.defId === "string"
+      && typeof payload.ownerSeat === "string"
+      && FOUR_PLAYER_SEATS.includes(payload.ownerSeat as FourPlayerSeat)
+    ) {
+      zones = putFourPlayerCardInGraveyard(zones, {
+        instanceId: payload.instanceId,
+        defId: payload.defId,
+        ownerSeat: payload.ownerSeat as FourPlayerSeat,
+      });
+    }
+  }
   for (const destroyed of accepted.pump?.destroyedObjects ?? []) {
     if (destroyed.destination !== "graveyard") continue;
     zones = putFourPlayerCardInGraveyard(zones, {

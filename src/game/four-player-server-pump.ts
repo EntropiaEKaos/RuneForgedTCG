@@ -1,5 +1,5 @@
 import { createFourPlayerBattlefieldState, placeResolvedGeneralOnBattlefield } from "./four-player-battlefield";
-import { resolveFourPlayerCardCast } from "./four-player-card-play";
+import { resolveFourPlayerCardCast, resolveFourPlayerSpellCast } from "./four-player-card-play";
 import { resolveFourPlayerCombat, type FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
 import { resolveFourPlayerFlow } from "./four-player-flow";
 import { resolveGeneralToBattlefield } from "./four-player-general-zone";
@@ -18,9 +18,16 @@ export interface FourPlayerServerPumpResult {
   destroyedObjects?: readonly FourPlayerCombatDestroyedObject[];
 }
 
-function applyResolvedStackItem(match: FourPlayerMatchState, item: FourPlayerStackItem): FourPlayerMatchState {
-  if (item.kind === "card_cast") return resolveFourPlayerCardCast(match, item);
-  if (item.kind !== "general_cast") return match;
+function applyResolvedStackItem(
+  match: FourPlayerMatchState,
+  item: FourPlayerStackItem,
+): { match: FourPlayerMatchState; destroyedObjects: readonly FourPlayerCombatDestroyedObject[] } {
+  if (item.kind === "card_cast") return { match: resolveFourPlayerCardCast(match, item), destroyedObjects: [] };
+  if (item.kind === "spell_cast") {
+    const resolved = resolveFourPlayerSpellCast(match, item);
+    return { match: resolved.match, destroyedObjects: resolved.destroyed };
+  }
+  if (item.kind !== "general_cast") return { match, destroyedObjects: [] };
   const general = match.generals[item.controller];
   if (general.location !== "stack") throw new Error(`Resolved General for ${item.controller} is not on the General stack.`);
   const payload = item.payload as { owner?: string; defId?: string };
@@ -29,7 +36,7 @@ function applyResolvedStackItem(match: FourPlayerMatchState, item: FourPlayerSta
   }
   const resolvedGeneral = resolveGeneralToBattlefield(general);
   const withGeneral = updateMatchGeneral(match, item.controller, resolvedGeneral);
-  return {
+  return { match: {
     ...withGeneral,
     battlefield: placeResolvedGeneralOnBattlefield(
       withGeneral.battlefield ?? createFourPlayerBattlefieldState(),
@@ -40,7 +47,7 @@ function applyResolvedStackItem(match: FourPlayerMatchState, item: FourPlayerSta
       withGeneral.generalKeywords?.[item.controller] ?? [],
       withGeneral.generalCombatBodies?.[item.controller],
     ),
-  };
+  }, destroyedObjects: [] };
 }
 
 /**
@@ -102,12 +109,14 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
     result.flow.priority.mode,
   );
   let nextMatch: FourPlayerMatchState = { ...match, resolution: { ...result.flow, priority } };
-  nextMatch = applyResolvedStackItem(nextMatch, result.resolved);
+  const applied = applyResolvedStackItem(nextMatch, result.resolved);
+  nextMatch = applied.match;
   return {
     match: nextMatch,
     resolved: [result.resolved],
     awaitingClientInput: true,
     phaseAdvanced: false,
     turnAdvanced: false,
+    ...(applied.destroyedObjects.length > 0 ? { destroyedObjects: applied.destroyedObjects } : {}),
   };
 }

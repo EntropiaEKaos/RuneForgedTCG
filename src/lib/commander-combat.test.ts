@@ -87,6 +87,43 @@ async function main() {
   assert.equal(played.match.seats.p1.mana, 10 - playable.cost);
   assert.equal(played.match.resolution.priority.holder, "p2");
 
+  const burn = collectibleCards().find((card) =>
+    card.collectible !== false && card.type === "Spell" && card.cost <= 10 && card.spell?.kind === "damageNexus"
+  );
+  assert.ok(burn, "fixture requires a direct damage Spell");
+  const spellSeats = generals.map((general, index) => ({
+    seat: index as 0 | 1 | 2 | 3,
+    playerId: 100 + index,
+    playerName: `Commander Spell P${index + 1}`,
+    deckCards: Array.from({ length: 60 }, () => burn.defId),
+    generalDefId: general.defId,
+  }));
+  const spellInitial = await createCommanderCombatEnvelope("commander:spell-room", 20, 0x87654321, spellSeats);
+  const spellEnvelope = {
+    ...spellInitial,
+    match: {
+      ...spellInitial.match,
+      phase: "main_1" as const,
+      seats: { ...spellInitial.match.seats, p1: { ...spellInitial.match.seats.p1, mana: 10, maxMana: 10 } },
+    },
+  };
+  const spellInstance = spellEnvelope.zones.p1.hand[0]!;
+  let spellPlayed = processCommanderCombatCommand(spellEnvelope, 100, 0, {
+    commandId: "cmd-spell-play",
+    expectedRevision: 20,
+    type: "play_card",
+    payload: { instanceId: spellInstance.instanceId, target: { kind:"player", seat:"p2" }, effect:{kind:"killUnit"} },
+  });
+  assert.equal(spellPlayed.match.resolution.stack.items.at(-1)?.kind,"spell_cast");
+  assert.equal(spellPlayed.zones.p1.hand.some((card)=>card.instanceId===spellInstance.instanceId),false);
+  spellPlayed = processCommanderCombatCommand(spellPlayed, 101, 1, { commandId:"cmd-spell-pass-p2", expectedRevision:21, type:"pass_priority" });
+  spellPlayed = processCommanderCombatCommand(spellPlayed, 102, 2, { commandId:"cmd-spell-pass-p3", expectedRevision:22, type:"pass_priority" });
+  spellPlayed = processCommanderCombatCommand(spellPlayed, 103, 3, { commandId:"cmd-spell-pass-p4", expectedRevision:23, type:"pass_priority" });
+  spellPlayed = processCommanderCombatCommand(spellPlayed, 100, 0, { commandId:"cmd-spell-pass-p1", expectedRevision:24, type:"pass_priority" });
+  assert.equal(spellPlayed.match.seats.p2.life, 30 - burn.spell!.amount);
+  assert.equal(spellPlayed.zones.p1.graveyard.some((card)=>card.instanceId===spellInstance.instanceId),true);
+  assert.equal(spellPlayed.match.resolution.stack.items.length,0);
+
   let combatBoard = putFourPlayerBattlefieldObject(initial.match.battlefield!, {
     id: "battle:p1:attacker",
     defId: "fixture-attacker",
