@@ -5,7 +5,7 @@ import { Pool } from "pg";
 
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) throw new Error("DATABASE_URL is required");
-const files = ["database/baseline-2.31.sql", "drizzle/0017_security_matrix_integrity.sql", "drizzle/0018_ownership_integrity.sql", "drizzle/0025_production_certification.sql", "drizzle/0026_production_gameplay_2_56.sql", "drizzle/0027_gameplay_visual_2_65.sql", "drizzle/0028_total_control_plane.sql", "drizzle/0029_multiregion_identity.sql", "drizzle/0030_bugfix_integrity.sql", "drizzle/0031_certification_2_90.sql", "drizzle/0032_mvp_2_91.sql", "drizzle/0033_vanilla_collection_2_92.sql", "drizzle/0034_growth_commerce_2_93.sql", "drizzle/0035_release_hardening_2_94.sql", "drizzle/0036_sentinelas_convergence_2_96.sql", "drizzle/0037_schema_replay_hotfix_2_96_1.sql", "drizzle/0038_engineering_integrity_2_96_2.sql", "drizzle/0039_ranked_certification_2_97.sql", "drizzle/0040_pvp_content_snapshot_2_97.sql", "drizzle/0041_pvp_reaction_priority.sql", "drizzle/0042_site_portal_cms.sql", "drizzle/0043_p2p_marketplace.sql", "drizzle/0044_card_cosmetics.sql", "drizzle/0045_identity_auth.sql", "drizzle/0046_admin_fx_presets.sql", "drizzle/0047_admin_fx_associations.sql", "drizzle/0048_trading_2_1.sql"];
+const files = ["database/baseline-2.31.sql", "drizzle/0017_security_matrix_integrity.sql", "drizzle/0018_ownership_integrity.sql", "drizzle/0025_production_certification.sql", "drizzle/0026_production_gameplay_2_56.sql", "drizzle/0027_gameplay_visual_2_65.sql", "drizzle/0028_total_control_plane.sql", "drizzle/0029_multiregion_identity.sql", "drizzle/0030_bugfix_integrity.sql", "drizzle/0031_certification_2_90.sql", "drizzle/0032_mvp_2_91.sql", "drizzle/0033_vanilla_collection_2_92.sql", "drizzle/0034_growth_commerce_2_93.sql", "drizzle/0035_release_hardening_2_94.sql", "drizzle/0036_sentinelas_convergence_2_96.sql", "drizzle/0037_schema_replay_hotfix_2_96_1.sql", "drizzle/0038_engineering_integrity_2_96_2.sql", "drizzle/0039_ranked_certification_2_97.sql", "drizzle/0040_pvp_content_snapshot_2_97.sql", "drizzle/0041_pvp_reaction_priority.sql", "drizzle/0042_site_portal_cms.sql", "drizzle/0043_p2p_marketplace.sql", "drizzle/0044_card_cosmetics.sql", "drizzle/0045_identity_auth.sql", "drizzle/0046_admin_fx_presets.sql", "drizzle/0047_admin_fx_associations.sql", "drizzle/0048_trading_2_1.sql", "drizzle/0049_commander_4p_alpha.sql"];
 const pool = new Pool({ connectionString: databaseUrl, max: 1, connectionTimeoutMillis: 5_000 });
 
 function syncStudioBaseline() {
@@ -25,7 +25,7 @@ async function main() {
       for (const file of files) { await client.query(await fs.readFile(path.join(process.cwd(), file), "utf8")); console.log(`APPLIED ${file}`); }
       await client.query("insert into runeforge_schema_meta(version) values($1) on conflict(version) do nothing", ["2.97"]);
       await client.query("commit");
-      console.log("DATABASE BOOTSTRAP 2.97 + PORTAL CMS + P2P MARKETPLACE + CARD COSMETICS + IDENTITY AUTH + FX PRESETS + FX ASSOCIATIONS + TRADING 2.1: PASS");
+      console.log("DATABASE BOOTSTRAP 2.97 + PORTAL CMS + P2P MARKETPLACE + CARD COSMETICS + IDENTITY AUTH + FX PRESETS + FX ASSOCIATIONS + TRADING 2.1 + COMMANDER 4P ALPHA: PASS");
     } catch (error) { await client.query("rollback"); throw error; } finally { client.release(); }
   } finally { await pool.end(); }
   console.log("DATABASE BOOTSTRAP: synchronizing certified Studio baseline content");
