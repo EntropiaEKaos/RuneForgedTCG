@@ -11,6 +11,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
   const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [metrics, setMetrics] = useState({ fps: 0, objects: 0, renderer: "pending" });
   const [interaction, setInteraction] = useState({ selected: "", target: "", relation: "" as "" | "friendly" | "opponent" });
+  const [combat, setCombat] = useState({ attacker: "", blocker: "" });
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +42,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
 
             let selectedUnit: { id: string; shape: Phaser.GameObjects.Rectangle } | null = null;
             let targetLine: Phaser.GameObjects.Line | null = null;
+            let combatLine: Phaser.GameObjects.Line | null = null;
 
             scenario.players.forEach((player, playerIndex) => {
               const col = playerIndex % cols;
@@ -92,6 +94,16 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                     .setDepth(18);
                   unit.setStrokeStyle(3, lineColor, 1);
                   setInteraction({ selected: selectedUnit.id, target: entity.id, relation: preview.relation });
+                  if (preview.relation === "opponent") {
+                    combatLine?.destroy();
+                    combatLine = this.add.line(0, 0, selectedUnit.shape.x, selectedUnit.shape.y, unit.x, unit.y, 0xf97316, 0.72)
+                      .setOrigin(0, 0)
+                      .setLineWidth(5)
+                      .setDepth(17);
+                    selectedUnit.shape.setStrokeStyle(3, 0xf97316, 1);
+                    unit.setStrokeStyle(3, 0xfacc15, 1);
+                    setCombat({ attacker: selectedUnit.id, blocker: entity.id });
+                  }
                 });
               });
             });
@@ -143,6 +155,8 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
         {interaction.selected && <span className="rounded bg-cyan-950/80 px-2 py-1">selected: {interaction.selected}</span>}
         {interaction.target && <span className="rounded bg-rose-950/80 px-2 py-1">target: {interaction.target}</span>}
         {interaction.relation && <span className="rounded bg-slate-950/80 px-2 py-1">preview: {interaction.relation}</span>}
+        {combat.attacker && <span className="rounded bg-orange-950/80 px-2 py-1">attacker: {combat.attacker}</span>}
+        {combat.blocker && <span className="rounded bg-amber-950/80 px-2 py-1">blocker preview: {combat.blocker}</span>}
       </div>
       <div ref={hostRef} className="min-h-[560px] w-full" aria-label="Phaser Battlefield Lab canvas" />
       {status !== "ready" && (
