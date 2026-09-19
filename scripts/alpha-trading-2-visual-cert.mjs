@@ -224,10 +224,22 @@ async function main() {
       () => evaluate(cdp, `document.body?.innerText?.includes("Mercado & Trocas") === true`),
       "Marketplace surface",
     );
-    await clickText(cdp, "Trocas diretas");
     await waitUntil(
-      () => evaluate(cdp, `document.body?.innerText?.includes("Propor troca direta") === true && document.body?.innerText?.includes("Sem Gold · carta por carta") === true`),
+      async () => {
+        const opened = await evaluate(cdp, `(() => {
+          const normalize = (value) => (value || '').replace(/\\s+/g, ' ').trim();
+          const button = [...document.querySelectorAll('button')]
+            .find((node) => !node.disabled && normalize(node.textContent) === "Trocas diretas");
+          if (!button) return false;
+          button.click();
+          const text = document.body?.innerText || "";
+          return text.includes("Propor troca direta") && text.includes("Sem Gold · carta por carta");
+        })()`);
+        if (!opened) await sleep(250);
+        return opened;
+      },
       "Trading 2 composer",
+      15_000,
     );
     await waitUntil(
       () => evaluate(cdp, `document.querySelectorAll('button[aria-pressed]').length >= 2`),
@@ -328,7 +340,28 @@ async function main() {
     };
     await writeFile(join(outputDir, "trading-2-visual-manifest.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
     console.log("TRADING 2 VISUAL CERT: PASS — 2x2 composer + exact serialized request + no-Gold boundary captured");
+  } catch (error) {
+    if (cdp) {
+      const diagnostic = await evaluate(cdp, `({
+        href: location.href,
+        bodyText: (document.body?.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 2400),
+        buttons: [...document.querySelectorAll('button')].map((node) => (node.textContent || '').replace(/\\s+/g, ' ').trim()).filter(Boolean).slice(0, 80),
+        innerWidth: window.innerWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      })`).catch(() => null);
+      console.error("TRADING 2 VISUAL DIAGNOSTIC", JSON.stringify(diagnostic));
+      await capture(cdp, "61-trading-2-diagnostic.png").catch(() => undefined);
+    }
+    throw error;
   } finally {
+    if (playerId) {
+      await pool.query("delete from card_asset_locks where owner_player_id=$1", [playerId]).catch(() => undefined);
+      await pool.query("delete from trade_offers where proposer_player_id=$1 or recipient_player_id=$1", [playerId]).catch(() => undefined);
+      await pool.query("delete from market_listings where seller_player_id=$1 or buyer_player_id=$1", [playerId]).catch(() => undefined);
+      await pool.query("delete from economy_transactions where player_id=$1", [playerId]).catch(() => undefined);
+      await pool.query("delete from player_cards where player_id=$1", [playerId]).catch(() => undefined);
+      await pool.query("delete from card_assets where owner_player_id=$1", [playerId]).catch(() => undefined);
+    }
     if (cosmeticId) await pool.query("delete from card_cosmetic_variants where id=$1", [cosmeticId]).catch(() => undefined);
     if (playerId) await pool.query("delete from players where id=$1", [playerId]).catch(() => undefined);
     await pool.end().catch(() => undefined);
