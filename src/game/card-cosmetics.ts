@@ -44,6 +44,12 @@ export interface PlayerCardCosmeticPreference {
   serialNumber?: number | null;
 }
 
+export interface CardAppearanceSelection {
+  variantId: string;
+  serialNumber?: number | null;
+  assetId?: number | null;
+}
+
 export interface ResolvedCardAppearance {
   defId: string;
   variantId: string;
@@ -223,9 +229,15 @@ export function getPreferredCardCosmetic(defId: string): PlayerCardCosmeticPrefe
   return preferenceByCard[defId];
 }
 
-export function resolveCardAppearance(defId: string, explicitVariantId?: string | null): ResolvedCardAppearance {
-  const preference = preferenceByCard[defId];
-  const variantId = explicitVariantId || preference?.variantId;
+export function resolveCardAppearance(
+  defId: string,
+  explicitVariantId?: string | null,
+  explicitSelection?: CardAppearanceSelection | null,
+): ResolvedCardAppearance {
+  const preference = explicitSelection
+    ? { defId, assetId: explicitSelection.assetId ?? 0, variantId: explicitSelection.variantId, serialNumber: explicitSelection.serialNumber }
+    : preferenceByCard[defId];
+  const variantId = explicitVariantId || explicitSelection?.variantId || preference?.variantId;
   const variant = variantId ? getCardCosmetic(defId, variantId) : undefined;
   if (!variant) return { defId, variantId: "standard", name: "Standard", kind: "standard", frameId: "default", finish: "normal" };
   return {

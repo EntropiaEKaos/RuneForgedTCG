@@ -1,5 +1,5 @@
 import { and, asc, eq, sql } from "drizzle-orm";
-import { cardAssets, cardCosmeticVariants } from "@/db/schema";
+import { cardAssetLocks, cardAssets, cardCosmeticVariants } from "@/db/schema";
 
 /**
  * dropWeight is parts-per-million. The unallocated remainder is the implicit
@@ -86,4 +86,59 @@ export async function createPackCollectibleAsset(
     source,
   }).returning();
   return asset;
+}
+
+
+export async function upgradeStandardAssetToCampaignVariant(
+  tx: any,
+  input: {
+    playerId: number;
+    defId: string;
+    variantId: string;
+    acquisition: "event" | "promotion";
+    source: string;
+  },
+) {
+  const [variant] = await tx.select().from(cardCosmeticVariants).where(and(
+    eq(cardCosmeticVariants.defId, input.defId),
+    eq(cardCosmeticVariants.variantId, input.variantId),
+    eq(cardCosmeticVariants.status, "published"),
+    eq(cardCosmeticVariants.enabled, true),
+    eq(cardCosmeticVariants.acquisition, input.acquisition),
+  )).limit(1);
+  if (!variant) throw new Error("CAMPAIGN_VARIANT_UNAVAILABLE");
+
+  const [candidate] = await tx.select({ asset: cardAssets }).from(cardAssets)
+    .leftJoin(cardAssetLocks, eq(cardAssetLocks.assetId, cardAssets.id))
+    .where(and(
+      eq(cardAssets.ownerPlayerId, input.playerId),
+      eq(cardAssets.defId, input.defId),
+      eq(cardAssets.variantId, "standard"),
+      sql`${cardAssetLocks.assetId} IS NULL OR ${cardAssetLocks.expiresAt} <= now()`,
+    ))
+    .orderBy(cardAssets.id)
+    .limit(1)
+    .for("update", { of: cardAssets });
+  if (!candidate?.asset) throw new Error("CAMPAIGN_BASE_COPY_REQUIRED");
+
+  let serialNumber: number | null = null;
+  if (variant.kind === "serialized") {
+    const limit = variant.serialLimit ?? 0;
+    serialNumber = limit > 0 ? await nextSerialNumber(tx, input.defId, input.variantId, limit) : null;
+    if (!serialNumber) throw new Error("CAMPAIGN_SERIAL_EXHAUSTED");
+  }
+
+  const [updated] = await tx.update(cardAssets).set({
+    variantId: variant.variantId,
+    frameId: variant.frameId,
+    finish: variant.finish,
+    serialNumber,
+    source: input.source,
+  }).where(and(
+    eq(cardAssets.id, candidate.asset.id),
+    eq(cardAssets.ownerPlayerId, input.playerId),
+    eq(cardAssets.variantId, "standard"),
+  )).returning();
+  if (!updated) throw new Error("CAMPAIGN_BASE_COPY_CHANGED");
+  return updated;
 }

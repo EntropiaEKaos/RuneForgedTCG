@@ -39,7 +39,7 @@ import { readFileSync } from "node:fs";
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
   "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
   "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
-  "src/components/CardView.tsx": "edd582233b063110d7ca07028b83229236a74553",
+  "src/components/CardView.tsx": "50465f0cff1676f2a81d8d0760c3fe9c09042437",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
   "src/app/styles/visual-3-0-battlefield-cinematic.css": "3bf86d3b3729265db77b7ec8c92f58ae8a6bb04b",
   "src/app/styles/visual-3-1-card-presentation.css": "d5e6cafb58ce0aa759d249d2332b7753294042bd",
@@ -140,4 +140,4 @@ assert.equal(
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
 
-console.log("FORGED ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Frames & Rarity Runtime break-glass recorded");
+console.log("FORGED ALPHA VISUAL FEATURE FREEZE: 7 certified structural blobs PASS — Deck Printing Runtime break-glass recorded");

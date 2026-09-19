@@ -29,6 +29,7 @@ const files = [
   "drizzle/0045_identity_auth.sql",
   "drizzle/0046_admin_fx_presets.sql",
   "drizzle/0047_admin_fx_associations.sql",
+  "drizzle/0048_collectibles_four_player_runtime.sql",
 ];
 
 const tables = new Map(); const failures = []; const loadedSources = []; const dbForeignKeys = new Set();

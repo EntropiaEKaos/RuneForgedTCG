@@ -6,7 +6,7 @@ import { championProgressView } from "@/game/champion-progress";
 import { strategicRoleForCard } from "@/game/card-role";
 import { getCardCollection, type CardCollectionIdentity } from "@/game/card-collections";
 import { getCardArt } from "@/game/card-art";
-import { cosmeticClassNames, resolveCardAppearance } from "@/game/card-cosmetics";
+import { cosmeticClassNames, resolveCardAppearance, type CardAppearanceSelection } from "@/game/card-cosmetics";
 import { cardRarityPresentationContract } from "@/game/card-rarity-presentation-contract";
 import { getClientArtFallbackUrl } from "@/game/client-game-config";
 import { certifiedSemanticCardType, semanticCardTypeLabel } from "@/game/semantic-card-types";
@@ -61,20 +61,21 @@ export function KeywordChips({ keywords, compact = false }: { keywords: Keyword[
 }
 
 export interface CardViewProps {
-  defId: string; definition?: CardDef; collection?: CardCollectionIdentity | null; unit?: UnitInstance; state?: GameState; size?: "sm" | "md" | "lg"; selected?: boolean; dimmed?: boolean; targetable?: boolean; attacking?: boolean; count?: number; costOverride?: number; className?: string; onClick?: () => void;
+  defId: string; definition?: CardDef; collection?: CardCollectionIdentity | null; unit?: UnitInstance; state?: GameState; printing?: CardAppearanceSelection | null; size?: "sm" | "md" | "lg"; selected?: boolean; dimmed?: boolean; targetable?: boolean; attacking?: boolean; count?: number; costOverride?: number; className?: string; onClick?: () => void;
 }
 
-function CardView({ defId, definition, collection: collectionOverride, unit, state, size = "md", selected, dimmed, targetable, attacking, count, costOverride, className, onClick }: CardViewProps) {
+function CardView({ defId, definition, collection: collectionOverride, unit, state, printing, size = "md", selected, dimmed, targetable, attacking, count, costOverride, className, onClick }: CardViewProps) {
   useCatalogRevision();
   const def: CardDef = definition ?? getCard(defId);
   const collection = collectionOverride === undefined ? getCardCollection(def.defId) : collectionOverride;
   const style = REGION_STYLE[def.region];
-  const appearance = resolveCardAppearance(def.defId);
+  const runtimePrinting = printing ?? (state ? state.players[unit?.owner ?? "player"]?.deckPrintings?.[def.defId] : undefined);
+  const appearance = resolveCardAppearance(def.defId, runtimePrinting?.variantId, runtimePrinting);
   const cosmeticClasses = cosmeticClassNames(appearance);
   const rarityPresentation = cardRarityPresentationContract(def.rarity);
   const configuredFallbackArt = getClientArtFallbackUrl();
   const artAssignment = getCardArt(def.defId);
-  const primaryArtUrl = artAssignment?.url || def.art || configuredFallbackArt || null;
+  const primaryArtUrl = appearance.artUrl || artAssignment?.url || def.art || configuredFallbackArt || null;
   const artSource = appearance.artUrl ? "cosmetic" : artAssignment?.url ? "editorial" : def.art ? "definition" : configuredFallbackArt ? "configured-fallback" : "regional-fallback";
   const artBackground = primaryArtUrl && primaryArtUrl !== style.art
     ? `${cssBackgroundUrl(primaryArtUrl)}, ${cssBackgroundUrl(style.art)}`

@@ -434,6 +434,13 @@ export interface PlayerStats {
   alliesSummoned: number;
 }
 
+export interface DeckPrintingSnapshot {
+  variantId: string;
+  frameId: string;
+  finish: string;
+  serialNumber?: number | null;
+}
+
 export interface PlayerState {
   id: PlayerId;
   name: string;
@@ -448,6 +455,8 @@ export interface PlayerState {
   sentinelas: SentinelaInstance[];
   deckName: string;
   deckId: string;
+  /** Immutable presentation-only printing choices captured with the deck. */
+  deckPrintings?: Record<string, DeckPrintingSnapshot>;
   /** Immutable deck-building identity, captured when the match is created. */
   deckRegions?: Region[];
   stats: PlayerStats;
@@ -531,4 +540,6 @@ export interface DeckInput {
   cards: string[];
   /** Deck-construction format captured with the deck snapshot. */
   formatId?: string;
+  /** Presentation-only exact printing snapshot. Never changes card rules. */
+  printings?: Record<string, DeckPrintingSnapshot>;
 }
