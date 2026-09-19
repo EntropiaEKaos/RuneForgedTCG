@@ -39,6 +39,11 @@ assert.match(client,/crypto\.randomUUID\(\)/,"Commander UI commands need unique 
 assert.match(client,/combatCommand\("pass_priority"\)/);
 assert.match(client,/combatCommand\("cast_general"\)/);
 assert.match(client,/combatCommand\("play_card"/);
+assert.match(client,/spellChainSupported/,"Commander UI must gate spells to the authoritative supported effect subset");
+assert.match(client,/Selecionar alvo/);
+assert.match(client,/Alvo da Spell/);
+assert.match(client,/kind:"player"/);
+assert.match(client,/kind:"battlefield"/);
 assert.match(client,/combatCommand\("declare_attacker"/);
 assert.match(client,/combatCommand\("declare_blocker"/);
 assert.match(client,/Atacar P/);

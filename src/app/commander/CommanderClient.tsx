@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+type SpellEffect = { kind:string; target:string; also?:SpellEffect };
 type CollectionCard = {
   defId:string; name:string; region:string; rarity:string; owned:number;
-  cost?:number; type?:string; isChampion?:boolean; isLegend?:boolean; collectible?:boolean;
+  cost?:number; type?:string; speed?:string; spell?:SpellEffect;
+  isChampion?:boolean; isLegend?:boolean; collectible?:boolean;
 };
 type Seat = { seat:number; playerId:number; playerName:string; generalDefId:string; ready:boolean; isHost:boolean; cardCount:number };
 type ProjectedCard = { instanceId:string; defId:string };
@@ -28,7 +30,16 @@ type Room = { code:string; state:string; activeSeat:number; round:number; versio
 type LobbySummary = { code:string; state:string; seatCount:number; viewerJoined:boolean };
 
 const COUNT = 60;
+const SUPPORTED_4P_SPELL_EFFECTS = new Set(["damageUnit","damageNexus","healUnit","healNexus","frostbite","stun","killUnit"]);
 function countOf(cards:string[], defId:string){ return cards.filter((id)=>id===defId).length; }
+function spellChainSupported(effect:SpellEffect|undefined){
+  let current=effect;
+  for(let guard=0;current&&guard<32;guard+=1){
+    if(!SUPPORTED_4P_SPELL_EFFECTS.has(current.kind))return false;
+    current=current.also;
+  }
+  return !current;
+}
 function phaseLabel(phase:string){
   return ({beginning:"INÍCIO",main_1:"PRINCIPAL I",combat:"COMBATE",main_2:"PRINCIPAL II",ending:"ENCERRAMENTO"} as Record<string,string>)[phase]||phase.toUpperCase();
 }
@@ -40,6 +51,7 @@ export default function CommanderClient(){
   const [rooms,setRooms]=useState<LobbySummary[]>([]);
   const [room,setRoom]=useState<Room|null>(null);
   const [joinCode,setJoinCode]=useState("");
+  const [pendingSpellInstanceId,setPendingSpellInstanceId]=useState<string|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
 
@@ -128,6 +140,37 @@ export default function CommanderClient(){
     && !assignedBlockerIds.has(object.id)
   );
   const livingOpponents=(combat?.seats||[]).filter(seat=>!seat.eliminated&&seat.seat!==room?.viewerSeat);
+  const viewerSeatKey=room?.viewerSeat==null?null:`p${room.viewerSeat+1}`;
+  const pendingSpell=viewerRuntime?.hand?.find(card=>card.instanceId===pendingSpellInstanceId);
+  const pendingSpellDef=pendingSpell?collection.find(item=>item.defId===pendingSpell.defId):undefined;
+  const pendingTargetKind=pendingSpellDef?.spell?.target;
+  const pendingUnitTargets=battlefieldObjects.filter(object=>{
+    if(!pendingTargetKind||!["enemyUnit","allyUnit","anyUnit"].includes(pendingTargetKind))return false;
+    if(!["unit","general","token"].includes(object.kind)||!object.combat||object.combat.health<=0)return false;
+    const allied=object.controllerSeat===viewerSeatKey;
+    if(pendingTargetKind==="enemyUnit"&&allied)return false;
+    if(pendingTargetKind==="allyUnit"&&!allied)return false;
+    if(!allied&&object.keywords.includes("Hexproof"))return false;
+    return true;
+  });
+  async function playHandCard(card:ProjectedCard,definition:CollectionCard|undefined){
+    if(!definition)return;
+    if(definition.type!=="Spell"){
+      await combatCommand("play_card",{instanceId:card.instanceId});
+      return;
+    }
+    if(!definition.spell||!spellChainSupported(definition.spell))return;
+    if(["enemyUnit","allyUnit","anyUnit"].includes(definition.spell.target)||definition.spell.kind==="damageNexus"){
+      setPendingSpellInstanceId(card.instanceId);
+      return;
+    }
+    await combatCommand("play_card",{instanceId:card.instanceId});
+  }
+  async function playPendingSpell(target:Record<string,unknown>){
+    if(!pendingSpell)return;
+    await combatCommand("play_card",{instanceId:pendingSpell.instanceId,target});
+    setPendingSpellInstanceId(null);
+  }
 
   return <main className="min-h-screen bg-[#06090e] text-slate-100">
     <div className="mx-auto max-w-[1500px] px-5 py-8">
@@ -184,15 +227,32 @@ export default function CommanderClient(){
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {viewerRuntime.hand.map(card=>{
                   const definition=collection.find(item=>item.defId===card.defId);
-                  const stageable=["Unit","Enchantment","Artifact","Sentinela"].includes(definition?.type||"");
+                  const physical=["Unit","Enchantment","Artifact","Sentinela"].includes(definition?.type||"");
+                  const spell=definition?.type==="Spell"&&spellChainSupported(definition.spell);
+                  const stageable=physical||spell;
                   const affordable=(definition?.cost??0)<=(viewerRuntime.mana??0);
-                  return <button key={card.instanceId} className="border border-white/10 p-3 text-left text-xs disabled:cursor-not-allowed disabled:opacity-35" disabled={busy||!canPlayPhysicalCard||!stageable||!affordable} onClick={()=>void combatCommand("play_card",{instanceId:card.instanceId})}>
+                  const needsTarget=Boolean(spell&&definition?.spell&&(["enemyUnit","allyUnit","anyUnit"].includes(definition.spell.target)||definition.spell.kind==="damageNexus"));
+                  return <button key={card.instanceId} className="border border-white/10 p-3 text-left text-xs disabled:cursor-not-allowed disabled:opacity-35" disabled={busy||!canPlayPhysicalCard||!stageable||!affordable} onClick={()=>void playHandCard(card,definition)}>
                     <b className="block text-slate-100">{definition?.name||card.defId}</b>
-                    <span className="mt-1 block text-slate-500">{definition?.type||"carta"} · custo {definition?.cost??"?"}</span>
-                    <span className="mt-2 block font-black uppercase text-amber-200">Jogar</span>
+                    <span className="mt-1 block text-slate-500">{definition?.type||"carta"} · custo {definition?.cost??"?"}{definition?.speed?` · ${definition.speed}`:""}</span>
+                    <span className="mt-2 block font-black uppercase text-amber-200">{needsTarget?"Selecionar alvo":"Jogar"}</span>
                   </button>
                 })}
               </div>
+              {pendingSpell&&pendingSpellDef&&<div className="mt-4 border border-amber-200/20 bg-amber-100/[.04] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div><b className="text-xs uppercase tracking-[.16em] text-amber-100">Alvo da Spell</b><p className="mt-1 text-xs text-slate-400">{pendingSpellDef.name}</p></div>
+                  <button className="text-xs text-slate-500 underline" onClick={()=>setPendingSpellInstanceId(null)}>Cancelar</button>
+                </div>
+                {pendingSpellDef.spell?.kind==="damageNexus"?<div className="mt-3 flex flex-wrap gap-2">
+                  {livingOpponents.map(target=><button key={target.seat} className="btn-ghost" disabled={busy} onClick={()=>void playPendingSpell({kind:"player",seat:`p${target.seat+1}`})}>Nexus P{target.seat+1}</button>)}
+                </div>:<div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {pendingUnitTargets.map(target=><button key={target.id} className="btn-ghost text-left" disabled={busy} onClick={()=>void playPendingSpell({kind:"battlefield",objectId:target.id})}>
+                    {collection.find(card=>card.defId===target.defId)?.name||target.defId} · P{Number(target.controllerSeat.slice(1))}
+                  </button>)}
+                  {!pendingUnitTargets.length&&<p className="text-xs text-slate-500">Nenhum alvo legal visível para esta Spell.</p>}
+                </div>}
+              </div>}
             </div>}
             <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               <button className="btn-ghost" disabled={busy||!viewerHasPriority} onClick={()=>void combatCommand("pass_priority")}>Passar prioridade</button>
