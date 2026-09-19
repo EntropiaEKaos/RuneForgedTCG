@@ -142,12 +142,17 @@ function privateStates(envelope: CommanderCombatEnvelope): Record<FourPlayerSeat
   const states = {} as Record<FourPlayerSeat, FourPlayerPrivateSeatState>;
   for (const seat of FOUR_PLAYER_SEATS) {
     const general = envelope.match.generals[seat];
+    const physicalBoard = (envelope.match.battlefield?.objects ?? [])
+      .filter((object) => object.controllerSeat === seat)
+      .map((object) => object.defId);
     states[seat] = {
       seat,
       hand: [...envelope.zones[seat].hand],
       deck: [...envelope.zones[seat].deck],
       graveyard: [],
-      publicBoard: general.location === "battlefield" ? [general.defId] : [],
+      publicBoard: physicalBoard.length > 0
+        ? physicalBoard
+        : general.location === "battlefield" ? [general.defId] : [],
       nexusHealth: envelope.match.seats[seat].life,
       eliminated: envelope.match.seats[seat].eliminated,
     };

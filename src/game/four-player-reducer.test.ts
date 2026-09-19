@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { putFourPlayerBattlefieldObject } from "./four-player-battlefield";
 import { eliminateFourPlayerMatchSeat, createFourPlayerMatchState, type FourPlayerMatchState } from "./four-player-match";
 import type { FourPlayerServerEvent } from "./four-player-protocol";
 import { reduceFourPlayerServerEvent } from "./four-player-reducer";
@@ -26,8 +27,24 @@ assert.equal(match.resolution.stack.items.length, 1);
 assert.equal(match.resolution.priority.holder, "p2");
 
 match = createFourPlayerMatchState("p1");
+match = {
+  ...match,
+  phase: "combat",
+  battlefield: putFourPlayerBattlefieldObject(match.battlefield!, {
+    id: "u1",
+    defId: "fixture-u1",
+    kind: "unit",
+    ownerSeat: "p1",
+    enteredTurn: 0,
+  }),
+};
+assert.throws(
+  () => reduceFourPlayerServerEvent(match, event("declare_attacker", "p1", { unitId: "forged-client-id", defendingSeat: "p3" })),
+  /is not present/,
+);
 match = reduceFourPlayerServerEvent(match, event("declare_attacker", "p1", { unitId: "u1", defendingSeat: "p3" }));
 assert.equal(match.combat.attackers[0]?.defendingSeat, "p3");
+assert.equal(match.battlefield?.objects.find((object) => object.id === "u1")?.attackedThisTurn, true);
 assert.throws(
   () => reduceFourPlayerServerEvent(match, event("declare_attacker", "p2", { unitId: "u2", defendingSeat: "p4" })),
   /Only active seat p1/,

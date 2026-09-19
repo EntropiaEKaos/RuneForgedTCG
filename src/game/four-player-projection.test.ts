@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { putFourPlayerBattlefieldObject } from "./four-player-battlefield";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import { applyFourPlayerDamage, createFourPlayerMatchState } from "./four-player-match";
 import { projectFourPlayerStateForSeat, type FourPlayerPrivateSeatState } from "./four-player-projection";
@@ -18,6 +19,17 @@ const states = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivate
 
 let authoritativeMatch = createFourPlayerMatchState("p3");
 authoritativeMatch = applyFourPlayerDamage(authoritativeMatch, "p2", 7, "p3");
+authoritativeMatch = {
+  ...authoritativeMatch,
+  battlefield: putFourPlayerBattlefieldObject(authoritativeMatch.battlefield!, {
+    id: "p2-visible-unit",
+    defId: "fixture-public-unit",
+    kind: "unit",
+    ownerSeat: "p2",
+    controllerSeat: "p2",
+    enteredTurn: 0,
+  }),
+};
 const match = { ...authoritativeMatch, phase: "combat" as const };
 
 for (const viewer of FOUR_PLAYER_SEATS) {
@@ -41,6 +53,7 @@ for (const viewer of FOUR_PLAYER_SEATS) {
     assert.equal(projection.seats[seat].maxMana, match.seats[seat].maxMana);
     assert.deepEqual(projection.seats[seat].generalDamageReceived, match.seats[seat].generalDamageReceived);
   }
+  assert.deepEqual(projection.seats.p2.battlefield?.map((object) => object.id), ["p2-visible-unit"]);
 
   for (const opponent of FOUR_PLAYER_SEATS.filter((seat) => seat !== viewer)) {
     const projected = projection.seats[opponent];

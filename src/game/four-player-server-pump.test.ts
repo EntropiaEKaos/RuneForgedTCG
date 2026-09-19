@@ -66,6 +66,10 @@ assert.equal(generalPump.resolved[0]?.kind, "general_cast");
 assert.equal(generalPump.match.generals.p1.location, "battlefield");
 assert.equal(generalPump.match.generals.p1.castsFromGeneralZone, 1);
 assert.equal(generalPump.match.seats.p1.generalCastsFromZone, 1);
+const physicalGeneral = generalPump.match.battlefield?.objects.find((object) => object.kind === "general" && object.ownerSeat === "p1");
+assert.equal(physicalGeneral?.defId, "general-p1");
+assert.equal(physicalGeneral?.controllerSeat, "p1");
+assert.equal(physicalGeneral?.zone, "battlefield");
 assert.equal(generalPump.match.resolution.stack.items.length, 0);
 assert.equal(generalPump.match.resolution.priority.holder, "p1");
 

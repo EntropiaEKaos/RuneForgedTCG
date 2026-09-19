@@ -1,4 +1,10 @@
 import { getCard } from "./cards";
+import {
+  cleanupFourPlayerBattlefieldForElimination,
+  createFourPlayerBattlefieldState,
+  resetFourPlayerBattlefieldForTurn,
+  type FourPlayerBattlefieldState,
+} from "./four-player-battlefield";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import { cleanupFourPlayerCombatForElimination, createFourPlayerCombatState, type FourPlayerCombatState } from "./four-player-combat";
 import { createFourPlayerResolutionFlow, type FourPlayerResolutionFlow } from "./four-player-flow";
@@ -40,6 +46,7 @@ export interface FourPlayerMatchState {
   phase: FourPlayerPhase;
   resolution: FourPlayerResolutionFlow;
   combat: FourPlayerCombatState;
+  battlefield?: FourPlayerBattlefieldState;
   status: FourPlayerMatchStatus;
   winner?: FourPlayerSeat;
 }
@@ -66,7 +73,7 @@ export function createFourPlayerMatchState(
     return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana, life: FOUR_PLAYER_STARTING_LIFE, generalDamageReceived: {} }];
   })) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
-  return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), status: "active" };
+  return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), battlefield: createFourPlayerBattlefieldState(), status: "active" };
 }
 
 export function updateMatchGeneral(state: FourPlayerMatchState, seat: FourPlayerSeat, general: FourPlayerGeneralZoneState): FourPlayerMatchState {
@@ -91,6 +98,13 @@ export function eliminateFourPlayerMatchSeat(state: FourPlayerMatchState, seat: 
   const stack = removeFourPlayerStackItemsByController(state.resolution.stack, seat);
   const priority = createFourPlayerPriorityState(state.resolution.priority.holder, eliminatedSeats, state.resolution.priority.mode);
   const combat = cleanupFourPlayerCombatForElimination(state.combat, seat);
+  let battlefield = cleanupFourPlayerBattlefieldForElimination(
+    state.battlefield ?? createFourPlayerBattlefieldState(),
+    seat,
+  ).state;
+  if (wasActiveSeat && living.length > 1) {
+    battlefield = resetFourPlayerBattlefieldForTurn(battlefield, turn.activeSeat);
+  }
   return {
     ...state,
     seats: { ...state.seats, [seat]: { ...state.seats[seat], eliminated: true } },
@@ -98,6 +112,7 @@ export function eliminateFourPlayerMatchSeat(state: FourPlayerMatchState, seat: 
     phase: wasActiveSeat && living.length > 1 ? "beginning" : state.phase,
     resolution: { stack, priority },
     combat,
+    battlefield,
     status: winner ? "completed" : "active",
     winner,
   };
@@ -112,7 +127,11 @@ export function advanceFourPlayerMatchTurn(state: FourPlayerMatchState): FourPla
     ...state.seats,
     [turn.activeSeat]: { ...incoming, maxMana: nextMaxMana, mana: nextMaxMana },
   };
-  return { ...state, seats, turn, phase: "beginning", resolution: createFourPlayerResolutionFlow(turn.activeSeat, turn.eliminatedSeats, state.resolution.priority.mode), combat: createFourPlayerCombatState(turn.activeSeat, turn.eliminatedSeats) };
+  const battlefield = resetFourPlayerBattlefieldForTurn(
+    state.battlefield ?? createFourPlayerBattlefieldState(),
+    turn.activeSeat,
+  );
+  return { ...state, seats, turn, phase: "beginning", resolution: createFourPlayerResolutionFlow(turn.activeSeat, turn.eliminatedSeats, state.resolution.priority.mode), combat: createFourPlayerCombatState(turn.activeSeat, turn.eliminatedSeats), battlefield };
 }
 
 export function applyFourPlayerDamage(

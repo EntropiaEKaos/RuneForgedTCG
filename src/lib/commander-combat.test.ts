@@ -29,6 +29,7 @@ async function main() {
   assert.equal(initial.match.turn.activeSeat, "p1");
   assert.equal(initial.zones.p1.hand.length, 5);
   assert.equal(initial.zones.p1.deck.length, 55);
+  assert.equal(initial.match.battlefield?.objects.length, 0);
 
   const p1 = projectCommanderCombatState(initial, 0);
   assert.equal(p1.revision, 5);
@@ -36,6 +37,17 @@ async function main() {
   assert.equal(p1.seats[0].hand?.length, 5, "viewer receives own hand identities");
   assert.equal(p1.seats[1].hand, undefined, "viewer must not receive opponent hand identities");
   assert.equal("deck" in p1.seats[0], false, "future deck identities must never be projected");
+
+  assert.throws(
+    () => processCommanderCombatCommand(initial, 100, 0, {
+      commandId: "cmd-forged-attacker",
+      expectedRevision: 5,
+      type: "declare_attacker",
+      payload: { unitId: "forged-client-id", defendingSeat: "p2" },
+    }),
+    /not exposed by the PostgreSQL bridge yet/,
+    "attack declarations remain closed until battlefield authority is exposed deliberately",
+  );
 
   const passed = processCommanderCombatCommand(initial, 100, 0, {
     commandId: "cmd-pass-1",

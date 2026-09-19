@@ -1,3 +1,4 @@
+import { createFourPlayerBattlefieldState, placeResolvedGeneralOnBattlefield } from "./four-player-battlefield";
 import { resolveFourPlayerFlow } from "./four-player-flow";
 import { resolveGeneralToBattlefield } from "./four-player-general-zone";
 import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-match";
@@ -21,7 +22,18 @@ function applyResolvedStackItem(match: FourPlayerMatchState, item: FourPlayerSta
   if (payload.owner !== item.controller || payload.defId !== general.defId) {
     throw new Error("Resolved General stack identity does not match authoritative General state.");
   }
-  return updateMatchGeneral(match, item.controller, resolveGeneralToBattlefield(general));
+  const resolvedGeneral = resolveGeneralToBattlefield(general);
+  const withGeneral = updateMatchGeneral(match, item.controller, resolvedGeneral);
+  return {
+    ...withGeneral,
+    battlefield: placeResolvedGeneralOnBattlefield(
+      withGeneral.battlefield ?? createFourPlayerBattlefieldState(),
+      item.controller,
+      resolvedGeneral.defId,
+      resolvedGeneral.castsFromGeneralZone,
+      withGeneral.turn.turn,
+    ),
+  };
 }
 
 /**

@@ -1,3 +1,4 @@
+import type { FourPlayerBattlefieldObject } from "./four-player-battlefield";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import type { FourPlayerMatchState, FourPlayerMatchStatus, FourPlayerPhase } from "./four-player-match";
 
@@ -9,6 +10,16 @@ export interface FourPlayerPrivateSeatState {
   publicBoard: readonly string[];
   nexusHealth: number;
   eliminated: boolean;
+}
+
+export interface FourPlayerProjectedBattlefieldObject {
+  id: string;
+  defId: string;
+  kind: FourPlayerBattlefieldObject["kind"];
+  ownerSeat: FourPlayerSeat;
+  controllerSeat: FourPlayerSeat;
+  stunned: boolean;
+  attackedThisTurn: boolean;
 }
 
 export interface FourPlayerProjectedSeatState {
@@ -23,6 +34,7 @@ export interface FourPlayerProjectedSeatState {
   mana?: number;
   maxMana?: number;
   generalDamageReceived?: Partial<Record<FourPlayerSeat, number>>;
+  battlefield?: readonly FourPlayerProjectedBattlefieldObject[];
   hand?: readonly string[];
 }
 
@@ -54,6 +66,19 @@ export function projectFourPlayerStateForSeat(
   const projected = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
     const source = states[seat];
     const own = seat === viewer;
+    const battlefield = match
+      ? (match.battlefield?.objects ?? [])
+        .filter((object) => object.controllerSeat === seat)
+        .map((object) => ({
+          id: object.id,
+          defId: object.defId,
+          kind: object.kind,
+          ownerSeat: object.ownerSeat,
+          controllerSeat: object.controllerSeat,
+          stunned: object.stunned,
+          attackedThisTurn: object.attackedThisTurn,
+        }))
+      : undefined;
     const value: FourPlayerProjectedSeatState = {
       seat,
       handCount: source.hand.length,
@@ -67,6 +92,7 @@ export function projectFourPlayerStateForSeat(
         mana: match.seats[seat].mana,
         maxMana: match.seats[seat].maxMana,
         generalDamageReceived: { ...match.seats[seat].generalDamageReceived },
+        battlefield,
       } : {}),
       ...(own ? { hand: [...source.hand] } : {}),
     };

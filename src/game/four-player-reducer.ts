@@ -1,5 +1,12 @@
+import {
+  assertFourPlayerAttackerObject,
+  assertFourPlayerBlockerObject,
+  createFourPlayerBattlefieldState,
+  markFourPlayerBattlefieldObjectAttacked,
+} from "./four-player-battlefield";
 import { declareFourPlayerAttacker, declareFourPlayerBlocker } from "./four-player-combat";
 import { passFourPlayerFlow, submitFourPlayerAction } from "./four-player-flow";
+import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import { assertGeneralCastTiming, castGeneralFromZone, generalCastCost } from "./four-player-general-zone";
 import {
   advanceFourPlayerMatchTurn,
@@ -10,7 +17,7 @@ import {
 import type { FourPlayerServerEvent } from "./four-player-protocol";
 import type { FourPlayerStackItem } from "./four-player-stack";
 
-export interface DeclareAttackerPayload { unitId: string; defendingSeat: "p1" | "p2" | "p3" | "p4"; }
+export interface DeclareAttackerPayload { unitId: string; defendingSeat: FourPlayerSeat; }
 export interface DeclareBlockerPayload { unitId: string; attackerId: string; }
 
 function assertActiveMatch(state: FourPlayerMatchState): void {
@@ -54,13 +61,32 @@ export function reduceFourPlayerServerEvent(
 
     case "declare_attacker": {
       if (state.turn.activeSeat !== event.actor) throw new Error(`Only active seat ${state.turn.activeSeat} may declare attackers.`);
-      const payload = event.payload as DeclareAttackerPayload;
-      return { ...state, combat: declareFourPlayerAttacker(state.combat, payload.unitId, payload.defendingSeat) };
+      if (state.phase !== "combat") throw new Error("Attackers may only be declared during the combat phase.");
+      const payload = event.payload as Partial<DeclareAttackerPayload>;
+      const unitId = typeof payload.unitId === "string" ? payload.unitId.trim() : "";
+      if (!unitId) throw new Error("Attacker unitId is required.");
+      if (!payload.defendingSeat || !FOUR_PLAYER_SEATS.includes(payload.defendingSeat)) {
+        throw new Error("Attacker defendingSeat is invalid.");
+      }
+      const battlefield = state.battlefield ?? createFourPlayerBattlefieldState();
+      assertFourPlayerAttackerObject(battlefield, event.actor, unitId, state.turn.turn);
+      return {
+        ...state,
+        battlefield: markFourPlayerBattlefieldObjectAttacked(battlefield, unitId),
+        combat: declareFourPlayerAttacker(state.combat, unitId, payload.defendingSeat),
+      };
     }
 
     case "declare_blocker": {
-      const payload = event.payload as DeclareBlockerPayload;
-      return { ...state, combat: declareFourPlayerBlocker(state.combat, event.actor, payload.unitId, payload.attackerId) };
+      if (state.phase !== "combat") throw new Error("Blockers may only be declared during the combat phase.");
+      const payload = event.payload as Partial<DeclareBlockerPayload>;
+      const unitId = typeof payload.unitId === "string" ? payload.unitId.trim() : "";
+      const attackerId = typeof payload.attackerId === "string" ? payload.attackerId.trim() : "";
+      if (!unitId) throw new Error("Blocker unitId is required.");
+      if (!attackerId) throw new Error("Blocker attackerId is required.");
+      const battlefield = state.battlefield ?? createFourPlayerBattlefieldState();
+      assertFourPlayerBlockerObject(battlefield, event.actor, unitId);
+      return { ...state, combat: declareFourPlayerBlocker(state.combat, event.actor, unitId, attackerId) };
     }
 
     case "cast_general": {

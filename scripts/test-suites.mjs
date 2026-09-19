@@ -125,6 +125,7 @@ export const behavioralTests = [
   "src/lib/vanilla-runtime-smoke.test.ts",
   "src/game/four-player-ascension.test.ts",
   "src/game/four-player-authority.test.ts",
+  "src/game/four-player-battlefield.test.ts",
   "src/game/four-player-broadcast.test.ts",
   "src/game/four-player-combat.test.ts",
   "src/game/four-player-catalog-match.test.ts",
