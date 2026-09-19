@@ -6,6 +6,11 @@ import type { Keyword } from "./types";
 export const FOUR_PLAYER_BATTLEFIELD_KINDS = ["unit", "general", "permanent", "sentinela", "token"] as const;
 export type FourPlayerBattlefieldKind = (typeof FOUR_PLAYER_BATTLEFIELD_KINDS)[number];
 
+export interface FourPlayerDurability {
+  health: number;
+  maxHealth: number;
+}
+
 export interface FourPlayerBattlefieldObject {
   id: string;
   defId: string;
@@ -16,6 +21,7 @@ export interface FourPlayerBattlefieldObject {
   enteredTurn: number;
   keywords: readonly Keyword[];
   combat?: FourPlayerCombatBody;
+  durability?: FourPlayerDurability;
   stunned: boolean;
   attackedThisTurn: boolean;
 }
@@ -29,6 +35,7 @@ export interface FourPlayerBattlefieldObjectInput {
   enteredTurn: number;
   keywords?: readonly Keyword[];
   combat?: FourPlayerCombatBody;
+  durability?: FourPlayerDurability;
   stunned?: boolean;
   attackedThisTurn?: boolean;
 }
@@ -78,6 +85,7 @@ export function putFourPlayerBattlefieldObject(
     enteredTurn: input.enteredTurn,
     keywords: [...(input.keywords ?? [])],
     ...(input.combat ? { combat: cloneFourPlayerCombatBody(input.combat) } : {}),
+    ...(input.durability ? { durability: { ...input.durability } } : {}),
     stunned: Boolean(input.stunned),
     attackedThisTurn: Boolean(input.attackedThisTurn),
   };
@@ -174,6 +182,29 @@ export function applyFourPlayerBattlefieldDamage(
     damageDealt,
     barrierConsumed,
     destroyed: combat.health <= 0,
+  };
+}
+
+export interface FourPlayerPermanentDamageResult {
+  state: FourPlayerBattlefieldState;
+  damageDealt: number;
+  destroyed: boolean;
+}
+
+export function applyFourPlayerPermanentDamage(
+  state: FourPlayerBattlefieldState,
+  targetId: string,
+  amount: number,
+): FourPlayerPermanentDamageResult {
+  if (!Number.isFinite(amount) || amount < 0) throw new Error("4P permanent damage must be a non-negative finite number.");
+  const target = findFourPlayerBattlefieldObject(state, targetId);
+  if (target.kind !== "permanent" || !target.durability) throw new Error(`4P battlefield object ${target.id} is not a durable permanent.`);
+  if (target.durability.health <= 0) throw new Error(`4P permanent ${target.id} is already destroyed.`);
+  const durability = { ...target.durability, health: Math.max(0, target.durability.health - amount) };
+  return {
+    state: { objects: state.objects.map((object) => object.id === target.id ? { ...object, durability } : object) },
+    damageDealt: amount,
+    destroyed: durability.health <= 0,
   };
 }
 

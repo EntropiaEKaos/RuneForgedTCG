@@ -195,6 +195,169 @@ async function main() {
   assert.equal(reactionEnvelope.zones.p1.graveyard.some((card) => card.instanceId === reactionBurn.instanceId), true, "countered spell goes to owner graveyard");
   assert.equal(reactionEnvelope.zones.p2.graveyard.some((card) => card.instanceId === reactionCounter.instanceId), true, "resolved counter goes to owner graveyard");
 
+  // Counter-the-counter: P3 answers P2's counter, so the original P1 spell survives and resolves later.
+  const counterChainSeats = generals.map((general, index) => ({
+    seat: index as 0 | 1 | 2 | 3,
+    playerId: 100 + index,
+    playerName: `Commander Counter Chain P${index + 1}`,
+    deckCards: Array.from({ length: 60 }, () => index === 1 || index === 2 ? counter.defId : burn.defId),
+    generalDefId: general.defId,
+  }));
+  const chainInitial = await createCommanderCombatEnvelope("commander:counter-chain-room", 60, 0x27182818, counterChainSeats);
+  let chainEnvelope: CommanderCombatEnvelope = {
+    ...chainInitial,
+    match: {
+      ...chainInitial.match,
+      phase: "main_1" as const,
+      seats: {
+        ...chainInitial.match.seats,
+        p1: { ...chainInitial.match.seats.p1, mana: 10, maxMana: 10 },
+        p2: { ...chainInitial.match.seats.p2, mana: 10, maxMana: 10 },
+        p3: { ...chainInitial.match.seats.p3, mana: 10, maxMana: 10 },
+      },
+    },
+  };
+  const chainBurn = chainEnvelope.zones.p1.hand[0]!;
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 100, 0, {
+    commandId: "cmd-chain-burn", expectedRevision: 60, type: "play_card",
+    payload: { instanceId: chainBurn.instanceId, target: { kind: "player", seat: "p2" } },
+  });
+  const chainBurnStackId = chainEnvelope.match.resolution.stack.items.at(-1)!.id;
+  const p2Counter = chainEnvelope.zones.p2.hand[0]!;
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 101, 1, {
+    commandId: "cmd-chain-counter-p2", expectedRevision: 61, type: "play_card",
+    payload: { instanceId: p2Counter.instanceId, stackTargetId: chainBurnStackId },
+  });
+  const p2CounterStackId = chainEnvelope.match.resolution.stack.items.at(-1)!.id;
+  const p3Counter = chainEnvelope.zones.p3.hand[0]!;
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 102, 2, {
+    commandId: "cmd-chain-counter-p3", expectedRevision: 62, type: "play_card",
+    payload: { instanceId: p3Counter.instanceId, stackTargetId: p2CounterStackId },
+  });
+  assert.equal(chainEnvelope.match.resolution.stack.items.length, 3, "three objects must coexist before the counter-chain pass cycle");
+
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 103, 3, { commandId: "cmd-chain-pass-p4-a", expectedRevision: 63, type: "pass_priority" });
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 100, 0, { commandId: "cmd-chain-pass-p1-a", expectedRevision: 64, type: "pass_priority" });
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 101, 1, { commandId: "cmd-chain-pass-p2-a", expectedRevision: 65, type: "pass_priority" });
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 102, 2, { commandId: "cmd-chain-pass-p3-a", expectedRevision: 66, type: "pass_priority" });
+
+  assert.equal(chainEnvelope.protocol.revision, 67);
+  assert.equal(chainEnvelope.match.resolution.stack.items.length, 1, "counter-of-counter must remove P2 counter and leave the original spell");
+  assert.equal(chainEnvelope.match.resolution.stack.items[0]?.id, chainBurnStackId);
+  assert.equal(chainEnvelope.zones.p2.graveyard.some((card) => card.instanceId === p2Counter.instanceId), true, "countered counter goes to its owner's graveyard");
+  assert.equal(chainEnvelope.zones.p3.graveyard.some((card) => card.instanceId === p3Counter.instanceId), true, "counter-of-counter resolves to its owner's graveyard");
+  assert.equal(chainEnvelope.match.seats.p2.life, 30, "original burn remains pending after counter-of-counter resolves");
+
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 100, 0, { commandId: "cmd-chain-pass-p1-b", expectedRevision: 67, type: "pass_priority" });
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 101, 1, { commandId: "cmd-chain-pass-p2-b", expectedRevision: 68, type: "pass_priority" });
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 102, 2, { commandId: "cmd-chain-pass-p3-b", expectedRevision: 69, type: "pass_priority" });
+  chainEnvelope = processCommanderCombatCommand(chainEnvelope, 103, 3, { commandId: "cmd-chain-pass-p4-b", expectedRevision: 70, type: "pass_priority" });
+
+  assert.equal(chainEnvelope.protocol.revision, 71);
+  assert.equal(chainEnvelope.match.resolution.stack.items.length, 0);
+  assert.equal(chainEnvelope.match.seats.p2.life, 30 - burn.spell!.amount, "original spell resolves after its counter is itself countered");
+  assert.equal(chainEnvelope.zones.p1.graveyard.some((card) => card.instanceId === chainBurn.instanceId), true);
+
+  const recallSpell = collectibleCards().find((card) =>
+    card.collectible !== false
+    && card.type === "Spell"
+    && card.cost <= 10
+    && (card.speed === "Fast" || card.speed === "Burst")
+    && card.spell?.kind === "recall",
+  );
+  const recallTargetDef = collectibleCards().find((card) => card.collectible !== false && card.type === "Unit");
+  assert.ok(recallSpell, "fixture requires a Fast/Burst recall spell");
+  assert.ok(recallTargetDef, "fixture requires a recallable Unit");
+  const recallSeats = generals.map((general, index) => ({
+    seat: index as 0 | 1 | 2 | 3,
+    playerId: 100 + index,
+    playerName: `Commander Recall P${index + 1}`,
+    deckCards: Array.from({ length: 60 }, () => index === 0 ? recallSpell.defId : recallTargetDef.defId),
+    generalDefId: general.defId,
+  }));
+  const recallInitial = await createCommanderCombatEnvelope("commander:recall-room", 80, 0x13572468, recallSeats);
+  const recalledCard = recallInitial.zones.p2.hand[0]!;
+  let recallEnvelope: CommanderCombatEnvelope = {
+    ...recallInitial,
+    zones: {
+      ...recallInitial.zones,
+      p2: { ...recallInitial.zones.p2, hand: recallInitial.zones.p2.hand.slice(1) },
+    },
+    match: {
+      ...recallInitial.match,
+      phase: "main_1" as const,
+      seats: {
+        ...recallInitial.match.seats,
+        p1: { ...recallInitial.match.seats.p1, mana: 10, maxMana: 10 },
+      },
+      battlefield: putFourPlayerBattlefieldObject(recallInitial.match.battlefield!, {
+        id: recalledCard.instanceId,
+        defId: recalledCard.defId,
+        kind: "unit",
+        ownerSeat: "p2",
+        controllerSeat: "p2",
+        enteredTurn: 0,
+      }),
+    },
+  };
+  const recallCaster = recallEnvelope.zones.p1.hand[0]!;
+  recallEnvelope = processCommanderCombatCommand(recallEnvelope, 100, 0, {
+    commandId: "cmd-recall-cast",
+    expectedRevision: 80,
+    type: "play_card",
+    payload: { instanceId: recallCaster.instanceId, target: { kind: "battlefield", objectId: recalledCard.instanceId } },
+  });
+  recallEnvelope = processCommanderCombatCommand(recallEnvelope, 101, 1, { commandId: "cmd-recall-pass-p2", expectedRevision: 81, type: "pass_priority" });
+  recallEnvelope = processCommanderCombatCommand(recallEnvelope, 102, 2, { commandId: "cmd-recall-pass-p3", expectedRevision: 82, type: "pass_priority" });
+  recallEnvelope = processCommanderCombatCommand(recallEnvelope, 103, 3, { commandId: "cmd-recall-pass-p4", expectedRevision: 83, type: "pass_priority" });
+  recallEnvelope = processCommanderCombatCommand(recallEnvelope, 100, 0, { commandId: "cmd-recall-pass-p1", expectedRevision: 84, type: "pass_priority" });
+  assert.equal(recallEnvelope.protocol.revision, 85);
+  assert.equal(recallEnvelope.match.battlefield?.objects.some((object) => object.id === recalledCard.instanceId), false);
+  assert.equal(recallEnvelope.zones.p2.hand.some((card) => card.instanceId === recalledCard.instanceId), true, "recalled unit must return to its owner's hand");
+
+  const millSpell = collectibleCards().find((card) =>
+    card.collectible !== false
+    && card.type === "Spell"
+    && card.cost <= 10
+    && (card.speed === "Fast" || card.speed === "Burst")
+    && card.spell?.kind === "mill",
+  );
+  assert.ok(millSpell, "fixture requires a Fast/Burst mill spell");
+  const millSeats = generals.map((general, index) => ({
+    seat: index as 0 | 1 | 2 | 3,
+    playerId: 100 + index,
+    playerName: `Commander Mill P${index + 1}`,
+    deckCards: Array.from({ length: 60 }, () => index === 0 ? millSpell.defId : recallTargetDef.defId),
+    generalDefId: general.defId,
+  }));
+  const millInitial = await createCommanderCombatEnvelope("commander:mill-room", 90, 0x24681357, millSeats);
+  let millEnvelope: CommanderCombatEnvelope = {
+    ...millInitial,
+    match: {
+      ...millInitial.match,
+      phase: "main_1" as const,
+      seats: {
+        ...millInitial.match.seats,
+        p1: { ...millInitial.match.seats.p1, mana: 10, maxMana: 10 },
+      },
+    },
+  };
+  const millCaster = millEnvelope.zones.p1.hand[0]!;
+  const p2DeckBeforeMill = millEnvelope.zones.p2.deck.length;
+  millEnvelope = processCommanderCombatCommand(millEnvelope, 100, 0, {
+    commandId: "cmd-mill-cast",
+    expectedRevision: 90,
+    type: "play_card",
+    payload: { instanceId: millCaster.instanceId, target: { kind: "player", seat: "p2" } },
+  });
+  millEnvelope = processCommanderCombatCommand(millEnvelope, 101, 1, { commandId: "cmd-mill-pass-p2", expectedRevision: 91, type: "pass_priority" });
+  millEnvelope = processCommanderCombatCommand(millEnvelope, 102, 2, { commandId: "cmd-mill-pass-p3", expectedRevision: 92, type: "pass_priority" });
+  millEnvelope = processCommanderCombatCommand(millEnvelope, 103, 3, { commandId: "cmd-mill-pass-p4", expectedRevision: 93, type: "pass_priority" });
+  millEnvelope = processCommanderCombatCommand(millEnvelope, 100, 0, { commandId: "cmd-mill-pass-p1", expectedRevision: 94, type: "pass_priority" });
+  assert.equal(millEnvelope.protocol.revision, 95);
+  assert.equal(millEnvelope.zones.p2.deck.length, p2DeckBeforeMill - millSpell.spell!.amount);
+  assert.equal(millEnvelope.zones.p2.graveyard.length, millSpell.spell!.amount);
+
   const drawSpell = collectibleCards().find((card)=>card.defId==="tide_draw");
   assert.ok(drawSpell?.spell?.kind==="draw","fixture requires tide_draw");
   const drawSeats = generals.map((general,index)=>({

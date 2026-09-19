@@ -10,6 +10,10 @@ const bridge=read("src/lib/commander-combat.ts");
 const client=read("src/app/commander/CommanderClient.tsx");
 const commanderSchema=read("src/db/schema/commander.ts");
 const coreTypes=read("src/game/types.ts");
+const spellContract=read("src/game/four-player-spell-contract.ts");
+const effectZones=read("src/game/four-player-effect-zones.ts");
+const battlefield=read("src/game/four-player-battlefield.ts");
+const cardPlay=read("src/game/four-player-card-play.ts");
 
 assert.match(route,/createCommanderCombatEnvelope/,"room start must create the recovered combat envelope");
 assert.match(route,/commanderCombatPersistence/,"combat state must persist through the Commander bridge");
@@ -25,6 +29,10 @@ assert.match(bridge,/EXPOSED_COMMANDS/,"only an explicit command allowlist may c
 assert.match(bridge,/pass_priority/);
 assert.match(bridge,/cast_general/);
 assert.match(bridge,/play_card/);
+assert.match(bridge,/COMMANDER_COMBAT_ENGINE_VERSION = 2/, "state-shape expansion must fail closed on legacy Commander envelopes");
+assert.match(bridge,/fourPlayerStackActionKind/, "bridge must project the authoritative 4P stack taxonomy");
+assert.match(bridge,/fourPlayerStackItemIsUncounterable/, "stack projection must publish authoritative uncounterable state");
+assert.match(bridge,/settleFourPlayerEffectZoneActions/, "ordered draw, mill and recall zone actions must settle through the bridge");
 assert.match(bridge,/fourPlayerStackActionKind/, "bridge must project the authoritative 4P stack taxonomy");
 assert.match(bridge,/stackTargetId/, "bridge must carry stack-target ids without trusting client card identity");
 assert.match(bridge,/counteredStackItems/, "countered stack cards must settle through authoritative zones");
@@ -35,6 +43,8 @@ assert.match(bridge,/stageFourPlayerCardCast/,"play_card must derive authoritati
 assert.match(bridge,/acceptAuthoritativeFourPlayerCommand/,"play_card must still consume the canonical revision/idempotency protocol");
 assert.match(bridge,/end_turn/);
 assert.match(bridge,/concede/);
+assert.match(cardPlay,/semanticProactivePlayAllowed/, "Commander server must preserve reaction-only Trap timing");
+assert.match(cardPlay,/semanticReactionAllowed/, "Commander server must preserve semantic reaction legality");
 
 assert.match(client,/action:"combat-command"/,"Commander UI must use the versioned combat bridge");
 assert.match(client,/expectedRevision:room\.combat\.revision/,"Commander UI must send authoritative expectedRevision");
@@ -42,22 +52,16 @@ assert.match(client,/crypto\.randomUUID\(\)/,"Commander UI commands need unique 
 assert.match(client,/combatCommand\("pass_priority"\)/);
 assert.match(client,/combatCommand\("cast_general"\)/);
 assert.match(client,/combatCommand\("play_card"/);
-assert.match(client,/spellChainSupported/,"Commander UI must gate spells to the authoritative supported effect subset");
+assert.match(client,/isFourPlayerSpellChainSupported/,"Commander UI must share the authoritative 4P spell contract");
+assert.match(client,/legalCounterTargets/,"Commander UI must filter counters before offering stack targets");
+assert.match(client,/uncounterable/,"Commander UI must honor authoritative uncounterable projection");
+assert.match(client,/PERMANENT_TARGETS/,"Commander UI must expose permanent targeting for reaction spells");
+assert.match(client,/archetypeKey!=="trap"/,"Commander UI must not offer semantic Traps proactively");
+assert.match(client,/mill/,"Commander UI must request an explicit opponent for 4P mill");
 assert.match(client,/negateSpell/,"Commander UI must expose the certified negateSpell subset");
 assert.match(client,/Stack 4P/,"Commander UI must render the authoritative circular stack");
 assert.match(client,/Responder/,"Commander UI must expose legal Fast\/Burst reaction affordances");
 assert.match(client,/stackTargetId/,"Commander UI must send explicit stack targets for counters");
-assert.match(client,/buffUnit/);
-assert.match(client,/buffAllies/);
-assert.match(client,/buffRace/);
-assert.match(client,/buffClass/);
-assert.match(client,/manaRefund/);
-assert.match(client,/aoeEnemy/);
-assert.match(client,/grantBarrier/);
-assert.match(client,/grantKeyword/);
-assert.match(client,/poison/);
-assert.match(client,/draw/);
-assert.match(client,/summonToken/);
 assert.match(client,/Selecionar alvo/);
 assert.match(client,/Alvo da Spell/);
 assert.match(client,/kind:"player"/);
@@ -73,6 +77,17 @@ assert.match(client,/Passar prioridade/);
 assert.match(client,/Conjurar General/);
 assert.match(client,/Encerrar turno/);
 assert.match(client,/Conceder partida/);
+
+assert.match(spellContract,/FOUR_PLAYER_SUPPORTED_SPELL_EFFECT_KINDS/);
+assert.match(spellContract,/negateSpell/);
+assert.match(spellContract,/recall/);
+assert.match(spellContract,/damagePermanent/);
+assert.match(spellContract,/destroyPermanent/);
+assert.match(spellContract,/mill/);
+assert.match(effectZones,/return_to_hand/);
+assert.match(effectZones,/millFourPlayerCards/);
+assert.match(battlefield,/FourPlayerDurability/);
+assert.match(battlefield,/applyFourPlayerPermanentDamage/);
 
 assert.match(commanderSchema,/commander_rooms/);
 assert.match(commanderSchema,/gameState: jsonb\("game_state"\)/);

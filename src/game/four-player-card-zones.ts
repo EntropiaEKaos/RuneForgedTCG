@@ -86,6 +86,42 @@ export function takeFourPlayerCardFromHand(
   };
 }
 
+export function putFourPlayerCardInHand(
+  zones: FourPlayerCardZones,
+  card: FourPlayerCardInstance,
+): FourPlayerCardZones {
+  const source = zones[card.ownerSeat];
+  if (source.hand.some((entry) => entry.instanceId === card.instanceId)) {
+    throw new Error(`Card instance ${card.instanceId} is already in hand.`);
+  }
+  return {
+    ...zones,
+    [card.ownerSeat]: { ...source, hand: [...source.hand, card] },
+  };
+}
+
+export function millFourPlayerCards(
+  zones: FourPlayerCardZones,
+  seat: FourPlayerSeat,
+  amount: number,
+): { zones: FourPlayerCardZones; milled: readonly FourPlayerCardInstance[] } {
+  if (!Number.isInteger(amount) || amount < 0) throw new Error("4P mill amount must be a non-negative integer.");
+  if (amount === 0) return { zones, milled: [] };
+  const source = zones[seat];
+  const milled = source.deck.slice(0, amount);
+  return {
+    milled,
+    zones: {
+      ...zones,
+      [seat]: {
+        ...source,
+        deck: source.deck.slice(milled.length),
+        graveyard: [...source.graveyard, ...milled],
+      },
+    },
+  };
+}
+
 export function putFourPlayerCardInGraveyard(
   zones: FourPlayerCardZones,
   card: FourPlayerCardInstance,

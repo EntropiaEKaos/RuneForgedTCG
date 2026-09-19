@@ -1,4 +1,5 @@
-import { drawFourPlayerCard, type FourPlayerCardZones } from "./four-player-card-zones";
+import { drawFourPlayerCard, millFourPlayerCards, putFourPlayerCardInHand, type FourPlayerCardZones } from "./four-player-card-zones";
+import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import { eliminateFourPlayerMatchSeat, type FourPlayerMatchState } from "./four-player-match";
 
@@ -40,4 +41,48 @@ export function settleFourPlayerEffectDraws(
   }
 
   return { match: currentMatch, zones: currentZones, drawnCounts, deckOutSeats };
+}
+
+
+export interface FourPlayerEffectZoneSettlement extends FourPlayerEffectDrawSettlement {
+  milledCounts: Partial<Record<FourPlayerSeat, number>>;
+  returnedToHandCounts: Partial<Record<FourPlayerSeat, number>>;
+}
+
+export function settleFourPlayerEffectZoneActions(
+  match: FourPlayerMatchState,
+  zones: FourPlayerCardZones,
+  actions: readonly FourPlayerEffectZoneAction[],
+): FourPlayerEffectZoneSettlement {
+  let currentMatch = match;
+  let currentZones = zones;
+  const drawnCounts: Partial<Record<FourPlayerSeat, number>> = {};
+  const milledCounts: Partial<Record<FourPlayerSeat, number>> = {};
+  const returnedToHandCounts: Partial<Record<FourPlayerSeat, number>> = {};
+  const deckOutSeats: FourPlayerSeat[] = [];
+
+  for (const action of actions) {
+    if (currentMatch.status === "completed") break;
+    if (action.kind === "return_to_hand") {
+      currentZones = putFourPlayerCardInHand(currentZones, action.card);
+      returnedToHandCounts[action.card.ownerSeat] = (returnedToHandCounts[action.card.ownerSeat] ?? 0) + 1;
+      continue;
+    }
+    if (action.kind === "mill") {
+      if (currentMatch.seats[action.seat].eliminated) continue;
+      const milled = millFourPlayerCards(currentZones, action.seat, action.amount);
+      currentZones = milled.zones;
+      milledCounts[action.seat] = (milledCounts[action.seat] ?? 0) + milled.milled.length;
+      continue;
+    }
+
+    const drawRequest: Partial<Record<FourPlayerSeat, number>> = { [action.seat]: action.amount };
+    const settled = settleFourPlayerEffectDraws(currentMatch, currentZones, drawRequest);
+    currentMatch = settled.match;
+    currentZones = settled.zones;
+    drawnCounts[action.seat] = (drawnCounts[action.seat] ?? 0) + (settled.drawnCounts[action.seat] ?? 0);
+    deckOutSeats.push(...settled.deckOutSeats);
+  }
+
+  return { match: currentMatch, zones: currentZones, drawnCounts, milledCounts, returnedToHandCounts, deckOutSeats };
 }

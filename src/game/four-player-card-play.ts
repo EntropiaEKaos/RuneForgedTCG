@@ -3,9 +3,10 @@ import {
   createFourPlayerBattlefieldState,
   putFourPlayerBattlefieldObject,
   type FourPlayerBattlefieldKind,
+  type FourPlayerDurability,
 } from "./four-player-battlefield";
 import { createFourPlayerCombatBodySnapshot, type FourPlayerCombatBody } from "./four-player-combat-body";
-import { resolveFourPlayerEffect } from "./four-player-effect-resolution";
+import { resolveFourPlayerEffect, type FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
 import {
   findFourPlayerHandCard,
   takeFourPlayerCardFromHand,
@@ -20,6 +21,8 @@ import {
   type FourPlayerStackItem,
 } from "./four-player-stack";
 import { canFourPlayerCounterStackItem, canFourPlayerReactWithCard } from "./four-player-reactions";
+import { isFourPlayerSpellChainSupported } from "./four-player-spell-contract";
+import { semanticProactivePlayAllowed, semanticReactionAllowed } from "./semantic-card-types";
 import type { FourPlayerTargetRef } from "./four-player-targeting";
 import type { CardEffect, CardType, Keyword } from "./types";
 
@@ -33,6 +36,7 @@ export interface FourPlayerCardCastPayload {
   cardType: FourPlayerStageableCardType;
   keywords: readonly Keyword[];
   combat?: FourPlayerCombatBody;
+  durability?: FourPlayerDurability;
   effect?: CardEffect;
   target?: FourPlayerTargetRef;
   speed?: "Fast" | "Burst";
@@ -50,6 +54,13 @@ function isStageableType(type: CardType): type is FourPlayerStageableCardType {
   return (FOUR_PLAYER_STAGEABLE_CARD_TYPES as readonly CardType[]).includes(type);
 }
 
+function permanentDurability(definition: ReturnType<typeof getCard>): FourPlayerDurability | undefined {
+  if (definition.type !== "Enchantment" && definition.type !== "Artifact") return undefined;
+  const maxHealth = definition.maxHealth ?? 3;
+  if (!Number.isFinite(maxHealth) || maxHealth <= 0) throw new Error(`Permanent ${definition.defId} has invalid maxHealth.`);
+  return { health: maxHealth, maxHealth };
+}
+
 function assertCardPlayTiming(
   match: FourPlayerMatchState,
   actor: FourPlayerSeat,
@@ -64,6 +75,9 @@ function assertCardPlayTiming(
 
   const pending = match.resolution.stack.items[match.resolution.stack.items.length - 1];
   if (pending) {
+    if (!semanticReactionAllowed(definition)) {
+      throw new Error(`Card ${definition.defId} cannot enter a 4P reaction window.`);
+    }
     if (!canFourPlayerReactWithCard(definition, pending)) {
       throw new Error("Only legal Fast/Burst reaction spells may be staged while the 4P stack is open.");
     }
@@ -81,6 +95,9 @@ function assertCardPlayTiming(
     return;
   }
 
+  if (!semanticProactivePlayAllowed(definition)) {
+    throw new Error(`Card ${definition.defId} is reaction-only and requires an open 4P stack.`);
+  }
   if (definition.spell?.kind === "negateSpell" || definition.spell?.target === "spellOnStack") {
     throw new Error("4P stack-targeted reactions require a pending stack item.");
   }
@@ -123,8 +140,12 @@ export function stageFourPlayerCardCast(
     },
   };
   const combat = createFourPlayerCombatBodySnapshot(definition);
+  const durability = permanentDurability(definition);
   if (definition.type === "Spell") {
     if (!definition.spell) throw new Error(`Spell ${definition.defId} has no authoritative effect.`);
+    if (!isFourPlayerSpellChainSupported(definition.spell)) {
+      throw new Error(`Spell ${definition.defId} contains an effect outside the certified 4P spell contract.`);
+    }
     if (definition.spell.kind !== "negateSpell") {
       resolveFourPlayerEffect(match, actor, definition.spell, target);
     }
@@ -136,6 +157,7 @@ export function stageFourPlayerCardCast(
     cardType: definition.type,
     keywords: [...(definition.keywords ?? [])],
     ...(combat ? { combat } : {}),
+    ...(durability ? { durability } : {}),
     ...(definition.type === "Spell" && definition.spell ? {
       effect: structuredClone(definition.spell),
       ...(target ? { target } : {}),
@@ -190,6 +212,7 @@ export function resolveFourPlayerCardCast(
         enteredTurn: match.turn.turn,
         keywords: payload.keywords ?? [],
         combat: payload.combat,
+        durability: payload.durability,
       },
     ),
   };
@@ -204,6 +227,7 @@ export function resolveFourPlayerSpellCast(
   destroyed: readonly import("./four-player-combat-resolution").FourPlayerCombatDestroyedObject[];
   draws: Partial<Record<FourPlayerSeat, number>>;
   countered: readonly FourPlayerStackItem[];
+  zoneActions?: readonly FourPlayerEffectZoneAction[];
 } {
   if (item.kind !== "spell_cast") return { match, destroyed: [], draws: {}, countered: [] };
   const payload = item.payload as Partial<FourPlayerCardCastPayload>;
@@ -229,13 +253,15 @@ export function resolveFourPlayerSpellCast(
     };
     let destroyed: readonly import("./four-player-combat-resolution").FourPlayerCombatDestroyedObject[] = [];
     let draws: Partial<Record<FourPlayerSeat, number>> = {};
+    let zoneActions: readonly FourPlayerEffectZoneAction[] | undefined;
     if (payload.effect.also) {
       const secondary = resolveFourPlayerEffect(nextMatch, item.controller, payload.effect.also, undefined, { tokenNamespace: item.id });
       nextMatch = secondary.match;
       destroyed = secondary.destroyed;
       draws = secondary.draws;
+      zoneActions = secondary.zoneActions;
     }
-    return { match: nextMatch, destroyed, draws, countered: removed.removed ? [removed.removed] : [] };
+    return { match: nextMatch, destroyed, draws, countered: removed.removed ? [removed.removed] : [], ...(zoneActions?.length ? { zoneActions } : {}) };
   }
   const resolved = resolveFourPlayerEffect(match, item.controller, payload.effect, payload.target, { tokenNamespace: item.id });
   return { ...resolved, countered: [] };

@@ -1,6 +1,7 @@
 import { createFourPlayerBattlefieldState, placeResolvedGeneralOnBattlefield } from "./four-player-battlefield";
 import { resolveFourPlayerCardCast, resolveFourPlayerSpellCast } from "./four-player-card-play";
 import { resolveFourPlayerCombat, type FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
+import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
 import { resolveFourPlayerFlow } from "./four-player-flow";
 import type { FourPlayerSeat } from "./four-player-general";
 import { resolveGeneralToBattlefield } from "./four-player-general-zone";
@@ -19,6 +20,7 @@ export interface FourPlayerServerPumpResult {
   destroyedObjects?: readonly FourPlayerCombatDestroyedObject[];
   drawRequests?: Partial<Record<FourPlayerSeat, number>>;
   counteredStackItems?: readonly FourPlayerStackItem[];
+  zoneActions?: readonly FourPlayerEffectZoneAction[];
 }
 
 function applyResolvedStackItem(
@@ -29,13 +31,14 @@ function applyResolvedStackItem(
   destroyedObjects: readonly FourPlayerCombatDestroyedObject[];
   drawRequests: Partial<Record<FourPlayerSeat, number>>;
   counteredStackItems: readonly FourPlayerStackItem[];
+  zoneActions: readonly FourPlayerEffectZoneAction[];
 } {
-  if (item.kind === "card_cast") return { match: resolveFourPlayerCardCast(match, item), destroyedObjects: [], drawRequests: {}, counteredStackItems: [] };
+  if (item.kind === "card_cast") return { match: resolveFourPlayerCardCast(match, item), destroyedObjects: [], drawRequests: {}, counteredStackItems: [], zoneActions: [] };
   if (item.kind === "spell_cast") {
     const resolved = resolveFourPlayerSpellCast(match, item);
-    return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws, counteredStackItems: resolved.countered };
+    return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws, counteredStackItems: resolved.countered, zoneActions: resolved.zoneActions ?? [] };
   }
-  if (item.kind !== "general_cast") return { match, destroyedObjects: [], drawRequests: {}, counteredStackItems: [] };
+  if (item.kind !== "general_cast") return { match, destroyedObjects: [], drawRequests: {}, counteredStackItems: [], zoneActions: [] };
   const general = match.generals[item.controller];
   if (general.location !== "stack") throw new Error(`Resolved General for ${item.controller} is not on the General stack.`);
   const payload = item.payload as { owner?: string; defId?: string };
@@ -55,7 +58,7 @@ function applyResolvedStackItem(
       withGeneral.generalKeywords?.[item.controller] ?? [],
       withGeneral.generalCombatBodies?.[item.controller],
     ),
-  }, destroyedObjects: [], drawRequests: {}, counteredStackItems: [] };
+  }, destroyedObjects: [], drawRequests: {}, counteredStackItems: [], zoneActions: [] };
 }
 
 /**
@@ -128,5 +131,6 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
     ...(applied.destroyedObjects.length > 0 ? { destroyedObjects: applied.destroyedObjects } : {}),
     ...(Object.keys(applied.drawRequests).length > 0 ? { drawRequests: applied.drawRequests } : {}),
     ...(applied.counteredStackItems.length > 0 ? { counteredStackItems: applied.counteredStackItems } : {}),
+    ...(applied.zoneActions.length > 0 ? { zoneActions: applied.zoneActions } : {}),
   };
 }

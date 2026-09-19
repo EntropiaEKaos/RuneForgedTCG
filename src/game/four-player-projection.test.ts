@@ -45,6 +45,18 @@ authoritativeMatch = {
     },
   }),
 };
+authoritativeMatch = {
+  ...authoritativeMatch,
+  battlefield: putFourPlayerBattlefieldObject(authoritativeMatch.battlefield!, {
+    id: "p2-visible-permanent",
+    defId: "fixture-public-permanent",
+    kind: "permanent",
+    ownerSeat: "p2",
+    controllerSeat: "p2",
+    enteredTurn: 0,
+    durability: { health: 2, maxHealth: 4 },
+  }),
+};
 const match = { ...authoritativeMatch, phase: "combat" as const };
 
 for (const viewer of FOUR_PLAYER_SEATS) {
@@ -71,7 +83,8 @@ for (const viewer of FOUR_PLAYER_SEATS) {
     assert.equal(projection.seats[seat].maxMana, match.seats[seat].maxMana);
     assert.deepEqual(projection.seats[seat].generalDamageReceived, match.seats[seat].generalDamageReceived);
   }
-  assert.deepEqual(projection.seats.p2.battlefield?.map((object) => object.id), ["p2-visible-unit"]);
+  assert.deepEqual(projection.seats.p2.battlefield?.map((object) => object.id), ["p2-visible-unit", "p2-visible-permanent"]);
+  assert.deepEqual(projection.seats.p2.battlefield?.[1]?.durability, { health: 2, maxHealth: 4 });
   assert.deepEqual(projection.seats.p2.battlefield?.[0]?.combat, {
     basePower: 4,
     power: 4,

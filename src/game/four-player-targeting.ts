@@ -47,16 +47,22 @@ export function assertFourPlayerTargetObject(
   const battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
   const object = findFourPlayerBattlefieldObject(battlefield, target.objectId);
   if (object.combat && object.combat.health <= 0) throw new Error(`Destroyed object ${object.id} cannot be targeted.`);
+  if (object.durability && object.durability.health <= 0) throw new Error(`Destroyed object ${object.id} cannot be targeted.`);
 
   const allied = object.controllerSeat === actor;
-  if (targetKind === "enemyUnit" && allied) throw new Error(`Target ${object.id} is not an enemy unit.`);
-  if (targetKind === "allyUnit" && !allied) throw new Error(`Target ${object.id} is not an allied unit.`);
-  if (
-    (targetKind === "enemyUnit" || targetKind === "allyUnit" || targetKind === "anyUnit")
-    && !["unit", "general", "token"].includes(object.kind)
-  ) {
-    throw new Error(`Target ${object.id} is not a unit combat body.`);
-  }
+  const isUnit = ["unit", "general", "token"].includes(object.kind);
+  const isPermanent = object.kind === "permanent";
+  const isSentinela = object.kind === "sentinela";
+
+  if (targetKind === "enemyUnit" && (allied || !isUnit)) throw new Error(`Target ${object.id} is not an enemy unit.`);
+  if (targetKind === "allyUnit" && (!allied || !isUnit)) throw new Error(`Target ${object.id} is not an allied unit.`);
+  if (targetKind === "anyUnit" && !isUnit) throw new Error(`Target ${object.id} is not a unit combat body.`);
+  if (targetKind === "enemyPermanent" && (allied || !isPermanent)) throw new Error(`Target ${object.id} is not an enemy permanent.`);
+  if (targetKind === "allyPermanent" && (!allied || !isPermanent)) throw new Error(`Target ${object.id} is not an allied permanent.`);
+  if (targetKind === "anyPermanent" && !isPermanent) throw new Error(`Target ${object.id} is not a permanent.`);
+  if (targetKind === "enemySentinela" && (allied || !isSentinela)) throw new Error(`Target ${object.id} is not an enemy Sentinela.`);
+  if (targetKind === "allySentinela" && (!allied || !isSentinela)) throw new Error(`Target ${object.id} is not an allied Sentinela.`);
+  if (targetKind === "anySentinela" && !isSentinela) throw new Error(`Target ${object.id} is not a Sentinela.`);
 
   if (!allied && object.keywords.includes("Hexproof")) {
     throw new Error(`Enemy target ${object.id} has Hexproof.`);

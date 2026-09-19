@@ -2,9 +2,9 @@ import { ensureCustomCardsLoaded } from "@/game/catalog";
 import { acceptAuthoritativeFourPlayerCommand, processAuthoritativeFourPlayerCommand, assertPriorityHolder } from "@/game/four-player-authority";
 import { stageFourPlayerCardCast } from "@/game/four-player-card-play";
 import { returnGeneralToZone } from "@/game/four-player-general-zone";
-import { fourPlayerStackActionKind } from "@/game/four-player-reactions";
+import { fourPlayerStackActionKind, fourPlayerStackItemIsUncounterable } from "@/game/four-player-reactions";
 import { parseFourPlayerTargetRef } from "@/game/four-player-targeting";
-import { settleFourPlayerEffectDraws } from "@/game/four-player-effect-zones";
+import { settleFourPlayerEffectDraws, settleFourPlayerEffectZoneActions } from "@/game/four-player-effect-zones";
 import { submitFourPlayerAction } from "@/game/four-player-flow";
 import { pumpFourPlayerServer } from "@/game/four-player-server-pump";
 import {
@@ -41,6 +41,7 @@ import { seededShuffle } from "@/game/rng";
 import { COMMANDER_ALPHA_RULES, type CommanderSeatIndex } from "@/lib/commander-rules";
 
 export const COMMANDER_COMBAT_ENGINE_KIND = "commander_4p_combat_v1" as const;
+export const COMMANDER_COMBAT_ENGINE_VERSION = 2 as const;
 
 export interface CommanderCombatSeatInput {
   seat: CommanderSeatIndex;
@@ -52,7 +53,7 @@ export interface CommanderCombatSeatInput {
 
 export interface CommanderCombatEnvelope {
   kind: typeof COMMANDER_COMBAT_ENGINE_KIND;
-  engineVersion: 1;
+  engineVersion: typeof COMMANDER_COMBAT_ENGINE_VERSION;
   rngSeed: number;
   startingSeat: FourPlayerSeat;
   match: FourPlayerMatchState;
@@ -131,7 +132,7 @@ export async function createCommanderCombatEnvelope(
 
   return {
     kind: COMMANDER_COMBAT_ENGINE_KIND,
-    engineVersion: 1,
+    engineVersion: COMMANDER_COMBAT_ENGINE_VERSION,
     rngSeed: rngSeed >>> 0,
     startingSeat: "p1",
     match,
@@ -144,7 +145,7 @@ export function isCommanderCombatEnvelope(value: unknown): value is CommanderCom
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
   return row.kind === COMMANDER_COMBAT_ENGINE_KIND
-    && row.engineVersion === 1
+    && row.engineVersion === COMMANDER_COMBAT_ENGINE_VERSION
     && !!row.match
     && !!row.protocol
     && !!row.zones;
@@ -202,6 +203,7 @@ export function projectCommanderCombatState(
         defId: typeof payload.defId === "string" ? payload.defId : null,
         cardType: typeof payload.cardType === "string" ? payload.cardType : null,
         speed: payload.speed === "Fast" || payload.speed === "Burst" ? payload.speed : null,
+        uncounterable: fourPlayerStackItemIsUncounterable(item),
       };
     }),
     combat: {
@@ -392,7 +394,11 @@ export function processCommanderCombatCommand(
       ownerSeat: destroyed.ownerSeat,
     });
   }
-  if (accepted.pump?.drawRequests) {
+  if (accepted.pump?.zoneActions?.length) {
+    const settledZones = settleFourPlayerEffectZoneActions(match, zones, accepted.pump.zoneActions);
+    match = settledZones.match;
+    zones = settledZones.zones;
+  } else if (accepted.pump?.drawRequests) {
     const settledDraws = settleFourPlayerEffectDraws(match, zones, accepted.pump.drawRequests);
     match = settledDraws.match;
     zones = settledDraws.zones;

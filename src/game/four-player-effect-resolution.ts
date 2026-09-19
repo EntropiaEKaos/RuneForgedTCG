@@ -1,5 +1,6 @@
 import {
   applyFourPlayerBattlefieldDamage,
+  applyFourPlayerPermanentDamage,
   createFourPlayerBattlefieldState,
   findFourPlayerBattlefieldObject,
   putFourPlayerBattlefieldObject,
@@ -10,7 +11,7 @@ import { createFourPlayerCombatBodySnapshot } from "./four-player-combat-body";
 import { getCard } from "./cards";
 import type { FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
 import type { FourPlayerSeat } from "./four-player-general";
-import { moveGeneralFromBattlefield } from "./four-player-general-zone";
+import { moveGeneralFromBattlefield, returnGeneralToZone } from "./four-player-general-zone";
 import {
   FOUR_PLAYER_POISON_LETHAL,
   FOUR_PLAYER_STARTING_LIFE,
@@ -25,27 +26,9 @@ import {
   type FourPlayerTargetRef,
 } from "./four-player-targeting";
 import type { CardEffect } from "./types";
+import { FOUR_PLAYER_RESOLVER_EFFECT_KINDS } from "./four-player-spell-contract";
 
-export const FOUR_PLAYER_SUPPORTED_EFFECT_KINDS = [
-  "damageUnit",
-  "damageNexus",
-  "healUnit",
-  "healNexus",
-  "buffUnit",
-  "buffAllies",
-  "buffRace",
-  "buffClass",
-  "manaRefund",
-  "aoeEnemy",
-  "grantBarrier",
-  "grantKeyword",
-  "poison",
-  "draw",
-  "summonToken",
-  "frostbite",
-  "stun",
-  "killUnit",
-] as const;
+export const FOUR_PLAYER_SUPPORTED_EFFECT_KINDS = FOUR_PLAYER_RESOLVER_EFFECT_KINDS;
 
 export type FourPlayerSupportedEffectKind = (typeof FOUR_PLAYER_SUPPORTED_EFFECT_KINDS)[number];
 
@@ -53,10 +36,16 @@ export interface FourPlayerEffectResolutionContext {
   tokenNamespace?: string;
 }
 
+export type FourPlayerEffectZoneAction =
+  | { kind: "draw"; seat: FourPlayerSeat; amount: number }
+  | { kind: "mill"; seat: FourPlayerSeat; amount: number }
+  | { kind: "return_to_hand"; card: { instanceId: string; defId: string; ownerSeat: FourPlayerSeat } };
+
 export interface FourPlayerEffectResolutionResult {
   match: FourPlayerMatchState;
   destroyed: readonly FourPlayerCombatDestroyedObject[];
   draws: Partial<Record<FourPlayerSeat, number>>;
+  zoneActions?: readonly FourPlayerEffectZoneAction[];
 }
 
 interface FourPlayerEffectRuntime {
@@ -72,7 +61,9 @@ function destinationFor(object: FourPlayerBattlefieldObject): FourPlayerCombatDe
 
 function cleanupDestroyed(match: FourPlayerMatchState): FourPlayerEffectResolutionResult {
   const battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
-  const dead = battlefield.objects.filter((object) => object.combat && object.combat.health <= 0);
+  const dead = battlefield.objects.filter((object) =>
+    Boolean((object.combat && object.combat.health <= 0) || (object.durability && object.durability.health <= 0)),
+  );
   if (dead.length === 0) return { match, destroyed: [], draws: {} };
 
   const destroyed: FourPlayerCombatDestroyedObject[] = dead.map((object) => ({
@@ -186,8 +177,26 @@ function resolveSingle(
         match,
         destroyed: [],
         draws: effect.amount > 0 ? { [actor]: effect.amount } : {},
+        ...(effect.amount > 0 ? { zoneActions: [{ kind: "draw" as const, seat: actor, amount: effect.amount }] } : {}),
       },
       fallbackOpponent,
+    };
+  }
+
+  if (effect.kind === "mill") {
+    if (!Number.isInteger(effect.amount)) throw new Error("4P mill amount must be a non-negative integer.");
+    const seat = target?.kind === "player"
+      ? assertFourPlayerTargetPlayer(match, actor, target, "opponent")
+      : fallbackOpponent;
+    if (!seat) throw new Error("4P mill requires an explicit opponent target.");
+    return {
+      result: {
+        match,
+        destroyed: [],
+        draws: {},
+        ...(effect.amount > 0 ? { zoneActions: [{ kind: "mill" as const, seat, amount: effect.amount }] } : {}),
+      },
+      fallbackOpponent: seat,
     };
   }
 
@@ -306,9 +315,42 @@ function resolveSingle(
   const inferredOpponent = object.controllerSeat !== actor ? object.controllerSeat : fallbackOpponent;
   let battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
 
+  if (effect.kind === "recall") {
+    let next: FourPlayerMatchState = {
+      ...match,
+      battlefield: { objects: battlefield.objects.filter((candidate) => candidate.id !== object.id) },
+    };
+    if (object.kind === "general") {
+      const general = next.generals[object.ownerSeat];
+      if (general.location === "battlefield") next = updateMatchGeneral(next, object.ownerSeat, returnGeneralToZone(general));
+      return { result: { match: next, destroyed: [], draws: {} }, fallbackOpponent: inferredOpponent };
+    }
+    if (object.kind === "token") {
+      return { result: { match: next, destroyed: [], draws: {} }, fallbackOpponent: inferredOpponent };
+    }
+    return {
+      result: {
+        match: next,
+        destroyed: [],
+        draws: {},
+        zoneActions: [{ kind: "return_to_hand", card: { instanceId: object.id, defId: object.defId, ownerSeat: object.ownerSeat } }],
+      },
+      fallbackOpponent: inferredOpponent,
+    };
+  }
+
   switch (effect.kind) {
     case "damageUnit": {
       battlefield = applyFourPlayerBattlefieldDamage(battlefield, object.id, effect.amount).state;
+      break;
+    }
+    case "damagePermanent": {
+      battlefield = applyFourPlayerPermanentDamage(battlefield, object.id, effect.amount).state;
+      break;
+    }
+    case "destroyPermanent": {
+      if (!object.durability) throw new Error(`Target ${object.id} has no permanent durability.`);
+      battlefield = applyFourPlayerPermanentDamage(battlefield, object.id, object.durability.health).state;
       break;
     }
     case "healUnit": {
@@ -374,6 +416,7 @@ export function resolveFourPlayerEffect(
   let fallbackOpponent: FourPlayerSeat | undefined;
   const destroyed: FourPlayerCombatDestroyedObject[] = [];
   const draws: Partial<Record<FourPlayerSeat, number>> = {};
+  const zoneActions: FourPlayerEffectZoneAction[] = [];
   const namespace = String(context.tokenNamespace || `preview:${actor}:${match.turn.turn}`).trim() || `preview:${actor}:${match.turn.turn}`;
   const runtime: FourPlayerEffectRuntime = { tokenNamespace: namespace, tokenOrdinal: 0 };
 
@@ -386,10 +429,11 @@ export function resolveFourPlayerEffect(
       const seatKey = seat as FourPlayerSeat;
       draws[seatKey] = (draws[seatKey] ?? 0) + amount;
     }
+    zoneActions.push(...(resolved.result.zoneActions ?? []));
     fallbackOpponent = resolved.fallbackOpponent;
     cursor = cursor.also;
     first = false;
   }
   if (cursor) throw new Error("4P effect chain exceeds the maximum supported depth.");
-  return { match: current, destroyed, draws };
+  return { match: current, destroyed, draws, ...(zoneActions.length > 0 ? { zoneActions } : {}) };
 }

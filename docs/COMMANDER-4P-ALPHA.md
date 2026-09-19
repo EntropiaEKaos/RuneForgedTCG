@@ -4,7 +4,7 @@
 
 Commander 4P is a separate experimental multiplayer mode. It does not replace Casual PvP or Ranked and it does not widen the certified binary `PlayerId = "player" | "ai"` engine contract.
 
-This first Alpha establishes the authoritative multiplayer shell needed before four-way card combat is introduced.
+The current Alpha carries the recovered four-player combat authority through physical card play, targeting, combat, General casting, circular priority, Fast/Burst reactions and a LIFO stack while remaining isolated from the certified 1v1 engine.
 
 ## Rules snapshot
 
@@ -57,21 +57,25 @@ It does **not** reuse or mutate `pvp_rooms`, Ranked settlement, the binary `Game
 
 This slice certifies:
 
-1. collection-backed 60+General loadout;
-2. room creation;
-3. four unique seats;
-4. explicit ready/unready;
-5. host-only start;
-6. exactly-four-player start gate;
-7. clockwise authoritative turn ownership;
-8. round increment when seat 3 passes to seat 0;
-9. isolation from the current 1v1 engine.
+1. collection-backed 60+General loadout and four real seats;
+2. PostgreSQL revision/CAS authority and reconnect-safe hidden-information projection;
+3. clockwise turn, phase and circular priority ownership;
+4. physical battlefield objects, split attacks, blockers, combat damage and elimination;
+5. General Zone casting, recast tax, battlefield materialization and return-to-zone handling;
+6. authoritative hand/deck/graveyard zones and ordered draw/mill/return-to-hand actions;
+7. four-player targeting for units, Nexuses and durable permanents;
+8. Fast/Burst reaction timing on the circular priority loop;
+9. LIFO stack resolution, `negateSpell`, counter filters and `uncounterable`;
+10. counter-of-counter chains where removing the counter allows the original object to resolve;
+11. Fast/Burst catalog coverage including `recall`, `damagePermanent`, `destroyPermanent` and `mill`;
+12. client-visible stack state without exposing private deck or opponent-hand identities;
+13. isolation from Casual PvP, Ranked and the binary 1v1 `PlayerId` engine.
 
 ## Deliberately not claimed yet
 
-This Alpha does not claim complete four-player card combat, targeting, reaction priority, elimination, General casting, commander tax, or four-way settlement. Those mechanics must be implemented on this isolated authority instead of stretching the certified 1v1 engine.
+This Alpha still does not claim parity with every authored card effect or every activated/reaction ability in the full catalog, nor Ranked/tournament support for Commander. Unsupported effects remain fail-closed and are expanded only behind explicit behavioral certification.
 
 
 ## Certification base
 
-The final Commander 4P Alpha PR certification is based on `main` at `09b45178115945736f7902ee84db7790ce1405c9`, after Command Center 2.0. No green result from the former `96f228fe…` base is reused after this rebuild.
+The recovered Commander 4P combat branch is based on certified production `main` `b6891a54b1629183d031156dc1fe644ea22f3420`. The expanded reaction/zone state uses Commander combat envelope version 2 so older persisted Alpha rooms fail closed and must restart. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.

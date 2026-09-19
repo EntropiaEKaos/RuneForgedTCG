@@ -26,6 +26,11 @@ export function fourPlayerStackDefId(item: FourPlayerStackItem): string | undefi
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+export function fourPlayerStackItemIsUncounterable(item: FourPlayerStackItem): boolean {
+  const defId = fourPlayerStackDefId(item);
+  return Boolean(defId && cannotBeCountered(getCard(defId)));
+}
+
 /**
  * Certified speed contract carried into 4P:
  * - Fast and Burst may answer a non-spell stack action.
@@ -55,7 +60,6 @@ export function canFourPlayerCounterStackItem(
   if (counterCard.type !== "Spell" || counterCard.spell?.kind !== "negateSpell") return false;
   const actionKind = fourPlayerStackActionKind(pending);
   if (!actionKind || !counterActionKinds(counterCard).includes(actionKind)) return false;
-  const targetDefId = fourPlayerStackDefId(pending);
-  if (targetDefId && cannotBeCountered(getCard(targetDefId))) return false;
+  if (fourPlayerStackItemIsUncounterable(pending)) return false;
   return true;
 }
