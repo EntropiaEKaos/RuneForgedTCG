@@ -1,3 +1,4 @@
+import { getCard } from "./cards";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import { cleanupFourPlayerCombatForElimination, createFourPlayerCombatState, type FourPlayerCombatState } from "./four-player-combat";
 import { createFourPlayerResolutionFlow, type FourPlayerResolutionFlow } from "./four-player-flow";
@@ -133,4 +134,18 @@ export function applyFourPlayerDamage(
     seats: { ...state.seats, [target]: { ...current, life, generalDamageReceived } },
   };
   return life === 0 ? eliminateFourPlayerMatchSeat(damaged, target) : damaged;
+}
+
+/** Production-safe factory: General printed costs are resolved from the authoritative card catalog. */
+export function createFourPlayerMatchStateFromCatalog(
+  startingSeat: FourPlayerSeat = "p1",
+  generalSelection: FourPlayerGeneralSelection,
+  startingMana = 0,
+): FourPlayerMatchState {
+  const generalPrintedCosts = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
+    const card = getCard(generalSelection[seat]);
+    if (!Number.isFinite(card.cost) || card.cost < 0) throw new Error(`General printed cost for ${seat} must be a non-negative finite number.`);
+    return [seat, card.cost];
+  })) as FourPlayerGeneralPrintedCosts;
+  return createFourPlayerMatchState(startingSeat, generalSelection, startingMana, generalPrintedCosts);
 }
