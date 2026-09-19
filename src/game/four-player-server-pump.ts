@@ -35,6 +35,7 @@ function applyResolvedStackItem(match: FourPlayerMatchState, item: FourPlayerSta
       resolvedGeneral.castsFromGeneralZone,
       withGeneral.turn.turn,
       withGeneral.generalKeywords?.[item.controller] ?? [],
+      withGeneral.generalCombatBodies?.[item.controller],
     ),
   };
 }

@@ -4,6 +4,7 @@ import {
   putFourPlayerBattlefieldObject,
   type FourPlayerBattlefieldKind,
 } from "./four-player-battlefield";
+import { createFourPlayerCombatBodySnapshot, type FourPlayerCombatBody } from "./four-player-combat-body";
 import {
   findFourPlayerHandCard,
   takeFourPlayerCardFromHand,
@@ -24,6 +25,7 @@ export interface FourPlayerCardCastPayload {
   ownerSeat: FourPlayerSeat;
   cardType: FourPlayerStageableCardType;
   keywords: readonly Keyword[];
+  combat?: FourPlayerCombatBody;
 }
 
 export interface FourPlayerStagedCardCast {
@@ -82,12 +84,14 @@ export function stageFourPlayerCardCast(
       [actor]: { ...seat, mana: seat.mana - definition.cost },
     },
   };
+  const combat = createFourPlayerCombatBodySnapshot(definition);
   const payload: FourPlayerCardCastPayload = {
     instanceId: card.instanceId,
     defId: card.defId,
     ownerSeat: actor,
     cardType: definition.type,
     keywords: [...(definition.keywords ?? [])],
+    ...(combat ? { combat } : {}),
   };
   return {
     match: paidMatch,
@@ -135,6 +139,7 @@ export function resolveFourPlayerCardCast(
         controllerSeat: item.controller,
         enteredTurn: match.turn.turn,
         keywords: payload.keywords ?? [],
+        combat: payload.combat,
       },
     ),
   };

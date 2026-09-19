@@ -33,6 +33,16 @@ authoritativeMatch = {
     ownerSeat: "p2",
     controllerSeat: "p2",
     enteredTurn: 0,
+    combat: {
+      basePower: 4,
+      power: 4,
+      health: 3,
+      maxHealth: 3,
+      races: ["Beast"],
+      classes: ["Guardian"],
+      barrier: false,
+      frostbitten: false,
+    },
   }),
 };
 const match = { ...authoritativeMatch, phase: "combat" as const };
@@ -62,6 +72,16 @@ for (const viewer of FOUR_PLAYER_SEATS) {
     assert.deepEqual(projection.seats[seat].generalDamageReceived, match.seats[seat].generalDamageReceived);
   }
   assert.deepEqual(projection.seats.p2.battlefield?.map((object) => object.id), ["p2-visible-unit"]);
+  assert.deepEqual(projection.seats.p2.battlefield?.[0]?.combat, {
+    basePower: 4,
+    power: 4,
+    health: 3,
+    maxHealth: 3,
+    races: ["Beast"],
+    classes: ["Guardian"],
+    barrier: false,
+    frostbitten: false,
+  });
 
   for (const opponent of FOUR_PLAYER_SEATS.filter((seat) => seat !== viewer)) {
     const projected = projection.seats[opponent];

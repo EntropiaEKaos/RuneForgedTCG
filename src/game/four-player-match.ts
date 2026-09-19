@@ -1,4 +1,5 @@
 import { getCard } from "./cards";
+import { cloneFourPlayerCombatBody, createFourPlayerCombatBodySnapshot, type FourPlayerCombatBody } from "./four-player-combat-body";
 import {
   cleanupFourPlayerBattlefieldForElimination,
   createFourPlayerBattlefieldState,
@@ -36,6 +37,7 @@ export interface FourPlayerMatchSeatState {
 export type FourPlayerGeneralSelection = Record<FourPlayerSeat, string>;
 export type FourPlayerGeneralPrintedCosts = Record<FourPlayerSeat, number>;
 export type FourPlayerGeneralKeywords = Record<FourPlayerSeat, readonly Keyword[]>;
+export type FourPlayerGeneralCombatBodies = Partial<Record<FourPlayerSeat, FourPlayerCombatBody>>;
 export type FourPlayerMatchStatus = "active" | "completed";
 export const FOUR_PLAYER_MAX_MANA = 10;
 export const FOUR_PLAYER_STARTING_LIFE = 30;
@@ -45,6 +47,7 @@ export interface FourPlayerMatchState {
   generals: Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
   generalPrintedCosts: FourPlayerGeneralPrintedCosts;
   generalKeywords?: FourPlayerGeneralKeywords;
+  generalCombatBodies?: FourPlayerGeneralCombatBodies;
   turn: FourPlayerTurnState;
   phase: FourPlayerPhase;
   resolution: FourPlayerResolutionFlow;
@@ -66,6 +69,7 @@ export function createFourPlayerMatchState(
   startingMana = 0,
   generalPrintedCosts: FourPlayerGeneralPrintedCosts = DEFAULT_GENERAL_PRINTED_COSTS,
   generalKeywords: FourPlayerGeneralKeywords = DEFAULT_GENERAL_KEYWORDS,
+  generalCombatBodies: FourPlayerGeneralCombatBodies = {},
 ): FourPlayerMatchState {
   if (!Number.isFinite(startingMana) || startingMana < 0) throw new Error("4P starting mana must be a non-negative finite number.");
   for (const seat of FOUR_PLAYER_SEATS) {
@@ -84,7 +88,13 @@ export function createFourPlayerMatchState(
     p3: [...(generalKeywords.p3 ?? [])],
     p4: [...(generalKeywords.p4 ?? [])],
   };
-  return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, generalKeywords: keywordSnapshot, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), battlefield: createFourPlayerBattlefieldState(), status: "active" };
+  const generalBodySnapshot: FourPlayerGeneralCombatBodies = {
+    ...(generalCombatBodies.p1 ? { p1: cloneFourPlayerCombatBody(generalCombatBodies.p1) } : {}),
+    ...(generalCombatBodies.p2 ? { p2: cloneFourPlayerCombatBody(generalCombatBodies.p2) } : {}),
+    ...(generalCombatBodies.p3 ? { p3: cloneFourPlayerCombatBody(generalCombatBodies.p3) } : {}),
+    ...(generalCombatBodies.p4 ? { p4: cloneFourPlayerCombatBody(generalCombatBodies.p4) } : {}),
+  };
+  return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, generalKeywords: keywordSnapshot, generalCombatBodies: generalBodySnapshot, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), battlefield: createFourPlayerBattlefieldState(), status: "active" };
 }
 
 export function updateMatchGeneral(state: FourPlayerMatchState, seat: FourPlayerSeat, general: FourPlayerGeneralZoneState): FourPlayerMatchState {
@@ -186,5 +196,11 @@ export function createFourPlayerMatchStateFromCatalog(
     p3: [...(cards.p3.keywords ?? [])],
     p4: [...(cards.p4.keywords ?? [])],
   };
-  return createFourPlayerMatchState(startingSeat, generalSelection, startingMana, generalPrintedCosts, generalKeywords);
+  const generalCombatBodies: FourPlayerGeneralCombatBodies = {
+    ...(createFourPlayerCombatBodySnapshot(cards.p1) ? { p1: createFourPlayerCombatBodySnapshot(cards.p1) } : {}),
+    ...(createFourPlayerCombatBodySnapshot(cards.p2) ? { p2: createFourPlayerCombatBodySnapshot(cards.p2) } : {}),
+    ...(createFourPlayerCombatBodySnapshot(cards.p3) ? { p3: createFourPlayerCombatBodySnapshot(cards.p3) } : {}),
+    ...(createFourPlayerCombatBodySnapshot(cards.p4) ? { p4: createFourPlayerCombatBodySnapshot(cards.p4) } : {}),
+  };
+  return createFourPlayerMatchState(startingSeat, generalSelection, startingMana, generalPrintedCosts, generalKeywords, generalCombatBodies);
 }

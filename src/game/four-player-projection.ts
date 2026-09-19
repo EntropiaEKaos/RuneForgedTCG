@@ -1,5 +1,6 @@
 import type { FourPlayerBattlefieldObject } from "./four-player-battlefield";
 import type { FourPlayerCardInstance } from "./four-player-card-zones";
+import type { FourPlayerCombatBody } from "./four-player-combat-body";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import type { FourPlayerMatchState, FourPlayerMatchStatus, FourPlayerPhase } from "./four-player-match";
 
@@ -24,6 +25,7 @@ export interface FourPlayerProjectedBattlefieldObject {
   kind: FourPlayerBattlefieldObject["kind"];
   ownerSeat: FourPlayerSeat;
   controllerSeat: FourPlayerSeat;
+  combat?: FourPlayerCombatBody;
   stunned: boolean;
   attackedThisTurn: boolean;
 }
@@ -81,6 +83,13 @@ export function projectFourPlayerStateForSeat(
           kind: object.kind,
           ownerSeat: object.ownerSeat,
           controllerSeat: object.controllerSeat,
+          ...(object.combat ? {
+            combat: {
+              ...object.combat,
+              races: [...object.combat.races],
+              classes: [...object.combat.classes],
+            },
+          } : {}),
           stunned: object.stunned,
           attackedThisTurn: object.attackedThisTurn,
         }))

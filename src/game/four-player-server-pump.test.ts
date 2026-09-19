@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { collectibleCards } from "./cards";
 import { passFourPlayerFlow, submitFourPlayerAction } from "./four-player-flow";
-import { createFourPlayerMatchState, eliminateFourPlayerMatchSeat, type FourPlayerMatchState } from "./four-player-match";
+import { createFourPlayerMatchState, createFourPlayerMatchStateFromCatalog, eliminateFourPlayerMatchSeat, type FourPlayerMatchState } from "./four-player-match";
 import type { FourPlayerServerEvent } from "./four-player-protocol";
 import { reduceFourPlayerServerEvent } from "./four-player-reducer";
 import { pumpFourPlayerServer } from "./four-player-server-pump";
@@ -72,6 +73,35 @@ assert.equal(physicalGeneral?.controllerSeat, "p1");
 assert.equal(physicalGeneral?.zone, "battlefield");
 assert.equal(generalPump.match.resolution.stack.items.length, 0);
 assert.equal(generalPump.match.resolution.priority.holder, "p1");
+
+// Production catalog matches materialize the authoritative General combat body on resolution.
+const catalogGeneral = collectibleCards().find((card) =>
+  card.collectible !== false && card.type === "Unit" && (card.isChampion || card.isLegend),
+);
+assert.ok(catalogGeneral, "fixture requires a collectible Unit General candidate");
+let catalogGeneralMatch: FourPlayerMatchState = {
+  ...createFourPlayerMatchStateFromCatalog("p1", {
+    p1: catalogGeneral.defId,
+    p2: catalogGeneral.defId,
+    p3: catalogGeneral.defId,
+    p4: catalogGeneral.defId,
+  }, 10),
+  phase: "main_1",
+};
+catalogGeneralMatch = reduceFourPlayerServerEvent(catalogGeneralMatch, {
+  ...castEvent,
+  eventId: "e-catalog-general-cast",
+  commandId: "c-catalog-general-cast",
+});
+catalogGeneralMatch = passAllLiving(catalogGeneralMatch);
+const catalogGeneralPump = pumpFourPlayerServer(catalogGeneralMatch);
+const catalogPhysicalGeneral = catalogGeneralPump.match.battlefield?.objects.find(
+  (object) => object.kind === "general" && object.ownerSeat === "p1",
+);
+assert.equal(catalogPhysicalGeneral?.defId, catalogGeneral.defId);
+assert.equal(catalogPhysicalGeneral?.combat?.power, catalogGeneral.power ?? 0);
+assert.equal(catalogPhysicalGeneral?.combat?.health, catalogGeneral.health ?? 1);
+assert.equal(catalogPhysicalGeneral?.combat?.maxHealth, catalogGeneral.health ?? 1);
 
 // Empty-stack all-pass advances exactly one phase and reopens priority.
 let empty: FourPlayerMatchState = passAllLiving(createFourPlayerMatchState("p1"));

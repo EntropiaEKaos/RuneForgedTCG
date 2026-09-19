@@ -8,10 +8,10 @@ import { pumpFourPlayerServer } from "./four-player-server-pump";
 
 const physical = collectibleCards().find((card) =>
   card.collectible !== false
-  && ["Unit", "Enchantment", "Artifact", "Sentinela"].includes(card.type)
+  && card.type === "Unit"
   && card.cost <= 10,
 );
-assert.ok(physical, "fixture requires a physical card costing at most 10");
+assert.ok(physical, "fixture requires a physical Unit costing at most 10");
 
 const decks = {
   p1: [physical.defId],
@@ -67,6 +67,10 @@ assert.equal(permanent?.defId, physical.defId);
 assert.equal(permanent?.ownerSeat, "p1");
 assert.equal(permanent?.controllerSeat, "p1");
 assert.equal(permanent?.enteredTurn, base.turn.turn);
+assert.equal(permanent?.combat?.power, physical.power ?? 0);
+assert.equal(permanent?.combat?.health, physical.health ?? 1);
+assert.equal(permanent?.combat?.maxHealth, physical.health ?? 1);
+assert.equal(permanent?.combat?.barrier, Boolean(physical.keywords?.includes("Barrier")));
 assert.equal(pumped.match.resolution.stack.items.length, 0);
 
 console.log("FOUR PLAYER CARD PLAY AUTHORITY: PASS — hand identity, mana payment, stack identity and physical pump resolution");

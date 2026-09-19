@@ -12,8 +12,15 @@ const selection = Object.fromEntries(
 
 const match = createFourPlayerMatchStateFromCatalog("p1", selection);
 for (const seat of FOUR_PLAYER_SEATS) {
-  assert.equal(match.generalPrintedCosts[seat], getCard(selection[seat]).cost);
+  const card = getCard(selection[seat]);
+  assert.equal(match.generalPrintedCosts[seat], card.cost);
   assert.equal(match.generals[seat].defId, selection[seat]);
+  if (card.type === "Unit") {
+    assert.equal(match.generalCombatBodies?.[seat]?.power, card.power ?? 0);
+    assert.equal(match.generalCombatBodies?.[seat]?.health, card.health ?? 1);
+  } else {
+    assert.equal(match.generalCombatBodies?.[seat], undefined);
+  }
 }
 
 const forged = { ...selection, p4: "__client-forged-unknown-general__" } as Record<FourPlayerSeat, string>;
