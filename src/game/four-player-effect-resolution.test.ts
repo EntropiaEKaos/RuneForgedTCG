@@ -3,8 +3,9 @@ import { putFourPlayerBattlefieldObject } from "./four-player-battlefield";
 import { resolveFourPlayerEffect } from "./four-player-effect-resolution";
 import { createFourPlayerMatchState, FOUR_PLAYER_POISON_LETHAL, FOUR_PLAYER_STARTING_LIFE } from "./four-player-match";
 import { assertFourPlayerTargetObject, parseFourPlayerTargetRef } from "./four-player-targeting";
+import type { Race } from "./types";
 
-function body(power:number, health:number, races:string[]=[], classes:string[]=[]) {
+function body(power:number, health:number, races:Race[]=[], classes:string[]=[]) {
   return { basePower:power, power, health, maxHealth:health, races, classes, barrier:false, frostbitten:false };
 }
 
