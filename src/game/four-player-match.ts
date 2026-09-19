@@ -11,6 +11,7 @@ import { createFourPlayerResolutionFlow, type FourPlayerResolutionFlow } from ".
 import { createGeneralZoneState, type FourPlayerGeneralZoneState } from "./four-player-general-zone";
 import { createFourPlayerPriorityState } from "./four-player-priority-manager";
 import { removeFourPlayerStackItemsByController } from "./four-player-stack";
+import type { Keyword } from "./types";
 import {
   advanceFourPlayerTurn,
   createFourPlayerTurnState,
@@ -34,6 +35,7 @@ export interface FourPlayerMatchSeatState {
 
 export type FourPlayerGeneralSelection = Record<FourPlayerSeat, string>;
 export type FourPlayerGeneralPrintedCosts = Record<FourPlayerSeat, number>;
+export type FourPlayerGeneralKeywords = Record<FourPlayerSeat, readonly Keyword[]>;
 export type FourPlayerMatchStatus = "active" | "completed";
 export const FOUR_PLAYER_MAX_MANA = 10;
 export const FOUR_PLAYER_STARTING_LIFE = 30;
@@ -42,6 +44,7 @@ export interface FourPlayerMatchState {
   seats: Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   generals: Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
   generalPrintedCosts: FourPlayerGeneralPrintedCosts;
+  generalKeywords?: FourPlayerGeneralKeywords;
   turn: FourPlayerTurnState;
   phase: FourPlayerPhase;
   resolution: FourPlayerResolutionFlow;
@@ -55,12 +58,14 @@ const DEFAULT_GENERAL_SELECTION: FourPlayerGeneralSelection = {
   p1: "general-p1", p2: "general-p2", p3: "general-p3", p4: "general-p4",
 };
 const DEFAULT_GENERAL_PRINTED_COSTS: FourPlayerGeneralPrintedCosts = { p1: 0, p2: 0, p3: 0, p4: 0 };
+const DEFAULT_GENERAL_KEYWORDS: FourPlayerGeneralKeywords = { p1: [], p2: [], p3: [], p4: [] };
 
 export function createFourPlayerMatchState(
   startingSeat: FourPlayerSeat = "p1",
   generalSelection: FourPlayerGeneralSelection = DEFAULT_GENERAL_SELECTION,
   startingMana = 0,
   generalPrintedCosts: FourPlayerGeneralPrintedCosts = DEFAULT_GENERAL_PRINTED_COSTS,
+  generalKeywords: FourPlayerGeneralKeywords = DEFAULT_GENERAL_KEYWORDS,
 ): FourPlayerMatchState {
   if (!Number.isFinite(startingMana) || startingMana < 0) throw new Error("4P starting mana must be a non-negative finite number.");
   for (const seat of FOUR_PLAYER_SEATS) {
@@ -73,7 +78,10 @@ export function createFourPlayerMatchState(
     return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana, life: FOUR_PLAYER_STARTING_LIFE, generalDamageReceived: {} }];
   })) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
-  return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), battlefield: createFourPlayerBattlefieldState(), status: "active" };
+  const keywordSnapshot = Object.fromEntries(
+    FOUR_PLAYER_SEATS.map((seat) => [seat, [...(generalKeywords[seat] ?? [])]]),
+  ) as FourPlayerGeneralKeywords;
+  return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, generalKeywords: keywordSnapshot, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), battlefield: createFourPlayerBattlefieldState(), status: "active" };
 }
 
 export function updateMatchGeneral(state: FourPlayerMatchState, seat: FourPlayerSeat, general: FourPlayerGeneralZoneState): FourPlayerMatchState {
@@ -161,10 +169,16 @@ export function createFourPlayerMatchStateFromCatalog(
   generalSelection: FourPlayerGeneralSelection,
   startingMana = 0,
 ): FourPlayerMatchState {
+  const cards = Object.fromEntries(
+    FOUR_PLAYER_SEATS.map((seat) => [seat, getCard(generalSelection[seat])]),
+  ) as Record<FourPlayerSeat, ReturnType<typeof getCard>>;
   const generalPrintedCosts = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
-    const card = getCard(generalSelection[seat]);
+    const card = cards[seat];
     if (!Number.isFinite(card.cost) || card.cost < 0) throw new Error(`General printed cost for ${seat} must be a non-negative finite number.`);
     return [seat, card.cost];
   })) as FourPlayerGeneralPrintedCosts;
-  return createFourPlayerMatchState(startingSeat, generalSelection, startingMana, generalPrintedCosts);
+  const generalKeywords = Object.fromEntries(
+    FOUR_PLAYER_SEATS.map((seat) => [seat, [...(cards[seat].keywords ?? [])]]),
+  ) as FourPlayerGeneralKeywords;
+  return createFourPlayerMatchState(startingSeat, generalSelection, startingMana, generalPrintedCosts, generalKeywords);
 }

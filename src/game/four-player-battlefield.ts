@@ -1,4 +1,3 @@
-import { getCard } from "./cards";
 import { cleanupObjectsForEliminatedSeat, type FourPlayerOwnedObject } from "./four-player-elimination";
 import type { FourPlayerSeat } from "./four-player-general";
 import type { Keyword } from "./types";
@@ -149,9 +148,9 @@ export function placeResolvedGeneralOnBattlefield(
   defId: string,
   castCount: number,
   enteredTurn: number,
+  keywords: readonly Keyword[] = [],
 ): FourPlayerBattlefieldState {
   if (!Number.isInteger(castCount) || castCount < 1) throw new Error("Resolved General cast count must be positive.");
-  const card = getCard(defId);
   const withoutPriorGeneral = {
     objects: state.objects.filter((object) => !(object.kind === "general" && object.ownerSeat === seat)),
   };
@@ -162,7 +161,7 @@ export function placeResolvedGeneralOnBattlefield(
     ownerSeat: seat,
     controllerSeat: seat,
     enteredTurn,
-    keywords: card.keywords ?? [],
+    keywords,
   });
 }
 

@@ -32,6 +32,7 @@ function applyResolvedStackItem(match: FourPlayerMatchState, item: FourPlayerSta
       resolvedGeneral.defId,
       resolvedGeneral.castsFromGeneralZone,
       withGeneral.turn.turn,
+      withGeneral.generalKeywords?.[item.controller] ?? [],
     ),
   };
 }
