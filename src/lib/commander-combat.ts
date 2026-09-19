@@ -2,6 +2,7 @@ import { ensureCustomCardsLoaded } from "@/game/catalog";
 import { acceptAuthoritativeFourPlayerCommand, processAuthoritativeFourPlayerCommand, assertPriorityHolder } from "@/game/four-player-authority";
 import { stageFourPlayerCardCast } from "@/game/four-player-card-play";
 import { parseFourPlayerTargetRef } from "@/game/four-player-targeting";
+import { settleFourPlayerEffectDraws } from "@/game/four-player-effect-zones";
 import { submitFourPlayerAction } from "@/game/four-player-flow";
 import { pumpFourPlayerServer } from "@/game/four-player-server-pump";
 import {
@@ -348,6 +349,11 @@ export function processCommanderCombatCommand(
       defId: destroyed.defId,
       ownerSeat: destroyed.ownerSeat,
     });
+  }
+  if (accepted.pump?.drawRequests) {
+    const settledDraws = settleFourPlayerEffectDraws(match, zones, accepted.pump.drawRequests);
+    match = settledDraws.match;
+    zones = settledDraws.zones;
   }
   if (match.status === "active" && match.turn.activeSeat !== previousActiveSeat) {
     const settled = settleIncomingTurn(match, zones, envelope.startingSeat);

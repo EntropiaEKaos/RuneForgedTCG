@@ -159,8 +159,12 @@ export function resolveFourPlayerCardCast(
 export function resolveFourPlayerSpellCast(
   match: FourPlayerMatchState,
   item: FourPlayerStackItem,
-): { match: FourPlayerMatchState; destroyed: readonly import("./four-player-combat-resolution").FourPlayerCombatDestroyedObject[] } {
-  if (item.kind !== "spell_cast") return { match, destroyed: [] };
+): {
+  match: FourPlayerMatchState;
+  destroyed: readonly import("./four-player-combat-resolution").FourPlayerCombatDestroyedObject[];
+  draws: Partial<Record<FourPlayerSeat, number>>;
+} {
+  if (item.kind !== "spell_cast") return { match, destroyed: [], draws: {} };
   const payload = item.payload as Partial<FourPlayerCardCastPayload>;
   if (!payload.instanceId || !payload.defId || !payload.ownerSeat || payload.cardType !== "Spell" || !payload.effect) {
     throw new Error("Resolved 4P spell cast is missing authoritative identity or effect.");
@@ -168,5 +172,5 @@ export function resolveFourPlayerSpellCast(
   if (payload.ownerSeat !== item.controller) {
     throw new Error("Resolved 4P spell owner/controller identity mismatch.");
   }
-  return resolveFourPlayerEffect(match, item.controller, payload.effect, payload.target);
+  return resolveFourPlayerEffect(match, item.controller, payload.effect, payload.target, { tokenNamespace: item.id });
 }

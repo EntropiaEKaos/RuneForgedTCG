@@ -2,6 +2,7 @@ import { createFourPlayerBattlefieldState, placeResolvedGeneralOnBattlefield } f
 import { resolveFourPlayerCardCast, resolveFourPlayerSpellCast } from "./four-player-card-play";
 import { resolveFourPlayerCombat, type FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
 import { resolveFourPlayerFlow } from "./four-player-flow";
+import type { FourPlayerSeat } from "./four-player-general";
 import { resolveGeneralToBattlefield } from "./four-player-general-zone";
 import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-match";
 import { advanceFourPlayerPhase } from "./four-player-phase-machine";
@@ -16,18 +17,23 @@ export interface FourPlayerServerPumpResult {
   turnAdvanced: boolean;
   combatResolved?: boolean;
   destroyedObjects?: readonly FourPlayerCombatDestroyedObject[];
+  drawRequests?: Partial<Record<FourPlayerSeat, number>>;
 }
 
 function applyResolvedStackItem(
   match: FourPlayerMatchState,
   item: FourPlayerStackItem,
-): { match: FourPlayerMatchState; destroyedObjects: readonly FourPlayerCombatDestroyedObject[] } {
-  if (item.kind === "card_cast") return { match: resolveFourPlayerCardCast(match, item), destroyedObjects: [] };
+): {
+  match: FourPlayerMatchState;
+  destroyedObjects: readonly FourPlayerCombatDestroyedObject[];
+  drawRequests: Partial<Record<FourPlayerSeat, number>>;
+} {
+  if (item.kind === "card_cast") return { match: resolveFourPlayerCardCast(match, item), destroyedObjects: [], drawRequests: {} };
   if (item.kind === "spell_cast") {
     const resolved = resolveFourPlayerSpellCast(match, item);
-    return { match: resolved.match, destroyedObjects: resolved.destroyed };
+    return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws };
   }
-  if (item.kind !== "general_cast") return { match, destroyedObjects: [] };
+  if (item.kind !== "general_cast") return { match, destroyedObjects: [], drawRequests: {} };
   const general = match.generals[item.controller];
   if (general.location !== "stack") throw new Error(`Resolved General for ${item.controller} is not on the General stack.`);
   const payload = item.payload as { owner?: string; defId?: string };
@@ -47,7 +53,7 @@ function applyResolvedStackItem(
       withGeneral.generalKeywords?.[item.controller] ?? [],
       withGeneral.generalCombatBodies?.[item.controller],
     ),
-  }, destroyedObjects: [] };
+  }, destroyedObjects: [], drawRequests: {} };
 }
 
 /**
@@ -118,5 +124,6 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
     phaseAdvanced: false,
     turnAdvanced: false,
     ...(applied.destroyedObjects.length > 0 ? { destroyedObjects: applied.destroyedObjects } : {}),
+    ...(Object.keys(applied.drawRequests).length > 0 ? { drawRequests: applied.drawRequests } : {}),
   };
 }

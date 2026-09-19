@@ -45,6 +45,8 @@ assert.match(client,/aoeEnemy/);
 assert.match(client,/grantBarrier/);
 assert.match(client,/grantKeyword/);
 assert.match(client,/poison/);
+assert.match(client,/draw/);
+assert.match(client,/summonToken/);
 assert.match(client,/Selecionar alvo/);
 assert.match(client,/Alvo da Spell/);
 assert.match(client,/kind:"player"/);

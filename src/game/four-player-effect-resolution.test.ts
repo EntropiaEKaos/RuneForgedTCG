@@ -149,4 +149,24 @@ assert.throws(
   /explicit opponent target/,
 );
 
+const drawIntent = resolveFourPlayerEffect(match,"p1",{kind:"draw",amount:2,target:"none"});
+assert.equal(drawIntent.draws.p1,2);
+assert.equal(drawIntent.match,match,"draw intent must not leak private-zone mutation into public match state");
+
+const summoned = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"summonToken",amount:2,target:"none",tokenDefId:"forest_cub_token"},
+  undefined,
+  {tokenNamespace:"stack:test-token"},
+);
+const tokens = summoned.match.battlefield?.objects.filter((object)=>object.kind==="token") ?? [];
+assert.equal(tokens.length,2);
+assert.deepEqual(tokens.map((token)=>token.id),[
+  "token:p1:stack:test-token:1",
+  "token:p1:stack:test-token:2",
+]);
+assert.ok(tokens.every((token)=>token.defId==="forest_cub_token"&&token.ownerSeat==="p1"&&token.controllerSeat==="p1"));
+assert.ok(tokens.every((token)=>token.combat?.power===1&&token.combat?.health===1));
+
 console.log("FOUR PLAYER TARGETING + EFFECT AUTHORITY: PASS — player/unit targets, Hexproof, damage, chained Nexus, heal, stun, frostbite and kill");

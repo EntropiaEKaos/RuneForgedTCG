@@ -124,6 +124,56 @@ async function main() {
   assert.equal(spellPlayed.zones.p1.graveyard.some((card)=>card.instanceId===spellInstance.instanceId),true);
   assert.equal(spellPlayed.match.resolution.stack.items.length,0);
 
+  const drawSpell = collectibleCards().find((card)=>card.defId==="tide_draw");
+  assert.ok(drawSpell?.spell?.kind==="draw","fixture requires tide_draw");
+  const drawSeats = generals.map((general,index)=>({
+    seat:index as 0|1|2|3,
+    playerId:100+index,
+    playerName:`Commander Draw P${index+1}`,
+    deckCards:Array.from({length:60},()=>drawSpell.defId),
+    generalDefId:general.defId,
+  }));
+  const drawInitial = await createCommanderCombatEnvelope("commander:draw-room",30,0x44556677,drawSeats);
+  let drawEnvelope = {
+    ...drawInitial,
+    match:{...drawInitial.match,phase:"main_1" as const,seats:{...drawInitial.match.seats,p1:{...drawInitial.match.seats.p1,mana:10,maxMana:10}}},
+  };
+  const drawInstance = drawEnvelope.zones.p1.hand[0]!;
+  drawEnvelope = processCommanderCombatCommand(drawEnvelope,100,0,{commandId:"cmd-draw-play",expectedRevision:30,type:"play_card",payload:{instanceId:drawInstance.instanceId}});
+  drawEnvelope = processCommanderCombatCommand(drawEnvelope,101,1,{commandId:"cmd-draw-p2",expectedRevision:31,type:"pass_priority"});
+  drawEnvelope = processCommanderCombatCommand(drawEnvelope,102,2,{commandId:"cmd-draw-p3",expectedRevision:32,type:"pass_priority"});
+  drawEnvelope = processCommanderCombatCommand(drawEnvelope,103,3,{commandId:"cmd-draw-p4",expectedRevision:33,type:"pass_priority"});
+  drawEnvelope = processCommanderCombatCommand(drawEnvelope,100,0,{commandId:"cmd-draw-p1",expectedRevision:34,type:"pass_priority"});
+  assert.equal(drawEnvelope.zones.p1.hand.length,4+drawSpell.spell.amount);
+  assert.equal(drawEnvelope.zones.p1.deck.length,55-drawSpell.spell.amount);
+  assert.equal(drawEnvelope.zones.p1.graveyard.some((card)=>card.instanceId===drawInstance.instanceId),true);
+
+  const tokenSpell = collectibleCards().find((card)=>card.defId==="forest_summon_pack");
+  assert.ok(tokenSpell?.spell?.kind==="summonToken","fixture requires forest_summon_pack");
+  const tokenSeats = generals.map((general,index)=>({
+    seat:index as 0|1|2|3,
+    playerId:100+index,
+    playerName:`Commander Token P${index+1}`,
+    deckCards:Array.from({length:60},()=>tokenSpell.defId),
+    generalDefId:general.defId,
+  }));
+  const tokenInitial = await createCommanderCombatEnvelope("commander:token-room",40,0x55667788,tokenSeats);
+  let tokenEnvelope = {
+    ...tokenInitial,
+    match:{...tokenInitial.match,phase:"main_1" as const,seats:{...tokenInitial.match.seats,p1:{...tokenInitial.match.seats.p1,mana:10,maxMana:10}}},
+  };
+  const tokenInstance = tokenEnvelope.zones.p1.hand[0]!;
+  tokenEnvelope = processCommanderCombatCommand(tokenEnvelope,100,0,{commandId:"cmd-token-play",expectedRevision:40,type:"play_card",payload:{instanceId:tokenInstance.instanceId}});
+  tokenEnvelope = processCommanderCombatCommand(tokenEnvelope,101,1,{commandId:"cmd-token-p2",expectedRevision:41,type:"pass_priority"});
+  tokenEnvelope = processCommanderCombatCommand(tokenEnvelope,102,2,{commandId:"cmd-token-p3",expectedRevision:42,type:"pass_priority"});
+  tokenEnvelope = processCommanderCombatCommand(tokenEnvelope,103,3,{commandId:"cmd-token-p4",expectedRevision:43,type:"pass_priority"});
+  tokenEnvelope = processCommanderCombatCommand(tokenEnvelope,100,0,{commandId:"cmd-token-p1",expectedRevision:44,type:"pass_priority"});
+  const summonedTokens = tokenEnvelope.match.battlefield?.objects.filter((object)=>object.kind==="token"&&object.ownerSeat==="p1") ?? [];
+  assert.equal(summonedTokens.length,2);
+  assert.ok(summonedTokens.every((token)=>token.defId==="forest_cub_token"));
+  assert.equal(new Set(summonedTokens.map((token)=>token.id)).size,2);
+  assert.equal(tokenEnvelope.zones.p1.graveyard.some((card)=>card.instanceId===tokenInstance.instanceId),true);
+
   let combatBoard = putFourPlayerBattlefieldObject(initial.match.battlefield!, {
     id: "battle:p1:attacker",
     defId: "fixture-attacker",

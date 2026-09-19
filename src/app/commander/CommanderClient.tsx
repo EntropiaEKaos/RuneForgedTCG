@@ -30,7 +30,7 @@ type Room = { code:string; state:string; activeSeat:number; round:number; versio
 type LobbySummary = { code:string; state:string; seatCount:number; viewerJoined:boolean };
 
 const COUNT = 60;
-const SUPPORTED_4P_SPELL_EFFECTS = new Set(["damageUnit","damageNexus","healUnit","healNexus","buffUnit","aoeEnemy","grantBarrier","grantKeyword","poison","frostbite","stun","killUnit"]);
+const SUPPORTED_4P_SPELL_EFFECTS = new Set(["damageUnit","damageNexus","healUnit","healNexus","buffUnit","aoeEnemy","grantBarrier","grantKeyword","poison","draw","summonToken","frostbite","stun","killUnit"]);
 function countOf(cards:string[], defId:string){ return cards.filter((id)=>id===defId).length; }
 function spellChainSupported(effect:SpellEffect|undefined){
   let current=effect;
