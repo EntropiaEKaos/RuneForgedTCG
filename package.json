@@ -54,7 +54,7 @@
     "test:e2e:alpha-journey": "tsx scripts/alpha-player-journey.ts",
     "test:e2e:marketplace": "tsx scripts/p2p-marketplace-browser-cert.ts",
     "db:bootstrap": "tsx scripts/database-bootstrap.ts",
-    "db:upgrade": "tsx scripts/database-upgrade-2.31.ts && tsx scripts/database-upgrade-marketplace.ts",
+    "db:upgrade": "tsx scripts/database-upgrade-2.31.ts && tsx scripts/database-upgrade-marketplace.ts && tsx scripts/database-upgrade-metagame.ts",
     "release:preflight": "tsx scripts/release-preflight.ts",
     "test:marketplace:postgres": "tsx scripts/marketplace-postgres-certification.ts",
     "test:production-db": "tsx scripts/production-verify.ts && npm run test:mercado-pago:postgres && npm run test:marketplace:postgres",
