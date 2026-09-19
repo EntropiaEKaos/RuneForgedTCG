@@ -49,3 +49,24 @@ export function shouldDrawAtFourPlayerTurnStart(
   if (!Number.isInteger(round) || round < 1) throw new Error("4P round must be a positive integer.");
   return !(round === 1 && seat === startingSeat);
 }
+
+
+export interface FourPlayerTurnStartDrawResult {
+  zones: FourPlayerCardZones;
+  drew: boolean;
+  drawnDefId?: string;
+  deckOut: boolean;
+}
+
+export function applyFourPlayerTurnStartDraw(
+  zones: FourPlayerCardZones,
+  seat: FourPlayerSeat,
+  round: number,
+  startingSeat: FourPlayerSeat,
+): FourPlayerTurnStartDrawResult {
+  if (!shouldDrawAtFourPlayerTurnStart(seat, round, startingSeat)) {
+    return { zones, drew: false, deckOut: false };
+  }
+  const result = drawFourPlayerCard(zones, seat);
+  return { ...result, drew: !result.deckOut };
+}
