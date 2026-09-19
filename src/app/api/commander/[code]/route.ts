@@ -1,9 +1,17 @@
+import { randomInt } from "node:crypto";
 import { and, asc, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { commanderRooms, commanderSeats, players } from "@/db/schema";
 import { requireStablePlayerIdentity } from "@/lib/player-session";
-import { commanderInitialState, COMMANDER_ALPHA_RULES, nextCommanderSeat, type CommanderSeatIndex } from "@/lib/commander-rules";
+import { COMMANDER_ALPHA_RULES, nextCommanderSeat, type CommanderSeatIndex } from "@/lib/commander-rules";
+import {
+  commanderCombatPersistence,
+  createCommanderCombatEnvelope,
+  isCommanderCombatEnvelope,
+  processCommanderCombatCommand,
+  projectCommanderCombatState,
+} from "@/lib/commander-combat";
 import { validateOwnedCommanderLoadout } from "@/lib/commander-service";
 import { runtimeGate } from "@/lib/runtime-gates";
 
@@ -19,6 +27,9 @@ async function loadRoom(code:string) {
 
 function publicRoom(data:NonNullable<Awaited<ReturnType<typeof loadRoom>>>, viewerId:number) {
   const ownSeat=data.seats.find((seat)=>seat.playerId===viewerId) ?? null;
+  const combat = ownSeat && isCommanderCombatEnvelope(data.room.gameState)
+    ? projectCommanderCombatState(data.room.gameState, ownSeat.seat as CommanderSeatIndex)
+    : null;
   return {
     id:data.room.id,
     code:data.room.code,
@@ -27,7 +38,9 @@ function publicRoom(data:NonNullable<Awaited<ReturnType<typeof loadRoom>>>, view
     round:data.room.round,
     version:data.room.version,
     rules:data.room.rulesSnapshot,
-    gameState:data.room.gameState,
+    gameState:combat,
+    combat,
+    engineKind:combat?.kind ?? null,
     viewerSeat:ownSeat?.seat ?? null,
     hostPlayerId:data.room.hostPlayerId,
     seats:data.seats.map((seat)=>({
@@ -105,24 +118,67 @@ export async function POST(req:NextRequest, ctx:{params:Promise<{code:string}>})
       const seats=await tx.select().from(commanderSeats).where(eq(commanderSeats.roomId,room.id)).orderBy(asc(commanderSeats.seat));
       if (seats.length!==COMMANDER_ALPHA_RULES.playerCount) return {error:"Four real players are required",status:409 as const};
       if (!seats.every((seat)=>seat.ready)) return {error:"All four players must be ready",status:409 as const};
-      const state=commanderInitialState(seats.map((seat)=>({seat:seat.seat as CommanderSeatIndex,playerId:seat.playerId,playerName:seat.playerName,generalDefId:seat.generalDefId})));
-      await tx.update(commanderRooms).set({state:"playing",gameState:state,activeSeat:0,round:1,version:room.version+1,expiresAt:new Date(Date.now()+PLAYING_TTL_MS),updatedAt:new Date()}).where(eq(commanderRooms.id,room.id));
+      const nextVersion=room.version+1;
+      const combat=await createCommanderCombatEnvelope(
+        `commander:${room.id}:${room.code}`,
+        nextVersion,
+        randomInt(0,0x1_0000_0000),
+        seats.map((seat)=>({
+          seat:seat.seat as CommanderSeatIndex,
+          playerId:seat.playerId,
+          playerName:seat.playerName,
+          deckCards:[...seat.deckCards],
+          generalDefId:seat.generalDefId,
+        })),
+      );
+      const persistence=commanderCombatPersistence(combat);
+      await tx.update(commanderRooms).set({...persistence,expiresAt:new Date(Date.now()+PLAYING_TTL_MS),updatedAt:new Date()}).where(eq(commanderRooms.id,room.id));
       return {room};
     });
     if ("error" in result) return Response.json({ok:false,error:result.error},{status:result.status});
-  } else if (action==="pass-turn") {
+  } else if (action==="combat-command" || action==="pass-turn") {
     const result=await db.transaction(async(tx)=>{
       const [room]=await tx.select().from(commanderRooms).where(eq(commanderRooms.code,roomCode)).limit(1).for("update");
       if (!room) return {error:"Commander room not found",status:404 as const};
       if (room.state!=="playing") return {error:"Commander room is not playing",status:409 as const};
       const [seat]=await tx.select().from(commanderSeats).where(and(eq(commanderSeats.roomId,room.id),eq(commanderSeats.playerId,identity.playerId!))).limit(1);
-      if (!seat||seat.seat!==room.activeSeat) return {error:"It is not your Commander turn",status:409 as const};
-      const next=nextCommanderSeat(room.activeSeat as CommanderSeatIndex);
-      const nextRound=next===0?room.round+1:room.round;
-      const current=(room.gameState&&typeof room.gameState==="object"?room.gameState:{}) as Record<string,unknown>;
-      const gameState={...current,activeSeat:next,prioritySeat:next,round:nextRound};
-      await tx.update(commanderRooms).set({activeSeat:next,round:nextRound,gameState,version:room.version+1,expiresAt:new Date(Date.now()+PLAYING_TTL_MS),updatedAt:new Date()}).where(eq(commanderRooms.id,room.id));
-      return {room};
+      if (!seat) return {error:"Player is not seated",status:403 as const};
+
+      if (!isCommanderCombatEnvelope(room.gameState)) {
+        if (action!=="pass-turn") return {error:"Commander room uses a legacy combat state; restart the room to use combat commands",status:409 as const};
+        if (seat.seat!==room.activeSeat) return {error:"It is not your Commander turn",status:409 as const};
+        const next=nextCommanderSeat(room.activeSeat as CommanderSeatIndex);
+        const nextRound=next===0?room.round+1:room.round;
+        const current=(room.gameState&&typeof room.gameState==="object"?room.gameState:{}) as Record<string,unknown>;
+        const gameState={...current,activeSeat:next,prioritySeat:next,round:nextRound};
+        await tx.update(commanderRooms).set({activeSeat:next,round:nextRound,gameState,version:room.version+1,expiresAt:new Date(Date.now()+PLAYING_TTL_MS),updatedAt:new Date()}).where(eq(commanderRooms.id,room.id));
+        return {room};
+      }
+
+      const expectedRevision=Number(action==="pass-turn" ? (body.expectedRevision ?? room.version) : body.expectedRevision);
+      if (!Number.isInteger(expectedRevision) || expectedRevision!==room.version) {
+        return {error:`Stale Commander revision; expected ${room.version}`,status:409 as const};
+      }
+      const commandType=action==="pass-turn" ? "end_turn" : String(body.commandType||"");
+      const commandId=String(body.commandId||`${identity.playerId}:${expectedRevision}:${commandType}`).trim();
+      try {
+        const combat=processCommanderCombatCommand(
+          room.gameState,
+          identity.playerId!,
+          seat.seat as CommanderSeatIndex,
+          {
+            commandId,
+            expectedRevision,
+            type:commandType as Parameters<typeof processCommanderCombatCommand>[3]["type"],
+            payload:body.payload,
+          },
+        );
+        const persistence=commanderCombatPersistence(combat);
+        await tx.update(commanderRooms).set({...persistence,expiresAt:new Date(Date.now()+PLAYING_TTL_MS),updatedAt:new Date()}).where(eq(commanderRooms.id,room.id));
+        return {room};
+      } catch (error) {
+        return {error:error instanceof Error ? error.message : "Commander combat command rejected",status:409 as const};
+      }
     });
     if ("error" in result) return Response.json({ok:false,error:result.error},{status:result.status});
   } else if (action==="leave") {
