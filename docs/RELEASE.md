@@ -36,6 +36,8 @@ RANKED_RELEASE_CERTIFIED=false
 
 A public Alpha candidate is acceptable only when the exact merge SHA has a green **Alpha Release Candidate** run and the uploaded `artifacts/alpha-release-candidate/manifest.json` reports `passed: true`.
 
+Trading 2.0 post-merge provenance is recorded in `docs/TRADING-2-0-POST-MERGE-CERTIFICATE.md`. The certified rollback ref is `release/trading-2.0-certified-6847f773`, pinned to `6847f77354a59ac13826d2bbbaab2e39aec41cb7`; it must not be force-moved.
+
 See `docs/ALPHA-RELEASE-CANDIDATE-1-0.md`.
 
 ## Equivalent operator verification
