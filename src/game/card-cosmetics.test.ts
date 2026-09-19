@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import {
   cosmeticClassNames,
   cosmeticDropChancePercent,
@@ -89,6 +91,18 @@ function main() {
     attributes: { "data-card-rarity": "epic", "data-card-rarity-rank": 2, "data-card-rarity-fx": "standard" },
   }, "rarity DOM contract must stay stable and presentation-only");
   assert.equal(cardRarityPresentationContract(undefined).attributes["data-card-rarity-fx"], "none", "Common fallback must not request premium FX");
+
+  const root = process.cwd();
+  const showcaseApi = fs.readFileSync(path.join(root, "src/app/api/collection/showcase/route.ts"), "utf8");
+  const showcaseClient = fs.readFileSync(path.join(root, "src/app/collection/showcase/CollectorShowcaseClient.tsx"), "utf8");
+  const cosmeticsSchema = fs.readFileSync(path.join(root, "src/db/schema/cosmetics.ts"), "utf8");
+  assert.match(cosmeticsSchema, /playerCollectionShowcases/, "collector showcase must persist independently from gameplay card identity");
+  assert.match(showcaseApi, /MAX_SHOWCASE_ASSETS = 6/, "collector showcase must have a bounded six-copy surface");
+  assert.match(showcaseApi, /Every showcase slot must reference an exact owned collectible copy/, "showcase must fail closed on ownership");
+  assert.match(showcaseApi, /visibility==="friends"/, "showcase must enforce friends-only privacy server-side");
+  assert.match(showcaseApi, /resolveCardCosmeticPrestige/, "showcase prestige must reuse existing cosmetic probability authority");
+  assert.doesNotMatch(showcaseApi, /cardRarity.*update|rarity.*set/, "showcase must never mutate gameplay rarity");
+  assert.match(showcaseClient, /METAGAME SOCIAL · PRESTÍGIO COSMÉTICO/, "collector showcase must expose the social metagame surface");
 
   console.log("CARD COSMETICS + RARITY PRESENTATION: PASS");
 }
