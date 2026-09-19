@@ -120,6 +120,7 @@ export default function ModesClient({ puzzles: PUZZLES, bosses: BOSSES, brawls: 
             <p>Campanhas, desafios táticos e batalhas com regras especiais. Escolha um desafio, vença e avance no seu mapa de conquistas.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/commander" className="rf-button rf-button-secondary">COMMANDER ALPHA · 4P</Link>
             <Link href="/forge" className="rf-button rf-button-secondary">FORJA</Link>
             <Link href="/play" className="rf-button rf-button-primary">PARTIDA LIVRE</Link>
           </div>

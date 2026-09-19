@@ -69,6 +69,59 @@ export const pvpRooms = pgTable("pvp_rooms", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+/** Four-player Commander Alpha room. Kept separate from 1v1 pvp_rooms. */
+export const commanderRooms = pgTable("commander_rooms", {
+  id: serial("id").primaryKey(),
+  code: text("code").notNull().unique(),
+  hostPlayerId: integer("host_player_id").notNull(),
+  state: text("state").notNull().default("waiting"),
+  rulesSnapshot: jsonb("rules_snapshot").notNull(),
+  currentSeat: integer("current_seat").notNull().default(1),
+  round: integer("round").notNull().default(1),
+  version: integer("version").notNull().default(0),
+  winnerPlayerId: integer("winner_player_id"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => ({
+  stateValid: check("commander_rooms_state_valid", sql`${t.state} IN ('waiting','playing','finished','cancelled')`),
+  seatValid: check("commander_rooms_current_seat_valid", sql`${t.currentSeat} BETWEEN 1 AND 4`),
+  roundValid: check("commander_rooms_round_valid", sql`${t.round} >= 1`),
+  versionValid: check("commander_rooms_version_valid", sql`${t.version} >= 0`),
+}));
+
+export const commanderRoomPlayers = pgTable("commander_room_players", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull().references(() => commanderRooms.id, { onDelete: "cascade" }),
+  playerId: integer("player_id").notNull(),
+  playerName: text("player_name").notNull(),
+  seat: integer("seat").notNull(),
+  deckSnapshot: jsonb("deck_snapshot").$type<string[]>().notNull(),
+  generalDefId: text("general_def_id").notNull(),
+  nexus: integer("nexus").notNull().default(30),
+  eliminated: boolean("eliminated").notNull().default(false),
+  joinedAt: timestamp("joined_at").defaultNow().notNull(),
+}, (t) => ({
+  uniquePlayer: unique().on(t.roomId, t.playerId),
+  uniqueSeat: unique().on(t.roomId, t.seat),
+  seatValid: check("commander_room_players_seat_valid", sql`${t.seat} BETWEEN 1 AND 4`),
+  nexusValid: check("commander_room_players_nexus_valid", sql`${t.nexus} >= 0`),
+}));
+
+export const commanderRoomEvents = pgTable("commander_room_events", {
+  id: serial("id").primaryKey(),
+  roomId: integer("room_id").notNull().references(() => commanderRooms.id, { onDelete: "cascade" }),
+  actorPlayerId: integer("actor_player_id"),
+  eventType: text("event_type").notNull(),
+  roomVersion: integer("room_version").notNull(),
+  payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  uniqueVersionEvent: unique().on(t.roomId, t.roomVersion, t.eventType, t.actorPlayerId),
+  versionValid: check("commander_room_events_version_valid", sql`${t.roomVersion} >= 0`),
+  eventTypeValid: check("commander_room_events_type_valid", sql`${t.eventType} IN ('created','joined','started','turn_passed','forfeited','finished','cancelled')`),
+}));
+
 /** Idempotency receipts for retried authoritative PvP actions. */
 export const pvpActionReceipts = pgTable("pvp_action_receipts", {
   id: serial("id").primaryKey(),
@@ -181,6 +234,9 @@ export const chatMessages = pgTable("chat_messages", {
 });
 
 
+export type CommanderRoom = typeof commanderRooms.$inferSelect;
+export type CommanderRoomPlayer = typeof commanderRoomPlayers.$inferSelect;
+export type CommanderRoomEvent = typeof commanderRoomEvents.$inferSelect;
 export type PvpRoom = typeof pvpRooms.$inferSelect;
 export type PvpActionReceipt = typeof pvpActionReceipts.$inferSelect;
 export type Friendship = typeof friendships.$inferSelect;
