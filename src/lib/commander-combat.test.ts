@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { putFourPlayerBattlefieldObject } from "../game/four-player-battlefield";
 import { collectibleCards } from "../game/cards";
 import {
+  type CommanderCombatEnvelope,
   commanderCombatPersistence,
   createCommanderCombatEnvelope,
   processCommanderCombatCommand,
@@ -134,7 +135,7 @@ async function main() {
     generalDefId:general.defId,
   }));
   const drawInitial = await createCommanderCombatEnvelope("commander:draw-room",30,0x44556677,drawSeats);
-  let drawEnvelope = {
+  let drawEnvelope: CommanderCombatEnvelope = {
     ...drawInitial,
     match:{...drawInitial.match,phase:"main_1" as const,seats:{...drawInitial.match.seats,p1:{...drawInitial.match.seats.p1,mana:10,maxMana:10}}},
   };
@@ -158,7 +159,7 @@ async function main() {
     generalDefId:general.defId,
   }));
   const tokenInitial = await createCommanderCombatEnvelope("commander:token-room",40,0x55667788,tokenSeats);
-  let tokenEnvelope = {
+  let tokenEnvelope: CommanderCombatEnvelope = {
     ...tokenInitial,
     match:{...tokenInitial.match,phase:"main_1" as const,seats:{...tokenInitial.match.seats,p1:{...tokenInitial.match.seats.p1,mana:10,maxMana:10}}},
   };
