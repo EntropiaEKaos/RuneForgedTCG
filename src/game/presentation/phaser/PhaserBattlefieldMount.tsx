@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { layoutBattlefieldEntities, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
+import { layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
 
 type Props = { scenario: BattlefieldLabScenario };
 
@@ -10,7 +10,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
   const gameRef = useRef<{ destroy: (removeCanvas: boolean, noReturn?: boolean) => void } | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
   const [metrics, setMetrics] = useState({ fps: 0, objects: 0, renderer: "pending" });
-  const [interaction, setInteraction] = useState({ selected: "", target: "" });
+  const [interaction, setInteraction] = useState({ selected: "", target: "", relation: "" as "" | "friendly" | "opponent" });
 
   useEffect(() => {
     let cancelled = false;
@@ -71,7 +71,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                   if (!selectedUnit) {
                     selectedUnit = { id: entity.id, shape: unit };
                     unit.setAlpha(1).setStrokeStyle(3, 0x22d3ee, 1);
-                    setInteraction({ selected: entity.id, target: "" });
+                    setInteraction({ selected: entity.id, target: "", relation: "" });
                     return;
                   }
                   if (selectedUnit.id === entity.id) {
@@ -79,15 +79,19 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                     selectedUnit = null;
                     targetLine?.destroy();
                     targetLine = null;
-                    setInteraction({ selected: "", target: "" });
+                    setInteraction({ selected: "", target: "", relation: "" });
                     return;
                   }
                   targetLine?.destroy();
-                  targetLine = this.add.line(0, 0, selectedUnit.shape.x, selectedUnit.shape.y, unit.x, unit.y, 0xf43f5e, 0.9)
+                  const preview = previewBattlefieldTarget(scenario, selectedUnit.id, entity.id);
+                  if (!preview) return;
+                  const lineColor = preview.relation === "friendly" ? 0x22c55e : 0xf43f5e;
+                  targetLine = this.add.line(0, 0, selectedUnit.shape.x, selectedUnit.shape.y, unit.x, unit.y, lineColor, 0.9)
                     .setOrigin(0, 0)
                     .setLineWidth(2)
                     .setDepth(18);
-                  setInteraction({ selected: selectedUnit.id, target: entity.id });
+                  unit.setStrokeStyle(3, lineColor, 1);
+                  setInteraction({ selected: selectedUnit.id, target: entity.id, relation: preview.relation });
                 });
               });
             });
@@ -138,6 +142,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
         <span className="rounded bg-black/70 px-2 py-1">{metrics.objects} objects</span>
         {interaction.selected && <span className="rounded bg-cyan-950/80 px-2 py-1">selected: {interaction.selected}</span>}
         {interaction.target && <span className="rounded bg-rose-950/80 px-2 py-1">target: {interaction.target}</span>}
+        {interaction.relation && <span className="rounded bg-slate-950/80 px-2 py-1">preview: {interaction.relation}</span>}
       </div>
       <div ref={hostRef} className="min-h-[560px] w-full" aria-label="Phaser Battlefield Lab canvas" />
       {status !== "ready" && (
