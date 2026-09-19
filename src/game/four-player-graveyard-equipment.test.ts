@@ -9,7 +9,7 @@ import { putFourPlayerBattlefieldObject } from "./four-player-battlefield";
 import { createFourPlayerCombatBodySnapshot } from "./four-player-combat-body";
 import { resolveFourPlayerEffect } from "./four-player-effect-resolution";
 import { settleFourPlayerEffectZoneActions } from "./four-player-effect-zones";
-import { createFourPlayerMatchState } from "./four-player-match";
+import { createFourPlayerMatchState, type FourPlayerMatchState } from "./four-player-match";
 
 const unit = collectibleCards().find((card) =>
   card.collectible !== false
@@ -194,7 +194,7 @@ assert.equal(
 );
 
 // Generated attachments use a distinct identity and must never manufacture a physical graveyard card.
-let generatedMatch = {
+let generatedMatch: FourPlayerMatchState = {
   ...base,
   battlefield: putFourPlayerBattlefieldObject(base.battlefield!, {
     id: "generated-bearer",
