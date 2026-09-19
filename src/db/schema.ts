@@ -7,6 +7,7 @@
 export * from "./schema/gameplay";
 export * from "./schema/players";
 export * from "./schema/multiplayer";
+export * from "./schema/commander";
 export * from "./schema/admin-content";
 export * from "./schema/admin-ops";
 export * from "./schema/commerce";
