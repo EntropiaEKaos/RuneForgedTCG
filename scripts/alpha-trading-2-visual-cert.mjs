@@ -232,8 +232,8 @@ async function main() {
             .find((node) => !node.disabled && normalize(node.textContent) === "Trocas diretas");
           if (!button) return false;
           button.click();
-          const text = document.body?.innerText || "";
-          return text.includes("Propor troca direta") && text.includes("Sem Gold · carta por carta");
+          const text = (document.body?.innerText || "").toLocaleLowerCase("pt-BR");
+          return text.includes("propor troca direta") && text.includes("sem gold · carta por carta");
         })()`);
         if (!opened) await sleep(250);
         return opened;
@@ -309,7 +309,7 @@ async function main() {
     assert.equal(evidence.selectedOffers, 2, "Trading 2 composer must visibly retain two offered copies");
     assert.equal(evidence.requestedPrintingSelectors, 2, "Trading 2 composer must visibly retain two requested cards");
     assert.equal(evidence.serialValue, "7", "Trading 2 composer must visibly retain exact requested serial");
-    assert.match(evidence.bodyText, /Sem Gold · carta por carta/);
+    assert.match(evidence.bodyText, /Sem Gold · carta por carta/i);
     assert.match(evidence.bodyText, /2\/5/);
     assert.match(evidence.bodyText, /Trading 2 Serialized Cert/);
 
