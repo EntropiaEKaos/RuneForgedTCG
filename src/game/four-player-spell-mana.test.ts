@@ -202,9 +202,8 @@ try {
     /Not enough spell mana/,
   );
 
-  const privateStates = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [
-    seat,
-    {
+  const privateStates = FOUR_PLAYER_SEATS.reduce<Record<FourPlayerSeat, FourPlayerPrivateSeatState>>((result, seat) => {
+    result[seat] = {
       seat,
       hand: abilityZones[seat].hand,
       deck: abilityZones[seat].deck,
@@ -212,8 +211,9 @@ try {
       publicBoard: [],
       nexusHealth: abilityMatch.seats[seat].life,
       eliminated: abilityMatch.seats[seat].eliminated,
-    } satisfies FourPlayerPrivateSeatState,
-  ])) as Record<FourPlayerSeat, FourPlayerPrivateSeatState>;
+    };
+    return result;
+  }, {} as Record<FourPlayerSeat, FourPlayerPrivateSeatState>);
   const projection = projectFourPlayerStateForSeat(privateStates, "p1", abilityMatch);
   assert.equal(projection.seats.p1.spellMana, 2);
   assert.equal(projection.seats.p2.spellMana, 0);
