@@ -7,6 +7,7 @@ const read=(file:string)=>fs.readFileSync(path.join(root,file),"utf8");
 
 const route=read("src/app/api/commander/[code]/route.ts");
 const bridge=read("src/lib/commander-combat.ts");
+const client=read("src/app/commander/CommanderClient.tsx");
 const commanderSchema=read("src/db/schema/commander.ts");
 const coreTypes=read("src/game/types.ts");
 
@@ -25,6 +26,18 @@ assert.match(bridge,/pass_priority/);
 assert.match(bridge,/cast_general/);
 assert.match(bridge,/end_turn/);
 assert.match(bridge,/concede/);
+
+assert.match(client,/action:"combat-command"/,"Commander UI must use the versioned combat bridge");
+assert.match(client,/expectedRevision:room\.combat\.revision/,"Commander UI must send authoritative expectedRevision");
+assert.match(client,/crypto\.randomUUID\(\)/,"Commander UI commands need unique command ids");
+assert.match(client,/combatCommand\("pass_priority"\)/);
+assert.match(client,/combatCommand\("cast_general"\)/);
+assert.match(client,/combatCommand\("end_turn"\)/);
+assert.match(client,/combatCommand\("concede"\)/);
+assert.match(client,/Passar prioridade/);
+assert.match(client,/Conjurar General/);
+assert.match(client,/Encerrar turno/);
+assert.match(client,/Conceder partida/);
 
 assert.match(commanderSchema,/commander_rooms/);
 assert.match(commanderSchema,/gameState: jsonb\("game_state"\)/);
