@@ -9,6 +9,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<{ destroy: (removeCanvas: boolean, noReturn?: boolean) => void } | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "fallback">("loading");
+  const [metrics, setMetrics] = useState({ fps: 0, objects: 0, renderer: "pending" });
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +70,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
             });
 
             this.add.text(width / 2, height / 2, "STACK", { fontFamily: "system-ui", fontSize: "10px", color: "#94a3b8", backgroundColor: "#020617aa", padding: { x: 8, y: 5 } }).setOrigin(0.5).setDepth(20);
+            setMetrics((current) => ({ ...current, objects: this.children.length }));
           }
         }
 
@@ -83,6 +85,12 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
           input: { activePointers: 2 },
         });
         gameRef.current = game;
+        const renderer = game.renderer?.type === Phaser.WEBGL ? "WebGL" : game.renderer?.type === Phaser.CANVAS ? "Canvas" : "Unknown";
+        setMetrics({ fps: 0, objects: scenario.entities.length, renderer });
+        const metricsTimer = window.setInterval(() => {
+          if (!cancelled && game.loop) setMetrics((current) => ({ ...current, fps: Math.round(game.loop.actualFps || 0) }));
+        }, 1000);
+        (game as Phaser.Game & { __labMetricsTimer?: number }).__labMetricsTimer = metricsTimer;
         setStatus("ready");
       } catch {
         if (!cancelled) setStatus("fallback");
@@ -92,13 +100,20 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
     void mount();
     return () => {
       cancelled = true;
-      gameRef.current?.destroy(true);
+      const game = gameRef.current as (typeof gameRef.current & { __labMetricsTimer?: number });
+      if (game?.__labMetricsTimer) window.clearInterval(game.__labMetricsTimer);
+      game?.destroy(true);
       gameRef.current = null;
     };
   }, [scenario]);
 
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/30">
+      <div className="absolute left-4 top-4 z-20 flex gap-2 text-[10px] font-mono text-slate-300">
+        <span className="rounded bg-black/70 px-2 py-1">{metrics.renderer}</span>
+        <span className="rounded bg-black/70 px-2 py-1">{metrics.fps} FPS</span>
+        <span className="rounded bg-black/70 px-2 py-1">{metrics.objects} objects</span>
+      </div>
       <div ref={hostRef} className="min-h-[560px] w-full" aria-label="Phaser Battlefield Lab canvas" />
       {status !== "ready" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center p-6 text-center text-sm text-slate-400">
