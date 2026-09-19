@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildBattlefieldLabScenario, layoutBattlefieldEntities } from "./battlefield-lab-scenario";
+import { buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldTarget } from "./battlefield-lab-scenario";
 
 const duel = buildBattlefieldLabScenario("duel-1v1", 32);
 assert.equal(duel.players.length, 2);
@@ -23,3 +23,14 @@ assert.equal(Object.keys(layout).length, 160);
 assert.equal(Object.values(layout).every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)), true);
 assert.equal(Object.values(layout).every((point) => point.x > 0 && point.x < 1200 && point.y > 0 && point.y < 800), true);
 assert.deepEqual(layout, layoutBattlefieldEntities(commander, 1200, 800));
+
+
+const source = commander.entities[0];
+const friendly = commander.entities.find((entity) => entity.controllerId === source.controllerId && entity.id !== source.id);
+const opponent = commander.entities.find((entity) => entity.controllerId !== source.controllerId);
+assert.ok(friendly);
+assert.ok(opponent);
+assert.equal(previewBattlefieldTarget(commander, source.id, friendly.id)?.relation, "friendly");
+assert.equal(previewBattlefieldTarget(commander, source.id, opponent.id)?.relation, "opponent");
+assert.equal(previewBattlefieldTarget(commander, source.id, source.id), null);
+assert.equal(previewBattlefieldTarget(commander, source.id, "missing"), null);
