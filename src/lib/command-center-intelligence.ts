@@ -4,7 +4,12 @@ export type CommandCenterJourney = {
   deckCreated: number;
   matchPlayed: number;
   matchWon: number;
+  secondMatch: number;
   rankedStarted: number;
+  draftStarted: number;
+  marketplaceUsed: number;
+  tradeAccepted: number;
+  retained7d: number;
 };
 
 export type CommandCenterWindow = {
@@ -26,6 +31,10 @@ export type CommandCenterPulseInput = {
   pvpFinished24h: number;
   orders24h: number;
   approved24h: number;
+  tradeCreated24h?: number;
+  tradeAccepted24h?: number;
+  eligibleRetention7d?: number;
+  retained7d?: number;
   current24h?: CommandCenterWindow;
   previous24h?: CommandCenterWindow;
 };
@@ -94,8 +103,10 @@ export function commandCenterIntelligence(input: CommandCenterPulseInput) {
     { id: "pack", label: "Primeiro pack", value: input.journey.packOpened },
     { id: "deck", label: "Primeiro deck", value: input.journey.deckCreated },
     { id: "match", label: "Primeira partida", value: input.journey.matchPlayed },
-    { id: "win", label: "Primeira vitória", value: input.journey.matchWon },
-    { id: "ranked", label: "Ranked", value: input.journey.rankedStarted },
+    { id: "second-match", label: "Segunda partida", value: input.journey.secondMatch },
+    { id: "marketplace", label: "Marketplace", value: input.journey.marketplaceUsed },
+    { id: "trade", label: "Trade aceito", value: input.journey.tradeAccepted },
+    { id: "retained-7d", label: "Retenção D7", value: input.journey.retained7d },
   ];
 
   const funnel = stages.map((stage, index) => {
@@ -115,12 +126,20 @@ export function commandCenterIntelligence(input: CommandCenterPulseInput) {
   const weeklyReturn = safeRate(input.dau, input.wau);
   const matchCompletion = safeRate(input.pvpFinished24h, input.pvpCreated24h);
   const paymentApproval = safeRate(input.approved24h, input.orders24h);
+  const tradeAcceptance = safeRate(input.tradeAccepted24h ?? 0, input.tradeCreated24h ?? 0);
+  const retentionD7 = safeRate(input.retained7d ?? 0, input.eligibleRetention7d ?? 0);
+  const rankedAdoption = safeRate(input.journey.rankedStarted, input.journey.matchPlayed);
+  const draftAdoption = safeRate(input.journey.draftStarted, input.journey.matchPlayed);
 
   const signals: IntelligenceSignal[] = [
     { id: "dau-mau", label: "DAU / MAU", value: stickiness, unit: "percent", status: input.mau > 0 ? statusForRate(stickiness, 20, 10) : "neutral", detail: "Frequência diária dentro da base mensal ativa." },
     { id: "dau-wau", label: "DAU / WAU", value: weeklyReturn, unit: "percent", status: input.wau > 0 ? statusForRate(weeklyReturn, 35, 18) : "neutral", detail: "Frequência diária dentro da base semanal ativa." },
     { id: "match-completion", label: "Conclusão PvP 24h", value: matchCompletion, unit: "percent", status: input.pvpCreated24h > 0 ? statusForRate(matchCompletion, 85, 65) : "neutral", detail: "Salas criadas nas últimas 24h que já estão finalizadas." },
     { id: "payment-approval", label: "Aprovação pagamentos 24h", value: paymentApproval, unit: "percent", status: input.orders24h > 0 ? statusForRate(paymentApproval, 80, 60) : "neutral", detail: "Pedidos aprovados/fulfilled sobre pedidos criados nas últimas 24h." },
+    { id: "trade-acceptance", label: "Aceitação de trades 24h", value: tradeAcceptance, unit: "percent", status: (input.tradeCreated24h ?? 0) > 0 ? statusForRate(tradeAcceptance, 35, 15) : "neutral", detail: "Trades aceitos sobre ofertas criadas nas últimas 24h." },
+    { id: "retention-d7", label: "Retenção D7", value: retentionD7, unit: "percent", status: (input.eligibleRetention7d ?? 0) > 0 ? statusForRate(retentionD7, 25, 12) : "neutral", detail: "Contas elegíveis que voltaram a gerar atividade sete dias após a criação." },
+    { id: "ranked-adoption", label: "Adoção Ranked", value: rankedAdoption, unit: "percent", status: input.journey.matchPlayed > 0 ? statusForRate(rankedAdoption, 20, 8) : "neutral", detail: "Jogadores com Ranked entre quem já jogou ao menos uma partida." },
+    { id: "draft-adoption", label: "Adoção Draft", value: draftAdoption, unit: "percent", status: input.journey.matchPlayed > 0 ? statusForRate(draftAdoption, 15, 5) : "neutral", detail: "Jogadores com sessão de Draft entre quem já jogou ao menos uma partida." },
   ];
 
   return {
