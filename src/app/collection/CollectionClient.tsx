@@ -320,6 +320,7 @@ export default function CollectionClient() {
             <p>Consulte seu acervo, encontre lacunas e transforme pó em novas cópias com segurança.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/collection/showcase" className="rf-button rf-button-secondary">VITRINE</Link>
             <Link href="/album" className="rf-button rf-button-secondary">ÁLBUM VANILLA</Link>
             <Link href="/collections" className="rf-button rf-button-secondary">CALENDÁRIO</Link>
             <Link href="/store" className="rf-button rf-button-primary">LOJA</Link>
