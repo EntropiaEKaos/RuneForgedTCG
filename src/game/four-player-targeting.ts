@@ -58,6 +58,9 @@ export function assertFourPlayerTargetObject(
   const object = findFourPlayerBattlefieldObject(battlefield, target.objectId);
   if (object.combat && object.combat.health <= 0) throw new Error(`Destroyed object ${object.id} cannot be targeted.`);
   if (object.durability && object.durability.health <= 0) throw new Error(`Destroyed object ${object.id} cannot be targeted.`);
+  if (object.kind === "sentinela" && object.loyalty !== undefined && object.loyalty <= 0) {
+    throw new Error(`Destroyed Sentinela ${object.id} cannot be targeted.`);
+  }
 
   const allied = object.controllerSeat === actor;
   const isUnit = ["unit", "general", "token"].includes(object.kind);

@@ -23,6 +23,11 @@ export interface FourPlayerEquipmentAttachment {
 
 export const FOUR_PLAYER_MAX_EQUIPMENT = 2;
 
+export interface FourPlayerActivatedAbilityUsage {
+  round: number;
+  count: number;
+}
+
 export interface FourPlayerBattlefieldObject {
   id: string;
   defId: string;
@@ -35,6 +40,10 @@ export interface FourPlayerBattlefieldObject {
   combat?: FourPlayerCombatBody;
   durability?: FourPlayerDurability;
   equipment?: readonly FourPlayerEquipmentAttachment[];
+  loyalty?: number;
+  activatedAbilityUses?: Readonly<Record<string, FourPlayerActivatedAbilityUsage>>;
+  sentinelaActivatedRound?: number;
+  exhaustedRound?: number;
   stunned: boolean;
   attackedThisTurn: boolean;
 }
@@ -50,6 +59,10 @@ export interface FourPlayerBattlefieldObjectInput {
   combat?: FourPlayerCombatBody;
   durability?: FourPlayerDurability;
   equipment?: readonly FourPlayerEquipmentAttachment[];
+  loyalty?: number;
+  activatedAbilityUses?: Readonly<Record<string, FourPlayerActivatedAbilityUsage>>;
+  sentinelaActivatedRound?: number;
+  exhaustedRound?: number;
   stunned?: boolean;
   attackedThisTurn?: boolean;
 }
@@ -101,6 +114,10 @@ export function putFourPlayerBattlefieldObject(
     ...(input.combat ? { combat: cloneFourPlayerCombatBody(input.combat) } : {}),
     ...(input.durability ? { durability: { ...input.durability } } : {}),
     equipment: (input.equipment ?? []).map((entry) => ({ ...entry, keywords: [...entry.keywords] })),
+    ...(input.loyalty !== undefined ? { loyalty: input.loyalty } : {}),
+    ...(input.activatedAbilityUses ? { activatedAbilityUses: { ...input.activatedAbilityUses } } : {}),
+    ...(input.sentinelaActivatedRound !== undefined ? { sentinelaActivatedRound: input.sentinelaActivatedRound } : {}),
+    ...(input.exhaustedRound !== undefined ? { exhaustedRound: input.exhaustedRound } : {}),
     stunned: Boolean(input.stunned),
     attackedThisTurn: Boolean(input.attackedThisTurn),
   };

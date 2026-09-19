@@ -16,6 +16,7 @@ type BattlefieldObject = {
   id:string; defId:string; kind:string; ownerSeat:string; controllerSeat:string; enteredTurn:number;
   keywords:string[]; combat?:CombatBody; durability?:{health:number;maxHealth:number};
   equipment:{instanceId:string;defId:string;ownerSeat:string;physical:boolean;buffPower:number;buffHealth:number;keywords:string[]}[];
+  loyalty?:number; sentinelaActivatedRound?:number; exhaustedRound?:number;
   stunned:boolean; attackedThisTurn:boolean;
 };
 type CombatSeat = {
@@ -24,11 +25,18 @@ type CombatSeat = {
   battlefield?:BattlefieldObject[]; hand?:ProjectedCard[];
   general:{defId:string;zone:string;castCount:number};
 };
-type ProjectedStackItem = {id:string;kind:string;actionKind:string|null;controllerSeat:number;defId:string|null;cardType:string|null;speed:string|null;uncounterable:boolean};
+type ProjectedStackItem = {id:string;kind:string;actionKind:string|null;controllerSeat:number;defId:string|null;cardType:string|null;speed:string|null;sourceId?:string|null;abilityDescription?:string|null;abilityTiming?:string|null;uncounterable:boolean};
+type AbilityOption = {
+  sourceId:string; sourceDefId:string; sourceKind:string; abilityIndex:number; timing:"main"|"reaction"; description:string;
+  modeId?:string; modeDescription?:string; targetKind:string; manaCost:number; nexusHealthCost:number; discardCount:number;
+  exhaustSelf:boolean; consumeBarrier:boolean; sacrificeSelf:boolean; loyaltyDelta?:number; maxUsesPerRound?:number|null;
+  respondsTo?:string[]; stackTargetId?:string;
+};
 type CombatState = {
   kind:string; engineVersion:number; revision:number; viewerSeat:number; activeSeat:number; prioritySeat:number;
   round:number; turn:number; phase:string; status:string; winnerSeat:number|null; seats:CombatSeat[];
   stack:ProjectedStackItem[];
+  abilities:AbilityOption[];
   combat:{attackers:{unitId:string;controllerSeat:number;defendingSeat:number}[];blockers:{unitId:string;controllerSeat:number;attackerId:string}[]};
 };
 type Room = { code:string; state:string; activeSeat:number; round:number; version:number; viewerSeat:number|null; hostPlayerId:number; seats:Seat[]; rules:any; gameState:any; combat?:CombatState|null; engineKind?:string|null };
@@ -38,6 +46,7 @@ const COUNT = 60;
 const COUNTER_FILTERS = {unit:"counter_unit",spell:"counter_spell",sentinela:"counter_sentinela"} as const;
 const UNIT_TARGETS = new Set(["enemyUnit","allyUnit","anyUnit"]);
 const PERMANENT_TARGETS = new Set(["enemyPermanent","allyPermanent","anyPermanent"]);
+const SENTINELA_TARGETS = new Set(["enemySentinela","allySentinela","anySentinela"]);
 const GRAVEYARD_TARGETS = new Set(["allyGraveyardCard","enemyGraveyardCard","anyGraveyardCard","allyGraveyardUnit"]);
 function countOf(cards:string[], defId:string){ return cards.filter((id)=>id===defId).length; }
 function legalCounterTargets(card:CollectionCard,items:ProjectedStackItem[]){
@@ -59,6 +68,8 @@ export default function CommanderClient(){
   const [room,setRoom]=useState<Room|null>(null);
   const [joinCode,setJoinCode]=useState("");
   const [pendingSpellInstanceId,setPendingSpellInstanceId]=useState<string|null>(null);
+  const [pendingAbility,setPendingAbility]=useState<AbilityOption|null>(null);
+  const [abilityDiscardIds,setAbilityDiscardIds]=useState<string[]>([]);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
 
@@ -106,7 +117,7 @@ export default function CommanderClient(){
       await loadRooms();
     }catch(e){setError(e instanceof Error?e.message:"Falha no Commander")}finally{setBusy(false)}
   }
-  async function combatCommand(commandType:"pass_priority"|"cast_general"|"play_card"|"declare_attacker"|"declare_blocker"|"end_turn"|"concede",payload:Record<string,unknown>={}) {
+  async function combatCommand(commandType:"pass_priority"|"cast_general"|"play_card"|"activate_ability"|"declare_attacker"|"declare_blocker"|"end_turn"|"concede",payload:Record<string,unknown>={}) {
     if(!room?.combat)return;
     await mutate(`/api/commander/${room.code}`,{
       action:"combat-command",
@@ -152,7 +163,8 @@ export default function CommanderClient(){
   const viewerSeatKey=room?.viewerSeat==null?null:`p${room.viewerSeat+1}`;
   const pendingSpell=viewerRuntime?.hand?.find(card=>card.instanceId===pendingSpellInstanceId);
   const pendingSpellDef=pendingSpell?collection.find(item=>item.defId===pendingSpell.defId):undefined;
-  const pendingTargetKind=pendingSpellDef?.type==="Equipment"?"allyUnit":pendingSpellDef?.spell?.target;
+  const pendingSpellTargetKind=pendingSpellDef?.type==="Equipment"?"allyUnit":pendingSpellDef?.spell?.target;
+  const pendingTargetKind=pendingAbility?.targetKind||pendingSpellTargetKind;
   const pendingCounterTargets=pendingSpellDef?legalCounterTargets(pendingSpellDef,stackItems):[];
   const pendingGraveyardTargets=(combat?.seats||[]).flatMap(seat=>
     seat.graveyard
@@ -167,7 +179,7 @@ export default function CommanderClient(){
       .map(card=>({seat:seat.seat,card}))
   );
   const pendingBoardTargets=battlefieldObjects.filter(object=>{
-    if(!pendingTargetKind||(!UNIT_TARGETS.has(pendingTargetKind)&&!PERMANENT_TARGETS.has(pendingTargetKind)))return false;
+    if(!pendingTargetKind||(!UNIT_TARGETS.has(pendingTargetKind)&&!PERMANENT_TARGETS.has(pendingTargetKind)&&!SENTINELA_TARGETS.has(pendingTargetKind)&&pendingTargetKind!=="anyBoard"))return false;
     const allied=object.controllerSeat===viewerSeatKey;
     if(UNIT_TARGETS.has(pendingTargetKind)){
       if(!["unit","general","token"].includes(object.kind)||!object.combat||object.combat.health<=0)return false;
@@ -179,6 +191,15 @@ export default function CommanderClient(){
       if(pendingTargetKind==="enemyPermanent"&&allied)return false;
       if(pendingTargetKind==="allyPermanent"&&!allied)return false;
     }
+    if(SENTINELA_TARGETS.has(pendingTargetKind)){
+      if(object.kind!=="sentinela"||(object.loyalty!==undefined&&object.loyalty<=0))return false;
+      if(pendingTargetKind==="enemySentinela"&&allied)return false;
+      if(pendingTargetKind==="allySentinela"&&!allied)return false;
+    }
+    if(pendingTargetKind==="anyBoard"){
+      const alive=Boolean((object.combat&&object.combat.health>0)||(object.durability&&object.durability.health>0)||(object.kind==="sentinela"&&(object.loyalty===undefined||object.loyalty>0)));
+      if(!alive)return false;
+    }
     if(pendingSpellDef?.type==="Equipment"&&object.equipment.length>=2)return false;
     if(!allied&&object.keywords.includes("Hexproof"))return false;
     return true;
@@ -186,6 +207,7 @@ export default function CommanderClient(){
   async function playHandCard(card:ProjectedCard,definition:CollectionCard|undefined){
     if(!definition)return;
     if(definition.type==="Equipment"){
+      setPendingAbility(null);setAbilityDiscardIds([]);
       setPendingSpellInstanceId(card.instanceId);
       return;
     }
@@ -195,6 +217,7 @@ export default function CommanderClient(){
     }
     if(!definition.spell||!isFourPlayerSpellChainSupported(definition.spell))return;
     if(definition.spell.target==="spellOnStack"||UNIT_TARGETS.has(definition.spell.target)||PERMANENT_TARGETS.has(definition.spell.target)||GRAVEYARD_TARGETS.has(definition.spell.target)||definition.spell.kind==="damageNexus"||definition.spell.kind==="poison"||definition.spell.kind==="mill"){
+      setPendingAbility(null);setAbilityDiscardIds([]);
       setPendingSpellInstanceId(card.instanceId);
       return;
     }
@@ -207,6 +230,34 @@ export default function CommanderClient(){
     if(stackTargetId)payload.stackTargetId=stackTargetId;
     await combatCommand("play_card",payload);
     setPendingSpellInstanceId(null);
+  }
+  async function activateAbility(option:AbilityOption,target?:Record<string,unknown>){
+    const payload:Record<string,unknown>={
+      sourceId:option.sourceId,
+      abilityIndex:option.abilityIndex,
+      timing:option.timing,
+      ...(option.modeId?{modeId:option.modeId}:{}),
+      ...(option.stackTargetId?{stackTargetId:option.stackTargetId}:{}),
+      ...(target?{target}:{}),
+      ...(abilityDiscardIds.length?{discardInstanceIds:abilityDiscardIds}:{}),
+    };
+    await combatCommand("activate_ability",payload);
+    setPendingAbility(null);setAbilityDiscardIds([]);
+  }
+  function beginAbility(option:AbilityOption){
+    setPendingSpellInstanceId(null);
+    setAbilityDiscardIds([]);
+    const immediate=(option.targetKind==="none"||option.targetKind==="self"||option.targetKind==="spellOnStack")&&option.discardCount===0;
+    if(immediate){void activateAbility(option);return;}
+    setPendingAbility(option);
+  }
+  function toggleAbilityDiscard(instanceId:string){
+    if(!pendingAbility||pendingAbility.discardCount<=0)return;
+    setAbilityDiscardIds(current=>{
+      if(current.includes(instanceId))return current.filter(id=>id!==instanceId);
+      if(current.length>=pendingAbility.discardCount)return current;
+      return [...current,instanceId];
+    });
   }
 
   return <main className="min-h-screen bg-[#06090e] text-slate-100">
@@ -245,7 +296,7 @@ export default function CommanderClient(){
             </div>
             {stackItems.length>0&&<div className="mt-4 border border-violet-300/15 bg-violet-950/10 p-3">
               <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-violet-100">Stack 4P</b><span className="text-[10px] text-violet-300/50">topo primeiro</span></div>
-              <div className="mt-2 space-y-1">{[...stackItems].reverse().map((item,index)=><div key={item.id} className="flex items-center justify-between gap-3 border border-white/8 px-3 py-2 text-xs"><span><b>{index===0?"TOPO · ":""}{collection.find(card=>card.defId===item.defId)?.name||item.defId||item.kind}</b><small className="ml-2 text-slate-500">P{item.controllerSeat+1} · {item.speed||item.actionKind||item.kind}{item.uncounterable?" · NÃO ANULÁVEL":""}</small></span><code className="text-[9px] text-slate-600">{item.id}</code></div>)}</div>
+              <div className="mt-2 space-y-1">{[...stackItems].reverse().map((item,index)=><div key={item.id} className="flex items-center justify-between gap-3 border border-white/8 px-3 py-2 text-xs"><span><b>{index===0?"TOPO · ":""}{item.abilityDescription||collection.find(card=>card.defId===item.defId)?.name||item.defId||item.kind}</b><small className="ml-2 text-slate-500">P{item.controllerSeat+1} · {item.abilityTiming?"habilidade "+item.abilityTiming:(item.speed||item.actionKind||item.kind)}{item.uncounterable?" · NÃO ANULÁVEL":""}</small></span><code className="text-[9px] text-slate-600">{item.id}</code></div>)}</div>
             </div>}
             {inCombat&&viewerHasPriority&&<div className="mt-4 border border-cyan-300/15 bg-cyan-950/10 p-3">
               <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-cyan-100">Combate autoritativo</b><span className="text-[10px] text-cyan-300/50">split attack 4P</span></div>
@@ -262,6 +313,19 @@ export default function CommanderClient(){
                 </div>})}
                 {!incomingAttackers.length&&<p className="text-xs text-slate-500">Nenhum atacante aguardando bloqueio contra você.</p>}
               </div>}
+            </div>}
+            {combat.abilities.length>0&&<div className="mt-4 border border-emerald-300/15 bg-emerald-950/10 p-3">
+              <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-emerald-100">Habilidades 4P</b><span className="text-[10px] text-emerald-300/50">autoridade de battlefield</span></div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">{combat.abilities.map((option,index)=>{
+                const source=battlefieldObjects.find(object=>object.id===option.sourceId);
+                const sourceName=collection.find(card=>card.defId===option.sourceDefId)?.name||option.sourceDefId;
+                const cost=[option.manaCost?String(option.manaCost)+" mana":"",option.nexusHealthCost?String(option.nexusHealthCost)+" Nexus":"",option.discardCount?"descartar "+String(option.discardCount):"",option.exhaustSelf?"exaurir":"",option.consumeBarrier?"Barreira":"",option.sacrificeSelf?"sacrificar":"",option.loyaltyDelta!==undefined?(option.loyaltyDelta>=0?"+":"")+String(option.loyaltyDelta)+" lealdade":""].filter(Boolean).join(" · ");
+                return <button key={option.sourceId+":"+option.timing+":"+String(option.abilityIndex)+":"+(option.modeId||String(index))} className="border border-emerald-200/15 p-3 text-left text-xs disabled:opacity-35" disabled={busy} onClick={()=>beginAbility(option)}>
+                  <b className="block text-emerald-100">{sourceName}{source?.loyalty!==undefined?" · L"+String(source.loyalty):""}</b>
+                  <span className="mt-1 block text-slate-300">{option.modeDescription||option.description}</span>
+                  <small className="mt-1 block text-slate-500">{option.timing==="reaction"?"REAÇÃO":"ATIVADA"}{cost?" · "+cost:""}</small>
+                </button>
+              })}</div>
             </div>}
             {viewerRuntime?.hand&&viewerRuntime.hand.length>0&&<div className="mt-4 border border-white/10 bg-black/20 p-3">
               <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-slate-400">Sua mão</b><span className="text-[10px] text-slate-600">instâncias autoritativas</span></div>
@@ -290,6 +354,25 @@ export default function CommanderClient(){
                   </button>
                 })}
               </div>
+              {pendingAbility&&<div className="mt-4 border border-emerald-200/20 bg-emerald-100/[.04] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div><b className="text-xs uppercase tracking-[.16em] text-emerald-100">Ativar habilidade</b><p className="mt-1 text-xs text-slate-400">{pendingAbility.modeDescription||pendingAbility.description}</p></div>
+                  <button className="text-xs text-slate-500 underline" onClick={()=>{setPendingAbility(null);setAbilityDiscardIds([])}}>Cancelar</button>
+                </div>
+                {pendingAbility.discardCount>0&&<div className="mt-3">
+                  <p className="text-xs text-slate-400">Escolha {pendingAbility.discardCount} carta(s) da mão para descartar · {abilityDiscardIds.length}/{pendingAbility.discardCount}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">{(viewerRuntime.hand||[]).map(card=><button key={card.instanceId} className={"border px-2 py-1 text-xs "+(abilityDiscardIds.includes(card.instanceId)?"border-emerald-300/50 text-emerald-100":"border-white/10 text-slate-400")} disabled={busy} onClick={()=>toggleAbilityDiscard(card.instanceId)}>{collection.find(item=>item.defId===card.defId)?.name||card.defId}</button>)}</div>
+                </div>}
+                {pendingAbility.targetKind==="opponentPlayer"?<div className="mt-3 flex flex-wrap gap-2">
+                  {livingOpponents.map(target=><button key={target.seat} className="btn-ghost" disabled={busy||abilityDiscardIds.length!==pendingAbility.discardCount} onClick={()=>void activateAbility(pendingAbility,{kind:"player",seat:"p"+String(target.seat+1)})}>Nexus P{target.seat+1}</button>)}
+                </div>:GRAVEYARD_TARGETS.has(pendingAbility.targetKind)?<div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {pendingGraveyardTargets.map(({seat,card})=><button key={card.instanceId} className="btn-ghost text-left" disabled={busy||abilityDiscardIds.length!==pendingAbility.discardCount} onClick={()=>void activateAbility(pendingAbility,{kind:"graveyard",seat:"p"+String(seat+1),instanceId:card.instanceId})}>{collection.find(item=>item.defId===card.defId)?.name||card.defId} · Cemitério P{seat+1}</button>)}
+                  {!pendingGraveyardTargets.length&&<p className="text-xs text-slate-500">Nenhum alvo legal no Cemitério.</p>}
+                </div>:UNIT_TARGETS.has(pendingAbility.targetKind)||PERMANENT_TARGETS.has(pendingAbility.targetKind)||SENTINELA_TARGETS.has(pendingAbility.targetKind)||pendingAbility.targetKind==="anyBoard"?<div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {pendingBoardTargets.map(target=><button key={target.id} className="btn-ghost text-left" disabled={busy||abilityDiscardIds.length!==pendingAbility.discardCount} onClick={()=>void activateAbility(pendingAbility,{kind:"battlefield",objectId:target.id})}>{collection.find(card=>card.defId===target.defId)?.name||target.defId} · P{Number(target.controllerSeat.slice(1))}</button>)}
+                  {!pendingBoardTargets.length&&<p className="text-xs text-slate-500">Nenhum alvo legal no battlefield.</p>}
+                </div>:<button className="btn-primary mt-3" disabled={busy||abilityDiscardIds.length!==pendingAbility.discardCount} onClick={()=>void activateAbility(pendingAbility)}>Confirmar ativação</button>}
+              </div>}
               {pendingSpell&&pendingSpellDef&&<div className="mt-4 border border-amber-200/20 bg-amber-100/[.04] p-3">
                 <div className="flex items-center justify-between gap-3">
                   <div><b className="text-xs uppercase tracking-[.16em] text-amber-100">Alvo da carta</b><p className="mt-1 text-xs text-slate-400">{pendingSpellDef.name}</p></div>

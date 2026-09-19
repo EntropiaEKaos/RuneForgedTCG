@@ -1,3 +1,4 @@
+import { resolveFourPlayerActivatedAbility } from "./four-player-activated-abilities";
 import { createFourPlayerBattlefieldState, placeResolvedGeneralOnBattlefield } from "./four-player-battlefield";
 import { resolveFourPlayerCardCast, resolveFourPlayerSpellCast } from "./four-player-card-play";
 import { resolveFourPlayerCombat, type FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
@@ -39,6 +40,10 @@ function applyResolvedStackItem(
   }
   if (item.kind === "spell_cast") {
     const resolved = resolveFourPlayerSpellCast(match, item);
+    return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws, counteredStackItems: resolved.countered, zoneActions: resolved.zoneActions ?? [] };
+  }
+  if (item.kind === "ability_activation") {
+    const resolved = resolveFourPlayerActivatedAbility(match, item);
     return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws, counteredStackItems: resolved.countered, zoneActions: resolved.zoneActions ?? [] };
   }
   if (item.kind !== "general_cast") return { match, destroyedObjects: [], drawRequests: {}, counteredStackItems: [], zoneActions: [] };

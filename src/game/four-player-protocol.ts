@@ -7,6 +7,7 @@ export type FourPlayerCommandType =
   | "declare_blocker"
   | "cast_general"
   | "play_card"
+  | "activate_ability"
   | "end_turn"
   | "concede";
 

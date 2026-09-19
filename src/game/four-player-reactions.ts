@@ -17,12 +17,14 @@ function stackPayload(item: FourPlayerStackItem): Record<string, unknown> {
 export function fourPlayerStackActionKind(item: FourPlayerStackItem): ReactionActionKind | undefined {
   if (item.kind === "spell_cast") return "spell";
   if (item.kind === "general_cast") return "unit";
+  if (item.kind === "ability_activation") return "sentinela";
   if (item.kind !== "card_cast") return undefined;
   return stackPayload(item).cardType === "Sentinela" ? "sentinela" : "unit";
 }
 
 export function fourPlayerStackDefId(item: FourPlayerStackItem): string | undefined {
-  const value = stackPayload(item).defId;
+  const payload = stackPayload(item);
+  const value = typeof payload.defId === "string" ? payload.defId : payload.sourceDefId;
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 

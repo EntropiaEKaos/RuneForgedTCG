@@ -30,6 +30,9 @@ export interface FourPlayerProjectedBattlefieldObject {
   combat?: FourPlayerCombatBody;
   durability?: FourPlayerDurability;
   equipment: readonly FourPlayerEquipmentAttachment[];
+  loyalty?: number;
+  sentinelaActivatedRound?: number;
+  exhaustedRound?: number;
   stunned: boolean;
   attackedThisTurn: boolean;
 }
@@ -99,6 +102,9 @@ export function projectFourPlayerStateForSeat(
           } : {}),
           ...(object.durability ? { durability: { ...object.durability } } : {}),
           equipment: (object.equipment ?? []).map((entry) => ({ ...entry, keywords: [...entry.keywords] })),
+          ...(object.loyalty !== undefined ? { loyalty: object.loyalty } : {}),
+          ...(object.sentinelaActivatedRound !== undefined ? { sentinelaActivatedRound: object.sentinelaActivatedRound } : {}),
+          ...(object.exhaustedRound !== undefined ? { exhaustedRound: object.exhaustedRound } : {}),
           stunned: object.stunned,
           attackedThisTurn: object.attackedThisTurn,
         }))

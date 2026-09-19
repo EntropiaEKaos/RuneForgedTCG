@@ -69,7 +69,11 @@ function destinationFor(object: FourPlayerBattlefieldObject): FourPlayerCombatDe
 function cleanupDestroyed(match: FourPlayerMatchState): FourPlayerEffectResolutionResult {
   const battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
   const dead = battlefield.objects.filter((object) =>
-    Boolean((object.combat && object.combat.health <= 0) || (object.durability && object.durability.health <= 0)),
+    Boolean(
+      (object.combat && object.combat.health <= 0)
+      || (object.durability && object.durability.health <= 0)
+      || (object.kind === "sentinela" && object.loyalty !== undefined && object.loyalty <= 0)
+    ),
   );
   if (dead.length === 0) return { match, destroyed: [], draws: {} };
 

@@ -100,6 +100,9 @@ export function reduceFourPlayerServerEvent(
     case "play_card":
       throw new Error("play_card requires zone-aware Commander authority and cannot be reduced without card zones.");
 
+    case "activate_ability":
+      throw new Error("activate_ability requires zone-aware Commander authority and cannot be reduced without card zones.");
+
     case "cast_general": {
       assertPriorityHolder(state, event.actor);
       assertGeneralCastTiming(state.turn.activeSeat, state.phase, state.resolution.stack.items.length, event.actor);

@@ -123,6 +123,7 @@ export const behavioralTests = [
   "src/lib/site-content.test.ts",
   "src/lib/studio-baseline-sync.test.ts",
   "src/lib/vanilla-runtime-smoke.test.ts",
+  "src/game/four-player-activated-abilities.test.ts",
   "src/game/four-player-ascension.test.ts",
   "src/game/four-player-authority.test.ts",
   "src/game/four-player-battlefield.test.ts",
@@ -158,6 +159,7 @@ export const behavioralTests = [
   "src/game/four-player-session.test.ts",
   "src/game/four-player-turn-manager.test.ts",
   "src/game/four-player-turn-start.test.ts",
+  "src/lib/commander-activated-abilities.test.ts",
   "src/lib/commander-combat.test.ts",
 ];
 export const sourceContractTests = [

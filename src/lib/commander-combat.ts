@@ -1,4 +1,5 @@
 import { ensureCustomCardsLoaded } from "@/game/catalog";
+import { fourPlayerActivatedAbilityOptions, stageFourPlayerActivatedAbility } from "@/game/four-player-activated-abilities";
 import { acceptAuthoritativeFourPlayerCommand, processAuthoritativeFourPlayerCommand, assertPriorityHolder } from "@/game/four-player-authority";
 import { stageFourPlayerCardCast } from "@/game/four-player-card-play";
 import { returnGeneralToZone } from "@/game/four-player-general-zone";
@@ -41,7 +42,7 @@ import { seededShuffle } from "@/game/rng";
 import { COMMANDER_ALPHA_RULES, type CommanderSeatIndex } from "@/lib/commander-rules";
 
 export const COMMANDER_COMBAT_ENGINE_KIND = "commander_4p_combat_v1" as const;
-export const COMMANDER_COMBAT_ENGINE_VERSION = 3 as const;
+export const COMMANDER_COMBAT_ENGINE_VERSION = 4 as const;
 
 export interface CommanderCombatSeatInput {
   seat: CommanderSeatIndex;
@@ -72,6 +73,7 @@ const EXPOSED_COMMANDS = new Set<FourPlayerCommandType>([
   "pass_priority",
   "cast_general",
   "play_card",
+  "activate_ability",
   "declare_attacker",
   "declare_blocker",
   "end_turn",
@@ -191,6 +193,7 @@ export function projectCommanderCombatState(
     phase: envelope.match.phase,
     status: envelope.match.status,
     winnerSeat: envelope.match.winner ? commanderSeatIndex(envelope.match.winner) : null,
+    abilities: fourPlayerActivatedAbilityOptions(envelope.match, envelope.zones, viewer),
     stack: envelope.match.resolution.stack.items.map((item) => {
       const payload = item.payload && typeof item.payload === "object" && !Array.isArray(item.payload)
         ? item.payload as Record<string, unknown>
@@ -200,9 +203,12 @@ export function projectCommanderCombatState(
         kind: item.kind,
         actionKind: fourPlayerStackActionKind(item),
         controllerSeat: commanderSeatIndex(item.controller),
-        defId: typeof payload.defId === "string" ? payload.defId : null,
+        defId: typeof payload.defId === "string" ? payload.defId : typeof payload.sourceDefId === "string" ? payload.sourceDefId : null,
         cardType: typeof payload.cardType === "string" ? payload.cardType : null,
         speed: payload.speed === "Fast" || payload.speed === "Burst" ? payload.speed : null,
+        sourceId: typeof payload.sourceId === "string" ? payload.sourceId : null,
+        abilityDescription: typeof payload.description === "string" ? payload.description : null,
+        abilityTiming: payload.timing === "main" || payload.timing === "reaction" ? payload.timing : null,
         uncounterable: fourPlayerStackItemIsUncounterable(item),
       };
     }),
@@ -237,6 +243,7 @@ function validateExposedCommand(match: FourPlayerMatchState, command: FourPlayer
   if (
     command.type === "pass_priority"
     || command.type === "cast_general"
+    || command.type === "activate_ability"
     || command.type === "declare_attacker"
     || command.type === "declare_blocker"
   ) {
@@ -287,6 +294,19 @@ export function processCommanderCombatCommand(
       unitId: typeof row.unitId === "string" ? row.unitId.trim() : "",
       attackerId: typeof row.attackerId === "string" ? row.attackerId.trim() : "",
     };
+  } else if (input.type === "activate_ability") {
+    const row = sanitizedPayload && typeof sanitizedPayload === "object" ? sanitizedPayload as Record<string, unknown> : {};
+    sanitizedPayload = {
+      sourceId: typeof row.sourceId === "string" ? row.sourceId.trim() : "",
+      abilityIndex: typeof row.abilityIndex === "number" && Number.isInteger(row.abilityIndex) ? row.abilityIndex : -1,
+      timing: row.timing === "main" || row.timing === "reaction" ? row.timing : "",
+      target: row.target,
+      stackTargetId: typeof row.stackTargetId === "string" ? row.stackTargetId.trim() : undefined,
+      modeId: typeof row.modeId === "string" ? row.modeId.trim() : undefined,
+      discardInstanceIds: Array.isArray(row.discardInstanceIds)
+        ? row.discardInstanceIds.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean)
+        : undefined,
+    };
   }
 
   const command: FourPlayerClientCommand = {
@@ -323,6 +343,60 @@ export function processCommanderCombatCommand(
       accepted.event.eventId,
       target,
       stackTargetId,
+    );
+    const reducedMatch: FourPlayerMatchState = {
+      ...staged.match,
+      resolution: submitFourPlayerAction(staged.match.resolution, staged.stackItem),
+    };
+    const pumped = pumpFourPlayerServer(reducedMatch);
+    return {
+      ...envelope,
+      match: pumped.match,
+      zones: staged.zones,
+      protocol: accepted.state.protocol,
+    };
+  }
+
+  if (command.type === "activate_ability") {
+    const accepted = acceptAuthoritativeFourPlayerCommand(
+      authority,
+      sessionId,
+      command,
+      validateExposedCommand,
+    );
+    const payload = command.payload as {
+      sourceId?: unknown;
+      abilityIndex?: unknown;
+      timing?: unknown;
+      target?: unknown;
+      stackTargetId?: unknown;
+      modeId?: unknown;
+      discardInstanceIds?: unknown;
+    };
+    const sourceId = typeof payload.sourceId === "string" ? payload.sourceId.trim() : "";
+    const abilityIndex = typeof payload.abilityIndex === "number" ? payload.abilityIndex : -1;
+    const timing = payload.timing === "main" || payload.timing === "reaction" ? payload.timing : undefined;
+    const target = parseFourPlayerTargetRef(payload.target);
+    const stackTargetId = typeof payload.stackTargetId === "string" ? payload.stackTargetId.trim() : undefined;
+    const modeId = typeof payload.modeId === "string" ? payload.modeId.trim() : undefined;
+    const discardInstanceIds = Array.isArray(payload.discardInstanceIds)
+      ? payload.discardInstanceIds.filter((value): value is string => typeof value === "string")
+      : undefined;
+    if (!sourceId || !timing || !Number.isInteger(abilityIndex) || abilityIndex < 0) {
+      throw new Error("Commander activate_ability requires sourceId, timing and a non-negative abilityIndex.");
+    }
+    const staged = stageFourPlayerActivatedAbility(
+      envelope.match,
+      envelope.zones,
+      seat,
+      sourceId,
+      timing,
+      abilityIndex,
+      accepted.event.eventId,
+      target,
+      stackTargetId,
+      modeId,
+      discardInstanceIds,
     );
     const reducedMatch: FourPlayerMatchState = {
       ...staged.match,

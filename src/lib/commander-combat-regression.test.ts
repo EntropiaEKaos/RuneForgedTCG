@@ -14,6 +14,8 @@ const spellContract=read("src/game/four-player-spell-contract.ts");
 const effectZones=read("src/game/four-player-effect-zones.ts");
 const battlefield=read("src/game/four-player-battlefield.ts");
 const cardPlay=read("src/game/four-player-card-play.ts");
+const abilities=read("src/game/four-player-activated-abilities.ts");
+const protocol=read("src/game/four-player-protocol.ts");
 
 assert.match(route,/createCommanderCombatEnvelope/,"room start must create the recovered combat envelope");
 assert.match(route,/commanderCombatPersistence/,"combat state must persist through the Commander bridge");
@@ -29,7 +31,10 @@ assert.match(bridge,/EXPOSED_COMMANDS/,"only an explicit command allowlist may c
 assert.match(bridge,/pass_priority/);
 assert.match(bridge,/cast_general/);
 assert.match(bridge,/play_card/);
-assert.match(bridge,/COMMANDER_COMBAT_ENGINE_VERSION = 3/, "graveyard + Equipment state-shape expansion must fail closed on legacy Commander envelopes");
+assert.match(bridge,/activate_ability/);
+assert.match(bridge,/stageFourPlayerActivatedAbility/);
+assert.match(bridge,/fourPlayerActivatedAbilityOptions/);
+assert.match(bridge,/COMMANDER_COMBAT_ENGINE_VERSION = 4/, "activated ability + Sentinela state-shape expansion must fail closed on legacy Commander envelopes");
 assert.match(bridge,/fourPlayerStackActionKind/, "bridge must project the authoritative 4P stack taxonomy");
 assert.match(bridge,/fourPlayerStackItemIsUncounterable/, "stack projection must publish authoritative uncounterable state");
 assert.match(bridge,/settleFourPlayerEffectZoneActions/, "ordered draw, mill and recall zone actions must settle through the bridge");
@@ -52,6 +57,10 @@ assert.match(client,/crypto\.randomUUID\(\)/,"Commander UI commands need unique 
 assert.match(client,/combatCommand\("pass_priority"\)/);
 assert.match(client,/combatCommand\("cast_general"\)/);
 assert.match(client,/combatCommand\("play_card"/);
+assert.match(client,/combatCommand\("activate_ability"/);
+assert.match(client,/Habilidades 4P/);
+assert.match(client,/Ativar habilidade/);
+assert.match(client,/abilityDiscardIds/);
 assert.match(client,/isFourPlayerSpellChainSupported/,"Commander UI must share the authoritative 4P spell contract");
 assert.match(client,/legalCounterTargets/,"Commander UI must filter counters before offering stack targets");
 assert.match(client,/uncounterable/,"Commander UI must honor authoritative uncounterable projection");
@@ -99,6 +108,13 @@ assert.match(effectZones,/banish_graveyard/);
 assert.match(battlefield,/FourPlayerDurability/);
 assert.match(battlefield,/FourPlayerEquipmentAttachment/);
 assert.match(battlefield,/attachFourPlayerEquipment/);
+assert.match(battlefield,/activatedAbilityUses/);
+assert.match(battlefield,/sentinelaActivatedRound/);
+assert.match(abilities,/stageFourPlayerActivatedAbility/);
+assert.match(abilities,/resolveFourPlayerActivatedAbility/);
+assert.match(abilities,/reactionActivatedAbilities/);
+assert.match(abilities,/spellMana costs are not supported yet/);
+assert.match(protocol,/activate_ability/);
 assert.match(battlefield,/applyFourPlayerPermanentDamage/);
 
 assert.match(commanderSchema,/commander_rooms/);

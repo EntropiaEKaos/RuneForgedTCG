@@ -41,6 +41,7 @@ export interface FourPlayerCardCastPayload {
   keywords: readonly Keyword[];
   combat?: FourPlayerCombatBody;
   durability?: FourPlayerDurability;
+  loyalty?: number;
   equipment?: { buffPower: number; buffHealth: number; keywords: readonly Keyword[] };
   effect?: CardEffect;
   target?: FourPlayerTargetRef;
@@ -193,6 +194,7 @@ export function stageFourPlayerCardCast(
     keywords: [...(definition.keywords ?? [])],
     ...(combat ? { combat } : {}),
     ...(durability ? { durability } : {}),
+    ...(definition.type === "Sentinela" && definition.sentinela ? { loyalty: definition.sentinela.startingLoyalty } : {}),
     ...(definition.type === "Equipment" && definition.equipment ? {
       equipment: {
         buffPower: definition.equipment.buffPower,
@@ -293,6 +295,7 @@ export function resolveFourPlayerCardCast(
           keywords: payload.keywords ?? [],
           combat: payload.combat,
           durability: payload.durability,
+          loyalty: payload.loyalty,
         },
       ),
     },
