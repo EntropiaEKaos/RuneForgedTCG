@@ -61,6 +61,8 @@ has("src/lib/auth-secret-vault.ts", 'createCipheriv("aes-256-gcm"', "auth provid
 has("src/lib/auth-secret-vault.ts", "Unencrypted auth secret refused", "auth provider vault refuses plaintext reads");
 has("src/app/api/admin/auth/providers/route.ts", "requireAdminStepUp", "auth provider mutation requires administrative step-up");
 has("src/app/api/admin/auth/providers/route.ts", "encryptAuthSecret", "auth provider secrets are encrypted before persistence");
+has("src/app/play/PlayEntryClient.tsx", "try{d=await r.json();}catch{", "play auth tolerates non-JSON provider discovery responses");
+has("src/app/play/PlayEntryClient.tsx", "else setProviders([]);", "play auth falls back to Guest-only entry when provider discovery is unavailable");
 has("src/app/api/admin/auth/providers/route.ts", "adminAuditLogs", "auth provider mutations are audited");
 lacks("src/app/api/admin/auth/providers/route.ts", "decryptAuthSecret", "admin provider API cannot return decrypted secrets");
 has("src/app/api/auth/oauth/[provider]/start/route.ts", 'url.searchParams.set("code_challenge_method", "S256")', "OAuth uses PKCE S256");

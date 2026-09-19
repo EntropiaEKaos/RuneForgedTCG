@@ -1,3 +1,4 @@
+import { validatePackLiveOpsConfig } from "@/lib/pack-live-ops";
 export type LiveOpsValidation = { passed:boolean; errors:string[]; warnings:string[] };
 export function validateLiveOps(resource:string,row:any):LiveOpsValidation{
   const errors:string[]=[],warnings:string[]=[];
@@ -14,5 +15,6 @@ export function validateLiveOps(resource:string,row:any):LiveOpsValidation{
     if(row.status==="published"&&!row.conditions?.audience)warnings.push("Published promotion has no explicit audience.");
     const offers=row.offers||[]; for(const [i,o] of offers.entries()){if(!o||typeof o!=="object")errors.push(`Offer ${i+1} is invalid.`);if(o?.price!==undefined&&Number(o.price)<0)errors.push(`Offer ${i+1} has a negative price.`);}
   }
+  errors.push(...validatePackLiveOpsConfig(resource, row));
   return {passed:errors.length===0,errors,warnings};
 }

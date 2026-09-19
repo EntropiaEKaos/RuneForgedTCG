@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { db } from "@/db";
-import { cardAssetLocks, cardAssets, players, tradeOffers } from "@/db/schema";
+import { cardAssetLocks, cardAssets, players, tradeOfferEvents, tradeOffers } from "@/db/schema";
 import { allCards } from "@/game/cards";
 import { ensureCustomCardsLoaded } from "@/game/catalog";
 import { loadGameConfig } from "@/game/settings";
@@ -11,7 +11,7 @@ import { consumeRequestRateLimit } from "@/lib/rate-limit";
 import { readBoundedJson, RequestBodyTooLargeError } from "@/lib/request-security";
 import { economyOperationId, runIdempotentEconomyAction } from "@/lib/economy-idempotency";
 import { collectibleMatches, normalizeRequestedCollectibles, playerCanUseMarketplace } from "@/lib/marketplace-policy";
-import { cleanupExpiredMarketplace, getMarketplaceSettings, lockPlayers, playerCardCount, transferAsset } from "@/lib/marketplace-service";
+import { cleanupExpiredMarketplace, getMarketplaceSettings, lockPlayers, playerCardCount, recordTradeEvent, transferAsset } from "@/lib/marketplace-service";
 
 export const dynamic = "force-dynamic";
 const MAX_BODY = 32 * 1024;
@@ -57,17 +57,61 @@ export async function GET(req: NextRequest) {
     const ids = [...new Set(rows.flatMap((row) => [row.proposerPlayerId, row.recipientPlayerId]))];
     const names = ids.length ? await db.select({ id: players.id, name: players.name }).from(players).where(inArray(players.id, ids)) : [];
     const nameMap = new Map(names.map((row) => [row.id, row.name]));
+    const tradeIds = rows.map((row) => row.id);
+    const events = tradeIds.length
+      ? await db.select().from(tradeOfferEvents).where(inArray(tradeOfferEvents.tradeId, tradeIds)).orderBy(desc(tradeOfferEvents.createdAt))
+      : [];
+    const eventsByTrade = new Map<number, typeof events>();
+    for (const event of events) {
+      const current = eventsByTrade.get(event.tradeId) ?? [];
+      current.push(event);
+      eventsByTrade.set(event.tradeId, current);
+    }
+    const enriched = rows.map((row) => ({
+      ...row,
+      effectiveStatus: row.status === "active" && row.expiresAt <= now ? "expired" : row.status,
+      proposerName: nameMap.get(row.proposerPlayerId) ?? "Unknown",
+      recipientName: nameMap.get(row.recipientPlayerId) ?? "Unknown",
+      direction: row.proposerPlayerId === identity.playerId ? "outgoing" as const : "incoming" as const,
+      offeredAssets: row.offeredAssets.map((asset) => ({ ...asset, card: summary(asset.defId) })),
+      requestedAssets: row.requestedAssets.map((asset) => ({ ...asset, card: summary(asset.defId) })),
+      events: eventsByTrade.get(row.id) ?? [],
+    }));
+    const statusFilter = String(req.nextUrl.searchParams.get("status") || "").trim();
+    const directionFilter = String(req.nextUrl.searchParams.get("direction") || "").trim();
+    const query = String(req.nextUrl.searchParams.get("q") || "").trim().toLocaleLowerCase("pt-BR");
+    const filtered = enriched.filter((trade) => {
+      if (statusFilter && statusFilter !== "all" && trade.effectiveStatus !== statusFilter) return false;
+      if (directionFilter && directionFilter !== "all" && trade.direction !== directionFilter) return false;
+      if (!query) return true;
+      const searchable = [
+        String(trade.id),
+        trade.proposerName,
+        trade.recipientName,
+        trade.note,
+        ...trade.offeredAssets.flatMap((asset) => [asset.defId, asset.card.name, asset.variantId, asset.frameId, asset.finish, asset.serialNumber ? String(asset.serialNumber) : ""]),
+        ...trade.requestedAssets.flatMap((asset) => [asset.defId, asset.card.name, asset.variantId, asset.frameId, asset.finish, asset.serialNumber ? String(asset.serialNumber) : ""]),
+      ].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+      return searchable.includes(query);
+    });
+    const completed = enriched.filter((trade) => trade.effectiveStatus !== "active");
+    const accepted = enriched.filter((trade) => trade.effectiveStatus === "accepted");
+    const resolvedMinutes = completed
+      .filter((trade) => trade.completedAt)
+      .map((trade) => Math.max(0, (new Date(trade.completedAt as Date).getTime() - new Date(trade.createdAt).getTime()) / 60_000));
     return Response.json({
       ok: true,
-      trades: rows.map((row) => ({
-        ...row,
-        effectiveStatus: row.status === "active" && row.expiresAt <= now ? "expired" : row.status,
-        proposerName: nameMap.get(row.proposerPlayerId) ?? "Unknown",
-        recipientName: nameMap.get(row.recipientPlayerId) ?? "Unknown",
-        direction: row.proposerPlayerId === identity.playerId ? "outgoing" : "incoming",
-        offeredAssets: row.offeredAssets.map((asset) => ({ ...asset, card: summary(asset.defId) })),
-        requestedAssets: row.requestedAssets.map((asset) => ({ ...asset, card: summary(asset.defId) })),
-      })),
+      trades: filtered,
+      metrics: {
+        total: enriched.length,
+        active: enriched.filter((trade) => trade.effectiveStatus === "active").length,
+        accepted: accepted.length,
+        declined: enriched.filter((trade) => trade.effectiveStatus === "declined").length,
+        cancelled: enriched.filter((trade) => trade.effectiveStatus === "cancelled").length,
+        expired: enriched.filter((trade) => trade.effectiveStatus === "expired").length,
+        acceptanceRate: completed.length ? Number((accepted.length / completed.length).toFixed(4)) : null,
+        averageResolutionMinutes: resolvedMinutes.length ? Number((resolvedMinutes.reduce((sum, value) => sum + value, 0) / resolvedMinutes.length).toFixed(2)) : null,
+      },
     });
   } catch (error) {
     console.error("[trades] GET failed", error);
@@ -136,6 +180,7 @@ export async function POST(req: NextRequest) {
           const expiresAt = new Date(now.getTime() + settings.tradeDurationHours * 60 * 60 * 1000);
           const [offer] = await tx.insert(tradeOffers).values({ proposerPlayerId: actor.id, recipientPlayerId: recipient.id, offeredAssets: offeredSnapshot, requestedAssets, note, expiresAt }).returning();
           await tx.insert(cardAssetLocks).values(offered.map((asset) => ({ assetId: asset.id, ownerPlayerId: actor.id, kind: "trade", referenceId: offer.id, expiresAt })));
+          await recordTradeEvent(tx, offer.id, "created", actor.id, { offeredAssets: offeredSnapshot, requestedAssets, recipientPlayerId: recipient.id });
           return { tradeId: offer.id, expiresAt };
         });
         return { ...operation.response, duplicate: operation.duplicate };
@@ -151,9 +196,11 @@ export async function POST(req: NextRequest) {
         if (action === "cancel" || action === "decline") {
           const allowed = action === "cancel" ? offer.proposerPlayerId === actor.id : offer.recipientPlayerId === actor.id;
           if (!allowed) return { error: action === "cancel" ? "Only the proposer can cancel" : "Only the recipient can decline", status: 403 };
-          await tx.update(tradeOffers).set({ status: action === "cancel" ? "cancelled" : "declined", completedAt: now }).where(eq(tradeOffers.id, offer.id));
+          const terminalStatus = action === "cancel" ? "cancelled" : "declined";
+          await tx.update(tradeOffers).set({ status: terminalStatus, completedAt: now }).where(eq(tradeOffers.id, offer.id));
           await tx.delete(cardAssetLocks).where(and(eq(cardAssetLocks.kind, "trade"), eq(cardAssetLocks.referenceId, offer.id)));
-          return { tradeId: offer.id, status: action === "cancel" ? "cancelled" : "declined" };
+          await recordTradeEvent(tx, offer.id, terminalStatus, actor.id);
+          return { tradeId: offer.id, status: terminalStatus };
         }
 
         if (offer.recipientPlayerId !== actor.id) return { error: "Only the recipient can accept this trade", status: 403 };
@@ -207,6 +254,10 @@ export async function POST(req: NextRequest) {
         for (const asset of requestedRows) await transferAsset(tx, asset.id, offer.recipientPlayerId, offer.proposerPlayerId);
         await tx.update(tradeOffers).set({ status: "accepted", completedAt: now }).where(eq(tradeOffers.id, offer.id));
         await tx.delete(cardAssetLocks).where(and(eq(cardAssetLocks.kind, "trade"), eq(cardAssetLocks.referenceId, offer.id)));
+        await recordTradeEvent(tx, offer.id, "accepted", actor.id, {
+          receivedAssetIds: offeredRows.map((asset) => asset.id),
+          sentAssetIds: requestedRows.map((asset) => asset.id),
+        });
         return {
           tradeId: offer.id,
           status: "accepted",

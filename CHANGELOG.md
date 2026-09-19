@@ -1,5 +1,13 @@
 # RuneForge changelog
 
+## 2.97.0 — Trading 2.0 certified post-merge
+
+- Certified Trading 2.0 on exact merge SHA `6847f77354a59ac13826d2bbbaab2e39aec41cb7` with 10/10 post-merge workflows green.
+- Recorded exact-SHA Alpha RC #68, Ranked Release Certification #143 and CI #1625 provenance.
+- Preserved the emergency rollback point at `release/trading-2.0-certified-6847f773`.
+- Recorded CI, Alpha RC and Ranked artifact SHA256 digests in `docs/TRADING-2-0-POST-MERGE-CERTIFICATE.md`.
+- Trading 2.0 remains card-for-card for direct trades, with exact collectible escrow and no Gold transfer inside direct trades.
+
 ## 2.97.0 — Ranked Certification & Production Hardening
 
 - Replaced open/custom Ranked deck acceptance with an immutable server-authoritative preconstructed pool; the current certified pool is `season-zero-r2`.

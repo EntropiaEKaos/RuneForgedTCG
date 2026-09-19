@@ -41,6 +41,8 @@ assert.equal(ultra.durationMs, damage.preset.durationMs);
 assert.equal(ultra.particleBudget, damage.preset.particleBudget);
 assert.equal(ultra.allowScreenShake, true);
 assert.equal(ultra.allowTargetFlash, true);
+assert.equal(ultra.comboDepth, 0);
+assert.equal(ultra.comboScale, 1);
 const constrained = buildFxExecutionPlan(damage, { quality: "high", reducedMotion: false, constrained: true });
 assert.ok(constrained.durationMs <= 360);
 assert.equal(constrained.particleBudget, 0);
@@ -56,6 +58,20 @@ const plans = buildGameEventFxPlans([
   { type: "UNIT_DIED", player: "ai", unitId: "b", defId: "card" },
 ], { quality: "medium", reducedMotion: false, constrained: false });
 assert.deepEqual(plans.map((plan) => plan.preset.id), ["attack-default", "damage-default", "death-default"]);
+const chained = buildGameEventFxPlans([
+  { type: "UNIT_DAMAGED", player: "ai", unitId: "b1", amount: 1 },
+  { type: "UNIT_DAMAGED", player: "ai", unitId: "b2", amount: 1 },
+  { type: "UNIT_DAMAGED", player: "ai", unitId: "b3", amount: 1 },
+], { quality: "ultra", reducedMotion: false, constrained: false });
+assert.deepEqual(chained.map((plan) => plan.comboDepth), [0, 1, 2]);
+assert.ok(chained[2].comboScale > chained[1].comboScale);
+assert.ok(chained[2].particleBudget >= chained[1].particleBudget);
+const reducedChain = buildGameEventFxPlans([
+  { type: "UNIT_DAMAGED", player: "ai", unitId: "r1", amount: 1 },
+  { type: "UNIT_DAMAGED", player: "ai", unitId: "r2", amount: 1 },
+], { quality: "ultra", reducedMotion: true, constrained: false });
+assert.deepEqual(reducedChain.map((plan) => plan.comboScale), [1, 1]);
+assert.deepEqual(reducedChain.map((plan) => plan.particleBudget), [0, 0]);
 
 assert.equal(buildFxDomAnimation(ultra)?.options.duration, ultra.durationMs);
 for (const id of ["summon-default", "attack-default", "damage-default", "heal-default", "death-default", "barrierbreak-default", "stun-default"] as const) {

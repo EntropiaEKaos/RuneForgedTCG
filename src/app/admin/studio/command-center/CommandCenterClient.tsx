@@ -3,204 +3,51 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { StudioBreadcrumb, StudioCommandPalette } from "../StudioChrome";
+import { CommandCenterIntelligencePanel, type CommandCenterIntelligenceData } from "./CommandCenterIntelligencePanel";
 
 type MetricData = {
-  ok: boolean;
-  generatedAt: string;
-  players: { total:number; new24h:number; new7d:number; new30d:number; activeAccounts:number; avgLevel:number; avgMmr:number; goldHeld:number; dustHeld:number };
-  activity: { events24h:number; events7d:number; dau:number; wau:number; mau:number; sessions24h:number; loreHub7d:number; loreEntries7d:number };
-  gameplay: { pvpCreated24h:number; pvpFinished24h:number; rankedResults24h:number; packsOpened24h:number; sharedDecks7d:number; queueNow:number; friendships:number };
-  economy: { generated24h:number; spent24h:number; transactions24h:number };
-  commerce: { orders24h:number; approved24h:number; revenueCents24h:number; orders7d:number; revenueCents7d:number };
-  content: { loreTotal:number; lorePublished:number; loreDrafts:number; eventsPublished:number; newsPublished:number };
-  journey: { accountCreated:number; packOpened:number; deckCreated:number; matchPlayed:number; matchWon:number; rankedStarted:number };
-  topEvents: Array<{ name:string; total:number }>;
-  topRoutes: Array<{ path:string; total:number; sessions:number }>;
-  recentEvents: Array<{ eventName:string; playerId:number|null; sessionId:string|null; properties:Record<string,unknown>; createdAt:string }>;
+  ok:boolean; generatedAt:string;
+  players:{total:number;new24h:number;new7d:number;new30d:number;activeAccounts:number;avgLevel:number;avgMmr:number;goldHeld:number;dustHeld:number};
+  activity:{events24h:number;events7d:number;dau:number;wau:number;mau:number;sessions24h:number;loreHub7d:number;loreEntries7d:number};
+  gameplay:{pvpCreated24h:number;pvpFinished24h:number;rankedResults24h:number;packsOpened24h:number;sharedDecks7d:number;queueNow:number;friendships:number};
+  economy:{generated24h:number;spent24h:number;transactions24h:number};
+  commerce:{orders24h:number;approved24h:number;revenueCents24h:number;orders7d:number;revenueCents7d:number};
+  trading:{created24h:number;accepted24h:number;declined24h:number;cancelled24h:number;expired24h:number;activeNow:number;averageResolutionMinutes24h:number};
+  content:{loreTotal:number;lorePublished:number;loreDrafts:number;eventsPublished:number;newsPublished:number};
+  journey:{accountCreated:number;packOpened:number;deckCreated:number;matchPlayed:number;matchWon:number;rankedStarted:number};
+  intelligence:CommandCenterIntelligenceData;
+  topEvents:Array<{name:string;total:number}>; topRoutes:Array<{path:string;total:number;sessions:number}>;
+  recentEvents:Array<{eventName:string;playerId:number|null;sessionId:string|null;properties:Record<string,unknown>;createdAt:string}>;
 };
+function integer(v:number){return new Intl.NumberFormat("pt-BR",{maximumFractionDigits:0}).format(v||0)} function decimal(v:number){return new Intl.NumberFormat("pt-BR",{maximumFractionDigits:1}).format(v||0)} function money(c:number){return new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"}).format((c||0)/100)} function time(v:string){const d=new Date(v);return Number.isNaN(d.getTime())?"—":d.toLocaleString("pt-BR")} function pct(v:number,b:number){return b>0?Math.min(100,Math.max(0,v/b*100)):0}
+function Stat({label,value,hint,emphasis=false}:{label:string;value:string;hint?:string;emphasis?:boolean}){return <div className={`border p-4 ${emphasis?"border-amber-200/22 bg-amber-100/[.045]":"border-white/8 bg-white/[.02]"}`}><div className="text-[8px] font-bold uppercase tracking-[.2em] text-slate-600">{label}</div><div className={`mt-2 font-[var(--font-display)] text-2xl font-black ${emphasis?"text-[#f2dfae]":"text-slate-100"}`}>{value}</div>{hint&&<div className="mt-2 text-[10px] leading-4 text-slate-500">{hint}</div>}</div>}
+function Section({eyebrow,title,children,action}:{eyebrow:string;title:string;children:ReactNode;action?:ReactNode}){return <section className="border border-white/8 bg-[#090e15]/80"><div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/8 px-5 py-4"><div><p className="text-[8px] font-bold uppercase tracking-[.24em] text-amber-200/42">{eyebrow}</p><h2 className="mt-1 font-[var(--font-display)] text-lg font-bold text-[#eadfc7]">{title}</h2></div>{action}</div><div className="p-5">{children}</div></section>}
+function FunnelStage({index,label,value,accounts,previous,detail}:{index:number;label:string;value:number;accounts:number;previous:number;detail:string}){const overall=pct(value,accounts),step=index===0?100:pct(value,previous);return <div className="relative border border-white/8 bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><span className="text-[8px] font-black uppercase tracking-[.16em] text-slate-600">0{index+1} · {label}</span><span className="text-[9px] font-bold text-amber-200/65">{decimal(overall)}%</span></div><div className="mt-2 font-[var(--font-display)] text-2xl font-black text-slate-100">{integer(value)}</div><div className="mt-3 h-1.5 bg-white/5"><div className="h-full bg-gradient-to-r from-amber-700 to-amber-200" style={{width:`${Math.max(value>0?2:0,overall)}%`}}/></div><div className="mt-2 flex justify-between gap-3 text-[9px] text-slate-600"><span>{detail}</span><span>{index===0?"base":`${decimal(step)}% da etapa anterior`}</span></div></div>}
 
-function integer(value: number) { return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value || 0); }
-function decimal(value: number) { return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(value || 0); }
-function money(cents: number) { return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((cents || 0) / 100); }
-function time(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("pt-BR"); }
-function pct(value: number, base: number) { return base > 0 ? Math.min(100, Math.max(0, value / base * 100)) : 0; }
-
-function Stat({ label, value, hint, emphasis = false }: { label:string; value:string; hint?:string; emphasis?:boolean }) {
-  return (
-    <div className={`border p-4 ${emphasis ? "border-amber-200/22 bg-amber-100/[.045]" : "border-white/8 bg-white/[.02]"}`}>
-      <div className="text-[8px] font-bold uppercase tracking-[.2em] text-slate-600">{label}</div>
-      <div className={`mt-2 font-[var(--font-display)] text-2xl font-black ${emphasis ? "text-[#f2dfae]" : "text-slate-100"}`}>{value}</div>
-      {hint && <div className="mt-2 text-[10px] leading-4 text-slate-500">{hint}</div>}
-    </div>
-  );
-}
-
-function Section({ eyebrow, title, children, action }: { eyebrow:string; title:string; children:ReactNode; action?:ReactNode }) {
-  return (
-    <section className="border border-white/8 bg-[#090e15]/80">
-      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/8 px-5 py-4">
-        <div><p className="text-[8px] font-bold uppercase tracking-[.24em] text-amber-200/42">{eyebrow}</p><h2 className="mt-1 font-[var(--font-display)] text-lg font-bold text-[#eadfc7]">{title}</h2></div>
-        {action}
-      </div>
-      <div className="p-5">{children}</div>
-    </section>
-  );
-}
-
-function FunnelStage({ index, label, value, accounts, previous, detail }: { index:number; label:string; value:number; accounts:number; previous:number; detail:string }) {
-  const overall = pct(value, accounts);
-  const step = index === 0 ? 100 : pct(value, previous);
-  return (
-    <div className="relative border border-white/8 bg-black/20 p-4">
-      <div className="flex items-center justify-between gap-3"><span className="text-[8px] font-black uppercase tracking-[.16em] text-slate-600">0{index + 1} · {label}</span><span className="text-[9px] font-bold text-amber-200/65">{decimal(overall)}%</span></div>
-      <div className="mt-2 font-[var(--font-display)] text-2xl font-black text-slate-100">{integer(value)}</div>
-      <div className="mt-3 h-1.5 bg-white/5"><div className="h-full bg-gradient-to-r from-amber-700 to-amber-200" style={{ width: `${Math.max(value > 0 ? 2 : 0, overall)}%` }} /></div>
-      <div className="mt-2 flex justify-between gap-3 text-[9px] text-slate-600"><span>{detail}</span><span>{index === 0 ? "base" : `${decimal(step)}% da etapa anterior`}</span></div>
-    </div>
-  );
-}
-
-export default function CommandCenterClient({ username, role }: { username:string; role:string }) {
-  const [data, setData] = useState<MetricData | null>(null);
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-
-  const load = useCallback(async () => {
-    setBusy(true); setError("");
-    try {
-      const response = await fetch("/api/admin/metrics/overview", { credentials: "include", cache: "no-store" });
-      const payload = await response.json() as MetricData & { error?: string };
-      if (!response.ok || !payload.ok) throw new Error(payload.error || "Falha ao carregar métricas.");
-      setData(payload);
-    } catch (err) { setError(err instanceof Error ? err.message : "Falha ao carregar métricas."); }
-    finally { setBusy(false); }
-  }, []);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => { void load(); }, 0);
-    return () => window.clearTimeout(timeout);
-  }, [load]);
-  useEffect(() => {
-    if (!autoRefresh) return;
-    const id = window.setInterval(() => { void load(); }, 60_000);
-    return () => window.clearInterval(id);
-  }, [autoRefresh, load]);
-
-  const maxEvent = useMemo(() => Math.max(1, ...(data?.topEvents.map((item) => item.total) ?? [1])), [data]);
-  const maxRoute = useMemo(() => Math.max(1, ...(data?.topRoutes.map((item) => item.total) ?? [1])), [data]);
-
-  return (
-    <main className="min-h-screen bg-[#06090e] text-slate-100">
-      <div className="mx-auto max-w-[1560px] px-5 py-7 lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-4"><StudioBreadcrumb section="Operations" current="Command Center" /><StudioCommandPalette role={role} /></div>
-
-        <div className="mt-7 flex flex-wrap items-end justify-between gap-5 border-b border-white/8 pb-5">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[.3em] text-amber-200/48">FORGED LIVE INTELLIGENCE · PLAYER JOURNEY</p>
-            <h1 className="mt-2 font-[var(--font-display)] text-3xl font-black text-[#f0e3c4]">Command Center</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-400">Jogadores, funil do player, uso do client, gameplay, economia, monetização, conteúdo e Lore em uma única superfície administrativa. Dados reais do banco + telemetria first-party. Operador: {username}.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-[9px] uppercase tracking-[.16em] text-slate-500">
-            <label className="flex items-center gap-2 border border-white/8 px-3 py-2"><input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} /> Auto 60s</label>
-            <button disabled={busy} onClick={() => void load()} className="border border-amber-200/20 px-4 py-2 font-bold text-amber-100 disabled:opacity-40">{busy ? "ATUALIZANDO…" : "ATUALIZAR"}</button>
-          </div>
-        </div>
-
-        {error && <div className="mt-5 border border-red-400/25 bg-red-950/20 px-4 py-3 text-xs text-red-200">{error}</div>}
-        {!data ? <div className="mt-8 text-sm text-slate-500">Carregando telemetria operacional…</div> : <>
-          <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
-            <Stat label="Jogadores" value={integer(data.players.total)} hint={`+${integer(data.players.new24h)} nas últimas 24h`} emphasis />
-            <Stat label="DAU" value={integer(data.activity.dau)} hint={`${integer(data.activity.sessions24h)} sessões / 24h`} emphasis />
-            <Stat label="WAU" value={integer(data.activity.wau)} hint={`MAU ${integer(data.activity.mau)}`} />
-            <Stat label="PvP / 24h" value={integer(data.gameplay.pvpCreated24h)} hint={`${integer(data.gameplay.pvpFinished24h)} finalizadas`} />
-            <Stat label="Ranked / 24h" value={integer(data.gameplay.rankedResults24h)} />
-            <Stat label="Receita / 24h" value={money(data.commerce.revenueCents24h)} hint={`${integer(data.commerce.approved24h)} pagamentos aprovados`} emphasis />
-          </div>
-
-          <div className="mt-6">
-            <Section eyebrow="PLAYER JOURNEY · AUTHORITATIVE" title="Funil completo do jogador" action={<span className="text-[9px] uppercase tracking-[.14em] text-slate-600">coortes acumuladas · fonte: banco de produção</span>}>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-                <FunnelStage index={0} label="Conta" value={data.journey.accountCreated} accounts={data.journey.accountCreated} previous={data.journey.accountCreated} detail="identidade criada" />
-                <FunnelStage index={1} label="Primeiro pack" value={data.journey.packOpened} accounts={data.journey.accountCreated} previous={data.journey.accountCreated} detail="abriu ao menos um pack" />
-                <FunnelStage index={2} label="Primeiro deck" value={data.journey.deckCreated} accounts={data.journey.accountCreated} previous={data.journey.packOpened} detail="criou deck customizado" />
-                <FunnelStage index={3} label="Primeira partida" value={data.journey.matchPlayed} accounts={data.journey.accountCreated} previous={data.journey.deckCreated} detail="jogou ao menos uma vez" />
-                <FunnelStage index={4} label="Primeira vitória" value={data.journey.matchWon} accounts={data.journey.accountCreated} previous={data.journey.matchPlayed} detail="venceu ao menos uma partida" />
-                <FunnelStage index={5} label="Ranked" value={data.journey.rankedStarted} accounts={data.journey.accountCreated} previous={data.journey.matchWon} detail="entrou no competitivo" />
-              </div>
-              <p className="mt-4 text-[10px] leading-5 text-slate-600">Este funil usa marcos persistidos e não depende apenas de cliques de UI. A telemetria abaixo complementa o diagnóstico mostrando intenção, navegação e interação entre os marcos.</p>
-            </Section>
-          </div>
-
-          <div className="mt-6 grid gap-6 xl:grid-cols-2">
-            <Section eyebrow="ACQUISITION & RETENTION" title="Jogadores e atividade">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Stat label="Novos 24h" value={integer(data.players.new24h)} /><Stat label="Novos 7d" value={integer(data.players.new7d)} /><Stat label="Novos 30d" value={integer(data.players.new30d)} />
-                <Stat label="Contas ativas" value={integer(data.players.activeAccounts)} /><Stat label="Nível médio" value={decimal(data.players.avgLevel)} /><Stat label="MMR médio" value={decimal(data.players.avgMmr)} />
-              </div>
-            </Section>
-
-            <Section eyebrow="GAMEPLAY" title="Partidas, decks e packs">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Stat label="PvP criadas 24h" value={integer(data.gameplay.pvpCreated24h)} /><Stat label="PvP concluídas 24h" value={integer(data.gameplay.pvpFinished24h)} /><Stat label="Fila agora" value={integer(data.gameplay.queueNow)} />
-                <Stat label="Packs abertos 24h" value={integer(data.gameplay.packsOpened24h)} /><Stat label="Decks compartilhados 7d" value={integer(data.gameplay.sharedDecks7d)} /><Stat label="Amizades" value={integer(data.gameplay.friendships)} />
-              </div>
-            </Section>
-
-            <Section eyebrow="ECONOMY" title="Fluxo econômico">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Stat label="Gerado 24h" value={integer(data.economy.generated24h)} /><Stat label="Consumido 24h" value={integer(data.economy.spent24h)} /><Stat label="Transações 24h" value={integer(data.economy.transactions24h)} />
-                <Stat label="Gold em circulação" value={integer(data.players.goldHeld)} /><Stat label="Dust em circulação" value={integer(data.players.dustHeld)} /><Stat label="Eventos 24h" value={integer(data.activity.events24h)} />
-              </div>
-            </Section>
-
-            <Section eyebrow="COMMERCE" title="Pagamentos e conversão">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Stat label="Pedidos 24h" value={integer(data.commerce.orders24h)} /><Stat label="Aprovados 24h" value={integer(data.commerce.approved24h)} /><Stat label="Receita 24h" value={money(data.commerce.revenueCents24h)} emphasis />
-                <Stat label="Pedidos 7d" value={integer(data.commerce.orders7d)} /><Stat label="Receita 7d" value={money(data.commerce.revenueCents7d)} /><Stat label="Taxa aprovação 24h" value={`${data.commerce.orders24h ? decimal(data.commerce.approved24h / data.commerce.orders24h * 100) : "0"}%`} />
-              </div>
-            </Section>
-
-            <Section eyebrow="NARRATIVE" title="Lore e conteúdo" action={<Link href="/admin/studio/lore" className="text-[9px] font-bold uppercase tracking-[.16em] text-amber-200/65">ABRIR LORE STUDIO →</Link>}>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Stat label="Crônicas" value={integer(data.content.loreTotal)} /><Stat label="Publicadas" value={integer(data.content.lorePublished)} /><Stat label="Rascunhos" value={integer(data.content.loreDrafts)} />
-                <Stat label="Hub Lore 7d" value={integer(data.activity.loreHub7d)} /><Stat label="Leituras 7d" value={integer(data.activity.loreEntries7d)} /><Stat label="Eventos publicados" value={integer(data.content.eventsPublished)} />
-              </div>
-            </Section>
-
-            <Section eyebrow="CLIENT HEALTH" title="Telemetria do client">
-              <div className="grid gap-3 sm:grid-cols-3"><Stat label="Eventos 24h" value={integer(data.activity.events24h)} /><Stat label="Eventos 7d" value={integer(data.activity.events7d)} /><Stat label="Sessões 24h" value={integer(data.activity.sessions24h)} /></div>
-            </Section>
-          </div>
-
-          <div className="mt-6 grid gap-6 xl:grid-cols-2">
-            <Section eyebrow="EVENT TAXONOMY" title="Eventos mais frequentes · 7 dias">
-              <div className="grid gap-3">
-                {data.topEvents.map((item) => <div key={item.name} className="grid grid-cols-[minmax(130px,1fr)_3fr_auto] items-center gap-3 text-[10px]"><span className="truncate font-mono text-slate-400">{item.name}</span><div className="h-1.5 bg-white/5"><div className="h-full bg-amber-200/45" style={{ width: `${Math.max(2, item.total / maxEvent * 100)}%` }} /></div><b className="text-slate-300">{integer(item.total)}</b></div>)}
-                {!data.topEvents.length && <p className="text-xs text-slate-500">Sem eventos no período.</p>}
-              </div>
-            </Section>
-
-            <Section eyebrow="CLIENT ROUTES" title="Superfícies mais acessadas · 7 dias">
-              <div className="grid gap-3">
-                {data.topRoutes.map((item) => <div key={item.path} className="grid grid-cols-[minmax(130px,1fr)_3fr_auto] items-center gap-3 text-[10px]"><span className="truncate font-mono text-slate-400">{item.path}</span><div className="h-1.5 bg-white/5"><div className="h-full bg-sky-300/40" style={{ width: `${Math.max(2, item.total / maxRoute * 100)}%` }} /></div><b className="text-slate-300">{integer(item.total)}</b></div>)}
-                {!data.topRoutes.length && <p className="text-xs text-slate-500">As rotas começarão a aparecer conforme o novo client for usado.</p>}
-              </div>
-            </Section>
-          </div>
-
-          <div className="mt-6">
-            <Section eyebrow="LIVE STREAM" title="Eventos recentes" action={<span className="text-[9px] uppercase tracking-[.14em] text-slate-600">gerado {time(data.generatedAt)}</span>}>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] border-collapse text-left text-[10px]">
-                  <thead className="text-[8px] uppercase tracking-[.16em] text-slate-600"><tr><th className="border-b border-white/8 py-2 pr-4">Evento</th><th className="border-b border-white/8 py-2 pr-4">Player</th><th className="border-b border-white/8 py-2 pr-4">Path</th><th className="border-b border-white/8 py-2">Quando</th></tr></thead>
-                  <tbody>{data.recentEvents.map((event, index) => <tr key={`${event.createdAt}:${index}`} className="text-slate-400"><td className="border-b border-white/5 py-2.5 pr-4 font-mono text-slate-300">{event.eventName}</td><td className="border-b border-white/5 py-2.5 pr-4">{event.playerId ?? "anon"}</td><td className="border-b border-white/5 py-2.5 pr-4 font-mono">{String(event.properties?.path ?? "—")}</td><td className="border-b border-white/5 py-2.5">{time(event.createdAt)}</td></tr>)}</tbody>
-                </table>
-              </div>
-            </Section>
-          </div>
-        </>}
-      </div>
-    </main>
-  );
+export default function CommandCenterClient({username,role}:{username:string;role:string}){
+ const [data,setData]=useState<MetricData|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[autoRefresh,setAutoRefresh]=useState(true);
+ const load=useCallback(async()=>{setBusy(true);setError("");try{const response=await fetch("/api/admin/metrics/overview",{credentials:"include",cache:"no-store"});const payload=await response.json() as MetricData&{error?:string};if(!response.ok||!payload.ok)throw new Error(payload.error||"Falha ao carregar métricas.");setData(payload)}catch(err){setError(err instanceof Error?err.message:"Falha ao carregar métricas.")}finally{setBusy(false)}},[]);
+ useEffect(()=>{const timeout=window.setTimeout(()=>{void load()},0);return()=>window.clearTimeout(timeout)},[load]); useEffect(()=>{if(!autoRefresh)return;const id=window.setInterval(()=>{void load()},60000);return()=>window.clearInterval(id)},[autoRefresh,load]);
+ const maxEvent=useMemo(()=>Math.max(1,...(data?.topEvents.map(i=>i.total)??[1])),[data]),maxRoute=useMemo(()=>Math.max(1,...(data?.topRoutes.map(i=>i.total)??[1])),[data]);
+ return <main className="min-h-screen bg-[#06090e] text-slate-100"><div className="mx-auto max-w-[1560px] px-5 py-7 lg:px-8">
+  <div className="flex flex-wrap items-center justify-between gap-4"><StudioBreadcrumb section="Operations" current="Command Center"/><StudioCommandPalette role={role}/></div>
+  <div className="mt-7 flex flex-wrap items-end justify-between gap-5 border-b border-white/8 pb-5"><div><p className="text-[9px] font-bold uppercase tracking-[.3em] text-amber-200/48">FORGED LIVE INTELLIGENCE · PLAYER JOURNEY</p><h1 className="mt-2 font-[var(--font-display)] text-3xl font-black text-[#f0e3c4]">Command Center</h1><p className="mt-2 max-w-3xl text-sm text-slate-400">Jogadores, funil do player, uso do client, gameplay, economia, monetização, conteúdo e Lore em uma única superfície administrativa. Dados reais do banco + telemetria first-party. Operador: {username}.</p></div><div className="flex flex-wrap items-center gap-2 text-[9px] uppercase tracking-[.16em] text-slate-500"><label className="flex items-center gap-2 border border-white/8 px-3 py-2"><input type="checkbox" checked={autoRefresh} onChange={e=>setAutoRefresh(e.target.checked)}/> Auto 60s</label><button disabled={busy} onClick={()=>void load()} className="border border-amber-200/20 px-4 py-2 font-bold text-amber-100 disabled:opacity-40">{busy?"ATUALIZANDO…":"ATUALIZAR"}</button></div></div>
+  {error&&<div className="mt-5 border border-red-400/25 bg-red-950/20 px-4 py-3 text-xs text-red-200">{error}</div>}
+  {!data?<div className="mt-8 text-sm text-slate-500">Carregando telemetria operacional…</div>:<>
+   <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6"><Stat label="Jogadores" value={integer(data.players.total)} hint={`+${integer(data.players.new24h)} nas últimas 24h`} emphasis/><Stat label="DAU" value={integer(data.activity.dau)} hint={`${integer(data.activity.sessions24h)} sessões / 24h`} emphasis/><Stat label="WAU" value={integer(data.activity.wau)} hint={`MAU ${integer(data.activity.mau)}`}/><Stat label="PvP / 24h" value={integer(data.gameplay.pvpCreated24h)} hint={`${integer(data.gameplay.pvpFinished24h)} finalizadas`}/><Stat label="Ranked / 24h" value={integer(data.gameplay.rankedResults24h)}/><Stat label="Receita / 24h" value={money(data.commerce.revenueCents24h)} hint={`${integer(data.commerce.approved24h)} pagamentos aprovados`} emphasis/></div>
+   <div className="mt-6"><CommandCenterIntelligencePanel intelligence={data.intelligence}/></div>
+   <div className="mt-6"><Section eyebrow="PLAYER JOURNEY · AUTHORITATIVE" title="Funil completo do jogador" action={<span className="text-[9px] uppercase tracking-[.14em] text-slate-600">coortes acumuladas · fonte: banco de produção</span>}><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6"><FunnelStage index={0} label="Conta" value={data.journey.accountCreated} accounts={data.journey.accountCreated} previous={data.journey.accountCreated} detail="identidade criada"/><FunnelStage index={1} label="Primeiro pack" value={data.journey.packOpened} accounts={data.journey.accountCreated} previous={data.journey.accountCreated} detail="abriu ao menos um pack"/><FunnelStage index={2} label="Primeiro deck" value={data.journey.deckCreated} accounts={data.journey.accountCreated} previous={data.journey.packOpened} detail="criou deck customizado"/><FunnelStage index={3} label="Primeira partida" value={data.journey.matchPlayed} accounts={data.journey.accountCreated} previous={data.journey.deckCreated} detail="jogou ao menos uma vez"/><FunnelStage index={4} label="Primeira vitória" value={data.journey.matchWon} accounts={data.journey.accountCreated} previous={data.journey.matchPlayed} detail="venceu ao menos uma partida"/><FunnelStage index={5} label="Ranked" value={data.journey.rankedStarted} accounts={data.journey.accountCreated} previous={data.journey.matchWon} detail="entrou no competitivo"/></div><p className="mt-4 text-[10px] leading-5 text-slate-600">Este funil usa marcos persistidos e não depende apenas de cliques de UI. A telemetria complementa o diagnóstico entre os marcos.</p></Section></div>
+   <div className="mt-6 grid gap-6 xl:grid-cols-2">
+    <Section eyebrow="ACQUISITION & RETENTION" title="Jogadores e atividade"><div className="grid gap-3 sm:grid-cols-3"><Stat label="Novos 24h" value={integer(data.players.new24h)}/><Stat label="Novos 7d" value={integer(data.players.new7d)}/><Stat label="Novos 30d" value={integer(data.players.new30d)}/><Stat label="Contas ativas" value={integer(data.players.activeAccounts)}/><Stat label="Nível médio" value={decimal(data.players.avgLevel)}/><Stat label="MMR médio" value={decimal(data.players.avgMmr)}/></div></Section>
+    <Section eyebrow="GAMEPLAY" title="Partidas, decks e packs"><div className="grid gap-3 sm:grid-cols-3"><Stat label="PvP criadas 24h" value={integer(data.gameplay.pvpCreated24h)}/><Stat label="PvP concluídas 24h" value={integer(data.gameplay.pvpFinished24h)}/><Stat label="Fila agora" value={integer(data.gameplay.queueNow)}/><Stat label="Packs abertos 24h" value={integer(data.gameplay.packsOpened24h)}/><Stat label="Decks compartilhados 7d" value={integer(data.gameplay.sharedDecks7d)}/><Stat label="Amizades" value={integer(data.gameplay.friendships)}/></div></Section>
+    <Section eyebrow="ECONOMY" title="Fluxo econômico"><div className="grid gap-3 sm:grid-cols-3"><Stat label="Gerado 24h" value={integer(data.economy.generated24h)}/><Stat label="Consumido 24h" value={integer(data.economy.spent24h)}/><Stat label="Transações 24h" value={integer(data.economy.transactions24h)}/><Stat label="Gold em circulação" value={integer(data.players.goldHeld)}/><Stat label="Dust em circulação" value={integer(data.players.dustHeld)}/><Stat label="Eventos 24h" value={integer(data.activity.events24h)}/></div></Section>
+    <Section eyebrow="TRADING 2.1 · TRUST" title="Trocas diretas e resolução"><div className="grid gap-3 sm:grid-cols-3"><Stat label="Criadas 24h" value={integer(data.trading.created24h)} emphasis/><Stat label="Aceitas 24h" value={integer(data.trading.accepted24h)} hint={data.trading.created24h ? `${decimal(data.trading.accepted24h/data.trading.created24h*100)}% das criadas` : "sem base no período"}/><Stat label="Ativas agora" value={integer(data.trading.activeNow)}/><Stat label="Recusadas 24h" value={integer(data.trading.declined24h)}/><Stat label="Expiradas 24h" value={integer(data.trading.expired24h)}/><Stat label="Resolução média" value={`${decimal(data.trading.averageResolutionMinutes24h)} min`} hint={`canceladas ${integer(data.trading.cancelled24h)} · leitura operacional`}/></div></Section>
+    <Section eyebrow="COMMERCE" title="Pagamentos e conversão"><div className="grid gap-3 sm:grid-cols-3"><Stat label="Pedidos 24h" value={integer(data.commerce.orders24h)}/><Stat label="Aprovados 24h" value={integer(data.commerce.approved24h)}/><Stat label="Receita 24h" value={money(data.commerce.revenueCents24h)} emphasis/><Stat label="Pedidos 7d" value={integer(data.commerce.orders7d)}/><Stat label="Receita 7d" value={money(data.commerce.revenueCents7d)}/><Stat label="Taxa aprovação 24h" value={`${data.commerce.orders24h?decimal(data.commerce.approved24h/data.commerce.orders24h*100):"0"}%`}/></div></Section>
+    <Section eyebrow="NARRATIVE" title="Lore e conteúdo" action={<Link href="/admin/studio/lore" className="text-[9px] font-bold uppercase tracking-[.16em] text-amber-200/65">ABRIR LORE STUDIO →</Link>}><div className="grid gap-3 sm:grid-cols-3"><Stat label="Crônicas" value={integer(data.content.loreTotal)}/><Stat label="Publicadas" value={integer(data.content.lorePublished)}/><Stat label="Rascunhos" value={integer(data.content.loreDrafts)}/><Stat label="Hub Lore 7d" value={integer(data.activity.loreHub7d)}/><Stat label="Leituras 7d" value={integer(data.activity.loreEntries7d)}/><Stat label="Eventos publicados" value={integer(data.content.eventsPublished)}/></div></Section>
+    <Section eyebrow="CLIENT HEALTH" title="Telemetria do client"><div className="grid gap-3 sm:grid-cols-3"><Stat label="Eventos 24h" value={integer(data.activity.events24h)}/><Stat label="Eventos 7d" value={integer(data.activity.events7d)}/><Stat label="Sessões 24h" value={integer(data.activity.sessions24h)}/></div></Section>
+   </div>
+   <div className="mt-6 grid gap-6 xl:grid-cols-2"><Section eyebrow="EVENT TAXONOMY" title="Eventos mais frequentes · 7 dias"><div className="grid gap-3">{data.topEvents.map(item=><div key={item.name} className="grid grid-cols-[minmax(130px,1fr)_3fr_auto] items-center gap-3 text-[10px]"><span className="truncate font-mono text-slate-400">{item.name}</span><div className="h-1.5 bg-white/5"><div className="h-full bg-amber-200/45" style={{width:`${Math.max(2,item.total/maxEvent*100)}%`}}/></div><b className="text-slate-300">{integer(item.total)}</b></div>)}{!data.topEvents.length&&<p className="text-xs text-slate-500">Sem eventos no período.</p>}</div></Section><Section eyebrow="CLIENT ROUTES" title="Superfícies mais acessadas · 7 dias"><div className="grid gap-3">{data.topRoutes.map(item=><div key={item.path} className="grid grid-cols-[minmax(130px,1fr)_3fr_auto] items-center gap-3 text-[10px]"><span className="truncate font-mono text-slate-400">{item.path}</span><div className="h-1.5 bg-white/5"><div className="h-full bg-sky-300/40" style={{width:`${Math.max(2,item.total/maxRoute*100)}%`}}/></div><b className="text-slate-300">{integer(item.total)}</b></div>)}{!data.topRoutes.length&&<p className="text-xs text-slate-500">As rotas aparecerão conforme o client for usado.</p>}</div></Section></div>
+   <div className="mt-6"><Section eyebrow="LIVE STREAM" title="Eventos recentes" action={<span className="text-[9px] uppercase tracking-[.14em] text-slate-600">gerado {time(data.generatedAt)}</span>}><div className="overflow-x-auto"><table className="w-full min-w-[760px] border-collapse text-left text-[10px]"><thead className="text-[8px] uppercase tracking-[.16em] text-slate-600"><tr><th className="border-b border-white/8 py-2 pr-4">Evento</th><th className="border-b border-white/8 py-2 pr-4">Player</th><th className="border-b border-white/8 py-2 pr-4">Path</th><th className="border-b border-white/8 py-2">Quando</th></tr></thead><tbody>{data.recentEvents.map((event,index)=><tr key={`${event.createdAt}:${index}`} className="text-slate-400"><td className="border-b border-white/5 py-2.5 pr-4 font-mono text-slate-300">{event.eventName}</td><td className="border-b border-white/5 py-2.5 pr-4">{event.playerId??"anon"}</td><td className="border-b border-white/5 py-2.5 pr-4 font-mono">{String(event.properties?.path??"—")}</td><td className="border-b border-white/5 py-2.5">{time(event.createdAt)}</td></tr>)}</tbody></table></div></Section></div>
+  </>}
+ </div></main>
 }

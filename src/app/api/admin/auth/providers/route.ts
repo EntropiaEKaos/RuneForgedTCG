@@ -6,6 +6,7 @@ import { getAdminSessionContext, unauthorized } from "@/lib/admin-auth";
 import { requireAdminStepUp } from "@/lib/admin-step-up";
 import { authSecretFingerprint, encryptAuthSecret } from "@/lib/auth-secret-vault";
 import { AUTH_PROVIDERS, normalizeEmail, parseAuthProvider } from "@/lib/identity-auth";
+import { ensureIdentityAuthSchema } from "@/lib/identity-auth-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ function publicRow(provider: string, row: typeof authProviderSettings.$inferSele
 export async function GET(req: NextRequest) {
   const actor = await admin(req);
   if (!actor) return unauthorized();
+  await ensureIdentityAuthSchema();
   const rows = await db.select().from(authProviderSettings);
   const byProvider = new Map(rows.map((row) => [row.provider, row]));
   return Response.json({ ok: true, providers: AUTH_PROVIDERS.map((provider) => publicRow(provider, byProvider.get(provider) ?? null)) });
@@ -38,6 +40,7 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const actor = await admin(req);
   if (!actor) return unauthorized();
+  await ensureIdentityAuthSchema();
   const body = await req.json();
   const stepUp = await requireAdminStepUp(req, actor, body, { scope: "admin-auth-provider-settings", actionLabel: "identity provider changes" });
   if (stepUp) return stepUp;

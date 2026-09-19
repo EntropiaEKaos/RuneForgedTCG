@@ -21,6 +21,10 @@ assert.doesNotMatch(client, /localStorage\.(?:setItem|getItem)\([^\n]*recovery/i
 assert.match(client, /LEGACY_RECOVERY_KEY/);
 assert.match(client, /localStorage\.removeItem\(LEGACY_RECOVERY_KEY\)/);
 assert.match(client, /PLAYER_RECOVERY_KEY_EVENT/);
+assert.match(client, /PENDING_RECOVERY_WINDOW_KEY/, "one-time recovery handoff needs a cross-chunk ephemeral bridge");
+assert.match(client, /Reflect\.set\(window, PENDING_RECOVERY_WINDOW_KEY, code\)/, "recovery code must be bridged only in live browser memory");
+assert.match(client, /Reflect\.deleteProperty\(window, PENDING_RECOVERY_WINDOW_KEY\)/, "ephemeral recovery bridge must be cleared on first consumption");
+assert.match(client, /pendingRecoveryCode \?\? browserPendingRecoveryCode\(\)/, "consumer must reconcile module-local and cross-chunk pending handoffs");
 assert.match(client, /consumePendingRecoveryCode/);
 assert.match(client, /recoverPlayerSession/);
 assert.match(client, /export async function createGuestPlayerSession\(\)/);
@@ -70,4 +74,4 @@ assert.match(e2e, /explicit recovery must replace an already-authenticated tempo
 assert.match(alpha, /temporary recovery account failed/);
 assert.match(alpha, /recovery test must begin on a different authenticated player/);
 
-console.log("PUBLIC ALPHA ACCOUNT/DEPLOY HARDENING: PASS — explicit-only Guest creation + branded one-time recovery export + explicit session migration + certified Netlify gate");
+console.log("PUBLIC ALPHA ACCOUNT/DEPLOY HARDENING: PASS — explicit-only Guest creation + race-safe ephemeral recovery handoff + branded one-time recovery export + explicit session migration + certified Netlify gate");

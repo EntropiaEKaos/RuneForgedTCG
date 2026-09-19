@@ -23,18 +23,22 @@ function main() {
 
   const requests = normalizeRequestedCollectibles([
     { defId: "void_imp" },
-    { defId: "void_hexer", variantId: "eclipse", frameId: "obsidian", finish: "foil" },
+    { defId: "void_hexer", variantId: "eclipse", frameId: "obsidian", finish: "foil", serialNumber: 7 },
   ], 5);
   assert.ok(requests);
   assert.equal(requests?.length, 2);
   assert.equal(normalizeRequestedCollectibles([], 5), null);
   assert.equal(normalizeRequestedCollectibles([{ defId: "a" }, { defId: "b" }], 1), null);
   assert.equal(normalizeRequestedCollectibles([{ nope: true }], 5), null);
+  assert.equal(normalizeRequestedCollectibles([{ defId: "void_hexer", serialNumber: 1 }], 5), null, "serial requests require an exact printing variant");
+  assert.equal(normalizeRequestedCollectibles([{ defId: "void_hexer", variantId: "eclipse", serialNumber: 0 }], 5), null, "serial numbers must be positive");
 
-  const asset = { defId: "void_hexer", variantId: "eclipse", frameId: "obsidian", finish: "foil" };
+  const asset = { defId: "void_hexer", variantId: "eclipse", frameId: "obsidian", finish: "foil", serialNumber: 7 };
   assert.equal(collectibleMatches(asset, { defId: "void_hexer" }), true, "request may accept any cosmetic variant");
   assert.equal(collectibleMatches(asset, { defId: "void_hexer", finish: "foil" }), true);
   assert.equal(collectibleMatches(asset, { defId: "void_hexer", finish: "normal" }), false);
+  assert.equal(collectibleMatches(asset, { defId: "void_hexer", variantId: "eclipse", serialNumber: 7 }), true, "exact serialized requests must match the physical copy");
+  assert.equal(collectibleMatches(asset, { defId: "void_hexer", variantId: "eclipse", serialNumber: 8 }), false);
   assert.equal(collectibleMatches(asset, { defId: "void_imp" }), false);
 
   console.log("P2P MARKETPLACE POLICY: PASS");

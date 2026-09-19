@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { ReactionActivatedAbility } from "@/game/activated-ability-types";
-import { getCard } from "@/game/cards";
+import { CARDS, getCard } from "@/game/cards";
 import { createCustomGame } from "@/game/engine";
 import type { GameAction } from "@/game/reducer";
 import { snapshotReplayBundle } from "@/game/replay-content-snapshot";
@@ -22,8 +22,12 @@ const deck: DeckInput = {
   cards: Array(20).fill("ember_whelp"),
 };
 
-const sourceDef = getCard("wood_ent");
+const sourceDef = CARDS.wood_ent;
 const originalAbilities = sourceDef.reactionActivatedAbilities;
+
+// Mutate the canonical fixture definition: getCard() may return a presentation-only
+// clone when dedicated runtime art is active, and engine fixtures must not depend on
+// whether a card currently has an art overlay.
 
 type CastAction = Extract<GameAction, { type: "cast" }>;
 

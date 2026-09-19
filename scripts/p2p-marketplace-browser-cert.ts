@@ -48,9 +48,24 @@ async function createPlayer(label: string) {
   return { client, id: Number(created.body.player.id), name: String(created.body.player.name) };
 }
 
-async function seedAsset(playerId: number, defId: string) {
+async function seedAsset(
+  playerId: number,
+  defId: string,
+  collectible: { variantId?: string; frameId?: string; finish?: string; serialNumber?: number } = {},
+) {
   await pool.query("insert into player_cards(player_id,def_id,count,shiny) values($1,$2,1,false)", [playerId, defId]);
-  const result = await pool.query<{ id: number }>("insert into card_assets(owner_player_id,def_id,source) values($1,$2,'e2e-certification') returning id", [playerId, defId]);
+  const result = await pool.query<{ id: number }>(
+    `insert into card_assets(owner_player_id,def_id,variant_id,frame_id,finish,serial_number,source)
+     values($1,$2,$3,$4,$5,$6,'e2e-certification') returning id`,
+    [
+      playerId,
+      defId,
+      collectible.variantId || "standard",
+      collectible.frameId || "default",
+      collectible.finish || "normal",
+      collectible.serialNumber ?? null,
+    ],
+  );
   return Number(result.rows[0].id);
 }
 
@@ -74,7 +89,14 @@ async function main() {
     await pool.query("update players set gold=1000, level=2, created_at=now()-interval '48 hours' where id = any($1::int[])", [ids]);
     const saleAssetId = await seedAsset(seller.id, "void_imp");
     const traderAAsset = await seedAsset(traderA.id, "void_hexer");
-    const traderBAsset = await seedAsset(traderB.id, "void_stalker");
+    const traderAAsset2 = await seedAsset(traderA.id, "void_imp");
+    const traderBAsset = await seedAsset(traderB.id, "void_stalker", {
+      variantId: "cert_serialized",
+      frameId: "obsidian",
+      finish: "foil",
+      serialNumber: 7,
+    });
+    const traderBAsset2 = await seedAsset(traderB.id, "void_drain");
 
     const list = await seller.client.post("/api/market", { action: "list", assetId: saleAssetId, priceGold: 100 }, "market-list-cert");
     assert.equal(list.response.status, 200, JSON.stringify(list.body));
@@ -109,22 +131,27 @@ async function main() {
     const proposed = await traderA.client.post("/api/trades", {
       action: "create",
       recipientName: traderB.name,
-      offeredAssetIds: [traderAAsset],
-      requestedAssets: [{ defId: "void_stalker" }],
-      note: "certification",
+      offeredAssetIds: [traderAAsset, traderAAsset2],
+      requestedAssets: [
+        { defId: "void_stalker", variantId: "cert_serialized", frameId: "obsidian", finish: "foil", serialNumber: 7 },
+        { defId: "void_drain" },
+      ],
+      note: "trading-2-certification",
     }, "trade-create-cert");
     assert.equal(proposed.response.status, 200, JSON.stringify(proposed.body));
     const tradeId = Number(proposed.body.tradeId);
-    const locked = await pool.query<{ n: number }>("select count(*)::int n from card_asset_locks where asset_id=$1 and kind='trade' and reference_id=$2", [traderAAsset, tradeId]);
-    assert.equal(Number(locked.rows[0].n), 1, "offered asset must enter trade escrow");
+    const locked = await pool.query<{ n: number }>("select count(*)::int n from card_asset_locks where asset_id = any($1::int[]) and kind='trade' and reference_id=$2", [[traderAAsset, traderAAsset2], tradeId]);
+    assert.equal(Number(locked.rows[0].n), 2, "every offered asset must enter trade escrow");
 
     const accept = await traderB.client.post("/api/trades", { action: "accept", tradeId }, "trade-accept-cert");
     assert.equal(accept.response.status, 200, JSON.stringify(accept.body));
     assert.equal(accept.body.status, "accepted");
-    const owners = await pool.query<{ id: number; owner_player_id: number }>("select id,owner_player_id from card_assets where id = any($1::int[]) order by id", [[traderAAsset, traderBAsset]]);
+    const owners = await pool.query<{ id: number; owner_player_id: number }>("select id,owner_player_id from card_assets where id = any($1::int[]) order by id", [[traderAAsset, traderAAsset2, traderBAsset, traderBAsset2]]);
     const ownerMap = new Map(owners.rows.map((row) => [Number(row.id), Number(row.owner_player_id)]));
-    assert.equal(ownerMap.get(traderAAsset), traderB.id, "offered card must transfer to recipient");
-    assert.equal(ownerMap.get(traderBAsset), traderA.id, "requested card must transfer to proposer");
+    assert.equal(ownerMap.get(traderAAsset), traderB.id, "first offered card must transfer to recipient");
+    assert.equal(ownerMap.get(traderAAsset2), traderB.id, "second offered card must transfer to recipient");
+    assert.equal(ownerMap.get(traderBAsset), traderA.id, "exact serialized requested card must transfer to proposer");
+    assert.equal(ownerMap.get(traderBAsset2), traderA.id, "second requested card must transfer to proposer");
     const remainingLocks = await pool.query<{ n: number }>("select count(*)::int n from card_asset_locks where kind='trade' and reference_id=$1", [tradeId]);
     assert.equal(Number(remainingLocks.rows[0].n), 0, "accepted trade escrow must be released");
 
