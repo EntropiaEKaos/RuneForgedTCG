@@ -32,6 +32,10 @@ export const FOUR_PLAYER_SUPPORTED_EFFECT_KINDS = [
   "healUnit",
   "healNexus",
   "buffUnit",
+  "buffAllies",
+  "buffRace",
+  "buffClass",
+  "manaRefund",
   "aoeEnemy",
   "grantBarrier",
   "grantKeyword",
@@ -106,6 +110,34 @@ function matchesEffectRace(object: FourPlayerBattlefieldObject, effect: CardEffe
   const races = effect.races ?? (effect.race ? [effect.race] : undefined);
   if (!races?.length) return true;
   return Boolean(object.combat?.races.some((race) => races.includes(race)));
+}
+
+function matchesEffectClass(object: FourPlayerBattlefieldObject, effect: CardEffect): boolean {
+  const classes = effect.classKeys ?? (effect.classKey ? [effect.classKey] : undefined);
+  if (!classes?.length) return true;
+  return Boolean(object.combat?.classes.some((classKey) => classes.includes(classKey)));
+}
+
+function buffCombatObject(object: FourPlayerBattlefieldObject, effect: CardEffect): FourPlayerBattlefieldObject {
+  if (!object.combat) return object;
+  const powerDelta = effect.buffPower ?? 0;
+  const healthDelta = effect.buffHealth ?? 0;
+  if (!Number.isFinite(powerDelta) || !Number.isFinite(healthDelta)) {
+    throw new Error(`4P ${effect.kind} requires finite stat deltas.`);
+  }
+  const maxHealth = Math.max(0, object.combat.maxHealth + healthDelta);
+  const health = healthDelta >= 0
+    ? Math.min(maxHealth, object.combat.health + healthDelta)
+    : Math.min(object.combat.health, maxHealth);
+  return {
+    ...object,
+    combat: {
+      ...object.combat,
+      power: Math.max(0, object.combat.power + powerDelta),
+      maxHealth,
+      health,
+    },
+  };
 }
 
 function addKeyword(object: FourPlayerBattlefieldObject, keyword: NonNullable<CardEffect["keyword"]>): FourPlayerBattlefieldObject {
@@ -224,6 +256,28 @@ function resolveSingle(
     return { result: { match: applyPoison(match, seat, effect.amount), destroyed: [], draws: {} }, fallbackOpponent: seat };
   }
 
+  if (effect.kind === "manaRefund") {
+    const current = match.seats[actor];
+    if (current.eliminated) throw new Error(`Eliminated seat ${actor} cannot receive mana.`);
+    const mana = Math.min(current.maxMana, current.mana + effect.amount);
+    return {
+      result: { match: { ...match, seats: { ...match.seats, [actor]: { ...current, mana } } }, destroyed: [], draws: {} },
+      fallbackOpponent,
+    };
+  }
+
+  if (effect.kind === "buffAllies" || effect.kind === "buffRace" || effect.kind === "buffClass") {
+    if (effect.target !== "none") throw new Error(`4P ${effect.kind} must use target none.`);
+    const battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
+    const objects = battlefield.objects.map((object) => {
+      if (object.controllerSeat !== actor || !object.combat || object.combat.health <= 0) return object;
+      if ((effect.kind === "buffAllies" || effect.kind === "buffRace") && !matchesEffectRace(object, effect)) return object;
+      if (effect.kind === "buffClass" && !matchesEffectClass(object, effect)) return object;
+      return buffCombatObject(object, effect);
+    });
+    return { result: { match: { ...match, battlefield: { objects } }, destroyed: [], draws: {} }, fallbackOpponent };
+  }
+
   if (effect.kind === "aoeEnemy") {
     let battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
     const targetIds = battlefield.objects
@@ -267,25 +321,7 @@ function resolveSingle(
     }
     case "buffUnit": {
       if (!object.combat) throw new Error(`Target ${object.id} has no combat body.`);
-      const powerDelta = effect.buffPower ?? 0;
-      const healthDelta = effect.buffHealth ?? 0;
-      if (!Number.isFinite(powerDelta) || !Number.isFinite(healthDelta)) throw new Error("4P buffUnit requires finite stat deltas.");
-      battlefield = replaceObject(battlefield, object.id, (current) => {
-        if (!current.combat) return current;
-        const maxHealth = Math.max(0, current.combat.maxHealth + healthDelta);
-        const health = healthDelta >= 0
-          ? Math.min(maxHealth, current.combat.health + healthDelta)
-          : Math.min(current.combat.health, maxHealth);
-        return {
-          ...current,
-          combat: {
-            ...current.combat,
-            power: Math.max(0, current.combat.power + powerDelta),
-            maxHealth,
-            health,
-          },
-        };
-      });
+      battlefield = replaceObject(battlefield, object.id, (current) => buffCombatObject(current, effect));
       break;
     }
     case "grantBarrier": {

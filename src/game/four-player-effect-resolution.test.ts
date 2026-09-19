@@ -4,8 +4,8 @@ import { resolveFourPlayerEffect } from "./four-player-effect-resolution";
 import { createFourPlayerMatchState, FOUR_PLAYER_POISON_LETHAL, FOUR_PLAYER_STARTING_LIFE } from "./four-player-match";
 import { assertFourPlayerTargetObject, parseFourPlayerTargetRef } from "./four-player-targeting";
 
-function body(power:number, health:number) {
-  return { basePower:power, power, health, maxHealth:health, races:[], classes:[], barrier:false, frostbitten:false };
+function body(power:number, health:number, races:string[]=[], classes:string[]=[]) {
+  return { basePower:power, power, health, maxHealth:health, races, classes, barrier:false, frostbitten:false };
 }
 
 let match = { ...createFourPlayerMatchState("p1"), phase:"main_1" as const };
@@ -17,7 +17,10 @@ battlefield = putFourPlayerBattlefieldObject(battlefield,{
   id:"hexproof-unit",defId:"hexproof-unit",kind:"unit",ownerSeat:"p3",controllerSeat:"p3",enteredTurn:0,keywords:["Hexproof"],combat:body(2,3),
 });
 battlefield = putFourPlayerBattlefieldObject(battlefield,{
-  id:"ally-unit",defId:"ally-unit",kind:"unit",ownerSeat:"p1",controllerSeat:"p1",enteredTurn:0,combat:body(2,2),
+  id:"ally-unit",defId:"ally-unit",kind:"unit",ownerSeat:"p1",controllerSeat:"p1",enteredTurn:0,combat:body(2,2,["Besta"],["Druid"]),
+});
+battlefield = putFourPlayerBattlefieldObject(battlefield,{
+  id:"ally-other",defId:"ally-other",kind:"unit",ownerSeat:"p1",controllerSeat:"p1",enteredTurn:0,combat:body(1,3,["Spirit"],["Mystic"]),
 });
 match = {...match,battlefield};
 
@@ -100,6 +103,35 @@ const buffedBody = buffed.match.battlefield?.objects.find((object)=>object.id===
 assert.equal(buffedBody?.power,4);
 assert.equal(buffedBody?.health,5);
 assert.equal(buffedBody?.maxHealth,5);
+
+const alliesBuffed = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"buffAllies",amount:0,target:"none",buffPower:1,buffHealth:1},
+);
+assert.equal(alliesBuffed.match.battlefield?.objects.find((object)=>object.id==="ally-unit")?.combat?.power,3);
+assert.equal(alliesBuffed.match.battlefield?.objects.find((object)=>object.id==="ally-other")?.combat?.power,2);
+assert.equal(alliesBuffed.match.battlefield?.objects.find((object)=>object.id==="enemy-unit")?.combat?.power,3);
+
+const raceBuffed = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"buffRace",amount:0,target:"none",race:"Besta",buffPower:2,buffHealth:0},
+);
+assert.equal(raceBuffed.match.battlefield?.objects.find((object)=>object.id==="ally-unit")?.combat?.power,4);
+assert.equal(raceBuffed.match.battlefield?.objects.find((object)=>object.id==="ally-other")?.combat?.power,1);
+
+const classBuffed = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"buffClass",amount:0,target:"none",classKey:"Druid",buffPower:0,buffHealth:2},
+);
+assert.equal(classBuffed.match.battlefield?.objects.find((object)=>object.id==="ally-unit")?.combat?.health,4);
+assert.equal(classBuffed.match.battlefield?.objects.find((object)=>object.id==="ally-other")?.combat?.health,3);
+
+const manaBase = {...match,seats:{...match.seats,p1:{...match.seats.p1,mana:2,maxMana:5}}};
+const manaRefunded = resolveFourPlayerEffect(manaBase,"p1",{kind:"manaRefund",amount:4,target:"none"});
+assert.equal(manaRefunded.match.seats.p1.mana,5);
 
 const barriered = resolveFourPlayerEffect(
   buffed.match,
