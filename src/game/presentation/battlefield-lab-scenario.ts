@@ -114,3 +114,32 @@ export function previewBattlefieldTarget(
     relation: source.controllerId === target.controllerId ? "friendly" : "opponent",
   };
 }
+
+
+export type BattlefieldCombatIntent =
+  | { type: "declare-attacker"; attackerId: string; defendingPlayerId: string }
+  | { type: "declare-blocker"; blockerId: string; attackerId: string }
+  | { type: "clear-combat" };
+
+export type BattlefieldCombatPreview = {
+  attackerId: string;
+  blockerId?: string;
+  defendingPlayerId: string;
+};
+
+export function previewBattlefieldCombat(
+  scenario: BattlefieldLabScenario,
+  intent: BattlefieldCombatIntent,
+): BattlefieldCombatPreview | null {
+  if (intent.type === "clear-combat") return null;
+  if (intent.type === "declare-attacker") {
+    const attacker = scenario.entities.find((entity) => entity.id === intent.attackerId);
+    const defender = scenario.players.find((player) => player.id === intent.defendingPlayerId);
+    if (!attacker || !defender || attacker.controllerId === defender.id) return null;
+    return { attackerId: attacker.id, defendingPlayerId: defender.id };
+  }
+  const blocker = scenario.entities.find((entity) => entity.id === intent.blockerId);
+  const attacker = scenario.entities.find((entity) => entity.id === intent.attackerId);
+  if (!blocker || !attacker || blocker.controllerId === attacker.controllerId) return null;
+  return { attackerId: attacker.id, blockerId: blocker.id, defendingPlayerId: blocker.controllerId };
+}
