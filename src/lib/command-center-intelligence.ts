@@ -15,6 +15,8 @@ export type CommandCenterWindow = {
   orders: number;
   approved: number;
   revenueCents: number;
+  tradesCreated: number;
+  tradesAccepted: number;
 };
 
 export type CommandCenterPulseInput = {
@@ -26,6 +28,8 @@ export type CommandCenterPulseInput = {
   pvpFinished24h: number;
   orders24h: number;
   approved24h: number;
+  tradesCreated24h: number;
+  tradesAccepted24h: number;
   current24h?: CommandCenterWindow;
   previous24h?: CommandCenterWindow;
 };
@@ -81,6 +85,8 @@ function buildTrends(current?: CommandCenterWindow, previous?: CommandCenterWind
     { id: "orders", label: "Pedidos", unit: "count" },
     { id: "approved", label: "Pagamentos aprovados", unit: "count" },
     { id: "revenueCents", label: "Receita", unit: "currency" },
+    { id: "tradesCreated", label: "Trocas criadas", unit: "count" },
+    { id: "tradesAccepted", label: "Trocas aceitas", unit: "count" },
   ];
   return definitions.map(({ id, label, unit }) => {
     const delta = trendDelta(current[id], previous[id]);
@@ -115,12 +121,14 @@ export function commandCenterIntelligence(input: CommandCenterPulseInput) {
   const weeklyReturn = safeRate(input.dau, input.wau);
   const matchCompletion = safeRate(input.pvpFinished24h, input.pvpCreated24h);
   const paymentApproval = safeRate(input.approved24h, input.orders24h);
+  const tradeAcceptance = safeRate(input.tradesAccepted24h, input.tradesCreated24h);
 
   const signals: IntelligenceSignal[] = [
     { id: "dau-mau", label: "DAU / MAU", value: stickiness, unit: "percent", status: input.mau > 0 ? statusForRate(stickiness, 20, 10) : "neutral", detail: "Frequência diária dentro da base mensal ativa." },
     { id: "dau-wau", label: "DAU / WAU", value: weeklyReturn, unit: "percent", status: input.wau > 0 ? statusForRate(weeklyReturn, 35, 18) : "neutral", detail: "Frequência diária dentro da base semanal ativa." },
     { id: "match-completion", label: "Conclusão PvP 24h", value: matchCompletion, unit: "percent", status: input.pvpCreated24h > 0 ? statusForRate(matchCompletion, 85, 65) : "neutral", detail: "Salas criadas nas últimas 24h que já estão finalizadas." },
     { id: "payment-approval", label: "Aprovação pagamentos 24h", value: paymentApproval, unit: "percent", status: input.orders24h > 0 ? statusForRate(paymentApproval, 80, 60) : "neutral", detail: "Pedidos aprovados/fulfilled sobre pedidos criados nas últimas 24h." },
+    { id: "trade-acceptance", label: "Aceitação de trocas 24h", value: tradeAcceptance, unit: "percent", status: input.tradesCreated24h > 0 ? statusForRate(tradeAcceptance, 35, 15) : "neutral", detail: "Ofertas aceitas sobre ofertas diretas criadas nas últimas 24h. É um sinal operacional, não meta de produto." },
   ];
 
   return {
