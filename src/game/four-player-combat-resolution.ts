@@ -112,6 +112,58 @@ function strikeBattlefieldObject(
   };
 }
 
+function simultaneousBattlefieldExchange(
+  state: FourPlayerBattlefieldState,
+  attackerId: string,
+  blockerId: string,
+): {
+  state: FourPlayerBattlefieldState;
+  overflow: number;
+  attackerHealing: number;
+  blockerHealing: number;
+} {
+  const attacker = findFourPlayerBattlefieldObject(state, attackerId);
+  const blocker = findFourPlayerBattlefieldObject(state, blockerId);
+  if (!attacker.combat || attacker.combat.health <= 0 || !blocker.combat || blocker.combat.health <= 0) {
+    return { state, overflow: 0, attackerHealing: 0, blockerHealing: 0 };
+  }
+
+  const attackerPower = effectivePower(attacker);
+  const blockerPower = effectivePower(blocker);
+  const blockerHealthBefore = blocker.combat.health;
+
+  const attackerStrike = applyFourPlayerBattlefieldDamage(state, blockerId, attackerPower, attackerId);
+  const blockerStrike = applyFourPlayerBattlefieldDamage(state, attackerId, blockerPower, blockerId);
+
+  let overflow = 0;
+  if (attacker.keywords.includes("Overwhelm") && attackerPower > 0 && !attackerStrike.barrierConsumed) {
+    if (attacker.keywords.includes("Deathtouch") && attackerStrike.damageDealt > 0) {
+      overflow = Math.max(0, attackerPower - Math.min(1, blockerHealthBefore));
+    } else {
+      overflow = Math.max(0, attackerStrike.damageDealt - blockerHealthBefore);
+    }
+  }
+
+  const attackerAfter = findFourPlayerBattlefieldObject(blockerStrike.state, attackerId);
+  const blockerAfter = findFourPlayerBattlefieldObject(attackerStrike.state, blockerId);
+  let merged: FourPlayerBattlefieldState = {
+    objects: state.objects.map((object) => {
+      if (object.id === attackerId) return { ...attackerAfter };
+      if (object.id === blockerId) return { ...blockerAfter };
+      return object;
+    }),
+  };
+  merged = markEphemeralDead(merged, attackerId);
+  merged = markEphemeralDead(merged, blockerId);
+
+  return {
+    state: merged,
+    overflow,
+    attackerHealing: attacker.keywords.includes("Lifesteal") ? attackerStrike.damageDealt + overflow : 0,
+    blockerHealing: blocker.keywords.includes("Lifesteal") ? blockerStrike.damageDealt : 0,
+  };
+}
+
 function directStrike(
   state: FourPlayerBattlefieldState,
   sourceId: string,
@@ -273,21 +325,19 @@ export function resolveFourPlayerCombat(match: FourPlayerMatchState): FourPlayer
       continue;
     }
 
-    const first = strikeBattlefieldObject(battlefield, attacker.id, blocker.id, true);
-    battlefield = first.state;
-    addAmount(healing, attacker.controllerSeat, first.healing);
-    if (first.overflow > 0) {
+    const exchange = simultaneousBattlefieldExchange(battlefield, attacker.id, blocker.id);
+    battlefield = exchange.state;
+    addAmount(healing, attacker.controllerSeat, exchange.attackerHealing);
+    addAmount(healing, blocker.controllerSeat, exchange.blockerHealing);
+    if (exchange.overflow > 0) {
       nexusHits.push({
         target: assignment.defendingSeat,
-        amount: first.overflow,
+        amount: exchange.overflow,
         sourceController: attacker.controllerSeat,
         ...(attacker.kind === "general" ? { sourceGeneral: attacker.ownerSeat } : {}),
         poisonous: attacker.keywords.includes("Poisonous"),
       });
     }
-    const counter = strikeBattlefieldObject(battlefield, blocker.id, attacker.id, false);
-    battlefield = counter.state;
-    addAmount(healing, blocker.controllerSeat, counter.healing);
   }
 
   const destroyedObjects = battlefield.objects.filter((object) => object.combat && object.combat.health <= 0);

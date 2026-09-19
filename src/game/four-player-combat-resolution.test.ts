@@ -28,6 +28,19 @@ assert.equal(resolved.destroyed.find((entry)=>entry.id==="b-p3")?.destination,"g
 assert.equal(resolved.match.combat.attackers.length,0);
 assert.equal(resolved.match.combat.blockers.length,0);
 
+let tradeMatch = { ...createFourPlayerMatchState("p1"), phase:"combat" as const };
+let tradeBoard = tradeMatch.battlefield!;
+tradeBoard = putFourPlayerBattlefieldObject(tradeBoard,{id:"trade-a",defId:"trade-a",kind:"unit",ownerSeat:"p1",enteredTurn:0,combat:body(1,1)});
+tradeBoard = putFourPlayerBattlefieldObject(tradeBoard,{id:"trade-b",defId:"trade-b",kind:"unit",ownerSeat:"p2",enteredTurn:0,combat:body(1,1)});
+let tradeCombat = createFourPlayerCombatState("p1");
+tradeCombat = declareFourPlayerAttacker(tradeCombat,"trade-a","p2");
+tradeCombat = declareFourPlayerBlocker(tradeCombat,"p2","trade-b","trade-a");
+tradeMatch = {...tradeMatch,battlefield:tradeBoard,combat:tradeCombat};
+const tradeResolved = resolveFourPlayerCombat(tradeMatch);
+assert.equal(tradeResolved.match.battlefield?.objects.some((object)=>object.id==="trade-a"),false);
+assert.equal(tradeResolved.match.battlefield?.objects.some((object)=>object.id==="trade-b"),false);
+assert.equal(tradeResolved.destroyed.filter((entry)=>entry.id==="trade-a"||entry.id==="trade-b").length,2);
+
 let keywordMatch = { ...createFourPlayerMatchState("p1"), phase:"combat" as const };
 let keywordBoard = keywordMatch.battlefield!;
 keywordBoard = putFourPlayerBattlefieldObject(keywordBoard,{
