@@ -7,6 +7,7 @@ export type BattlefieldPresentationSchedulerDriver = (
 
 export class BattlefieldPresentationScheduler {
   private running = false;
+  private activeRun: Promise<void> | null = null;
 
   constructor(
     private readonly queue: BattlefieldPresentationEventQueue,
@@ -19,21 +20,26 @@ export class BattlefieldPresentationScheduler {
     return item;
   }
 
-  async pump(): Promise<void> {
-    if (this.running) return;
+  pump(): Promise<void> {
+    if (this.activeRun) return this.activeRun;
+
     this.running = true;
-    try {
-      while (true) {
-        const item = this.queue.beginNext();
-        if (!item) break;
-        try {
-          await this.driver(item);
-        } finally {
-          this.queue.complete(item.sequence);
-        }
-      }
-    } finally {
+    this.activeRun = this.runQueue().finally(() => {
       this.running = false;
+      this.activeRun = null;
+    });
+    return this.activeRun;
+  }
+
+  private async runQueue(): Promise<void> {
+    while (true) {
+      const item = this.queue.beginNext();
+      if (!item) break;
+      try {
+        await this.driver(item);
+      } finally {
+        this.queue.complete(item.sequence);
+      }
     }
   }
 
