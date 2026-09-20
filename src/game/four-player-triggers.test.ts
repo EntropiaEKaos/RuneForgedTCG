@@ -85,8 +85,8 @@ const fixtures: CardDef[] = [
     power: 1, health: 2, race: "Warrior", rarity: "Common", description: "Warrior subject.", emoji: "Y",
   },
   {
-    defId: "four_player_trigger_unsupported", name: "Unsupported Trigger", region: "Tidecall", type: "Unit", cost: 1,
-    power: 1, health: 1, rarity: "Common", description: "4P trigger fixture.", emoji: "U",
+    defId: "four_player_trigger_draw_on_summon", name: "Draw-On-Summon Trigger", region: "Tidecall", type: "Unit", cost: 1,
+    power: 1, health: 1, race: "Dragon", rarity: "Common", description: "4P trigger fixture.", emoji: "U",
     trigger: { when: "onSummon", effect: { kind: "drawOnSummon", amount: 1, target: "none" } },
   },
 ];
@@ -373,26 +373,31 @@ try {
   assert.equal(boundaryPump.match.turn.round, 2);
   assert.equal(boundaryPump.match.resolution.stack.items.at(-1)?.kind, "triggered_ability");
 
-  // Unsupported primitives remain outside the certified trigger subset.
-  const unsupportedBefore = { ...createFourPlayerMatchState("p1"), phase: "main_1" as const };
-  const unsupportedAfter: FourPlayerMatchState = {
-    ...unsupportedBefore,
-    battlefield: putFourPlayerBattlefieldObject(unsupportedBefore.battlefield!, {
-      id: "unsupported-trigger-source",
-      defId: "four_player_trigger_unsupported",
+  // drawOnSummon now enters the same certified trigger stack and emits only a count-based draw request.
+  const drawOnSummonBefore = { ...createFourPlayerMatchState("p1"), phase: "main_1" as const };
+  const drawOnSummonAfter: FourPlayerMatchState = {
+    ...drawOnSummonBefore,
+    battlefield: putFourPlayerBattlefieldObject(drawOnSummonBefore.battlefield!, {
+      id: "draw-on-summon-trigger-source",
+      defId: "four_player_trigger_draw_on_summon",
       kind: "unit",
       ownerSeat: "p1",
       controllerSeat: "p1",
-      enteredTurn: unsupportedBefore.turn.turn,
-      combat: body("four_player_trigger_unsupported"),
+      enteredTurn: drawOnSummonBefore.turn.turn,
+      combat: body("four_player_trigger_draw_on_summon"),
     }),
   };
-  assert.equal(
-    queueFourPlayerTransitionTriggers(unsupportedBefore, unsupportedAfter, [], "unsupported-trigger").queued.length,
-    0,
+  const drawOnSummonQueue = queueFourPlayerTransitionTriggers(
+    drawOnSummonBefore,
+    drawOnSummonAfter,
+    [],
+    "draw-on-summon-trigger",
   );
+  assert.equal(drawOnSummonQueue.queued.length, 1);
+  const drawOnSummonPump = pumpFourPlayerServer(passAllLiving(drawOnSummonQueue.match));
+  assert.equal(drawOnSummonPump.drawRequests?.p1, 1);
 } finally {
   clearRegisteredCustomCards();
 }
 
-console.log("FOUR PLAYER AUTOMATIC TRIGGERS: PASS — summon, death, ally death, permanent summon, round start, targets and fizzle");
+console.log("FOUR PLAYER AUTOMATIC TRIGGERS: PASS — summon, death, ally death, permanent summon, round start, drawOnSummon, targets and fizzle");
