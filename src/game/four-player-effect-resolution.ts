@@ -27,7 +27,7 @@ import {
   assertFourPlayerTargetPlayer,
   type FourPlayerTargetRef,
 } from "./four-player-targeting";
-import type { CardEffect } from "./types";
+import type { CardEffect, Race } from "./types";
 import { FOUR_PLAYER_RESOLVER_EFFECT_KINDS } from "./four-player-spell-contract";
 
 export const FOUR_PLAYER_SUPPORTED_EFFECT_KINDS = FOUR_PLAYER_RESOLVER_EFFECT_KINDS;
@@ -36,6 +36,8 @@ export type FourPlayerSupportedEffectKind = (typeof FOUR_PLAYER_SUPPORTED_EFFECT
 
 export interface FourPlayerEffectResolutionContext {
   tokenNamespace?: string;
+  /** Source race snapshot for source-relative authored gates (notably manaRefund). */
+  sourceRaces?: readonly Race[];
 }
 
 export type FourPlayerEffectZoneAction =
@@ -58,6 +60,7 @@ interface FourPlayerEffectRuntime {
   tokenNamespace: string;
   tokenOrdinal: number;
   attachmentOrdinal: number;
+  sourceRaces?: readonly Race[];
 }
 
 function destinationFor(object: FourPlayerBattlefieldObject): FourPlayerCombatDestroyedObject["destination"] {
@@ -125,6 +128,42 @@ function matchesEffectRace(object: FourPlayerBattlefieldObject, effect: CardEffe
   const races = effect.races ?? (effect.race ? [effect.race] : undefined);
   if (!races?.length) return true;
   return Boolean(object.combat?.races.some((race) => races.includes(race)));
+}
+
+function effectRaces(effect: CardEffect): readonly Race[] | undefined {
+  return effect.races ?? (effect.race ? [effect.race] : undefined);
+}
+
+function actorHasMatchingRace(match: FourPlayerMatchState, actor: FourPlayerSeat, races: readonly Race[]): boolean {
+  return (match.battlefield ?? createFourPlayerBattlefieldState()).objects.some((object) =>
+    object.controllerSeat === actor
+    && !match.seats[object.controllerSeat].eliminated
+    && Boolean(object.combat && object.combat.health > 0 && object.combat.races.some((race) => races.includes(race))),
+  );
+}
+
+function raceGateSatisfied(
+  match: FourPlayerMatchState,
+  actor: FourPlayerSeat,
+  effect: CardEffect,
+  runtime: FourPlayerEffectRuntime,
+): boolean {
+  const races = effectRaces(effect);
+  if (!races?.length) return true;
+
+  if (effect.kind === "draw") {
+    const sourceMatches = runtime.sourceRaces?.some((race) => races.includes(race)) ?? false;
+    return sourceMatches || actorHasMatchingRace(match, actor, races);
+  }
+
+  if (effect.kind === "manaRefund") {
+    // Mirrors 1v1: a source-relative refund checks the source race; effects
+    // without a source keep their historical unconditional refund behavior.
+    return runtime.sourceRaces === undefined
+      || runtime.sourceRaces.some((race) => races.includes(race));
+  }
+
+  return true;
 }
 
 function matchesEffectClass(object: FourPlayerBattlefieldObject, effect: CardEffect): boolean {
@@ -196,6 +235,9 @@ function resolveSingle(
 
   if (effect.kind === "draw") {
     if (!Number.isInteger(effect.amount)) throw new Error("4P draw amount must be a non-negative integer.");
+    if (!raceGateSatisfied(match, actor, effect, runtime)) {
+      return { result: { match, destroyed: [], draws: {} }, fallbackOpponent };
+    }
     return {
       result: {
         match,
@@ -320,6 +362,9 @@ function resolveSingle(
   }
 
   if (effect.kind === "manaRefund") {
+    if (!raceGateSatisfied(match, actor, effect, runtime)) {
+      return { result: { match, destroyed: [], draws: {} }, fallbackOpponent };
+    }
     const current = match.seats[actor];
     if (current.eliminated) throw new Error(`Eliminated seat ${actor} cannot receive mana.`);
     const mana = Math.min(current.maxMana, current.mana + effect.amount);
@@ -517,7 +562,12 @@ export function resolveFourPlayerEffect(
   const draws: Partial<Record<FourPlayerSeat, number>> = {};
   const zoneActions: FourPlayerEffectZoneAction[] = [];
   const namespace = String(context.tokenNamespace || `preview:${actor}:${match.turn.turn}`).trim() || `preview:${actor}:${match.turn.turn}`;
-  const runtime: FourPlayerEffectRuntime = { tokenNamespace: namespace, tokenOrdinal: 0, attachmentOrdinal: 0 };
+  const runtime: FourPlayerEffectRuntime = {
+    tokenNamespace: namespace,
+    tokenOrdinal: 0,
+    attachmentOrdinal: 0,
+    ...(context.sourceRaces !== undefined ? { sourceRaces: [...context.sourceRaces] } : {}),
+  };
 
   for (let guard = 0; cursor && guard < 32; guard += 1) {
     const resolved = resolveSingle(current, actor, cursor, first ? target : undefined, fallbackOpponent, runtime);
