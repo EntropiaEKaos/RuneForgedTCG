@@ -1,5 +1,5 @@
 import type Phaser from "phaser";
-import { buildBattlefieldFxExecutionPlan, type BattlefieldFxQuality, type BattlefieldLabPoint } from "../battlefield-lab-scenario";
+import { buildBattlefieldFxExecutionPlan, type BattlefieldFxQuality, type BattlefieldLabPoint, type BattlefieldPresentationEvent } from "../battlefield-lab-scenario";
 
 export type BattlefieldFxLayout = Record<string, BattlefieldLabPoint>;
 
@@ -46,4 +46,19 @@ export function playBattlefieldFx(
     }
   });
   return true;
+}
+
+
+export function playBattlefieldPresentationEvent(
+  scene: Phaser.Scene,
+  layout: BattlefieldFxLayout,
+  event: BattlefieldPresentationEvent,
+  quality: BattlefieldFxQuality = "high",
+): boolean {
+  if (event.type !== "fx" || !event.sourceId || event.targetIds.length === 0) return false;
+  let played = false;
+  event.targetIds.forEach((targetId) => {
+    played = playBattlefieldFx(scene, layout, event.cue, event.sourceId!, targetId, quality) || played;
+  });
+  return played;
 }
