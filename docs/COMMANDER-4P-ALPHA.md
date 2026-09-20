@@ -68,7 +68,7 @@ This slice certifies:
 8. Fast/Burst reaction timing on the circular priority loop;
 9. LIFO stack resolution, `negateSpell`, counter filters and `uncounterable`;
 10. counter-of-counter chains where removing the counter allows the original object to resolve;
-11. Fast/Burst catalog coverage including `recall`, `damagePermanent`, `destroyPermanent` and `mill`;
+11. authorable `CardEffect` primitive parity across the Commander resolver/spell contract, including `recall`, `damagePermanent`, `destroyPermanent`, `mill`, `buffSelf` and `drawOnSummon`;
 12. public graveyard targeting by physical instance identity, including `selfMill`, return-to-hand, reanimation and banish;
 13. physical Equipment attachment with a two-slot cap plus generated `attachEquipment` effects;
 14. Equipment provenance: physical attachments can settle to graveyard with a destroyed/recalled bearer while generated attachments never manufacture cards;
@@ -91,7 +91,8 @@ This slice certifies:
 31. Champion progression for `nexusDamage`, `spellsCast`, `alliesSummoned` and per-instance `nexusStrikes`, physical in-place transformation, durable buff/Equipment preservation and automatic `onLevelUp` stack triggers;
 32. controller-scoped Unit/General `mechanics` trigger graphs for public authoritative conditions: `always`, `selfDamaged`, allied race/class and board thresholds, own Nexus/mana/Spell Mana/progress thresholds, `roundAtLeast`, and recursive `and`/`or`/`not`; local LIFO push order preserves 1v1 resolution semantics with the printed trigger resolving before authored mechanics;
 33. explicit multiplayer opponent semantics for public `mechanics` conditions: `enemy*` aggregates all living opponents while singular `opponent*` resolves to the next living seat clockwise, skipping eliminated players;
-34. `handAtLeast` and `opponentHandAtLeast` using authoritative hand counts derived from Commander card zones only; private card identities never enter the mechanic-condition context, and the singular opponent rule continues to use the next living seat clockwise.
+34. `handAtLeast` and `opponentHandAtLeast` using authoritative hand counts derived from Commander card zones only; private card identities never enter the mechanic-condition context, and the singular opponent rule continues to use the next living seat clockwise;
+35. `buffSelf` source identity carried through trigger/activated-ability stacks plus 1v1-compatible `drawOnSummon` race aggregation/caps; a behavioral parity invariant now fails if an authorable `CARD_EFFECT_KIND` is missing from the Commander spell/effect contract.
 
 ## Deliberately not claimed yet
 
@@ -100,4 +101,4 @@ This Alpha still does not claim full parity for conditional `mechanics` trigger 
 
 ## Certification base
 
-The current Commander 4P hand-condition branch is based on certified production `main` `64a48ebfc9a1d0b479eec537044e0ed538a0a605`. Champion progress and level-up authority remain on Commander combat envelope version 9; this slice does not change the persistence envelope because hand conditions receive only count snapshots derived from the already-authoritative Commander card zones. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
+The current Commander 4P effect-catalog-parity branch is based on post-merge-certified production `main` `50467f61a48de56d1f9a2edfa6cbacfd37e296ed`. Champion progress and level-up authority remain on Commander combat envelope version 9; this slice does not change the persistence envelope because `buffSelf` reuses authoritative battlefield identity and `drawOnSummon` emits the existing count-only draw zone action. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.

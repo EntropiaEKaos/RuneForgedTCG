@@ -223,6 +223,56 @@ try {
   sourceDef.activatedAbilities = originalMainAbilities;
 }
 
+// buffSelf abilities resolve against the authoritative source without asking the client for a self target.
+const originalSelfAbilities = sourceDef.activatedAbilities;
+const selfBuffIndex = originalSelfAbilities?.length ?? 0;
+sourceDef.activatedAbilities = [
+  ...(originalSelfAbilities ?? []),
+  {
+    description: "Commander self-buff parity probe",
+    cost: { mana: 0 },
+    maxUsesPerRound: 1,
+    effect: { kind: "buffSelf", amount: 0, target: "self", buffPower: 1, buffHealth: 1 },
+  },
+];
+try {
+  let selfMatch: FourPlayerMatchState = { ...createFourPlayerMatchState("p1", undefined, 10), phase: "main_1" };
+  selfMatch = {
+    ...selfMatch,
+    battlefield: putFourPlayerBattlefieldObject(selfMatch.battlefield!, {
+      id: "self-buff-source",
+      defId: sourceDef.defId,
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      keywords: sourceDef.keywords ?? [],
+      combat: structuredClone(sourceBody),
+    }),
+  };
+  const stagedSelfBuff = stageFourPlayerActivatedAbility(
+    selfMatch,
+    emptyZones,
+    "p1",
+    "self-buff-source",
+    "main",
+    selfBuffIndex,
+    "e-self-buff",
+  );
+  let selfBuffOnStack: FourPlayerMatchState = {
+    ...stagedSelfBuff.match,
+    resolution: submitFourPlayerAction(stagedSelfBuff.match.resolution, stagedSelfBuff.stackItem),
+  };
+  selfBuffOnStack = passAllLiving(selfBuffOnStack);
+  const selfBuffPump = pumpFourPlayerServer(selfBuffOnStack);
+  const selfBuffedSource = selfBuffPump.match.battlefield?.objects.find((object) => object.id === "self-buff-source");
+  assert.equal(selfBuffedSource?.combat?.power, sourceBody.power + 1);
+  assert.equal(selfBuffedSource?.combat?.health, sourceBody.health + 1);
+  assert.equal(selfBuffedSource?.combat?.maxHealth, sourceBody.maxHealth + 1);
+} finally {
+  sourceDef.activatedAbilities = originalSelfAbilities;
+}
+
 // Physical Sentinela casts snapshot loyalty, and all its classic abilities share one activation budget.
 const sentinelaDef = getCard("sent_marinna");
 assert.equal(sentinelaDef.type, "Sentinela");

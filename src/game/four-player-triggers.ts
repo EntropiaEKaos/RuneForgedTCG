@@ -633,6 +633,7 @@ export function resolveFourPlayerTriggeredAbility(
         {
           tokenNamespace: `${item.id}:${index}`,
           ...(payload.sourceRaces !== undefined ? { sourceRaces: payload.sourceRaces } : {}),
+          ...(payload.effectSourceTargetId !== undefined ? { sourceTargetId: payload.effectSourceTargetId } : {}),
         },
       );
       current = resolved.match;
