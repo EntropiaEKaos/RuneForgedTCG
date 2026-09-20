@@ -168,6 +168,7 @@ export const behavioralTests = [
   "src/game/four-player-hand-conditions.test.ts",
   "src/game/four-player-opponent-conditions.test.ts",
   "src/lib/commander-activated-abilities.test.ts",
+  "src/lib/commander-client-resync.test.ts",
   "src/lib/commander-combat.test.ts",
 ];
 export const sourceContractTests = [
