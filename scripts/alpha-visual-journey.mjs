@@ -223,13 +223,6 @@ async function hoverSelector(cdp, selector) {
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
 }
 
-async function pressKey(cdp, key, code = key) {
-  const virtualKeyCode = code === "Space" ? 32 : code === "Enter" ? 13 : 0;
-  const base = { key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode };
-  await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", ...base });
-  await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", ...base });
-}
-
 async function matchDriverSnapshot(cdp) {
   return evaluate(cdp, `(() => {
     const arena = document.querySelector('.tcg-arena');
