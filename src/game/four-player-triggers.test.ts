@@ -72,6 +72,11 @@ const fixtures: CardDef[] = [
     trigger: { when: "onPermanentSummon", effect: { kind: "manaRefund", amount: 1, target: "none", race: "Dragon" } },
   },
   {
+    defId: "four_player_trigger_self_watcher", name: "Self Subject Watcher", region: "Tidecall", type: "Artifact", cost: 1,
+    maxHealth: 4, rarity: "Common", description: "Barrier the summoned subject.", emoji: "B",
+    trigger: { when: "onPermanentSummon", effect: { kind: "grantBarrier", amount: 0, target: "self" } },
+  },
+  {
     defId: "four_player_trigger_dragon", name: "Trigger Dragon", region: "Emberhold", type: "Unit", cost: 1,
     power: 1, health: 2, race: "Dragon", rarity: "Common", description: "Dragon subject.", emoji: "G",
   },
@@ -211,6 +216,36 @@ try {
   );
   const warriorPump = pumpFourPlayerServer(passAllLiving(warriorQueue.match));
   assert.equal(warriorPump.match.seats.p1.mana, 0, "non-Dragon summon must not satisfy the race-gated refund");
+
+  let selfBefore: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "main_1" };
+  selfBefore = {
+    ...selfBefore,
+    battlefield: putFourPlayerBattlefieldObject(selfBefore.battlefield!, {
+      id: "self-watcher",
+      defId: "four_player_trigger_self_watcher",
+      kind: "permanent",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      durability: { health: 4, maxHealth: 4 },
+    }),
+  };
+  const selfAfter: FourPlayerMatchState = {
+    ...selfBefore,
+    battlefield: putFourPlayerBattlefieldObject(selfBefore.battlefield!, {
+      id: "self-subject-unit",
+      defId: "four_player_trigger_warrior",
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: selfBefore.turn.turn,
+      combat: body("four_player_trigger_warrior"),
+    }),
+  };
+  const selfQueue = queueFourPlayerTransitionTriggers(selfBefore, selfAfter, [], "permanent-self-subject");
+  const selfPump = pumpFourPlayerServer(passAllLiving(selfQueue.match));
+  const selfSubject = selfPump.match.battlefield?.objects.find((object) => object.id === "self-subject-unit");
+  assert.equal(selfSubject?.combat?.barrier, true, "onPermanentSummon target:self must resolve against the summoned Unit subject");
 
   // Death is explicit: recall-like removal without destroyed metadata cannot fire death triggers.
   let deathBefore: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "main_1" };
