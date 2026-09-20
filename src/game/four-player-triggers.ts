@@ -11,6 +11,7 @@ import {
 } from "./four-player-effect-resolution";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import type { FourPlayerLevelUpEvent } from "./four-player-level-up";
+import { fourPlayerMechanicConditionMatches } from "./four-player-mechanic-conditions";
 import type { FourPlayerMatchState } from "./four-player-match";
 import { createFourPlayerPriorityState } from "./four-player-priority-manager";
 import { FOUR_PLAYER_RESOLVER_EFFECT_KINDS } from "./four-player-spell-contract";
@@ -270,6 +271,50 @@ function candidateForObject(
   };
 }
 
+function mechanicCandidatesForObject(
+  match: FourPlayerMatchState,
+  object: FourPlayerBattlefieldObject,
+  when: FourPlayerAutomaticTriggerWhen,
+  ordinalStart: number,
+): TriggerCandidate[] {
+  const definition = safeCard(object.defId);
+  if (!definition || definition.type !== "Unit" || !object.combat) return [];
+  const candidates: TriggerCandidate[] = [];
+  let ordinal = ordinalStart;
+  for (const mechanic of definition.mechanics ?? []) {
+    if (mechanic.trigger !== when || !automaticTriggerChainSupported(mechanic.effect)) continue;
+    const condition = fourPlayerMechanicConditionMatches(match, object, mechanic.condition);
+    if (!condition.supported || !condition.matches) continue;
+    candidates.push({
+      controller: object.controllerSeat,
+      sourceId: object.id,
+      sourceDefId: object.defId,
+      sourceKind: object.kind,
+      sourceTargetId: object.id,
+      sourceRaces: [...object.combat.races],
+      when,
+      description: `${mechanic.name ?? mechanic.key} — ${when}`,
+      effect: structuredClone(mechanic.effect),
+      ordinal: ordinal++,
+    });
+  }
+  return candidates;
+}
+
+function appendObjectCandidates(
+  match: FourPlayerMatchState,
+  candidates: TriggerCandidate[],
+  object: FourPlayerBattlefieldObject,
+  when: FourPlayerAutomaticTriggerWhen,
+  ordinal: number,
+): number {
+  const printed = candidateForObject(object, when, ordinal++);
+  if (printed) candidates.push(printed);
+  const mechanics = mechanicCandidatesForObject(match, object, when, ordinal);
+  candidates.push(...mechanics);
+  return ordinal + mechanics.length;
+}
+
 function equipmentCandidates(
   bearer: FourPlayerBattlefieldObject,
   when: FourPlayerAutomaticTriggerWhen,
@@ -370,8 +415,7 @@ export function queueFourPlayerTransitionTriggers(
   for (const object of entered) {
     const definition = safeCard(object.defId);
     if (!definition || definition.type !== "Unit") continue;
-    const summon = candidateForObject(object, "onSummon", ordinal++);
-    if (summon) candidates.push(summon);
+    ordinal = appendObjectCandidates(after, candidates, object, "onSummon", ordinal);
 
     for (const watcher of afterObjects) {
       if (watcher.controllerSeat !== object.controllerSeat || watcher.kind !== "permanent") continue;
@@ -395,8 +439,11 @@ export function queueFourPlayerTransitionTriggers(
     if (!source || afterIds.has(source.id)) continue;
     const definition = safeCard(source.defId);
     if (definition?.type === "Unit") {
-      const death = candidateForObject(source, "onDeath", ordinal++);
-      if (death) candidates.push({ ...death, sourceTargetId: undefined });
+      const deathStart = candidates.length;
+      ordinal = appendObjectCandidates(before, candidates, source, "onDeath", ordinal);
+      for (let index = deathStart; index < candidates.length; index += 1) {
+        candidates[index] = { ...candidates[index]!, sourceTargetId: undefined };
+      }
 
       if (dead.killerId) {
         const killer = beforeById.get(dead.killerId);
@@ -405,8 +452,7 @@ export function queueFourPlayerTransitionTriggers(
           const killEquipment = equipmentCandidates(killer, "onKill", ordinal, true);
           candidates.push(...killEquipment);
           ordinal += killEquipment.length;
-          const kill = candidateForObject(killer, "onKill", ordinal++);
-          if (kill) candidates.push(kill);
+          ordinal = appendObjectCandidates(before, candidates, killer, "onKill", ordinal);
         }
       }
 
@@ -414,8 +460,7 @@ export function queueFourPlayerTransitionTriggers(
         if (survivor.controllerSeat !== source.controllerSeat) continue;
         const survivorDef = safeCard(survivor.defId);
         if (survivorDef?.type === "Unit") {
-          const allyDeath = candidateForObject(survivor, "onAllyDeath", ordinal++);
-          if (allyDeath) candidates.push(allyDeath);
+          ordinal = appendObjectCandidates(after, candidates, survivor, "onAllyDeath", ordinal);
         }
         const equipment = equipmentCandidates(survivor, "onAllyDeath", ordinal);
         candidates.push(...equipment);
@@ -428,6 +473,7 @@ export function queueFourPlayerTransitionTriggers(
 }
 
 function appendImpactEventCandidates(
+  match: FourPlayerMatchState,
   candidates: TriggerCandidate[],
   source: FourPlayerBattlefieldObject,
   when: "onStrike" | "onNexusStrike",
@@ -436,8 +482,7 @@ function appendImpactEventCandidates(
   const equipment = equipmentCandidates(source, when, ordinal, true);
   candidates.push(...equipment);
   let nextOrdinal = ordinal + equipment.length;
-  const card = candidateForObject(source, when, nextOrdinal++);
-  if (card) candidates.push(card);
+  nextOrdinal = appendObjectCandidates(match, candidates, source, when, nextOrdinal);
   return nextOrdinal;
 }
 
@@ -453,9 +498,9 @@ export function queueFourPlayerCombatImpactTriggers(
     // Push NexusStrike before Strike so LIFO resolution preserves 1v1 order:
     // onStrike resolves first, followed by onNexusStrike.
     if (impact.kind === "nexus_strike") {
-      ordinal = appendImpactEventCandidates(candidates, impact.source, "onNexusStrike", ordinal);
+      ordinal = appendImpactEventCandidates(match, candidates, impact.source, "onNexusStrike", ordinal);
     }
-    ordinal = appendImpactEventCandidates(candidates, impact.source, "onStrike", ordinal);
+    ordinal = appendImpactEventCandidates(match, candidates, impact.source, "onStrike", ordinal);
   }
   return queueCandidates(match, candidates, eventKey);
 }
@@ -472,14 +517,12 @@ export function queueFourPlayerCombatDeclarationTriggers(
   for (const attacker of match.combat.attackers) {
     const source = battlefield.objects.find((object) => object.id === attacker.unitId);
     if (!source || source.controllerSeat !== attacker.controller) continue;
-    const candidate = candidateForObject(source, "onAttack", ordinal++);
-    if (candidate) candidates.push(candidate);
+    ordinal = appendObjectCandidates(match, candidates, source, "onAttack", ordinal);
   }
   for (const blocker of match.combat.blockers) {
     const source = battlefield.objects.find((object) => object.id === blocker.unitId);
     if (!source || source.controllerSeat !== blocker.controller) continue;
-    const candidate = candidateForObject(source, "onBlock", ordinal++);
-    if (candidate) candidates.push(candidate);
+    ordinal = appendObjectCandidates(match, candidates, source, "onBlock", ordinal);
   }
 
   return queueCandidates(match, candidates, eventKey);
@@ -498,8 +541,7 @@ export function queueFourPlayerRoundStartTriggers(
       !definition
       || (definition.type !== "Unit" && definition.type !== "Enchantment" && definition.type !== "Artifact")
     ) continue;
-    const candidate = candidateForObject(object, "onRoundStart", ordinal++);
-    if (candidate) candidates.push(candidate);
+    ordinal = appendObjectCandidates(match, candidates, object, "onRoundStart", ordinal);
   }
   return queueCandidates(match, candidates, eventKey);
 }
@@ -515,8 +557,7 @@ export function queueFourPlayerLevelUpTriggers(
   for (const event of leveled) {
     const source = (match.battlefield?.objects ?? []).find((object) => object.id === event.objectId);
     if (!source || source.defId !== event.toDefId) continue;
-    const candidate = candidateForObject(source, "onLevelUp", ordinal++);
-    if (candidate) candidates.push(candidate);
+    ordinal = appendObjectCandidates(match, candidates, source, "onLevelUp", ordinal);
   }
   return queueCandidates(match, candidates, eventKey);
 }
