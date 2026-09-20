@@ -5,7 +5,10 @@ import {
   type FourPlayerBattlefieldObject,
   type FourPlayerBattlefieldState,
 } from "./four-player-battlefield";
-import { createFourPlayerCombatState } from "./four-player-combat";
+import {
+  createFourPlayerCombatState,
+  type FourPlayerCombatResolutionCursor,
+} from "./four-player-combat";
 import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
 import { moveGeneralFromBattlefield } from "./four-player-general-zone";
 import {
@@ -25,6 +28,14 @@ export interface FourPlayerCombatDestroyedObject {
   ownerSeat: FourPlayerSeat;
   kind: FourPlayerBattlefieldObject["kind"];
   destination: FourPlayerCombatDestination;
+  killerId?: string;
+}
+
+export interface FourPlayerCombatImpact {
+  source: FourPlayerBattlefieldObject;
+  kind: "strike" | "nexus_strike";
+  targetObjectId?: string;
+  targetSeat?: FourPlayerSeat;
 }
 
 export interface FourPlayerCombatResolutionResult {
@@ -34,6 +45,12 @@ export interface FourPlayerCombatResolutionResult {
   poisonAdded: Partial<Record<FourPlayerSeat, number>>;
   healing: Partial<Record<FourPlayerSeat, number>>;
   zoneActions: readonly FourPlayerEffectZoneAction[];
+}
+
+export interface FourPlayerCombatStepResult extends FourPlayerCombatResolutionResult {
+  completed: boolean;
+  impacts: readonly FourPlayerCombatImpact[];
+  triggerSourceMatch?: FourPlayerMatchState;
 }
 
 interface NexusHit {
@@ -47,6 +64,16 @@ interface NexusHit {
 function livingBody(state: FourPlayerBattlefieldState, id: string): FourPlayerBattlefieldObject | undefined {
   const object = state.objects.find((entry) => entry.id === id);
   return object?.combat && object.combat.health > 0 ? object : undefined;
+}
+
+function snapshotCombatObject(object: FourPlayerBattlefieldObject): FourPlayerBattlefieldObject {
+  return {
+    ...object,
+    ...(object.combat ? { combat: { ...object.combat } } : {}),
+    ...(object.durability ? { durability: { ...object.durability } } : {}),
+    ...(object.equipment ? { equipment: object.equipment.map((entry) => ({ ...entry, keywords: [...entry.keywords] })) } : {}),
+    keywords: [...object.keywords],
+  };
 }
 
 function effectivePower(object: FourPlayerBattlefieldObject): number {
@@ -85,15 +112,18 @@ function strikeBattlefieldObject(
   state: FourPlayerBattlefieldState;
   overflow: number;
   healing: number;
+  killed: boolean;
+  source: FourPlayerBattlefieldObject;
 } {
   const source = findFourPlayerBattlefieldObject(state, sourceId);
   const target = findFourPlayerBattlefieldObject(state, targetId);
-  if (!source.combat || source.combat.health <= 0) return { state, overflow: 0, healing: 0 };
-  if (!target.combat || target.combat.health <= 0) return { state, overflow: 0, healing: 0 };
+  if (!source.combat || source.combat.health <= 0) return { state, overflow: 0, healing: 0, killed: false, source };
+  if (!target.combat || target.combat.health <= 0) return { state, overflow: 0, healing: 0, killed: false, source };
 
   const power = effectivePower(source);
   const targetHealthBefore = target.combat.health;
   const damaged = applyFourPlayerBattlefieldDamage(state, targetId, power, sourceId);
+  const targetAfter = findFourPlayerBattlefieldObject(damaged.state, targetId);
   let overflow = 0;
 
   if (allowOverwhelm && source.keywords.includes("Overwhelm") && power > 0 && !damaged.barrierConsumed) {
@@ -111,6 +141,8 @@ function strikeBattlefieldObject(
     state: markEphemeralDead(damaged.state, sourceId),
     overflow,
     healing,
+    killed: targetHealthBefore > 0 && Boolean(targetAfter.combat && targetAfter.combat.health <= 0),
+    source: snapshotCombatObject(source),
   };
 }
 
@@ -123,15 +155,23 @@ function simultaneousBattlefieldExchange(
   overflow: number;
   attackerHealing: number;
   blockerHealing: number;
+  attackerKilledBlocker: boolean;
+  blockerKilledAttacker: boolean;
+  attacker: FourPlayerBattlefieldObject;
+  blocker: FourPlayerBattlefieldObject;
 } {
   const attacker = findFourPlayerBattlefieldObject(state, attackerId);
   const blocker = findFourPlayerBattlefieldObject(state, blockerId);
   if (!attacker.combat || attacker.combat.health <= 0 || !blocker.combat || blocker.combat.health <= 0) {
-    return { state, overflow: 0, attackerHealing: 0, blockerHealing: 0 };
+    return {
+      state, overflow: 0, attackerHealing: 0, blockerHealing: 0,
+      attackerKilledBlocker: false, blockerKilledAttacker: false, attacker, blocker,
+    };
   }
 
   const attackerPower = effectivePower(attacker);
   const blockerPower = effectivePower(blocker);
+  const attackerHealthBefore = attacker.combat.health;
   const blockerHealthBefore = blocker.combat.health;
 
   const attackerStrike = applyFourPlayerBattlefieldDamage(state, blockerId, attackerPower, attackerId);
@@ -163,6 +203,10 @@ function simultaneousBattlefieldExchange(
     overflow,
     attackerHealing: attacker.keywords.includes("Lifesteal") ? attackerStrike.damageDealt + overflow : 0,
     blockerHealing: blocker.keywords.includes("Lifesteal") ? blockerStrike.damageDealt : 0,
+    attackerKilledBlocker: blockerHealthBefore > 0 && Boolean(blockerAfter.combat && blockerAfter.combat.health <= 0),
+    blockerKilledAttacker: attackerHealthBefore > 0 && Boolean(attackerAfter.combat && attackerAfter.combat.health <= 0),
+    attacker: snapshotCombatObject(attacker),
+    blocker: snapshotCombatObject(blocker),
   };
 }
 
@@ -172,24 +216,26 @@ function directStrike(
   defendingSeat: FourPlayerSeat,
 ): {
   state: FourPlayerBattlefieldState;
-  hit?: NexusHit;
+  hit: NexusHit;
   healing: number;
+  source: FourPlayerBattlefieldObject;
 } {
-  const source = livingBody(state, sourceId);
-  if (!source) return { state, healing: 0 };
+  const source = findFourPlayerBattlefieldObject(state, sourceId);
+  if (!source.combat || source.combat.health <= 0) throw new Error(`4P direct strike source ${sourceId} is not alive.`);
   const amount = effectivePower(source);
-  const hit: NexusHit | undefined = amount > 0 ? {
+  const hit: NexusHit = {
     target: defendingSeat,
     amount,
     sourceController: source.controllerSeat,
     ...(source.kind === "general" ? { sourceGeneral: source.ownerSeat } : {}),
     poisonous: source.keywords.includes("Poisonous"),
-  } : undefined;
+  };
   const healing = source.keywords.includes("Lifesteal") ? amount : 0;
   return {
     state: markEphemeralDead(state, sourceId),
     hit,
     healing,
+    source: snapshotCombatObject(source),
   };
 }
 
@@ -212,10 +258,7 @@ function applySeatTotals(
     const hurt = damage[seat] ?? 0;
     const healed = healing[seat] ?? 0;
     const poisonAdded = poison[seat] ?? 0;
-    const life = Math.min(
-      FOUR_PLAYER_STARTING_LIFE,
-      Math.max(0, current.life - hurt) + healed,
-    );
+    const life = Math.min(FOUR_PLAYER_STARTING_LIFE, Math.max(0, current.life - hurt) + healed);
     const ledger = { ...current.generalDamageReceived };
     for (const [source, amount] of Object.entries(generalDamage[seat] ?? {})) {
       if (!amount) continue;
@@ -245,103 +288,81 @@ function applySeatTotals(
   return next;
 }
 
-export function resolveFourPlayerCombat(match: FourPlayerMatchState): FourPlayerCombatResolutionResult {
-  if (match.phase !== "combat") throw new Error("4P combat resolution requires the combat phase.");
-  let battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
-  const assignments = [...match.combat.attackers];
-  const blocks = new Map(match.combat.blockers.map((blocker) => [blocker.attackerId, blocker]));
-  const nexusHits: NexusHit[] = [];
+function applyNexusHit(
+  match: FourPlayerMatchState,
+  hit: NexusHit,
+  healingAmount: number,
+): {
+  match: FourPlayerMatchState;
+  nexusDamage: Partial<Record<FourPlayerSeat, number>>;
+  poisonAdded: Partial<Record<FourPlayerSeat, number>>;
+  healing: Partial<Record<FourPlayerSeat, number>>;
+} {
+  const nexusDamage: Partial<Record<FourPlayerSeat, number>> = {};
+  const poisonAdded: Partial<Record<FourPlayerSeat, number>> = {};
   const healing: Partial<Record<FourPlayerSeat, number>> = {};
-
-  const pushHit = (hit: NexusHit | undefined) => {
-    if (hit) nexusHits.push(hit);
-  };
-
-  for (const assignment of assignments) {
-    if (match.seats[assignment.defendingSeat].eliminated) continue;
-    const attacker = livingBody(battlefield, assignment.unitId);
-    if (!attacker) continue;
-
-    const block = blocks.get(assignment.unitId);
-    const blocker = block ? livingBody(battlefield, block.unitId) : undefined;
-    if (!blocker) {
-      const first = directStrike(battlefield, assignment.unitId, assignment.defendingSeat);
-      battlefield = first.state;
-      pushHit(first.hit);
-      addAmount(healing, attacker.controllerSeat, first.healing);
-
-      const afterFirst = livingBody(battlefield, assignment.unitId);
-      if (afterFirst?.keywords.includes("DoubleStrike")) {
-        const second = directStrike(battlefield, assignment.unitId, assignment.defendingSeat);
-        battlefield = second.state;
-        pushHit(second.hit);
-        addAmount(healing, attacker.controllerSeat, second.healing);
-      }
-      continue;
-    }
-
-    const fast = attacker.keywords.includes("QuickAttack") || attacker.keywords.includes("DoubleStrike");
-    if (fast) {
-      const first = strikeBattlefieldObject(battlefield, attacker.id, blocker.id, true);
-      battlefield = first.state;
-      addAmount(healing, attacker.controllerSeat, first.healing);
-      if (first.overflow > 0) {
-        nexusHits.push({
-          target: assignment.defendingSeat,
-          amount: first.overflow,
-          sourceController: attacker.controllerSeat,
-          ...(attacker.kind === "general" ? { sourceGeneral: attacker.ownerSeat } : {}),
-          poisonous: attacker.keywords.includes("Poisonous"),
-        });
-      }
-
-      const survivingBlocker = livingBody(battlefield, blocker.id);
-      const survivingAttacker = livingBody(battlefield, attacker.id);
-      if (survivingBlocker && survivingAttacker) {
-        const counter = strikeBattlefieldObject(battlefield, blocker.id, attacker.id, false);
-        battlefield = counter.state;
-        addAmount(healing, blocker.controllerSeat, counter.healing);
-      }
-
-      const doubleAttacker = livingBody(battlefield, attacker.id);
-      const doubleBlocker = livingBody(battlefield, blocker.id);
-      if (doubleAttacker?.keywords.includes("DoubleStrike") && doubleBlocker) {
-        const second = strikeBattlefieldObject(battlefield, attacker.id, blocker.id, true);
-        battlefield = second.state;
-        addAmount(healing, attacker.controllerSeat, second.healing);
-        if (second.overflow > 0) {
-          nexusHits.push({
-            target: assignment.defendingSeat,
-            amount: second.overflow,
-            sourceController: attacker.controllerSeat,
-            ...(attacker.kind === "general" ? { sourceGeneral: attacker.ownerSeat } : {}),
-            poisonous: attacker.keywords.includes("Poisonous"),
-          });
-        }
-      } else if (doubleAttacker?.keywords.includes("DoubleStrike") && attacker.keywords.includes("Overwhelm")) {
-        const second = directStrike(battlefield, attacker.id, assignment.defendingSeat);
-        battlefield = second.state;
-        pushHit(second.hit);
-        addAmount(healing, attacker.controllerSeat, second.healing);
-      }
-      continue;
-    }
-
-    const exchange = simultaneousBattlefieldExchange(battlefield, attacker.id, blocker.id);
-    battlefield = exchange.state;
-    addAmount(healing, attacker.controllerSeat, exchange.attackerHealing);
-    addAmount(healing, blocker.controllerSeat, exchange.blockerHealing);
-    if (exchange.overflow > 0) {
-      nexusHits.push({
-        target: assignment.defendingSeat,
-        amount: exchange.overflow,
-        sourceController: attacker.controllerSeat,
-        ...(attacker.kind === "general" ? { sourceGeneral: attacker.ownerSeat } : {}),
-        poisonous: attacker.keywords.includes("Poisonous"),
-      });
-    }
+  const generalDamage: Partial<Record<FourPlayerSeat, Partial<Record<FourPlayerSeat, number>>>> = {};
+  addAmount(nexusDamage, hit.target, hit.amount);
+  if (hit.poisonous) addAmount(poisonAdded, hit.target, hit.amount);
+  addAmount(healing, hit.sourceController, healingAmount);
+  if (hit.sourceGeneral) {
+    generalDamage[hit.target] = { [hit.sourceGeneral]: hit.amount };
   }
+  return {
+    match: applySeatTotals(match, nexusDamage, generalDamage, poisonAdded, healing),
+    nexusDamage,
+    poisonAdded,
+    healing,
+  };
+}
 
+function applyHealing(
+  match: FourPlayerMatchState,
+  healing: Partial<Record<FourPlayerSeat, number>>,
+): FourPlayerMatchState {
+  return applySeatTotals(match, {}, {}, {}, healing);
+}
+
+function cursorFor(match: FourPlayerMatchState): FourPlayerCombatResolutionCursor {
+  return match.combat.resolution ?? {
+    completedAttackerIds: [],
+    stage: "start",
+    killerByVictim: {},
+  };
+}
+
+function setCursor(match: FourPlayerMatchState, cursor: FourPlayerCombatResolutionCursor): FourPlayerMatchState {
+  return { ...match, combat: { ...match.combat, resolution: cursor } };
+}
+
+function completeAttacker(
+  match: FourPlayerMatchState,
+  cursor: FourPlayerCombatResolutionCursor,
+  attackerId: string,
+): FourPlayerMatchState {
+  const completedAttackerIds = cursor.completedAttackerIds.includes(attackerId)
+    ? cursor.completedAttackerIds
+    : [...cursor.completedAttackerIds, attackerId];
+  return setCursor(match, {
+    completedAttackerIds,
+    stage: "start",
+    killerByVictim: cursor.killerByVictim,
+  });
+}
+
+function recordKiller(
+  cursor: FourPlayerCombatResolutionCursor,
+  victimId: string,
+  killerId: string,
+): FourPlayerCombatResolutionCursor {
+  return {
+    ...cursor,
+    killerByVictim: { ...cursor.killerByVictim, [victimId]: killerId },
+  };
+}
+
+function finalizeCombat(match: FourPlayerMatchState, cursor: FourPlayerCombatResolutionCursor): FourPlayerCombatStepResult {
+  const battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
   const destroyedObjects = battlefield.objects.filter((object) => object.combat && object.combat.health <= 0);
   const destroyed: FourPlayerCombatDestroyedObject[] = destroyedObjects.map((object) => ({
     id: object.id,
@@ -349,6 +370,7 @@ export function resolveFourPlayerCombat(match: FourPlayerMatchState): FourPlayer
     ownerSeat: object.ownerSeat,
     kind: object.kind,
     destination: destinationFor(object),
+    ...(cursor.killerByVictim[object.id] ? { killerId: cursor.killerByVictim[object.id] } : {}),
   }));
   const zoneActions: FourPlayerEffectZoneAction[] = destroyedObjects.flatMap((object) =>
     (object.equipment ?? [])
@@ -379,20 +401,282 @@ export function resolveFourPlayerCombat(match: FourPlayerMatchState): FourPlayer
     }
   }
 
-  const nexusDamage: Partial<Record<FourPlayerSeat, number>> = {};
-  const poisonAdded: Partial<Record<FourPlayerSeat, number>> = {};
-  const generalDamage: Partial<Record<FourPlayerSeat, Partial<Record<FourPlayerSeat, number>>>> = {};
+  return {
+    match: nextMatch,
+    destroyed,
+    nexusDamage: {},
+    poisonAdded: {},
+    healing: {},
+    zoneActions,
+    completed: true,
+    impacts: [],
+    triggerSourceMatch: match,
+  };
+}
 
-  for (const hit of nexusHits) {
-    addAmount(nexusDamage, hit.target, hit.amount);
-    if (hit.poisonous) addAmount(poisonAdded, hit.target, hit.amount);
-    if (hit.sourceGeneral) {
-      const ledger = generalDamage[hit.target] ?? {};
-      ledger[hit.sourceGeneral] = (ledger[hit.sourceGeneral] ?? 0) + hit.amount;
-      generalDamage[hit.target] = ledger;
+export function advanceFourPlayerCombatStep(match: FourPlayerMatchState): FourPlayerCombatStepResult {
+  if (match.phase !== "combat") throw new Error("4P combat resolution requires the combat phase.");
+  let current = match;
+
+  for (let guard = 0; guard < 64; guard += 1) {
+    let cursor = cursorFor(current);
+    const battlefield = current.battlefield ?? createFourPlayerBattlefieldState();
+
+    if (current.status === "completed") {
+      return { match: current, destroyed: [], nexusDamage: {}, poisonAdded: {}, healing: {}, zoneActions: [], completed: true, impacts: [] };
+    }
+
+    if (cursor.stage === "start") {
+      const assignment = current.combat.attackers.find((entry) => !cursor.completedAttackerIds.includes(entry.unitId));
+      if (!assignment) return finalizeCombat(current, cursor);
+      if (current.seats[assignment.defendingSeat].eliminated || !livingBody(battlefield, assignment.unitId)) {
+        current = completeAttacker(current, cursor, assignment.unitId);
+        continue;
+      }
+
+      const attacker = livingBody(battlefield, assignment.unitId)!;
+      const block = current.combat.blockers.find((entry) => entry.attackerId === assignment.unitId);
+      const blocker = block ? livingBody(battlefield, block.unitId) : undefined;
+
+      if (!blocker) {
+        const strike = directStrike(battlefield, attacker.id, assignment.defendingSeat);
+        let next: FourPlayerMatchState = { ...current, battlefield: strike.state };
+        const totals = applyNexusHit(next, strike.hit, strike.healing);
+        next = totals.match;
+        cursor = {
+          ...cursor,
+          stage: "after_unblocked_first",
+          currentAttackerId: attacker.id,
+        };
+        next = setCursor(next, cursor);
+        return {
+          match: next,
+          destroyed: [],
+          nexusDamage: totals.nexusDamage,
+          poisonAdded: totals.poisonAdded,
+          healing: totals.healing,
+          zoneActions: [],
+          completed: false,
+          impacts: [{ source: strike.source, kind: "nexus_strike", targetSeat: assignment.defendingSeat }],
+        };
+      }
+
+      const fast = attacker.keywords.includes("QuickAttack") || attacker.keywords.includes("DoubleStrike");
+      if (fast) {
+        const strike = strikeBattlefieldObject(battlefield, attacker.id, blocker.id, true);
+        let next: FourPlayerMatchState = { ...current, battlefield: strike.state };
+        const healing: Partial<Record<FourPlayerSeat, number>> = {};
+        addAmount(healing, attacker.controllerSeat, strike.healing);
+        next = applyHealing(next, healing);
+        if (strike.overflow > 0) {
+          const overflow: NexusHit = {
+            target: assignment.defendingSeat,
+            amount: strike.overflow,
+            sourceController: attacker.controllerSeat,
+            ...(attacker.kind === "general" ? { sourceGeneral: attacker.ownerSeat } : {}),
+            poisonous: attacker.keywords.includes("Poisonous"),
+          };
+          next = applyNexusHit(next, overflow, 0).match;
+        }
+        cursor = {
+          ...cursor,
+          ...(strike.killed ? { killerByVictim: { ...cursor.killerByVictim, [blocker.id]: attacker.id } } : {}),
+          stage: "after_fast_first",
+          currentAttackerId: attacker.id,
+        };
+        next = setCursor(next, cursor);
+        return {
+          match: next,
+          destroyed: [],
+          nexusDamage: strike.overflow > 0 ? { [assignment.defendingSeat]: strike.overflow } : {},
+          poisonAdded: strike.overflow > 0 && attacker.keywords.includes("Poisonous") ? { [assignment.defendingSeat]: strike.overflow } : {},
+          healing,
+          zoneActions: [],
+          completed: false,
+          impacts: [{ source: strike.source, kind: "strike", targetObjectId: blocker.id }],
+        };
+      }
+
+      const exchange = simultaneousBattlefieldExchange(battlefield, attacker.id, blocker.id);
+      let next: FourPlayerMatchState = { ...current, battlefield: exchange.state };
+      const healing: Partial<Record<FourPlayerSeat, number>> = {};
+      addAmount(healing, attacker.controllerSeat, exchange.attackerHealing);
+      addAmount(healing, blocker.controllerSeat, exchange.blockerHealing);
+      next = applyHealing(next, healing);
+      if (exchange.overflow > 0) {
+        const overflow: NexusHit = {
+          target: assignment.defendingSeat,
+          amount: exchange.overflow,
+          sourceController: attacker.controllerSeat,
+          ...(attacker.kind === "general" ? { sourceGeneral: attacker.ownerSeat } : {}),
+          poisonous: attacker.keywords.includes("Poisonous"),
+        };
+        next = applyNexusHit(next, overflow, 0).match;
+      }
+      if (exchange.attackerKilledBlocker) cursor = recordKiller(cursor, blocker.id, attacker.id);
+      if (exchange.blockerKilledAttacker) cursor = recordKiller(cursor, attacker.id, blocker.id);
+      next = completeAttacker(next, cursor, attacker.id);
+      return {
+        match: next,
+        destroyed: [],
+        nexusDamage: exchange.overflow > 0 ? { [assignment.defendingSeat]: exchange.overflow } : {},
+        poisonAdded: exchange.overflow > 0 && attacker.keywords.includes("Poisonous") ? { [assignment.defendingSeat]: exchange.overflow } : {},
+        healing,
+        zoneActions: [],
+        completed: false,
+        impacts: [
+          { source: exchange.attacker, kind: "strike", targetObjectId: blocker.id },
+          { source: exchange.blocker, kind: "strike", targetObjectId: attacker.id },
+        ],
+      };
+    }
+
+    const attackerId = cursor.currentAttackerId;
+    if (!attackerId) {
+      current = setCursor(current, { ...cursor, stage: "start" });
+      continue;
+    }
+    const assignment = current.combat.attackers.find((entry) => entry.unitId === attackerId);
+    if (!assignment) {
+      current = completeAttacker(current, cursor, attackerId);
+      continue;
+    }
+
+    if (cursor.stage === "after_unblocked_first") {
+      const attacker = livingBody(battlefield, attackerId);
+      if (!attacker || !attacker.keywords.includes("DoubleStrike") || current.seats[assignment.defendingSeat].eliminated) {
+        current = completeAttacker(current, cursor, attackerId);
+        continue;
+      }
+      const strike = directStrike(battlefield, attackerId, assignment.defendingSeat);
+      let next: FourPlayerMatchState = { ...current, battlefield: strike.state };
+      const totals = applyNexusHit(next, strike.hit, strike.healing);
+      next = completeAttacker(totals.match, cursor, attackerId);
+      return {
+        match: next,
+        destroyed: [],
+        nexusDamage: totals.nexusDamage,
+        poisonAdded: totals.poisonAdded,
+        healing: totals.healing,
+        zoneActions: [],
+        completed: false,
+        impacts: [{ source: strike.source, kind: "nexus_strike", targetSeat: assignment.defendingSeat }],
+      };
+    }
+
+    const block = current.combat.blockers.find((entry) => entry.attackerId === attackerId);
+    const blockerId = block?.unitId;
+
+    if (cursor.stage === "after_fast_first") {
+      const attacker = livingBody(battlefield, attackerId);
+      const blocker = blockerId ? livingBody(battlefield, blockerId) : undefined;
+      if (!attacker || !blocker) {
+        current = setCursor(current, { ...cursor, stage: "after_fast_counter" });
+        continue;
+      }
+      const strike = strikeBattlefieldObject(battlefield, blocker.id, attacker.id, false);
+      let next: FourPlayerMatchState = { ...current, battlefield: strike.state };
+      const healing: Partial<Record<FourPlayerSeat, number>> = {};
+      addAmount(healing, blocker.controllerSeat, strike.healing);
+      next = applyHealing(next, healing);
+      if (strike.killed) cursor = recordKiller(cursor, attacker.id, blocker.id);
+      cursor = { ...cursor, stage: "after_fast_counter" };
+      next = setCursor(next, cursor);
+      return {
+        match: next,
+        destroyed: [],
+        nexusDamage: {},
+        poisonAdded: {},
+        healing,
+        zoneActions: [],
+        completed: false,
+        impacts: [{ source: strike.source, kind: "strike", targetObjectId: attacker.id }],
+      };
+    }
+
+    if (cursor.stage === "after_fast_counter") {
+      const attacker = livingBody(battlefield, attackerId);
+      if (!attacker || !attacker.keywords.includes("DoubleStrike")) {
+        current = completeAttacker(current, cursor, attackerId);
+        continue;
+      }
+      const blocker = blockerId ? livingBody(battlefield, blockerId) : undefined;
+      if (blocker) {
+        const strike = strikeBattlefieldObject(battlefield, attacker.id, blocker.id, true);
+        let next: FourPlayerMatchState = { ...current, battlefield: strike.state };
+        const healing: Partial<Record<FourPlayerSeat, number>> = {};
+        addAmount(healing, attacker.controllerSeat, strike.healing);
+        next = applyHealing(next, healing);
+        if (strike.overflow > 0) {
+          const overflow: NexusHit = {
+            target: assignment.defendingSeat,
+            amount: strike.overflow,
+            sourceController: attacker.controllerSeat,
+            ...(attacker.kind === "general" ? { sourceGeneral: attacker.ownerSeat } : {}),
+            poisonous: attacker.keywords.includes("Poisonous"),
+          };
+          next = applyNexusHit(next, overflow, 0).match;
+        }
+        if (strike.killed) cursor = recordKiller(cursor, blocker.id, attacker.id);
+        next = completeAttacker(next, cursor, attackerId);
+        return {
+          match: next,
+          destroyed: [],
+          nexusDamage: strike.overflow > 0 ? { [assignment.defendingSeat]: strike.overflow } : {},
+          poisonAdded: strike.overflow > 0 && attacker.keywords.includes("Poisonous") ? { [assignment.defendingSeat]: strike.overflow } : {},
+          healing,
+          zoneActions: [],
+          completed: false,
+          impacts: [{ source: strike.source, kind: "strike", targetObjectId: blocker.id }],
+        };
+      }
+      if (attacker.keywords.includes("Overwhelm") && !current.seats[assignment.defendingSeat].eliminated) {
+        const strike = directStrike(battlefield, attacker.id, assignment.defendingSeat);
+        let next: FourPlayerMatchState = { ...current, battlefield: strike.state };
+        const totals = applyNexusHit(next, strike.hit, strike.healing);
+        next = completeAttacker(totals.match, cursor, attackerId);
+        return {
+          match: next,
+          destroyed: [],
+          nexusDamage: totals.nexusDamage,
+          poisonAdded: totals.poisonAdded,
+          healing: totals.healing,
+          zoneActions: [],
+          completed: false,
+          impacts: [{ source: strike.source, kind: "nexus_strike", targetSeat: assignment.defendingSeat }],
+        };
+      }
+      current = completeAttacker(current, cursor, attackerId);
+      continue;
     }
   }
 
-  nextMatch = applySeatTotals(nextMatch, nexusDamage, generalDamage, poisonAdded, healing);
-  return { match: nextMatch, destroyed, nexusDamage, poisonAdded, healing, zoneActions };
+  throw new Error("4P incremental combat exceeded its deterministic safety boundary.");
+}
+
+export function resolveFourPlayerCombat(match: FourPlayerMatchState): FourPlayerCombatResolutionResult {
+  let current = match;
+  const destroyed: FourPlayerCombatDestroyedObject[] = [];
+  const zoneActions: FourPlayerEffectZoneAction[] = [];
+  const nexusDamage: Partial<Record<FourPlayerSeat, number>> = {};
+  const poisonAdded: Partial<Record<FourPlayerSeat, number>> = {};
+  const healing: Partial<Record<FourPlayerSeat, number>> = {};
+
+  for (let guard = 0; guard < 256; guard += 1) {
+    const step = advanceFourPlayerCombatStep(current);
+    current = step.match;
+    for (const [seat, amount] of Object.entries(step.nexusDamage)) {
+      if (amount) addAmount(nexusDamage, seat as FourPlayerSeat, amount);
+    }
+    for (const [seat, amount] of Object.entries(step.poisonAdded)) {
+      if (amount) addAmount(poisonAdded, seat as FourPlayerSeat, amount);
+    }
+    for (const [seat, amount] of Object.entries(step.healing)) {
+      if (amount) addAmount(healing, seat as FourPlayerSeat, amount);
+    }
+    destroyed.push(...step.destroyed);
+    zoneActions.push(...step.zoneActions);
+    if (step.completed) return { match: current, destroyed, nexusDamage, poisonAdded, healing, zoneActions };
+  }
+  throw new Error("4P combat resolver exceeded its deterministic safety boundary.");
 }

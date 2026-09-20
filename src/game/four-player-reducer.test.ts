@@ -62,6 +62,22 @@ assert.throws(
   /Only active seat p1/,
 );
 
+const damageStarted: FourPlayerMatchState = {
+  ...match,
+  combat: {
+    ...match.combat,
+    resolution: { completedAttackerIds: [], stage: "start", killerByVictim: {} },
+  },
+};
+assert.throws(
+  () => reduceFourPlayerServerEvent(damageStarted, event("declare_attacker", "p1", { unitId: "u1", defendingSeat: "p2" })),
+  /attacker declarations are closed/,
+);
+assert.throws(
+  () => reduceFourPlayerServerEvent(damageStarted, event("declare_blocker", "p1", { unitId: "u1", attackerId: "u1" })),
+  /blocker declarations are closed/,
+);
+
 match = createFourPlayerMatchState("p1");
 assert.throws(() => reduceFourPlayerServerEvent(match, event("cast_general", "p2")), /Only priority holder p1/);
 assert.throws(() => reduceFourPlayerServerEvent(match, event("cast_general", "p1")), /main phase/);

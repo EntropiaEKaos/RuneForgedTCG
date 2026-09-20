@@ -83,13 +83,16 @@ This slice certifies:
 23. deterministic automatic 4P trigger targeting, including clockwise opponent selection, Hexproof filtering, target snapshots and safe fizzle when a snapshotted target disappears;
 24. trigger propagation for normal battlefield entry, generated tokens, reanimation and sacrifice/death transitions without treating recall as death;
 25. `onAttack` and `onBlock` declaration triggers staged on the same LIFO stack after declarations and before combat damage, with declaration changes reopening trigger staging;
-26. isolation from Casual PvP, Ranked and the binary 1v1 `PlayerId` engine.
+26. incremental combat impact windows for `onStrike` and `onNexusStrike`, including distinct Double Strike windows and Quick Attack survival checks before counterstrike;
+27. combat-authored `onKill` provenance recorded only from the lethal battlefield strike and dispatched during casualty cleanup; spell/effect kills never manufacture an `onKill` source;
+28. simultaneous normal combat exchange remains atomic before impact triggers, while Quick Attack and Double Strike retain ordered strike semantics;
+29. isolation from Casual PvP, Ranked and the binary 1v1 `PlayerId` engine.
 
 ## Deliberately not claimed yet
 
-This Alpha still does not claim parity with impact/level-up triggers (`onStrike`, `onNexusStrike`, `onKill`, `onLevelUp`), conditional `mechanics` trigger graphs, race-gated draw/refund trigger semantics or every reaction ability in the full catalog, nor Ranked/tournament support for Commander. Unsupported trigger primitives remain fail-closed and are expanded only behind explicit behavioral certification.
+This Alpha still does not claim parity with `onLevelUp`, conditional `mechanics` trigger graphs, race-gated draw/refund trigger semantics or every reaction ability in the full catalog, nor Ranked/tournament support for Commander. Unsupported trigger primitives remain fail-closed and are expanded only behind explicit behavioral certification.
 
 
 ## Certification base
 
-The recovered Commander 4P combat branch is based on certified production `main` `b6891a54b1629183d031156dc1fe644ea22f3420`. The combat declaration-trigger authority uses Commander combat envelope version 7 so older persisted Alpha rooms fail closed and must restart. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
+The recovered Commander 4P combat branch is based on certified production `main` `b6891a54b1629183d031156dc1fe644ea22f3420`. The incremental combat-impact authority uses Commander combat envelope version 8 so older persisted Alpha rooms fail closed and must restart. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.

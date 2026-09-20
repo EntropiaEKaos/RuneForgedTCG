@@ -3,7 +3,7 @@ import {
   createFourPlayerBattlefieldState,
   type FourPlayerBattlefieldObject,
 } from "./four-player-battlefield";
-import type { FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
+import type { FourPlayerCombatDestroyedObject, FourPlayerCombatImpact } from "./four-player-combat-resolution";
 import {
   resolveFourPlayerEffect,
   type FourPlayerEffectResolutionResult,
@@ -28,6 +28,9 @@ export const FOUR_PLAYER_AUTOMATIC_TRIGGER_EVENTS = [
   "onRoundStart",
   "onAttack",
   "onBlock",
+  "onStrike",
+  "onNexusStrike",
+  "onKill",
 ] as const satisfies readonly TriggerWhen[];
 
 export type FourPlayerAutomaticTriggerWhen = (typeof FOUR_PLAYER_AUTOMATIC_TRIGGER_EVENTS)[number];
@@ -269,11 +272,13 @@ function equipmentCandidates(
   bearer: FourPlayerBattlefieldObject,
   when: FourPlayerAutomaticTriggerWhen,
   ordinalStart: number,
+  reverse = false,
 ): TriggerCandidate[] {
-  if (when !== "onAllyDeath") return [];
+  if (!["onStrike", "onKill", "onNexusStrike", "onAllyDeath"].includes(when)) return [];
   const candidates: TriggerCandidate[] = [];
   let ordinal = ordinalStart;
-  for (const equipment of bearer.equipment ?? []) {
+  const attachments = reverse ? [...(bearer.equipment ?? [])].reverse() : [...(bearer.equipment ?? [])];
+  for (const equipment of attachments) {
     const definition = safeCard(equipment.defId);
     const trigger = definition?.trigger;
     if (!definition || !trigger || trigger.when !== when || !automaticTriggerChainSupported(trigger.effect)) continue;
@@ -345,7 +350,7 @@ function queueCandidates(
 export function queueFourPlayerTransitionTriggers(
   before: FourPlayerMatchState,
   after: FourPlayerMatchState,
-  destroyed: readonly Pick<FourPlayerCombatDestroyedObject, "id" | "defId" | "ownerSeat" | "kind">[] = [],
+  destroyed: readonly Pick<FourPlayerCombatDestroyedObject, "id" | "defId" | "ownerSeat" | "kind" | "killerId">[] = [],
   eventKey = `transition:${after.turn.turn}`,
 ): FourPlayerTriggerQueueResult {
   if (after.status === "completed") return { match: after, queued: [] };
@@ -379,6 +384,19 @@ export function queueFourPlayerTransitionTriggers(
     if (definition?.type === "Unit") {
       const death = candidateForObject(source, "onDeath", ordinal++);
       if (death) candidates.push({ ...death, sourceTargetId: undefined });
+
+      if (dead.killerId) {
+        const killer = beforeById.get(dead.killerId);
+        const killerDef = killer ? safeCard(killer.defId) : undefined;
+        if (killer && killerDef?.type === "Unit") {
+          const killEquipment = equipmentCandidates(killer, "onKill", ordinal, true);
+          candidates.push(...killEquipment);
+          ordinal += killEquipment.length;
+          const kill = candidateForObject(killer, "onKill", ordinal++);
+          if (kill) candidates.push(kill);
+        }
+      }
+
       for (const survivor of afterObjects) {
         if (survivor.controllerSeat !== source.controllerSeat) continue;
         const survivorDef = safeCard(survivor.defId);
@@ -394,6 +412,39 @@ export function queueFourPlayerTransitionTriggers(
   }
 
   return queueCandidates(after, candidates, eventKey);
+}
+
+function appendImpactEventCandidates(
+  candidates: TriggerCandidate[],
+  source: FourPlayerBattlefieldObject,
+  when: "onStrike" | "onNexusStrike",
+  ordinal: number,
+): number {
+  const equipment = equipmentCandidates(source, when, ordinal, true);
+  candidates.push(...equipment);
+  let nextOrdinal = ordinal + equipment.length;
+  const card = candidateForObject(source, when, nextOrdinal++);
+  if (card) candidates.push(card);
+  return nextOrdinal;
+}
+
+export function queueFourPlayerCombatImpactTriggers(
+  match: FourPlayerMatchState,
+  impacts: readonly FourPlayerCombatImpact[],
+  eventKey = `combat-impact:${match.turn.turn}`,
+): FourPlayerTriggerQueueResult {
+  if (match.status === "completed" || impacts.length === 0) return { match, queued: [] };
+  const candidates: TriggerCandidate[] = [];
+  let ordinal = 0;
+  for (const impact of impacts) {
+    // Push NexusStrike before Strike so LIFO resolution preserves 1v1 order:
+    // onStrike resolves first, followed by onNexusStrike.
+    if (impact.kind === "nexus_strike") {
+      ordinal = appendImpactEventCandidates(candidates, impact.source, "onNexusStrike", ordinal);
+    }
+    ordinal = appendImpactEventCandidates(candidates, impact.source, "onStrike", ordinal);
+  }
+  return queueCandidates(match, candidates, eventKey);
 }
 
 export function queueFourPlayerCombatDeclarationTriggers(

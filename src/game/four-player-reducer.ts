@@ -65,6 +65,7 @@ export function reduceFourPlayerServerEvent(
       assertPriorityHolder(state, event.actor);
       if (state.turn.activeSeat !== event.actor) throw new Error(`Only active seat ${state.turn.activeSeat} may declare attackers.`);
       if (state.phase !== "combat") throw new Error("Attackers may only be declared during the combat phase.");
+      if (state.combat.resolution) throw new Error("Combat damage resolution has started; attacker declarations are closed.");
       const payload = event.payload as Partial<DeclareAttackerPayload>;
       const unitId = typeof payload.unitId === "string" ? payload.unitId.trim() : "";
       if (!unitId) throw new Error("Attacker unitId is required.");
@@ -83,6 +84,7 @@ export function reduceFourPlayerServerEvent(
     case "declare_blocker": {
       assertPriorityHolder(state, event.actor);
       if (state.phase !== "combat") throw new Error("Blockers may only be declared during the combat phase.");
+      if (state.combat.resolution) throw new Error("Combat damage resolution has started; blocker declarations are closed.");
       const payload = event.payload as Partial<DeclareBlockerPayload>;
       const unitId = typeof payload.unitId === "string" ? payload.unitId.trim() : "";
       const attackerId = typeof payload.attackerId === "string" ? payload.attackerId.trim() : "";

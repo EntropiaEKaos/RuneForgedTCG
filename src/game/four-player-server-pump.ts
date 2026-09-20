@@ -2,7 +2,7 @@ import { resolveFourPlayerActivatedAbility } from "./four-player-activated-abili
 import { createFourPlayerBattlefieldState, placeResolvedGeneralOnBattlefield } from "./four-player-battlefield";
 import { markFourPlayerCombatDeclarationTriggersQueued } from "./four-player-combat";
 import { resolveFourPlayerCardCast, resolveFourPlayerSpellCast } from "./four-player-card-play";
-import { resolveFourPlayerCombat, type FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
+import { advanceFourPlayerCombatStep, type FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
 import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
 import { resolveFourPlayerFlow } from "./four-player-flow";
 import type { FourPlayerSeat } from "./four-player-general";
@@ -11,7 +11,7 @@ import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-mat
 import { advanceFourPlayerPhase } from "./four-player-phase-machine";
 import { allLivingPlayersPassed, createFourPlayerPriorityState } from "./four-player-priority-manager";
 import type { FourPlayerStackItem } from "./four-player-stack";
-import { queueFourPlayerCombatDeclarationTriggers, queueFourPlayerRoundStartTriggers, queueFourPlayerTransitionTriggers, resolveFourPlayerTriggeredAbility } from "./four-player-triggers";
+import { queueFourPlayerCombatDeclarationTriggers, queueFourPlayerCombatImpactTriggers, queueFourPlayerRoundStartTriggers, queueFourPlayerTransitionTriggers, resolveFourPlayerTriggeredAbility } from "./four-player-triggers";
 
 export interface FourPlayerServerPumpResult {
   match: FourPlayerMatchState;
@@ -112,48 +112,74 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
           };
         }
       }
-      const combat = resolveFourPlayerCombat(combatReady);
-      if (combat.match.status === "completed") {
+      let stepping = combatReady;
+      for (let combatGuard = 0; combatGuard < 128; combatGuard += 1) {
+        const combat = advanceFourPlayerCombatStep(stepping);
+        stepping = combat.match;
+
+        if (combat.impacts.length > 0) {
+          const impactTriggers = queueFourPlayerCombatImpactTriggers(
+            stepping,
+            combat.impacts,
+            `combat-impact:${stepping.turn.turn}:${combatGuard}`,
+          );
+          stepping = impactTriggers.match;
+          if (impactTriggers.queued.length > 0) {
+            return {
+              match: stepping,
+              resolved: [],
+              awaitingClientInput: true,
+              phaseAdvanced: false,
+              turnAdvanced: false,
+              combatResolved: false,
+            };
+          }
+        }
+
+        if (!combat.completed) continue;
+        if (stepping.status === "completed") {
+          return {
+            match: stepping,
+            resolved: [],
+            awaitingClientInput: false,
+            phaseAdvanced: false,
+            turnAdvanced: false,
+            combatResolved: true,
+            destroyedObjects: combat.destroyed,
+            ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
+          };
+        }
+        const triggered = queueFourPlayerTransitionTriggers(
+          combat.triggerSourceMatch ?? combatReady,
+          stepping,
+          combat.destroyed,
+          `combat:${combatReady.turn.turn}`,
+        );
+        if (triggered.queued.length > 0) {
+          return {
+            match: triggered.match,
+            resolved: [],
+            awaitingClientInput: true,
+            phaseAdvanced: false,
+            turnAdvanced: false,
+            combatResolved: true,
+            destroyedObjects: combat.destroyed,
+            ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
+          };
+        }
+        const advanced = advanceFourPlayerPhase(stepping);
         return {
-          match: combat.match,
-          resolved: [],
-          awaitingClientInput: false,
-          phaseAdvanced: false,
-          turnAdvanced: false,
-          combatResolved: true,
-          destroyedObjects: combat.destroyed,
-          ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
-        };
-      }
-      const triggered = queueFourPlayerTransitionTriggers(
-        combatReady,
-        combat.match,
-        combat.destroyed,
-        `combat:${combatReady.turn.turn}`,
-      );
-      if (triggered.queued.length > 0) {
-        return {
-          match: triggered.match,
+          match: advanced.match,
           resolved: [],
           awaitingClientInput: true,
-          phaseAdvanced: false,
-          turnAdvanced: false,
+          phaseAdvanced: true,
+          turnAdvanced: advanced.turnAdvanced,
           combatResolved: true,
           destroyedObjects: combat.destroyed,
           ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
         };
       }
-      const advanced = advanceFourPlayerPhase(combat.match);
-      return {
-        match: advanced.match,
-        resolved: [],
-        awaitingClientInput: true,
-        phaseAdvanced: true,
-        turnAdvanced: advanced.turnAdvanced,
-        combatResolved: true,
-        destroyedObjects: combat.destroyed,
-        ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
-      };
+      throw new Error("4P server combat pump exceeded its deterministic safety boundary.");
     }
     const advanced = advanceFourPlayerPhase(match);
     const roundStarted = advanced.turnAdvanced && advanced.match.turn.round > match.turn.round

@@ -12,12 +12,26 @@ export interface FourPlayerBlocker {
   attackerId: string;
 }
 
+export type FourPlayerCombatResolutionStage =
+  | "start"
+  | "after_unblocked_first"
+  | "after_fast_first"
+  | "after_fast_counter";
+
+export interface FourPlayerCombatResolutionCursor {
+  completedAttackerIds: readonly string[];
+  stage: FourPlayerCombatResolutionStage;
+  currentAttackerId?: string;
+  killerByVictim: Readonly<Record<string, string>>;
+}
+
 export interface FourPlayerCombatState {
   attackingSeat: FourPlayerSeat;
   attackers: readonly FourPlayerAttacker[];
   blockers: readonly FourPlayerBlocker[];
   eliminatedSeats: readonly FourPlayerSeat[];
   declarationTriggersQueued: boolean;
+  resolution?: FourPlayerCombatResolutionCursor;
 }
 
 export function createFourPlayerCombatState(
@@ -35,7 +49,13 @@ export function declareFourPlayerAttacker(
   if (defendingSeat === state.attackingSeat) throw new Error("A seat cannot attack itself.");
   if (state.eliminatedSeats.includes(defendingSeat)) throw new Error(`Cannot attack eliminated seat ${defendingSeat}.`);
   if (state.attackers.some((attacker) => attacker.unitId === unitId)) throw new Error(`Unit ${unitId} is already attacking.`);
-  return { ...state, attackers: [...state.attackers, { unitId, controller: state.attackingSeat, defendingSeat }], declarationTriggersQueued: false };
+  return {
+    attackingSeat: state.attackingSeat,
+    attackers: [...state.attackers, { unitId, controller: state.attackingSeat, defendingSeat }],
+    blockers: state.blockers,
+    eliminatedSeats: state.eliminatedSeats,
+    declarationTriggersQueued: false,
+  };
 }
 
 export function declareFourPlayerBlocker(
@@ -52,7 +72,13 @@ export function declareFourPlayerBlocker(
   if (state.blockers.some((blocker) => blocker.attackerId === attackerId)) {
     throw new Error(`Attacker ${attackerId} is already blocked; multi-block ordering is not enabled yet.`);
   }
-  return { ...state, blockers: [...state.blockers, { unitId, controller: blockerSeat, attackerId }], declarationTriggersQueued: false };
+  return {
+    attackingSeat: state.attackingSeat,
+    attackers: state.attackers,
+    blockers: [...state.blockers, { unitId, controller: blockerSeat, attackerId }],
+    eliminatedSeats: state.eliminatedSeats,
+    declarationTriggersQueued: false,
+  };
 }
 
 export function markFourPlayerCombatDeclarationTriggersQueued(
