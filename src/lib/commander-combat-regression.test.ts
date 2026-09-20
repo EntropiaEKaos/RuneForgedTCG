@@ -14,6 +14,7 @@ const spellContract=read("src/game/four-player-spell-contract.ts");
 const effectZones=read("src/game/four-player-effect-zones.ts");
 const battlefield=read("src/game/four-player-battlefield.ts");
 const cardPlay=read("src/game/four-player-card-play.ts");
+const cardZones=read("src/game/four-player-card-zones.ts");
 const match=read("src/game/four-player-match.ts");
 const projection=read("src/game/four-player-projection.ts");
 const rules=read("src/lib/commander-rules.ts");
@@ -48,6 +49,10 @@ assert.match(bridge,/fourPlayerStackItemIsUncounterable/, "stack projection must
 assert.match(bridge,/settleFourPlayerEffectZoneActions/, "ordered draw, mill and recall zone actions must settle through the bridge");
 assert.match(bridge,/advanceFourPlayerLevelUps/, "zone settlement must converge Champion progress before another client action");
 assert.match(bridge,/queueFourPlayerLevelUpTriggers/, "zone-settled level-ups must enter the shared 4P stack");
+assert.match(bridge,/fourPlayerHandCounts/,"Commander hand mechanics must derive public counts from authoritative zones");
+assert.match(bridge,/mechanicConditionContext\(staged\.zones\)/,"staged card/ability costs must update hand thresholds before trigger evaluation");
+assert.match(bridge,/mechanicConditionContext\(envelope\.zones\)/,"ordinary authoritative commands must inject current hand counts into the server pump");
+assert.match(cardZones,/function fourPlayerHandCounts[\s\S]*zones\[seat\]\.hand\.length/,"hand condition authority must derive counts without copying private card identity");
 assert.match(bridge,/fourPlayerStackActionKind/, "bridge must project the authoritative 4P stack taxonomy");
 assert.match(bridge,/stackTargetId/, "bridge must carry stack-target ids without trusting client card identity");
 assert.match(bridge,/counteredStackItems/, "countered stack cards must settle through authoritative zones");
