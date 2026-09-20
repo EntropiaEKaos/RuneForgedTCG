@@ -13,3 +13,11 @@ export function commanderResumeNeedsResync(trigger: CommanderResyncTrigger, onli
   if (!online) return false;
   return trigger === "network_reconnect" || trigger === "window_focus" || trigger === "visibility_resume";
 }
+
+export function commanderSnapshotMayReplace(
+  currentRevision: number | null | undefined,
+  incomingRevision: number | null | undefined,
+): boolean {
+  if (!Number.isInteger(currentRevision) || !Number.isInteger(incomingRevision)) return true;
+  return (incomingRevision as number) >= (currentRevision as number);
+}
