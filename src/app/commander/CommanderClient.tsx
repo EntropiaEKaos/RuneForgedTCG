@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isFourPlayerSpellChainSupported } from "@/game/four-player-spell-contract";
+import {
+  commanderMutationNeedsResync,
+  commanderResumeNeedsResync,
+  commanderRevisionChanged,
+  commanderSnapshotMayReplace,
+} from "@/lib/commander-client-resync";
 
 type SpellEffect = { kind:string; target:string; also?:SpellEffect };
 type CollectionCard = {
@@ -75,8 +81,15 @@ export default function CommanderClient(){
   const [pendingAbility,setPendingAbility]=useState<AbilityOption|null>(null);
   const [abilityDiscardIds,setAbilityDiscardIds]=useState<string[]>([]);
   const [busy,setBusy]=useState(false);
+  const [resyncing,setResyncing]=useState(false);
   const [error,setError]=useState("");
   const [nowMs,setNowMs]=useState(0);
+
+  const clearPendingCombatIntent=useCallback(()=>{
+    setPendingSpellInstanceId(null);
+    setPendingAbility(null);
+    setAbilityDiscardIds([]);
+  },[]);
 
   const loadCollection=useCallback(async()=>{
     const response=await fetch("/api/collection",{cache:"no-store",credentials:"include"});
@@ -90,14 +103,51 @@ export default function CommanderClient(){
     if(response.ok&&data.ok) setRooms(data.rooms||[]);
   },[]);
   const loadRoom=useCallback(async(code:string)=>{
-    if(!code)return;
+    if(!code)return null;
     const response=await fetch(`/api/commander/${code}`,{cache:"no-store",credentials:"include"});
     const data=await response.json();
-    if(response.ok&&data.ok)setRoom(data.room);
+    if(!response.ok||!data.ok)return null;
+    const incoming=data.room as Room;
+    setRoom(current=>{
+      const currentRevision=current?.combat?.revision;
+      const incomingRevision=incoming?.combat?.revision;
+      if(current?.code===incoming.code&&!commanderSnapshotMayReplace(currentRevision,incomingRevision))return current;
+      return incoming;
+    });
+    return incoming;
   },[]);
+
+  const resyncRoom=useCallback(async(code:string)=>{
+    if(!code)return;
+    setResyncing(true);
+    clearPendingCombatIntent();
+    try{
+      await loadRoom(code);
+    }finally{
+      setResyncing(false);
+    }
+  },[clearPendingCombatIntent,loadRoom]);
 
   useEffect(()=>{const id=window.setTimeout(()=>{void Promise.all([loadCollection(),loadRooms()]).catch((e)=>console.error("[commander] initial load failed",e));},0);return()=>window.clearTimeout(id);},[loadCollection,loadRooms]);
   useEffect(()=>{if(!room)return;const id=window.setInterval(()=>void loadRoom(room.code),3000);return()=>window.clearInterval(id)},[room,loadRoom]);
+  useEffect(()=>{
+    if(!room?.code)return;
+    const code=room.code;
+    const onOnline=()=>{if(commanderResumeNeedsResync("network_reconnect",navigator.onLine))void resyncRoom(code)};
+    const onFocus=()=>{if(commanderResumeNeedsResync("window_focus",navigator.onLine))void resyncRoom(code)};
+    const onVisibility=()=>{if(document.visibilityState==="visible"&&commanderResumeNeedsResync("visibility_resume",navigator.onLine))void resyncRoom(code)};
+    window.addEventListener("online",onOnline);
+    window.addEventListener("focus",onFocus);
+    document.addEventListener("visibilitychange",onVisibility);
+    return()=>{
+      window.removeEventListener("online",onOnline);
+      window.removeEventListener("focus",onFocus);
+      document.removeEventListener("visibilitychange",onVisibility);
+    };
+  },[room?.code,resyncRoom]);
+  useEffect(()=>{
+    clearPendingCombatIntent();
+  },[room?.combat?.revision,clearPendingCombatIntent]);
   useEffect(()=>{
     if(!room?.combat?.priorityDeadlineAt)return;
     const tick=()=>setNowMs(Date.now());
@@ -123,7 +173,18 @@ export default function CommanderClient(){
     try{
       const response=await fetch(url,{method:"POST",credentials:"include",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
       const data=await response.json();
-      if(!response.ok||!data.ok)throw new Error(data.error||"Falha no Commander");
+      if(!response.ok||!data.ok){
+        if(commanderMutationNeedsResync(response.status)&&room?.code){
+          const previousRevision=room.combat?.revision;
+          const recovered=await loadRoom(room.code);
+          clearPendingCombatIntent();
+          const recoveredRevision=recovered?.combat?.revision;
+          if(commanderRevisionChanged(previousRevision,recoveredRevision)){
+            throw new Error("Estado Commander atualizado após conflito de revisão. Revise a prioridade e tente novamente.");
+          }
+        }
+        throw new Error(data.error||"Falha no Commander");
+      }
       if(data.room)setRoom(data.room);
       if(data.code){setJoinCode(data.code);await loadRoom(data.code);}
       await loadRooms();
@@ -283,6 +344,7 @@ export default function CommanderClient(){
         <p className="mt-3 max-w-4xl text-sm text-slate-400">Modo separado do 1v1: quatro jogadores reais, 60 cartas + 1 General, Nexus 30, combate dividido, prioridade circular e stack LIFO com reações Fast/Burst. Ranked e o motor 1v1 permanecem isolados.</p>
       </header>
       {error&&<div className="mt-5 border border-red-400/25 bg-red-950/20 p-3 text-sm text-red-200">{error}</div>}
+      {resyncing&&<div className="mt-5 border border-cyan-300/20 bg-cyan-950/20 p-3 text-sm text-cyan-100">Reconectando ao estado autoritativo da partida…</div>}
 
       {room ? <section className="mt-7 grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
         <div className="border border-white/10 bg-white/[.025] p-6">
