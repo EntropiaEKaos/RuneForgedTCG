@@ -452,7 +452,13 @@ function resolveSingle(
   if (effect.kind === "buffSelf") {
     if (effect.target !== "self") throw new Error("4P buffSelf must use target self.");
     if (target && target.kind !== "battlefield") throw new Error("4P buffSelf only accepts a battlefield self target.");
-    const sourceTargetId = target?.kind === "battlefield" ? target.objectId : runtime.sourceTargetId;
+    if (target && !runtime.sourceTargetId) {
+      throw new Error("4P buffSelf never accepts a client-selected target without authoritative source identity.");
+    }
+    if (target?.kind === "battlefield" && runtime.sourceTargetId && target.objectId !== runtime.sourceTargetId) {
+      throw new Error("4P buffSelf target does not match its authoritative source identity.");
+    }
+    const sourceTargetId = runtime.sourceTargetId;
     if (!sourceTargetId) {
       // Mirrors 1v1 spell behavior: buffSelf without a concrete source is inert.
       return { result: { match, destroyed: [], draws: {} }, fallbackOpponent };
