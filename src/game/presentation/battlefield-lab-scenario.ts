@@ -175,3 +175,45 @@ export function adaptAuthoritativeBattlefieldEvent(
       return { type: "elimination", playerId: event.playerId };
   }
 }
+
+
+export type BattlefieldFxPrimitive =
+  | { type: "projectile"; durationMs: number; trail: boolean }
+  | { type: "beam"; durationMs: number; branches: number }
+  | { type: "impact"; radius: number; durationMs: number }
+  | { type: "particles"; count: number; durationMs: number };
+
+export type BattlefieldFxRecipe = {
+  key: string;
+  primitives: BattlefieldFxPrimitive[];
+};
+
+export const BATTLEFIELD_FX_RECIPES: Record<string, BattlefieldFxRecipe> = {
+  "spell.generic": {
+    key: "spell.generic",
+    primitives: [
+      { type: "projectile", durationMs: 360, trail: true },
+      { type: "impact", radius: 28, durationMs: 240 },
+    ],
+  },
+  "spell.fireball": {
+    key: "spell.fireball",
+    primitives: [
+      { type: "projectile", durationMs: 520, trail: true },
+      { type: "particles", count: 28, durationMs: 620 },
+      { type: "impact", radius: 54, durationMs: 420 },
+    ],
+  },
+  "spell.lightning": {
+    key: "spell.lightning",
+    primitives: [
+      { type: "beam", durationMs: 260, branches: 4 },
+      { type: "particles", count: 18, durationMs: 340 },
+      { type: "impact", radius: 34, durationMs: 260 },
+    ],
+  },
+};
+
+export function resolveBattlefieldFxRecipe(cue: string): BattlefieldFxRecipe {
+  return BATTLEFIELD_FX_RECIPES[cue] ?? BATTLEFIELD_FX_RECIPES["spell.generic"];
+}
