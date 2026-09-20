@@ -10,6 +10,7 @@ import {
   type FourPlayerEffectZoneAction,
 } from "./four-player-effect-resolution";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
+import type { FourPlayerLevelUpEvent } from "./four-player-level-up";
 import type { FourPlayerMatchState } from "./four-player-match";
 import { createFourPlayerPriorityState } from "./four-player-priority-manager";
 import { FOUR_PLAYER_RESOLVER_EFFECT_KINDS } from "./four-player-spell-contract";
@@ -26,6 +27,7 @@ export const FOUR_PLAYER_AUTOMATIC_TRIGGER_EVENTS = [
   "onDeath",
   "onAllyDeath",
   "onRoundStart",
+  "onLevelUp",
   "onAttack",
   "onBlock",
   "onStrike",
@@ -480,6 +482,23 @@ export function queueFourPlayerRoundStartTriggers(
       || (definition.type !== "Unit" && definition.type !== "Enchantment" && definition.type !== "Artifact")
     ) continue;
     const candidate = candidateForObject(object, "onRoundStart", ordinal++);
+    if (candidate) candidates.push(candidate);
+  }
+  return queueCandidates(match, candidates, eventKey);
+}
+
+export function queueFourPlayerLevelUpTriggers(
+  match: FourPlayerMatchState,
+  leveled: readonly FourPlayerLevelUpEvent[],
+  eventKey = `level-up:${match.turn.turn}`,
+): FourPlayerTriggerQueueResult {
+  if (match.status === "completed" || leveled.length === 0) return { match, queued: [] };
+  const candidates: TriggerCandidate[] = [];
+  let ordinal = 0;
+  for (const event of leveled) {
+    const source = (match.battlefield?.objects ?? []).find((object) => object.id === event.objectId);
+    if (!source || source.defId !== event.toDefId) continue;
+    const candidate = candidateForObject(source, "onLevelUp", ordinal++);
     if (candidate) candidates.push(candidate);
   }
   return queueCandidates(match, candidates, eventKey);
