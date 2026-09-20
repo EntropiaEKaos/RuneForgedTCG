@@ -228,6 +228,33 @@ try {
     assert.equal(fourPlayerChampionProgress(probe, probe.battlefield!.objects[0]!)?.current, item.amount);
   }
 
+  let syntheticProbe = createFourPlayerMatchState("p1");
+  syntheticProbe = {
+    ...syntheticProbe,
+    battlefield: putFourPlayerBattlefieldObject(syntheticProbe.battlefield!, {
+      id: "synthetic-body",
+      defId: "synthetic-body-not-in-catalog",
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      keywords: [],
+      combat: {
+        basePower: 4,
+        power: 4,
+        health: 4,
+        maxHealth: 4,
+        races: [],
+        classes: [],
+        barrier: false,
+        frostbitten: false,
+      },
+    }),
+  };
+  const syntheticAdvance = advanceFourPlayerLevelUps(syntheticProbe);
+  assert.equal(syntheticAdvance.match, syntheticProbe, "non-catalog synthetic bodies are outside Champion level authority");
+  assert.equal(syntheticAdvance.leveled.length, 0);
+
   const strikeDef = getCard("storm_champion");
   let strikeProbe = createFourPlayerMatchState("p1");
   strikeProbe = {
