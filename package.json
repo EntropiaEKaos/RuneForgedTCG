@@ -95,7 +95,8 @@
     "audit:studio-structure": "node scripts/studio-structure-gate.mjs",
     "test:ranked-2.97": "tsx src/lib/ranked-launch-2.97.test.ts",
     "test:pvp-content-2.97": "tsx src/lib/pvp-content-snapshot-2.97.test.ts",
-    "test:pvp-public-2.97": "tsx src/lib/pvp-public-state-2.97.test.ts"
+    "test:pvp-public-2.97": "tsx src/lib/pvp-public-state-2.97.test.ts",
+    "test:battlefield-lab": "tsx src/game/presentation/battlefield-lab-scenario.test.ts && tsx src/game/presentation/phaser/BattlefieldPresentationEventQueue.test.ts"
   },
   "dependencies": {
     "dotenv": "17.3.1",
@@ -106,7 +107,8 @@
     "pg": "8.20.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
-    "sharp": "0.35.4"
+    "sharp": "0.35.4",
+    "phaser": "3.90.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.17",

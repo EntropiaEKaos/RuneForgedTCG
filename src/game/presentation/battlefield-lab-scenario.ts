@@ -1,0 +1,241 @@
+export type BattlefieldLabMode = "duel-1v1" | "commander-4p";
+
+export type BattlefieldPresentationPlayer = {
+  id: string;
+  label: string;
+  life: number;
+  seat: number;
+};
+
+export type BattlefieldPresentationEntity = {
+  id: string;
+  controllerId: string;
+  kind: "unit" | "token";
+  tapped: boolean;
+  power: number;
+  toughness: number;
+};
+
+export type BattlefieldLabScenario = {
+  schemaVersion: 1;
+  seed: number;
+  mode: BattlefieldLabMode;
+  players: BattlefieldPresentationPlayer[];
+  entities: BattlefieldPresentationEntity[];
+};
+
+export function buildBattlefieldLabScenario(mode: BattlefieldLabMode, requestedUnits = 48): BattlefieldLabScenario {
+  const playerCount = mode === "commander-4p" ? 4 : 2;
+  const units = Math.max(playerCount, Math.min(160, Math.floor(requestedUnits / playerCount) * playerCount));
+  const players = Array.from({ length: playerCount }, (_, seat) => ({
+    id: `p${seat + 1}`,
+    label: mode === "commander-4p" ? `Commander ${seat + 1}` : `Player ${seat + 1}`,
+    life: mode === "commander-4p" ? 40 : 20,
+    seat,
+  }));
+  const entities = Array.from({ length: units }, (_, index) => {
+    const controller = players[index % playerCount];
+    return {
+      id: `lab-${mode}-${String(index + 1).padStart(3, "0")}`,
+      controllerId: controller.id,
+      kind: index % 5 === 0 ? "token" as const : "unit" as const,
+      tapped: index % 7 === 0,
+      power: 1 + (index % 6),
+      toughness: 1 + ((index * 3) % 7),
+    };
+  });
+  return { schemaVersion: 1, seed: mode === "commander-4p" ? 404240 : 101240, mode, players, entities };
+}
+
+
+export type BattlefieldLabPoint = { x: number; y: number; angle: number };
+
+export function layoutBattlefieldEntities(
+  scenario: BattlefieldLabScenario,
+  width: number,
+  height: number,
+): Record<string, BattlefieldLabPoint> {
+  const result: Record<string, BattlefieldLabPoint> = {};
+  const fourPlayer = scenario.players.length === 4;
+  const cols = fourPlayer ? 2 : 1;
+  const rows = Math.ceil(scenario.players.length / cols);
+  const zoneW = width / cols;
+  const zoneH = height / rows;
+
+  scenario.players.forEach((player, playerIndex) => {
+    const entities = scenario.entities.filter((entity) => entity.controllerId === player.id);
+    const col = playerIndex % cols;
+    const row = Math.floor(playerIndex / cols);
+    const x0 = col * zoneW;
+    const y0 = row * zoneH;
+    const unitCols = Math.max(4, Math.min(10, Math.ceil(Math.sqrt(entities.length * 1.6))));
+    const availableW = zoneW - 30;
+    const availableH = zoneH - 55;
+    const gapX = availableW / unitCols;
+    const unitRows = Math.max(1, Math.ceil(entities.length / unitCols));
+    const gapY = availableH / unitRows;
+
+    entities.forEach((entity, index) => {
+      result[entity.id] = {
+        x: x0 + 16 + (index % unitCols) * gapX + gapX / 2,
+        y: y0 + 48 + Math.floor(index / unitCols) * gapY + gapY / 2,
+        angle: entity.tapped ? 18 : 0,
+      };
+    });
+  });
+
+  return result;
+}
+
+
+export type BattlefieldInteractionIntent =
+  | { type: "select"; sourceId: string }
+  | { type: "target"; sourceId: string; targetId: string }
+  | { type: "cancel"; sourceId?: string };
+
+export type BattlefieldTargetPreview = {
+  sourceId: string;
+  targetId: string;
+  relation: "friendly" | "opponent";
+};
+
+export function previewBattlefieldTarget(
+  scenario: BattlefieldLabScenario,
+  sourceId: string,
+  targetId: string,
+): BattlefieldTargetPreview | null {
+  if (sourceId === targetId) return null;
+  const source = scenario.entities.find((entity) => entity.id === sourceId);
+  const target = scenario.entities.find((entity) => entity.id === targetId);
+  if (!source || !target) return null;
+  return {
+    sourceId,
+    targetId,
+    relation: source.controllerId === target.controllerId ? "friendly" : "opponent",
+  };
+}
+
+
+export type BattlefieldCombatIntent =
+  | { type: "declare-attacker"; attackerId: string; defendingPlayerId: string }
+  | { type: "declare-blocker"; blockerId: string; attackerId: string }
+  | { type: "clear-combat" };
+
+export type BattlefieldCombatPreview = {
+  attackerId: string;
+  blockerId?: string;
+  defendingPlayerId: string;
+};
+
+export function previewBattlefieldCombat(
+  scenario: BattlefieldLabScenario,
+  intent: BattlefieldCombatIntent,
+): BattlefieldCombatPreview | null {
+  if (intent.type === "clear-combat") return null;
+  if (intent.type === "declare-attacker") {
+    const attacker = scenario.entities.find((entity) => entity.id === intent.attackerId);
+    const defender = scenario.players.find((player) => player.id === intent.defendingPlayerId);
+    if (!attacker || !defender || attacker.controllerId === defender.id) return null;
+    return { attackerId: attacker.id, defendingPlayerId: defender.id };
+  }
+  const blocker = scenario.entities.find((entity) => entity.id === intent.blockerId);
+  const attacker = scenario.entities.find((entity) => entity.id === intent.attackerId);
+  if (!blocker || !attacker || blocker.controllerId === attacker.controllerId) return null;
+  return { attackerId: attacker.id, blockerId: blocker.id, defendingPlayerId: blocker.controllerId };
+}
+
+
+export type BattlefieldAuthoritativeEvent =
+  | { type: "spell-resolved"; spellId: string; sourceId?: string; targetIds: string[]; fxKey?: string }
+  | { type: "damage-applied"; sourceId?: string; targetId: string; amount: number }
+  | { type: "entity-died"; entityId: string }
+  | { type: "priority-changed"; playerId: string }
+  | { type: "player-eliminated"; playerId: string };
+
+export type BattlefieldPresentationEvent =
+  | { type: "fx"; cue: string; sourceId?: string; targetIds: string[] }
+  | { type: "damage"; sourceId?: string; targetId: string; amount: number }
+  | { type: "death"; entityId: string }
+  | { type: "priority"; playerId: string }
+  | { type: "elimination"; playerId: string };
+
+export function adaptAuthoritativeBattlefieldEvent(
+  event: BattlefieldAuthoritativeEvent,
+): BattlefieldPresentationEvent {
+  switch (event.type) {
+    case "spell-resolved":
+      return { type: "fx", cue: event.fxKey ?? "spell.generic", sourceId: event.sourceId, targetIds: event.targetIds };
+    case "damage-applied":
+      return { type: "damage", sourceId: event.sourceId, targetId: event.targetId, amount: event.amount };
+    case "entity-died":
+      return { type: "death", entityId: event.entityId };
+    case "priority-changed":
+      return { type: "priority", playerId: event.playerId };
+    case "player-eliminated":
+      return { type: "elimination", playerId: event.playerId };
+  }
+}
+
+
+export type BattlefieldFxPrimitive =
+  | { type: "projectile"; durationMs: number; trail: boolean }
+  | { type: "beam"; durationMs: number; branches: number }
+  | { type: "impact"; radius: number; durationMs: number }
+  | { type: "particles"; count: number; durationMs: number };
+
+export type BattlefieldFxRecipe = {
+  key: string;
+  primitives: BattlefieldFxPrimitive[];
+};
+
+export const BATTLEFIELD_FX_RECIPES: Record<string, BattlefieldFxRecipe> = {
+  "spell.generic": {
+    key: "spell.generic",
+    primitives: [
+      { type: "projectile", durationMs: 360, trail: true },
+      { type: "impact", radius: 28, durationMs: 240 },
+    ],
+  },
+  "spell.fireball": {
+    key: "spell.fireball",
+    primitives: [
+      { type: "projectile", durationMs: 520, trail: true },
+      { type: "particles", count: 28, durationMs: 620 },
+      { type: "impact", radius: 54, durationMs: 420 },
+    ],
+  },
+  "spell.lightning": {
+    key: "spell.lightning",
+    primitives: [
+      { type: "beam", durationMs: 260, branches: 4 },
+      { type: "particles", count: 18, durationMs: 340 },
+      { type: "impact", radius: 34, durationMs: 260 },
+    ],
+  },
+};
+
+export function resolveBattlefieldFxRecipe(cue: string): BattlefieldFxRecipe {
+  return BATTLEFIELD_FX_RECIPES[cue] ?? BATTLEFIELD_FX_RECIPES["spell.generic"];
+}
+
+
+export type BattlefieldFxQuality = "low" | "medium" | "high";
+
+export type BattlefieldFxExecutionPlan = {
+  cue: string;
+  quality: BattlefieldFxQuality;
+  primitives: BattlefieldFxPrimitive[];
+};
+
+export function buildBattlefieldFxExecutionPlan(
+  cue: string,
+  quality: BattlefieldFxQuality = "high",
+): BattlefieldFxExecutionPlan {
+  const recipe = resolveBattlefieldFxRecipe(cue);
+  const primitives = recipe.primitives.map((primitive) => {
+    if (primitive.type !== "particles") return primitive;
+    const multiplier = quality === "low" ? 0.35 : quality === "medium" ? 0.65 : 1;
+    return { ...primitive, count: Math.max(1, Math.round(primitive.count * multiplier)) };
+  });
+  return { cue: recipe.key, quality, primitives };
+}
