@@ -44,6 +44,8 @@ export interface FourPlayerTriggeredAbilityPayload {
   when: FourPlayerAutomaticTriggerWhen;
   description: string;
   effect: CardEffect;
+  /** Battlefield identity of the 1v1-style effect subject ("self"), separate from ability identity. */
+  effectSourceTargetId?: string;
   /** Snapshot of the 1v1-style effect subject ("self") races for source-relative gates. */
   sourceRaces?: readonly Race[];
   targets: readonly (FourPlayerTargetRef | null)[];
@@ -329,6 +331,7 @@ function queueCandidates(
         when: candidate.when,
         description: candidate.description,
         effect: structuredClone(candidate.effect),
+        ...(candidate.sourceTargetId ? { effectSourceTargetId: candidate.sourceTargetId } : {}),
         ...(candidate.sourceRaces !== undefined ? { sourceRaces: [...candidate.sourceRaces] } : {}),
         targets: snapshotTargets(match, candidate.controller, candidate.effect, candidate.sourceTargetId),
       },
@@ -564,7 +567,7 @@ export function resolveFourPlayerTriggeredAbility(
   while (cursor && index < 32 && current.status === "active") {
     const single: CardEffect = { ...cursor, also: undefined };
     const target = payload.targets[index] ?? null;
-    if (targetStillLegal(current, item.controller, single, target, payload.sourceId)) {
+    if (targetStillLegal(current, item.controller, single, target, payload.effectSourceTargetId)) {
       const resolved = resolveFourPlayerEffect(
         current,
         item.controller,
