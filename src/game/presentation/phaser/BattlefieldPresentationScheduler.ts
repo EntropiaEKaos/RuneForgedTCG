@@ -16,7 +16,7 @@ export class BattlefieldPresentationScheduler {
 
   enqueue(event: BattlefieldPresentationEvent): BattlefieldQueuedPresentationEvent {
     const item = this.queue.enqueue(event);
-    void this.pump();
+    void this.pump().catch(() => undefined);
     return item;
   }
 
