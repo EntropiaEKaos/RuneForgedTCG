@@ -65,8 +65,8 @@ const ordered: CardDef = {
 };
 
 const unsupported: CardDef = {
-  defId: "fourp_mechanic_unsupported_opponent",
-  name: "4P Mechanic Unsupported Opponent",
+  defId: "fourp_mechanic_unsupported_hand",
+  name: "4P Mechanic Unsupported Hand",
   region: "Tidecall",
   type: "Unit",
   cost: 2,
@@ -76,9 +76,9 @@ const unsupported: CardDef = {
   description: "Fixture",
   emoji: "U",
   mechanics: [{
-    key: "ambiguous_opponent",
+    key: "private_hand",
     trigger: "onRoundStart",
-    condition: { kind: "opponentNexusBelow", amount: 30 },
+    condition: { kind: "handAtLeast", amount: 1 },
     effect: { kind: "draw", amount: 1, target: "none" },
   }],
 };
@@ -169,7 +169,7 @@ try {
   assert.equal(
     ambiguousQueue.queued.filter((item) => item.payload.sourceDefId === unsupported.defId).length,
     0,
-    "singular opponent conditions remain fail-closed until multiplayer semantics are explicit",
+    "private hand conditions remain fail-closed until authoritative zone counts are injected",
   );
 
   console.log("FOUR PLAYER MECHANICS TRIGGERS: PASS — supported condition trees queue; false/ambiguous conditions fail closed");
