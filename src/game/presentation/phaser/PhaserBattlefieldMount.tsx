@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { layoutBattlefieldEntities, previewBattlefieldTarget, resolveBattlefieldFxRecipe, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
+import { layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
+import { playBattlefieldFx } from "./BattlefieldFxExecutor";
 
 type Props = { scenario: BattlefieldLabScenario };
 
@@ -43,31 +44,6 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
             let selectedUnit: { id: string; shape: Phaser.GameObjects.Rectangle } | null = null;
             let targetLine: Phaser.GameObjects.Line | null = null;
             let combatLine: Phaser.GameObjects.Line | null = null;
-
-            const playFx = (cue: string, sourceId: string, targetId: string) => {
-              const source = entityLayout[sourceId];
-              const target = entityLayout[targetId];
-              if (!source || !target) return;
-              const recipe = resolveBattlefieldFxRecipe(cue);
-              recipe.primitives.forEach((primitive, index) => {
-                if (primitive.type === "projectile") {
-                  const orb = this.add.circle(source.x, source.y, cue === "spell.fireball" ? 9 : 6, cue === "spell.fireball" ? 0xff7a18 : 0x67e8f9, 1).setDepth(30);
-                  this.tweens.add({ targets: orb, x: target.x, y: target.y, duration: primitive.durationMs, ease: "Sine.easeIn", onComplete: () => orb.destroy() });
-                } else if (primitive.type === "beam") {
-                  const beam = this.add.line(0, 0, source.x, source.y, target.x, target.y, 0x7dd3fc, 1).setOrigin(0, 0).setLineWidth(2 + Math.min(primitive.branches, 4)).setDepth(29);
-                  this.time.delayedCall(primitive.durationMs, () => beam.destroy());
-                } else if (primitive.type === "impact") {
-                  const impact = this.add.circle(target.x, target.y, 4, cue === "spell.fireball" ? 0xf97316 : 0xa5f3fc, 0.85).setDepth(31);
-                  this.tweens.add({ targets: impact, scale: Math.max(2, primitive.radius / 4), alpha: 0, duration: primitive.durationMs, onComplete: () => impact.destroy() });
-                } else {
-                  for (let i = 0; i < Math.min(primitive.count, 40); i += 1) {
-                    const spark = this.add.circle(target.x, target.y, 1.5, cue === "spell.fireball" ? 0xfbbf24 : 0xe0f2fe, 0.9).setDepth(32);
-                    const angle = (Math.PI * 2 * i) / Math.max(1, primitive.count);
-                    this.tweens.add({ targets: spark, x: target.x + Math.cos(angle) * 32, y: target.y + Math.sin(angle) * 32, alpha: 0, duration: primitive.durationMs + index * 20, onComplete: () => spark.destroy() });
-                  }
-                }
-              });
-            };
 
             scenario.players.forEach((player, playerIndex) => {
               const col = playerIndex % cols;
@@ -128,7 +104,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                     selectedUnit.shape.setStrokeStyle(3, 0xf97316, 1);
                     unit.setStrokeStyle(3, 0xfacc15, 1);
                     setCombat({ attacker: selectedUnit.id, blocker: entity.id });
-                    playFx("spell.fireball", selectedUnit.id, entity.id);
+                    playBattlefieldFx(this, entityLayout, "spell.fireball", selectedUnit.id, entity.id, "high");
                   }
                 });
               });
