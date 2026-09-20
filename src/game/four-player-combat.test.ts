@@ -12,6 +12,7 @@ combat = declareFourPlayerAttacker(combat, "warrior", "p3");
 combat = declareFourPlayerAttacker(combat, "elemental", "p4");
 
 assert.equal(combat.attackers.length, 3);
+assert.equal(combat.declarationTriggersQueued, false);
 assert.deepEqual(attackersForDefender(combat, "p2").map((a) => a.unitId), ["dragon"]);
 assert.deepEqual(attackersForDefender(combat, "p3").map((a) => a.unitId), ["warrior"]);
 assert.deepEqual(attackersForDefender(combat, "p4").map((a) => a.unitId), ["elemental"]);
@@ -19,6 +20,7 @@ assert.deepEqual(attackersForDefender(combat, "p4").map((a) => a.unitId), ["elem
 combat = declareFourPlayerBlocker(combat, "p2", "shield-p2", "dragon");
 combat = declareFourPlayerBlocker(combat, "p3", "guard-p3", "warrior");
 assert.equal(combat.blockers.length, 2);
+assert.equal(combat.declarationTriggersQueued, false);
 assert.throws(
   () => declareFourPlayerBlocker(combat, "p2", "shield-p2-b", "dragon"),
   /already blocked/,

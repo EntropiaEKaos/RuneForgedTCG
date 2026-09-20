@@ -17,13 +17,14 @@ export interface FourPlayerCombatState {
   attackers: readonly FourPlayerAttacker[];
   blockers: readonly FourPlayerBlocker[];
   eliminatedSeats: readonly FourPlayerSeat[];
+  declarationTriggersQueued: boolean;
 }
 
 export function createFourPlayerCombatState(
   attackingSeat: FourPlayerSeat,
   eliminatedSeats: readonly FourPlayerSeat[] = [],
 ): FourPlayerCombatState {
-  return { attackingSeat, attackers: [], blockers: [], eliminatedSeats };
+  return { attackingSeat, attackers: [], blockers: [], eliminatedSeats, declarationTriggersQueued: false };
 }
 
 export function declareFourPlayerAttacker(
@@ -34,7 +35,7 @@ export function declareFourPlayerAttacker(
   if (defendingSeat === state.attackingSeat) throw new Error("A seat cannot attack itself.");
   if (state.eliminatedSeats.includes(defendingSeat)) throw new Error(`Cannot attack eliminated seat ${defendingSeat}.`);
   if (state.attackers.some((attacker) => attacker.unitId === unitId)) throw new Error(`Unit ${unitId} is already attacking.`);
-  return { ...state, attackers: [...state.attackers, { unitId, controller: state.attackingSeat, defendingSeat }] };
+  return { ...state, attackers: [...state.attackers, { unitId, controller: state.attackingSeat, defendingSeat }], declarationTriggersQueued: false };
 }
 
 export function declareFourPlayerBlocker(
@@ -51,7 +52,13 @@ export function declareFourPlayerBlocker(
   if (state.blockers.some((blocker) => blocker.attackerId === attackerId)) {
     throw new Error(`Attacker ${attackerId} is already blocked; multi-block ordering is not enabled yet.`);
   }
-  return { ...state, blockers: [...state.blockers, { unitId, controller: blockerSeat, attackerId }] };
+  return { ...state, blockers: [...state.blockers, { unitId, controller: blockerSeat, attackerId }], declarationTriggersQueued: false };
+}
+
+export function markFourPlayerCombatDeclarationTriggersQueued(
+  state: FourPlayerCombatState,
+): FourPlayerCombatState {
+  return state.declarationTriggersQueued ? state : { ...state, declarationTriggersQueued: true };
 }
 
 export function cleanupFourPlayerCombatForElimination(

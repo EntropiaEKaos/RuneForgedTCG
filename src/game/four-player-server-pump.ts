@@ -1,5 +1,6 @@
 import { resolveFourPlayerActivatedAbility } from "./four-player-activated-abilities";
 import { createFourPlayerBattlefieldState, placeResolvedGeneralOnBattlefield } from "./four-player-battlefield";
+import { markFourPlayerCombatDeclarationTriggersQueued } from "./four-player-combat";
 import { resolveFourPlayerCardCast, resolveFourPlayerSpellCast } from "./four-player-card-play";
 import { resolveFourPlayerCombat, type FourPlayerCombatDestroyedObject } from "./four-player-combat-resolution";
 import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
@@ -10,7 +11,7 @@ import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-mat
 import { advanceFourPlayerPhase } from "./four-player-phase-machine";
 import { allLivingPlayersPassed, createFourPlayerPriorityState } from "./four-player-priority-manager";
 import type { FourPlayerStackItem } from "./four-player-stack";
-import { queueFourPlayerRoundStartTriggers, queueFourPlayerTransitionTriggers, resolveFourPlayerTriggeredAbility } from "./four-player-triggers";
+import { queueFourPlayerCombatDeclarationTriggers, queueFourPlayerRoundStartTriggers, queueFourPlayerTransitionTriggers, resolveFourPlayerTriggeredAbility } from "./four-player-triggers";
 
 export interface FourPlayerServerPumpResult {
   match: FourPlayerMatchState;
@@ -90,7 +91,28 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
   }
   if (match.resolution.stack.items.length === 0) {
     if (match.phase === "combat") {
-      const combat = resolveFourPlayerCombat(match);
+      let combatReady = match;
+      if (!match.combat.declarationTriggersQueued) {
+        const queuedDeclarations = queueFourPlayerCombatDeclarationTriggers(
+          match,
+          `combat-declarations:${match.turn.turn}:${match.combat.attackers.length}:${match.combat.blockers.length}`,
+        );
+        combatReady = {
+          ...queuedDeclarations.match,
+          combat: markFourPlayerCombatDeclarationTriggersQueued(queuedDeclarations.match.combat),
+        };
+        if (queuedDeclarations.queued.length > 0) {
+          return {
+            match: combatReady,
+            resolved: [],
+            awaitingClientInput: true,
+            phaseAdvanced: false,
+            turnAdvanced: false,
+            combatResolved: false,
+          };
+        }
+      }
+      const combat = resolveFourPlayerCombat(combatReady);
       if (combat.match.status === "completed") {
         return {
           match: combat.match,
@@ -104,10 +126,10 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
         };
       }
       const triggered = queueFourPlayerTransitionTriggers(
-        match,
+        combatReady,
         combat.match,
         combat.destroyed,
-        `combat:${match.turn.turn}`,
+        `combat:${combatReady.turn.turn}`,
       );
       if (triggered.queued.length > 0) {
         return {

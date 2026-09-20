@@ -26,6 +26,8 @@ export const FOUR_PLAYER_AUTOMATIC_TRIGGER_EVENTS = [
   "onDeath",
   "onAllyDeath",
   "onRoundStart",
+  "onAttack",
+  "onBlock",
 ] as const satisfies readonly TriggerWhen[];
 
 export type FourPlayerAutomaticTriggerWhen = (typeof FOUR_PLAYER_AUTOMATIC_TRIGGER_EVENTS)[number];
@@ -392,6 +394,31 @@ export function queueFourPlayerTransitionTriggers(
   }
 
   return queueCandidates(after, candidates, eventKey);
+}
+
+export function queueFourPlayerCombatDeclarationTriggers(
+  match: FourPlayerMatchState,
+  eventKey = `combat-declarations:${match.turn.turn}`,
+): FourPlayerTriggerQueueResult {
+  if (match.status === "completed" || match.phase !== "combat") return { match, queued: [] };
+  const battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
+  const candidates: TriggerCandidate[] = [];
+  let ordinal = 0;
+
+  for (const attacker of match.combat.attackers) {
+    const source = battlefield.objects.find((object) => object.id === attacker.unitId);
+    if (!source || source.controllerSeat !== attacker.controller) continue;
+    const candidate = candidateForObject(source, "onAttack", ordinal++);
+    if (candidate) candidates.push(candidate);
+  }
+  for (const blocker of match.combat.blockers) {
+    const source = battlefield.objects.find((object) => object.id === blocker.unitId);
+    if (!source || source.controllerSeat !== blocker.controller) continue;
+    const candidate = candidateForObject(source, "onBlock", ordinal++);
+    if (candidate) candidates.push(candidate);
+  }
+
+  return queueCandidates(match, candidates, eventKey);
 }
 
 export function queueFourPlayerRoundStartTriggers(
