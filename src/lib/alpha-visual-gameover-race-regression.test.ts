@@ -11,8 +11,8 @@ assert.match(
 
 const freshChecks = [...journey.matchAll(/const fresh = await readDriveState\(\);/g)];
 assert.ok(
-  freshChecks.length >= 2,
-  "Alpha visual driver must re-read state before both main/response and combat inputs",
+  freshChecks.length >= 1,
+  "Alpha visual driver must re-read state before main/response keyboard input",
 );
 
 assert.match(
@@ -27,4 +27,25 @@ assert.match(
   "Alpha visual driver must refuse stale phase input when the phase changes between reads",
 );
 
-console.log("ALPHA VISUAL GAMEOVER RACE: PASS — stale post-gameover input is fail-closed");
+assert.match(
+  journey,
+  /document\.querySelectorAll\('\.tcg-actions button'\)/,
+  "Combat automation must read the live action rail instead of inferring a substep from the broad combat phase",
+);
+assert.match(
+  journey,
+  /Confirmar bloqueios/,
+  "Combat automation must support the live blocking confirmation action",
+);
+assert.match(
+  journey,
+  /Atacar com/,
+  "Combat automation must support the live attack confirmation action",
+);
+assert.doesNotMatch(
+  journey,
+  /snapshot\.phase === "combat"[\s\S]{0,900}pressKey\(cdp, "Enter"/,
+  "Combat automation must never dispatch a blind Enter across attack/block/resolve substeps",
+);
+
+console.log("ALPHA VISUAL GAMEOVER RACE: PASS — post-gameover and stale combat-substep input are fail-closed");
