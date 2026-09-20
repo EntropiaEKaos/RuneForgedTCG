@@ -308,11 +308,16 @@ function appendObjectCandidates(
   when: FourPlayerAutomaticTriggerWhen,
   ordinal: number,
 ): number {
+  // 1v1 resolves printed trigger first, then mechanics in authored order.
+  // Commander uses a LIFO stack, so push the local group in exact reverse:
+  // last authored mechanic -> ... -> first mechanic -> printed trigger.
+  const mechanics = mechanicCandidatesForObject(match, object, when, 0).reverse();
+  for (const mechanic of mechanics) {
+    candidates.push({ ...mechanic, ordinal: ordinal++ });
+  }
   const printed = candidateForObject(object, when, ordinal++);
   if (printed) candidates.push(printed);
-  const mechanics = mechanicCandidatesForObject(match, object, when, ordinal);
-  candidates.push(...mechanics);
-  return ordinal + mechanics.length;
+  return ordinal;
 }
 
 function equipmentCandidates(
