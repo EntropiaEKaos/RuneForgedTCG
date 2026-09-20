@@ -31,6 +31,7 @@ export interface FourPlayerProjectedBattlefieldObject {
   durability?: FourPlayerDurability;
   equipment: readonly FourPlayerEquipmentAttachment[];
   loyalty?: number;
+  nexusStrikes?: number;
   sentinelaActivatedRound?: number;
   exhaustedRound?: number;
   stunned: boolean;
@@ -50,6 +51,7 @@ export interface FourPlayerProjectedSeatState {
   maxMana?: number;
   spellMana?: number;
   poisonCounters?: number;
+  stats?: { nexusDamageDealt: number; spellsCast: number; alliesSummoned: number };
   generalDamageReceived?: Partial<Record<FourPlayerSeat, number>>;
   battlefield?: readonly FourPlayerProjectedBattlefieldObject[];
   hand?: readonly FourPlayerProjectedCardInstance[];
@@ -104,6 +106,7 @@ export function projectFourPlayerStateForSeat(
           ...(object.durability ? { durability: { ...object.durability } } : {}),
           equipment: (object.equipment ?? []).map((entry) => ({ ...entry, keywords: [...entry.keywords] })),
           ...(object.loyalty !== undefined ? { loyalty: object.loyalty } : {}),
+          ...(object.nexusStrikes !== undefined ? { nexusStrikes: object.nexusStrikes } : {}),
           ...(object.sentinelaActivatedRound !== undefined ? { sentinelaActivatedRound: object.sentinelaActivatedRound } : {}),
           ...(object.exhaustedRound !== undefined ? { exhaustedRound: object.exhaustedRound } : {}),
           stunned: object.stunned,
@@ -124,6 +127,7 @@ export function projectFourPlayerStateForSeat(
         maxMana: match.seats[seat].maxMana,
         spellMana: match.seats[seat].spellMana,
         poisonCounters: match.seats[seat].poisonCounters,
+        stats: { ...(match.seats[seat].stats ?? { nexusDamageDealt: 0, spellsCast: 0, alliesSummoned: 0 }) },
         generalDamageReceived: { ...match.seats[seat].generalDamageReceived },
         battlefield,
       } : {}),
