@@ -213,6 +213,14 @@ async function hoverRealHandCard(cdp) {
   return point;
 }
 
+async function waitForEnabledCurrentPhaseAction(cdp, timeoutMs = 20_000) {
+  await waitUntil(
+    () => evaluate(cdp, `Boolean(document.querySelector('.tcg-actions button:not(:disabled), .reaction-stack button:not(:disabled), .targeting-hud button:not(:disabled)'))`),
+    "enabled current-phase battlefield action",
+    timeoutMs,
+  );
+}
+
 async function collectStressEvidence(cdp) {
   return evaluate(cdp, `(()=>{const rect=selector=>{const e=document.querySelector(selector);if(!e)return null;const r=e.getBoundingClientRect();return{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height}};const scroll=selector=>{const e=document.querySelector(selector);return e?{clientWidth:e.clientWidth,scrollWidth:e.scrollWidth,clientHeight:e.clientHeight,scrollHeight:e.scrollHeight}:null};const actionButtons=[...document.querySelectorAll('.tcg-actions button:not(:disabled), .reaction-stack button:not(:disabled), .targeting-hud button:not(:disabled)')].map(button=>{const r=button.getBoundingClientRect();const x=Math.max(0,Math.min(innerWidth-1,r.left+r.width/2));const y=Math.max(0,Math.min(innerHeight-1,r.top+r.height/2));const hit=document.elementFromPoint(x,y);return{text:(button.textContent||'').trim(),surface:button.closest('.reaction-stack')?'reaction':button.closest('.targeting-hud')?'targeting':'primary',rect:{top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height},hitTestable:hit===button||button.contains(hit)}});return{innerWidth,innerHeight,document:{scrollWidth:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight},arena:rect('.tcg-arena'),rivalField:rect('.tcg-row[data-bench-side="ai"]'),playerField:rect('.tcg-row[data-bench-side="player"]'),hand:rect('.player-hand-shell'),actions:rect('.tcg-actions'),tooltip:rect('[data-tooltip-panel="true"]'),rivalScroll:scroll('.tcg-row[data-bench-side="ai"]'),playerScroll:scroll('.tcg-row[data-bench-side="player"]'),handScroll:scroll('#player-hand-cards'),actionButtons,probeCount:document.querySelectorAll('[data-visual-stress-clone]').length}})()`);
 }
@@ -269,6 +277,7 @@ async function main() {
       const fixture = await installDensityStressFixture(cdp);
       assert.equal(fixture.ok, true, `could not install notebook density stress fixture: ${JSON.stringify(fixture)}`);
       await settle(cdp);
+      await waitForEnabledCurrentPhaseAction(cdp);
       const hoverTarget = await hoverRealHandCard(cdp);
       await settle(cdp);
       const evidence = await collectStressEvidence(cdp);
