@@ -4,7 +4,7 @@
 
 Commander 4P is a separate experimental multiplayer mode. It does not replace Casual PvP or Ranked and it does not widen the certified binary `PlayerId = "player" | "ai"` engine contract.
 
-The current Alpha carries the recovered four-player combat authority through physical card play, targeting, combat, General casting, circular priority, Fast/Burst reactions, activated/reaction battlefield abilities, Sentinela loyalty, a LIFO stack, public graveyard interaction and provenance-safe Equipment attachments while remaining isolated from the certified 1v1 engine.
+The current Alpha carries the recovered four-player combat authority through physical card play, targeting, combat, General casting, circular priority, Fast/Burst reactions, activated/reaction battlefield abilities, automatic printed triggers, Sentinela loyalty, a LIFO stack, public graveyard interaction and provenance-safe Equipment attachments while remaining isolated from the certified 1v1 engine.
 
 ## Rules snapshot
 
@@ -79,13 +79,16 @@ This slice certifies:
 19. semantic resource separation: Unit, Sentinela, Structure and General remain regular-mana-only while eligible spell-like cards may complete cost from the bank;
 20. Sentinela loyalty snapshots plus one-activation-per-round budget shared across classic/generic abilities;
 21. client-visible stack, battlefield attachments, ability options, public Spell Mana and graveyards without exposing private deck or opponent-hand identities;
-22. isolation from Casual PvP, Ranked and the binary 1v1 `PlayerId` engine.
+22. automatic printed `onSummon`, `onPermanentSummon`, `onDeath`, `onAllyDeath` and table-round `onRoundStart` triggers on the same circular LIFO stack;
+23. deterministic automatic 4P trigger targeting, including clockwise opponent selection, Hexproof filtering, target snapshots and safe fizzle when a snapshotted target disappears;
+24. trigger propagation for normal battlefield entry, generated tokens, reanimation and sacrifice/death transitions without treating recall as death;
+25. isolation from Casual PvP, Ranked and the binary 1v1 `PlayerId` engine.
 
 ## Deliberately not claimed yet
 
-This Alpha still does not claim parity with every authored trigger or reaction ability in the full catalog, nor Ranked/tournament support for Commander. Unsupported effects remain fail-closed and are expanded only behind explicit behavioral certification.
+This Alpha still does not claim parity with combat/level-up triggers (`onAttack`, `onBlock`, `onStrike`, `onNexusStrike`, `onKill`, `onLevelUp`), conditional `mechanics` trigger graphs, race-gated draw/refund trigger semantics or every reaction ability in the full catalog, nor Ranked/tournament support for Commander. Unsupported trigger primitives remain fail-closed and are expanded only behind explicit behavioral certification.
 
 
 ## Certification base
 
-The recovered Commander 4P combat branch is based on certified production `main` `b6891a54b1629183d031156dc1fe644ea22f3420`. The Spell Mana resource expansion uses Commander combat envelope version 5 so older persisted Alpha rooms fail closed and must restart. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
+The recovered Commander 4P combat branch is based on certified production `main` `b6891a54b1629183d031156dc1fe644ea22f3420`. The automatic-trigger authority uses Commander combat envelope version 6 so older persisted Alpha rooms fail closed and must restart. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.

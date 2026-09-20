@@ -17,7 +17,7 @@ function stackPayload(item: FourPlayerStackItem): Record<string, unknown> {
 export function fourPlayerStackActionKind(item: FourPlayerStackItem): ReactionActionKind | undefined {
   if (item.kind === "spell_cast") return "spell";
   if (item.kind === "general_cast") return "unit";
-  if (item.kind === "ability_activation") return "sentinela";
+  if (item.kind === "ability_activation" || item.kind === "triggered_ability") return "sentinela";
   if (item.kind !== "card_cast") return undefined;
   return stackPayload(item).cardType === "Sentinela" ? "sentinela" : "unit";
 }
@@ -29,6 +29,7 @@ export function fourPlayerStackDefId(item: FourPlayerStackItem): string | undefi
 }
 
 export function fourPlayerStackItemIsUncounterable(item: FourPlayerStackItem): boolean {
+  if (item.kind === "triggered_ability") return false;
   const defId = fourPlayerStackDefId(item);
   return Boolean(defId && cannotBeCountered(getCard(defId)));
 }

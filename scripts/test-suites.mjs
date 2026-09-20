@@ -160,6 +160,7 @@ export const behavioralTests = [
   "src/game/four-player-session.test.ts",
   "src/game/four-player-turn-manager.test.ts",
   "src/game/four-player-turn-start.test.ts",
+  "src/game/four-player-triggers.test.ts",
   "src/lib/commander-activated-abilities.test.ts",
   "src/lib/commander-combat.test.ts",
 ];

@@ -10,6 +10,7 @@ import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-mat
 import { advanceFourPlayerPhase } from "./four-player-phase-machine";
 import { allLivingPlayersPassed, createFourPlayerPriorityState } from "./four-player-priority-manager";
 import type { FourPlayerStackItem } from "./four-player-stack";
+import { queueFourPlayerRoundStartTriggers, queueFourPlayerTransitionTriggers, resolveFourPlayerTriggeredAbility } from "./four-player-triggers";
 
 export interface FourPlayerServerPumpResult {
   match: FourPlayerMatchState;
@@ -45,6 +46,10 @@ function applyResolvedStackItem(
   if (item.kind === "ability_activation") {
     const resolved = resolveFourPlayerActivatedAbility(match, item);
     return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws, counteredStackItems: resolved.countered, zoneActions: resolved.zoneActions ?? [] };
+  }
+  if (item.kind === "triggered_ability") {
+    const resolved = resolveFourPlayerTriggeredAbility(match, item);
+    return { match: resolved.match, destroyedObjects: resolved.destroyed, drawRequests: resolved.draws, counteredStackItems: [], zoneActions: resolved.zoneActions ?? [] };
   }
   if (item.kind !== "general_cast") return { match, destroyedObjects: [], drawRequests: {}, counteredStackItems: [], zoneActions: [] };
   const general = match.generals[item.controller];
@@ -98,6 +103,24 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
           ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
         };
       }
+      const triggered = queueFourPlayerTransitionTriggers(
+        match,
+        combat.match,
+        combat.destroyed,
+        `combat:${match.turn.turn}`,
+      );
+      if (triggered.queued.length > 0) {
+        return {
+          match: triggered.match,
+          resolved: [],
+          awaitingClientInput: true,
+          phaseAdvanced: false,
+          turnAdvanced: false,
+          combatResolved: true,
+          destroyedObjects: combat.destroyed,
+          ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
+        };
+      }
       const advanced = advanceFourPlayerPhase(combat.match);
       return {
         match: advanced.match,
@@ -111,8 +134,11 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
       };
     }
     const advanced = advanceFourPlayerPhase(match);
+    const roundStarted = advanced.turnAdvanced && advanced.match.turn.round > match.turn.round
+      ? queueFourPlayerRoundStartTriggers(advanced.match, `round:${advanced.match.turn.round}`)
+      : { match: advanced.match, queued: [] };
     return {
-      match: advanced.match,
+      match: roundStarted.match,
       resolved: [],
       awaitingClientInput: true,
       phaseAdvanced: true,
@@ -130,8 +156,15 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
     result.flow.priority.mode,
   );
   let nextMatch: FourPlayerMatchState = { ...match, resolution: { ...result.flow, priority } };
+  const beforeResolution = nextMatch;
   const applied = applyResolvedStackItem(nextMatch, result.resolved);
-  nextMatch = applied.match;
+  const triggered = queueFourPlayerTransitionTriggers(
+    beforeResolution,
+    applied.match,
+    applied.destroyedObjects,
+    `resolve:${result.resolved.id}`,
+  );
+  nextMatch = triggered.match;
   return {
     match: nextMatch,
     resolved: [result.resolved],
