@@ -1,13 +1,21 @@
 import assert from "node:assert/strict";
+import { CARD_EFFECT_KINDS } from "./card-authoring";
 import { putFourPlayerBattlefieldObject } from "./four-player-battlefield";
 import { resolveFourPlayerEffect } from "./four-player-effect-resolution";
 import { createFourPlayerMatchState, FOUR_PLAYER_POISON_LETHAL, FOUR_PLAYER_STARTING_LIFE } from "./four-player-match";
+import { FOUR_PLAYER_SUPPORTED_SPELL_EFFECT_KINDS } from "./four-player-spell-contract";
 import { assertFourPlayerTargetObject, parseFourPlayerTargetRef } from "./four-player-targeting";
 import type { Race } from "./types";
 
 function body(power:number, health:number, races:Race[]=[], classes:string[]=[]) {
   return { basePower:power, power, health, maxHealth:health, races, classes, barrier:false, frostbitten:false };
 }
+
+assert.deepEqual(
+  [...FOUR_PLAYER_SUPPORTED_SPELL_EFFECT_KINDS].sort(),
+  [...CARD_EFFECT_KINDS].sort(),
+  "Commander 4P spell/effect contract must track every authorable CARD_EFFECT_KIND",
+);
 
 let match = { ...createFourPlayerMatchState("p1"), phase:"main_1" as const };
 let battlefield = match.battlefield!;
@@ -253,5 +261,57 @@ assert.deepEqual(tokens.map((token)=>token.id),[
 ]);
 assert.ok(tokens.every((token)=>token.defId==="forest_cub_token"&&token.ownerSeat==="p1"&&token.controllerSeat==="p1"));
 assert.ok(tokens.every((token)=>token.combat?.power===1&&token.combat?.health===1));
+
+const selfBuffed = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"buffSelf",amount:0,target:"self",buffPower:2,buffHealth:1},
+  undefined,
+  {sourceTargetId:"ally-unit"},
+);
+const selfBuffedBody = selfBuffed.match.battlefield?.objects.find((object)=>object.id==="ally-unit")?.combat;
+assert.equal(selfBuffedBody?.power,4);
+assert.equal(selfBuffedBody?.health,3);
+assert.equal(selfBuffedBody?.maxHealth,3);
+assert.equal(
+  selfBuffed.match.battlefield?.objects.find((object)=>object.id==="ally-other")?.combat?.power,
+  1,
+  "buffSelf must not leak to another allied combat body",
+);
+
+const inertSelfBuff = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"buffSelf",amount:0,target:"self",buffPower:2,buffHealth:1},
+);
+assert.equal(
+  inertSelfBuff.match.battlefield?.objects.find((object)=>object.id==="ally-unit")?.combat?.power,
+  2,
+  "source-less buffSelf preserves the 1v1 inert spell fallback",
+);
+
+const uniqueRaceDraw = resolveFourPlayerEffect(match,"p1",{kind:"drawOnSummon",amount:1,target:"none"});
+assert.equal(uniqueRaceDraw.draws.p1,2,"drawOnSummon counts unique races among living controlled combat bodies");
+assert.deepEqual(uniqueRaceDraw.zoneActions,[{kind:"draw",seat:"p1",amount:2}]);
+
+const filteredRaceDraw = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"drawOnSummon",amount:2,target:"none",race:"Besta"},
+);
+assert.equal(filteredRaceDraw.draws.p1,2,"race-filtered drawOnSummon multiplies matching controlled bodies by amount");
+
+const cappedRaceBoard = {
+  ...match,
+  battlefield: putFourPlayerBattlefieldObject(match.battlefield!,{
+    id:"ally-besta-two",defId:"ally-besta-two",kind:"token",ownerSeat:"p1",controllerSeat:"p1",enteredTurn:0,combat:body(1,1,["Besta"]),
+  }),
+};
+const cappedRaceDraw = resolveFourPlayerEffect(
+  cappedRaceBoard,
+  "p1",
+  {kind:"drawOnSummon",amount:3,target:"none",race:"Besta"},
+);
+assert.equal(cappedRaceDraw.draws.p1,4,"race-filtered drawOnSummon preserves the 1v1 cap of four cards");
 
 console.log("FOUR PLAYER TARGETING + EFFECT AUTHORITY: PASS — player/unit targets, Hexproof, damage, chained Nexus, heal, stun, frostbite and kill");
