@@ -47,7 +47,6 @@ export function acceptAuthoritativeFourPlayerCommand(
   sessionId: string,
   command: FourPlayerClientCommand,
   validateRules: FourPlayerRuleValidator,
-  conditionContext?: FourPlayerMechanicConditionContext,
 ): FourPlayerAcceptedCommand {
   assertSessionControlsSeat(state.sessions, sessionId, command.seat);
   assertMatchAcceptsCommand(state.match, command);
@@ -71,6 +70,7 @@ export function processAuthoritativeFourPlayerCommand(
   connectionEpoch: number,
   command: FourPlayerClientCommand,
   validateRules: FourPlayerRuleValidator,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): FourPlayerAcceptedCommand {
   assertSessionControlsSeat(state.sessions, sessionId, command.seat, connectionEpoch);
   assertMatchAcceptsCommand(state.match, command);
