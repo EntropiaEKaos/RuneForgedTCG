@@ -83,12 +83,6 @@ function automaticTriggerChainSupported(effect: CardEffect): boolean {
   for (let guard = 0; cursor && guard < 32; guard += 1) {
     if (!SUPPORTED_EFFECTS.has(cursor.kind)) return false;
     if (GRAVEYARD_TARGETS.has(cursor.target) || cursor.target === "spellOnStack") return false;
-    // The 1v1 resolver applies these race gates using unit-state semantics that
-    // Commander has not certified yet. Fail closed instead of silently changing
-    // authored behavior.
-    if ((cursor.kind === "draw" || cursor.kind === "manaRefund") && (cursor.race || cursor.races?.length)) {
-      return false;
-    }
     cursor = cursor.also;
   }
   return !cursor;
@@ -527,6 +521,11 @@ export function resolveFourPlayerTriggeredAbility(
     throw new Error(`Resolved 4P trigger ${payload.sourceDefId} contains an unsupported effect chain.`);
   }
 
+  const sourceDefinition = safeCard(payload.sourceDefId);
+  const sourceRaces = sourceDefinition
+    ? (sourceDefinition.race ? [sourceDefinition.race] : [])
+    : undefined;
+
   let current = match;
   const destroyed: FourPlayerCombatDestroyedObject[] = [];
   const draws: Partial<Record<FourPlayerSeat, number>> = {};
@@ -543,7 +542,10 @@ export function resolveFourPlayerTriggeredAbility(
         item.controller,
         single,
         target ?? undefined,
-        { tokenNamespace: `${item.id}:${index}` },
+        {
+          tokenNamespace: `${item.id}:${index}`,
+          ...(sourceRaces !== undefined ? { sourceRaces } : {}),
+        },
       );
       current = resolved.match;
       destroyed.push(...resolved.destroyed);
