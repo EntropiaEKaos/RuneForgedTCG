@@ -154,6 +154,10 @@ export function advanceFourPlayerLevelUps(match: FourPlayerMatchState): FourPlay
         ...next.generals,
         [event.ownerSeat]: { ...general, defId: transformed.defId },
       },
+      generalPrintedCosts: {
+        ...next.generalPrintedCosts,
+        [event.ownerSeat]: evolvedDefinition.cost,
+      },
       generalKeywords: {
         ...(next.generalKeywords ?? { p1: [], p2: [], p3: [], p4: [] }),
         [event.ownerSeat]: [...(evolvedDefinition.keywords ?? [])],
