@@ -12,7 +12,7 @@ import {
 } from "./four-player-card-zones";
 import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
-import { eliminateFourPlayerMatchSeat, type FourPlayerMatchState } from "./four-player-match";
+import { addFourPlayerProgress, eliminateFourPlayerMatchSeat, type FourPlayerMatchState } from "./four-player-match";
 
 export interface FourPlayerEffectDrawSettlement {
   match: FourPlayerMatchState;
@@ -120,7 +120,7 @@ export function settleFourPlayerEffectZoneActions(
       const taken = takeFourPlayerCardFromGraveyard(currentZones, action.seat, action.instanceId);
       if (!taken) continue;
       currentZones = taken.zones;
-      currentMatch = {
+      currentMatch = addFourPlayerProgress({
         ...currentMatch,
         battlefield: putFourPlayerBattlefieldObject(currentMatch.battlefield ?? createFourPlayerBattlefieldState(), {
           id: taken.card.instanceId,
@@ -132,7 +132,7 @@ export function settleFourPlayerEffectZoneActions(
           keywords: definition.keywords ?? [],
           combat,
         }),
-      };
+      }, action.controllerSeat, { alliesSummoned: 1 });
       reanimatedCounts[action.controllerSeat] = (reanimatedCounts[action.controllerSeat] ?? 0) + 1;
       continue;
     }
