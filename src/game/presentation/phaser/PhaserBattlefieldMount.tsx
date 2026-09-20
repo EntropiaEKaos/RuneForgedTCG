@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
-import { playBattlefieldFx } from "./BattlefieldFxExecutor";
+import { adaptAuthoritativeBattlefieldEvent, layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
+import { playBattlefieldPresentationEvent } from "./BattlefieldFxExecutor";
 
 type Props = { scenario: BattlefieldLabScenario };
 
@@ -104,7 +104,14 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                     selectedUnit.shape.setStrokeStyle(3, 0xf97316, 1);
                     unit.setStrokeStyle(3, 0xfacc15, 1);
                     setCombat({ attacker: selectedUnit.id, blocker: entity.id });
-                    playBattlefieldFx(this, entityLayout, "spell.fireball", selectedUnit.id, entity.id, "high");
+                    const presentationEvent = adaptAuthoritativeBattlefieldEvent({
+                      type: "spell-resolved",
+                      spellId: "lab-fireball",
+                      sourceId: selectedUnit.id,
+                      targetIds: [entity.id],
+                      fxKey: "spell.fireball",
+                    });
+                    playBattlefieldPresentationEvent(this, entityLayout, presentationEvent, "high");
                   }
                 });
               });
