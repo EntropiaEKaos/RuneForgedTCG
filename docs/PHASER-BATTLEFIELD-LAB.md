@@ -49,3 +49,36 @@ Phaser must not become authoritative for legality, priority, combat, targeting, 
 ## Promotion gate
 
 No Alpha renderer replacement and no merge to main merely because the prototype looks better. Promotion requires gameplay parity, deterministic state synchronization, reconnect correctness, mobile targets, stress targets and existing repository certification gates.
+
+
+## Cinematic FX target
+
+The Battlefield Lab must prepare for a premium cinematic FX runtime. This is a presentation goal, not gameplay authority.
+
+Target quality:
+- layered projectiles such as fireballs with emissive cores, animated plasma/fire, trails, sparks, smoke and impact bursts;
+- branching lightning, continuous energy beams, magical arcs, portals, shockwaves, ice, necromancy and faction-specific visual languages;
+- battlefield-reactive lighting, controlled camera shake, hit flashes, particles and optional post-processing/distortion;
+- semantic recipes driven by authoritative engine events (for example spell resolved, damage applied, creature died), never by renderer-side rules;
+- scalable quality tiers so particles, lighting and post-processing can degrade on lower-end/mobile hardware without changing gameplay;
+- reusable FX recipes and asset manifests rather than one-off hardcoded effects;
+- future Studio authoring for FX recipes after runtime contracts are stable;
+- synchronized audio hooks as part of the eventual presentation recipe.
+
+Required architecture:
+
+`authoritative engine/server event -> presentation event adapter -> FX recipe -> Phaser/WebGL rendering`
+
+The FX runtime must never determine targets, damage, legality, priority, stack resolution, death or victory. It receives confirmed semantic outcomes and turns them into spectacle.
+
+Preparation order:
+1. Stable interaction and combat presentation contracts.
+2. Read-only authoritative event adapter.
+3. FX event/recipe schema and lifecycle.
+4. Particle/projectile/beam primitives.
+5. Lighting, camera and impact layers.
+6. Performance tiers and mobile fallbacks.
+7. Audio synchronization hooks.
+8. Data-driven recipes and later Studio authoring.
+
+Visual ambition: cards remain readable as a TCG, while resolved high-impact spells can temporarily turn the battlefield into a cinematic event.
