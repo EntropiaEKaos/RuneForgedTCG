@@ -223,11 +223,39 @@ async function hoverSelector(cdp, selector) {
   await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y });
 }
 
-async function pressKey(cdp, key, code = key) {
-  const virtualKeyCode = code === "Space" ? 32 : code === "Enter" ? 13 : 0;
-  const base = { key, code, windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode };
-  await cdp.call("Input.dispatchKeyEvent", { type: "keyDown", ...base });
-  await cdp.call("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+async function matchDriverSnapshot(cdp) {
+  return evaluate(cdp, `(() => {
+    const arena = document.querySelector('.tcg-arena');
+    const result = document.querySelector('.match-result-backdrop');
+    const round = document.querySelector('.tcg-round-pill')?.textContent || '';
+    const buttons = [...document.querySelectorAll('button')];
+    const enabled = (text) => buttons.some((button) => !button.disabled && (button.textContent || '').includes(text));
+    return {
+      phase: arena?.dataset?.matchPhase || null,
+      result: Boolean(result),
+      round,
+      lastAction: document.querySelector('.match-last-action')?.textContent || '',
+      reaction: document.querySelector('.reaction-stack')?.textContent || '',
+      canEndTurn: enabled('Encerrar turno'),
+      canResolveReaction: enabled('Passar prioridade e resolver'),
+      canConfirmBlocks: enabled('Confirmar bloqueios'),
+    };
+  })()`);
+}
+
+async function waitForMatchDriverProgress(cdp, before, label, timeoutMs = 8_000) {
+  const signature = (snapshot) => JSON.stringify([
+    snapshot.phase,
+    snapshot.round,
+    snapshot.lastAction,
+    snapshot.reaction,
+  ]);
+  const beforeSignature = signature(before);
+  return waitUntil(async () => {
+    const after = await matchDriverSnapshot(cdp);
+    if (after.result || after.phase === "gameover") return after;
+    return signature(after) !== beforeSignature ? after : null;
+  }, label, timeoutMs);
 }
 
 async function driveMatchToResult(cdp, timeoutMs = 240_000) {
@@ -235,25 +263,37 @@ async function driveMatchToResult(cdp, timeoutMs = 240_000) {
   let lastPhase = "unknown";
   let rounds = 0;
   while (Date.now() < deadline) {
-    const snapshot = await evaluate(cdp, `(() => {
-      const arena = document.querySelector('.tcg-arena');
-      const result = document.querySelector('.match-result-backdrop');
-      const round = document.querySelector('.tcg-round-pill')?.textContent || '';
-      return { phase: arena?.dataset?.matchPhase || null, result: Boolean(result), round };
-    })()`);
+    const snapshot = await matchDriverSnapshot(cdp);
     if (snapshot.result || snapshot.phase === "gameover") return { rounds, lastPhase: snapshot.phase || lastPhase };
     if (snapshot.phase) lastPhase = snapshot.phase;
     const roundMatch = String(snapshot.round || "").match(/(\d+)/);
     if (roundMatch) rounds = Math.max(rounds, Number(roundMatch[1]));
 
-    if (snapshot.phase === "response" || snapshot.phase === "main") {
-      await pressKey(cdp, " ", "Space");
-      await sleep(220);
+    if (snapshot.phase === "response") {
+      if (!snapshot.canResolveReaction) {
+        await sleep(125);
+        continue;
+      }
+      await clickText(cdp, "Passar prioridade e resolver");
+      await waitForMatchDriverProgress(cdp, snapshot, "response priority to settle");
+      continue;
+    }
+    if (snapshot.phase === "main") {
+      if (!snapshot.canEndTurn) {
+        await sleep(125);
+        continue;
+      }
+      await clickText(cdp, "Encerrar turno");
+      await waitForMatchDriverProgress(cdp, snapshot, "main phase to advance");
       continue;
     }
     if (snapshot.phase === "combat") {
-      await pressKey(cdp, "Enter", "Enter");
-      await sleep(220);
+      if (!snapshot.canConfirmBlocks) {
+        await sleep(125);
+        continue;
+      }
+      await clickText(cdp, "Confirmar bloqueios");
+      await waitForMatchDriverProgress(cdp, snapshot, "combat blocks to resolve");
       continue;
     }
     await sleep(280);
