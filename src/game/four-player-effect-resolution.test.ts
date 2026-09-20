@@ -134,6 +134,58 @@ const manaBase = {...match,seats:{...match.seats,p1:{...match.seats.p1,mana:2,ma
 const manaRefunded = resolveFourPlayerEffect(manaBase,"p1",{kind:"manaRefund",amount:4,target:"none"});
 assert.equal(manaRefunded.match.seats.p1.mana,5);
 
+const raceDrawFromAlly = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"draw",amount:1,target:"none",race:"Besta"},
+  undefined,
+  {sourceRaces:["Spirit"]},
+);
+assert.equal(raceDrawFromAlly.draws.p1,1,"race-gated draw accepts a matching controlled ally");
+
+const raceDrawFromSource = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"draw",amount:1,target:"none",race:"Dragon"},
+  undefined,
+  {sourceRaces:["Dragon"]},
+);
+assert.equal(raceDrawFromSource.draws.p1,1,"race-gated draw accepts the matching source itself");
+
+const raceDrawMiss = resolveFourPlayerEffect(
+  match,
+  "p1",
+  {kind:"draw",amount:1,target:"none",race:"Dragon"},
+  undefined,
+  {sourceRaces:["Spirit"]},
+);
+assert.equal(raceDrawMiss.draws.p1,undefined,"race-gated draw must not fire without source or ally race match");
+
+const raceRefundMiss = resolveFourPlayerEffect(
+  manaBase,
+  "p1",
+  {kind:"manaRefund",amount:3,target:"none",race:"Besta"},
+  undefined,
+  {sourceRaces:["Spirit"]},
+);
+assert.equal(raceRefundMiss.match.seats.p1.mana,2,"source-relative manaRefund must fail closed on a race mismatch");
+
+const raceRefundHit = resolveFourPlayerEffect(
+  manaBase,
+  "p1",
+  {kind:"manaRefund",amount:3,target:"none",race:"Besta"},
+  undefined,
+  {sourceRaces:["Besta"]},
+);
+assert.equal(raceRefundHit.match.seats.p1.mana,5,"source-relative manaRefund must resolve on a race match");
+
+const raceRefundWithoutSource = resolveFourPlayerEffect(
+  manaBase,
+  "p1",
+  {kind:"manaRefund",amount:3,target:"none",race:"Besta"},
+);
+assert.equal(raceRefundWithoutSource.match.seats.p1.mana,5,"source-less manaRefund preserves certified 1v1 fallback semantics");
+
 const barriered = resolveFourPlayerEffect(
   buffed.match,
   "p1",
