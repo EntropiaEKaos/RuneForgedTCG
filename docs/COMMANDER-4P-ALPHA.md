@@ -93,6 +93,7 @@ This slice certifies:
 33. explicit multiplayer opponent semantics for public `mechanics` conditions: `enemy*` aggregates all living opponents while singular `opponent*` resolves to the next living seat clockwise, skipping eliminated players;
 34. `handAtLeast` and `opponentHandAtLeast` using authoritative hand counts derived from Commander card zones only; private card identities never enter the mechanic-condition context, and the singular opponent rule continues to use the next living seat clockwise;
 35. `buffSelf` source identity carried through trigger/activated-ability stacks plus 1v1-compatible `drawOnSummon` race aggregation/caps; a behavioral parity invariant now fails if an authorable `CARD_EFFECT_KIND` is missing from the Commander spell/effect contract.
+36. server-authoritative priority deadlines: 45 seconds for active-seat action windows and 15 seconds for reaction/non-active priority windows; expiration is resolved under the locked Commander room through the same revisioned `pass_priority` protocol, while the browser receives only a presentation deadline/countdown.
 
 ## Deliberately not claimed yet
 
@@ -101,4 +102,4 @@ This Alpha still does not claim full parity for conditional `mechanics` trigger 
 
 ## Certification base
 
-The current Commander 4P effect-catalog-parity branch is based on post-merge-certified production `main` `50467f61a48de56d1f9a2edfa6cbacfd37e296ed`. Champion progress and level-up authority remain on Commander combat envelope version 9; this slice does not change the persistence envelope because `buffSelf` reuses authoritative battlefield identity and `drawOnSummon` emits the existing count-only draw zone action. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
+The current Commander 4P priority-timeout branch is based on post-merge-certified production `main` `e95caf8b92178593ff144f2832eaebd46a3c20d4`. Commander combat remains on envelope version 9 because the priority clock is derived from the authoritative room `updatedAt` timestamp and does not widen persisted game-state shape. Expiration is resolved under a PostgreSQL row lock with room-version CAS and enters the same revisioned `pass_priority` authority path as an explicit player pass. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.

@@ -7,9 +7,12 @@ import { requireStablePlayerIdentity } from "@/lib/player-session";
 import { COMMANDER_ALPHA_RULES, nextCommanderSeat, type CommanderSeatIndex } from "@/lib/commander-rules";
 import {
   commanderCombatPersistence,
+  commanderPriorityDeadlineAt,
+  commanderPriorityExpired,
   createCommanderCombatEnvelope,
   isCommanderCombatEnvelope,
   processCommanderCombatCommand,
+  processCommanderPriorityTimeout,
   projectCommanderCombatState,
 } from "@/lib/commander-combat";
 import { validateOwnedCommanderLoadout } from "@/lib/commander-service";
@@ -25,10 +28,31 @@ async function loadRoom(code:string) {
   return { room, seats };
 }
 
+async function resolveExpiredCommanderPriority(roomId:number) {
+  return db.transaction(async(tx)=>{
+    const [room]=await tx.select().from(commanderRooms).where(eq(commanderRooms.id,roomId)).limit(1).for("update");
+    if (!room || room.state!=="playing" || !isCommanderCombatEnvelope(room.gameState)) return room;
+    const now=Date.now();
+    if (!commanderPriorityExpired(room.gameState,room.updatedAt,now)) return room;
+    const combat=processCommanderPriorityTimeout(room.gameState,room.updatedAt,now);
+    const persistence=commanderCombatPersistence(combat);
+    const [updated]=await tx.update(commanderRooms).set({
+      ...persistence,
+      expiresAt:new Date(now+PLAYING_TTL_MS),
+      updatedAt:new Date(now),
+    }).where(and(eq(commanderRooms.id,room.id),eq(commanderRooms.version,room.version))).returning();
+    if (!updated) throw new Error("Commander room changed during priority timeout");
+    return updated;
+  });
+}
+
 function publicRoom(data:NonNullable<Awaited<ReturnType<typeof loadRoom>>>, viewerId:number) {
   const ownSeat=data.seats.find((seat)=>seat.playerId===viewerId) ?? null;
   const combat = ownSeat && isCommanderCombatEnvelope(data.room.gameState)
-    ? projectCommanderCombatState(data.room.gameState, ownSeat.seat as CommanderSeatIndex)
+    ? {
+      ...projectCommanderCombatState(data.room.gameState, ownSeat.seat as CommanderSeatIndex),
+      priorityDeadlineAt: commanderPriorityDeadlineAt(data.room.gameState, data.room.updatedAt),
+    }
     : null;
   return {
     id:data.room.id,
@@ -59,9 +83,15 @@ export async function GET(req:NextRequest, ctx:{params:Promise<{code:string}>}) 
   const identity=await requireStablePlayerIdentity(req);
   if (!identity?.playerId) return Response.json({ok:false,error:"Authenticated player session required"},{status:401});
   const {code}=await ctx.params;
-  const data=await loadRoom(code.toUpperCase());
+  const roomCode=code.toUpperCase();
+  let data=await loadRoom(roomCode);
   if (!data) return Response.json({ok:false,error:"Commander room not found"},{status:404});
   if (!data.seats.some((seat)=>seat.playerId===identity.playerId)) return Response.json({ok:false,error:"Join the room before reading participant state"},{status:403});
+  if (data.room.state==="playing" && isCommanderCombatEnvelope(data.room.gameState) && commanderPriorityExpired(data.room.gameState,data.room.updatedAt)) {
+    await resolveExpiredCommanderPriority(data.room.id);
+    data=await loadRoom(roomCode);
+    if (!data) return Response.json({ok:false,error:"Commander room not found"},{status:404});
+  }
   return Response.json({ok:true,room:publicRoom(data,identity.playerId)});
 }
 

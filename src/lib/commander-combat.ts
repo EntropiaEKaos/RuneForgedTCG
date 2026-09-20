@@ -47,6 +47,32 @@ import { COMMANDER_ALPHA_RULES, type CommanderSeatIndex } from "@/lib/commander-
 export const COMMANDER_COMBAT_ENGINE_KIND = "commander_4p_combat_v1" as const;
 export const COMMANDER_COMBAT_ENGINE_VERSION = 9 as const;
 
+export const COMMANDER_PRIORITY_ACTIVE_WINDOW_MS = 45_000;
+export const COMMANDER_PRIORITY_REACTION_WINDOW_MS = 15_000;
+
+export function commanderPriorityWindowMs(envelope: CommanderCombatEnvelope): number {
+  const holder = envelope.match.resolution.priority.holder;
+  const reactive = envelope.match.resolution.stack.items.length > 0 || holder !== envelope.match.turn.activeSeat;
+  return reactive ? COMMANDER_PRIORITY_REACTION_WINDOW_MS : COMMANDER_PRIORITY_ACTIVE_WINDOW_MS;
+}
+
+export function commanderPriorityDeadlineAt(
+  envelope: CommanderCombatEnvelope,
+  updatedAt: Date | number,
+): number {
+  const base = updatedAt instanceof Date ? updatedAt.getTime() : updatedAt;
+  if (!Number.isFinite(base)) throw new Error("Commander priority clock requires a finite authoritative timestamp.");
+  return base + commanderPriorityWindowMs(envelope);
+}
+
+export function commanderPriorityExpired(
+  envelope: CommanderCombatEnvelope,
+  updatedAt: Date | number,
+  now: number = Date.now(),
+): boolean {
+  return now >= commanderPriorityDeadlineAt(envelope, updatedAt);
+}
+
 export interface CommanderCombatSeatInput {
   seat: CommanderSeatIndex;
   playerId: number;
@@ -526,6 +552,29 @@ export function processCommanderCombatCommand(
     zones,
     protocol: accepted.state.protocol,
   };
+}
+
+
+export function processCommanderPriorityTimeout(
+  envelope: CommanderCombatEnvelope,
+  updatedAt: Date | number,
+  now: number = Date.now(),
+): CommanderCombatEnvelope {
+  if (envelope.match.status !== "active") throw new Error("Completed Commander matches do not accept priority timeout.");
+  if (!commanderPriorityExpired(envelope, updatedAt, now)) {
+    throw new Error("Commander priority deadline has not expired.");
+  }
+  const holder = envelope.match.resolution.priority.holder;
+  return processCommanderCombatCommand(
+    envelope,
+    0,
+    commanderSeatIndex(holder),
+    {
+      commandId: `server:priority-timeout:${envelope.protocol.revision}:${holder}`,
+      expectedRevision: envelope.protocol.revision,
+      type: "pass_priority",
+    },
+  );
 }
 
 export function commanderCombatPersistence(envelope: CommanderCombatEnvelope) {
