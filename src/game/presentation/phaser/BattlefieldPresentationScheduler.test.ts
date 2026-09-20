@@ -39,7 +39,7 @@ async function main(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
   await recovery.pump().catch(() => undefined);
   assert.equal(recovery.busy, false);
-  assert.deepEqual(recovered, [1]);
+  assert.deepEqual(recovered, [1, 2]);
   
 }
 
