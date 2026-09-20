@@ -11,7 +11,10 @@ import {
 } from "./four-player-effect-resolution";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
 import type { FourPlayerLevelUpEvent } from "./four-player-level-up";
-import { fourPlayerMechanicConditionMatches } from "./four-player-mechanic-conditions";
+import {
+  fourPlayerMechanicConditionMatches,
+  type FourPlayerMechanicConditionContext,
+} from "./four-player-mechanic-conditions";
 import type { FourPlayerMatchState } from "./four-player-match";
 import { createFourPlayerPriorityState } from "./four-player-priority-manager";
 import { FOUR_PLAYER_RESOLVER_EFFECT_KINDS } from "./four-player-spell-contract";
@@ -276,6 +279,7 @@ function mechanicCandidatesForObject(
   object: FourPlayerBattlefieldObject,
   when: FourPlayerAutomaticTriggerWhen,
   ordinalStart: number,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): TriggerCandidate[] {
   const definition = safeCard(object.defId);
   if (!definition || definition.type !== "Unit" || !object.combat) return [];
@@ -283,7 +287,7 @@ function mechanicCandidatesForObject(
   let ordinal = ordinalStart;
   for (const mechanic of definition.mechanics ?? []) {
     if (mechanic.trigger !== when || !automaticTriggerChainSupported(mechanic.effect)) continue;
-    const condition = fourPlayerMechanicConditionMatches(match, object, mechanic.condition);
+    const condition = fourPlayerMechanicConditionMatches(match, object, mechanic.condition, conditionContext);
     if (!condition.supported || !condition.matches) continue;
     candidates.push({
       controller: object.controllerSeat,
@@ -307,11 +311,12 @@ function appendObjectCandidates(
   object: FourPlayerBattlefieldObject,
   when: FourPlayerAutomaticTriggerWhen,
   ordinal: number,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): number {
   // 1v1 resolves printed trigger first, then mechanics in authored order.
   // Commander uses a LIFO stack, so push the local group in exact reverse:
   // last authored mechanic -> ... -> first mechanic -> printed trigger.
-  const mechanics = mechanicCandidatesForObject(match, object, when, 0).reverse();
+  const mechanics = mechanicCandidatesForObject(match, object, when, 0, conditionContext).reverse();
   for (const mechanic of mechanics) {
     candidates.push({ ...mechanic, ordinal: ordinal++ });
   }
@@ -407,6 +412,7 @@ export function queueFourPlayerTransitionTriggers(
   after: FourPlayerMatchState,
   destroyed: readonly Pick<FourPlayerCombatDestroyedObject, "id" | "defId" | "ownerSeat" | "kind" | "killerId">[] = [],
   eventKey = `transition:${after.turn.turn}`,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): FourPlayerTriggerQueueResult {
   if (after.status === "completed") return { match: after, queued: [] };
   const beforeObjects = before.battlefield?.objects ?? [];
@@ -420,7 +426,7 @@ export function queueFourPlayerTransitionTriggers(
   for (const object of entered) {
     const definition = safeCard(object.defId);
     if (!definition || definition.type !== "Unit") continue;
-    ordinal = appendObjectCandidates(after, candidates, object, "onSummon", ordinal);
+    ordinal = appendObjectCandidates(after, candidates, object, "onSummon", ordinal, conditionContext);
 
     for (const watcher of afterObjects) {
       if (watcher.controllerSeat !== object.controllerSeat || watcher.kind !== "permanent") continue;
@@ -445,7 +451,7 @@ export function queueFourPlayerTransitionTriggers(
     const definition = safeCard(source.defId);
     if (definition?.type === "Unit") {
       const deathStart = candidates.length;
-      ordinal = appendObjectCandidates(before, candidates, source, "onDeath", ordinal);
+      ordinal = appendObjectCandidates(before, candidates, source, "onDeath", ordinal, conditionContext);
       for (let index = deathStart; index < candidates.length; index += 1) {
         candidates[index] = { ...candidates[index]!, sourceTargetId: undefined };
       }
@@ -457,7 +463,7 @@ export function queueFourPlayerTransitionTriggers(
           const killEquipment = equipmentCandidates(killer, "onKill", ordinal, true);
           candidates.push(...killEquipment);
           ordinal += killEquipment.length;
-          ordinal = appendObjectCandidates(before, candidates, killer, "onKill", ordinal);
+          ordinal = appendObjectCandidates(before, candidates, killer, "onKill", ordinal, conditionContext);
         }
       }
 
@@ -465,7 +471,7 @@ export function queueFourPlayerTransitionTriggers(
         if (survivor.controllerSeat !== source.controllerSeat) continue;
         const survivorDef = safeCard(survivor.defId);
         if (survivorDef?.type === "Unit") {
-          ordinal = appendObjectCandidates(after, candidates, survivor, "onAllyDeath", ordinal);
+          ordinal = appendObjectCandidates(after, candidates, survivor, "onAllyDeath", ordinal, conditionContext);
         }
         const equipment = equipmentCandidates(survivor, "onAllyDeath", ordinal);
         candidates.push(...equipment);
@@ -483,11 +489,12 @@ function appendImpactEventCandidates(
   source: FourPlayerBattlefieldObject,
   when: "onStrike" | "onNexusStrike",
   ordinal: number,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): number {
   const equipment = equipmentCandidates(source, when, ordinal, true);
   candidates.push(...equipment);
   let nextOrdinal = ordinal + equipment.length;
-  nextOrdinal = appendObjectCandidates(match, candidates, source, when, nextOrdinal);
+  nextOrdinal = appendObjectCandidates(match, candidates, source, when, nextOrdinal, conditionContext);
   return nextOrdinal;
 }
 
@@ -495,6 +502,7 @@ export function queueFourPlayerCombatImpactTriggers(
   match: FourPlayerMatchState,
   impacts: readonly FourPlayerCombatImpact[],
   eventKey = `combat-impact:${match.turn.turn}`,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): FourPlayerTriggerQueueResult {
   if (match.status === "completed" || impacts.length === 0) return { match, queued: [] };
   const candidates: TriggerCandidate[] = [];
@@ -503,9 +511,9 @@ export function queueFourPlayerCombatImpactTriggers(
     // Push NexusStrike before Strike so LIFO resolution preserves 1v1 order:
     // onStrike resolves first, followed by onNexusStrike.
     if (impact.kind === "nexus_strike") {
-      ordinal = appendImpactEventCandidates(match, candidates, impact.source, "onNexusStrike", ordinal);
+      ordinal = appendImpactEventCandidates(match, candidates, impact.source, "onNexusStrike", ordinal, conditionContext);
     }
-    ordinal = appendImpactEventCandidates(match, candidates, impact.source, "onStrike", ordinal);
+    ordinal = appendImpactEventCandidates(match, candidates, impact.source, "onStrike", ordinal, conditionContext);
   }
   return queueCandidates(match, candidates, eventKey);
 }
@@ -513,6 +521,7 @@ export function queueFourPlayerCombatImpactTriggers(
 export function queueFourPlayerCombatDeclarationTriggers(
   match: FourPlayerMatchState,
   eventKey = `combat-declarations:${match.turn.turn}`,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): FourPlayerTriggerQueueResult {
   if (match.status === "completed" || match.phase !== "combat") return { match, queued: [] };
   const battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
@@ -522,12 +531,12 @@ export function queueFourPlayerCombatDeclarationTriggers(
   for (const attacker of match.combat.attackers) {
     const source = battlefield.objects.find((object) => object.id === attacker.unitId);
     if (!source || source.controllerSeat !== attacker.controller) continue;
-    ordinal = appendObjectCandidates(match, candidates, source, "onAttack", ordinal);
+    ordinal = appendObjectCandidates(match, candidates, source, "onAttack", ordinal, conditionContext);
   }
   for (const blocker of match.combat.blockers) {
     const source = battlefield.objects.find((object) => object.id === blocker.unitId);
     if (!source || source.controllerSeat !== blocker.controller) continue;
-    ordinal = appendObjectCandidates(match, candidates, source, "onBlock", ordinal);
+    ordinal = appendObjectCandidates(match, candidates, source, "onBlock", ordinal, conditionContext);
   }
 
   return queueCandidates(match, candidates, eventKey);
@@ -536,6 +545,7 @@ export function queueFourPlayerCombatDeclarationTriggers(
 export function queueFourPlayerRoundStartTriggers(
   match: FourPlayerMatchState,
   eventKey = `round:${match.turn.round}`,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): FourPlayerTriggerQueueResult {
   if (match.status === "completed") return { match, queued: [] };
   const candidates: TriggerCandidate[] = [];
@@ -546,7 +556,7 @@ export function queueFourPlayerRoundStartTriggers(
       !definition
       || (definition.type !== "Unit" && definition.type !== "Enchantment" && definition.type !== "Artifact")
     ) continue;
-    ordinal = appendObjectCandidates(match, candidates, object, "onRoundStart", ordinal);
+    ordinal = appendObjectCandidates(match, candidates, object, "onRoundStart", ordinal, conditionContext);
   }
   return queueCandidates(match, candidates, eventKey);
 }
@@ -555,6 +565,7 @@ export function queueFourPlayerLevelUpTriggers(
   match: FourPlayerMatchState,
   leveled: readonly FourPlayerLevelUpEvent[],
   eventKey = `level-up:${match.turn.turn}`,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): FourPlayerTriggerQueueResult {
   if (match.status === "completed" || leveled.length === 0) return { match, queued: [] };
   const candidates: TriggerCandidate[] = [];
@@ -562,7 +573,7 @@ export function queueFourPlayerLevelUpTriggers(
   for (const event of leveled) {
     const source = (match.battlefield?.objects ?? []).find((object) => object.id === event.objectId);
     if (!source || source.defId !== event.toDefId) continue;
-    ordinal = appendObjectCandidates(match, candidates, source, "onLevelUp", ordinal);
+    ordinal = appendObjectCandidates(match, candidates, source, "onLevelUp", ordinal, conditionContext);
   }
   return queueCandidates(match, candidates, eventKey);
 }
