@@ -146,7 +146,8 @@ export default function CommanderClient(){
     };
   },[room?.code,resyncRoom]);
   useEffect(()=>{
-    clearPendingCombatIntent();
+    const id=window.setTimeout(clearPendingCombatIntent,0);
+    return()=>window.clearTimeout(id);
   },[room?.combat?.revision,clearPendingCombatIntent]);
   useEffect(()=>{
     if(!room?.combat?.priorityDeadlineAt)return;
