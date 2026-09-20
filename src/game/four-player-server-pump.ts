@@ -7,7 +7,7 @@ import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution
 import { resolveFourPlayerFlow } from "./four-player-flow";
 import type { FourPlayerSeat } from "./four-player-general";
 import { resolveGeneralToBattlefield } from "./four-player-general-zone";
-import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-match";
+import { addFourPlayerProgress, updateMatchGeneral, type FourPlayerMatchState } from "./four-player-match";
 import { advanceFourPlayerPhase } from "./four-player-phase-machine";
 import { allLivingPlayersPassed, createFourPlayerPriorityState } from "./four-player-priority-manager";
 import type { FourPlayerStackItem } from "./four-player-stack";
@@ -61,7 +61,7 @@ function applyResolvedStackItem(
   }
   const resolvedGeneral = resolveGeneralToBattlefield(general);
   const withGeneral = updateMatchGeneral(match, item.controller, resolvedGeneral);
-  return { match: {
+  const enteredGeneral: FourPlayerMatchState = {
     ...withGeneral,
     battlefield: placeResolvedGeneralOnBattlefield(
       withGeneral.battlefield ?? createFourPlayerBattlefieldState(),
@@ -72,7 +72,14 @@ function applyResolvedStackItem(
       withGeneral.generalKeywords?.[item.controller] ?? [],
       withGeneral.generalCombatBodies?.[item.controller],
     ),
-  }, destroyedObjects: [], drawRequests: {}, counteredStackItems: [], zoneActions: [] };
+  };
+  return {
+    match: addFourPlayerProgress(enteredGeneral, item.controller, { alliesSummoned: 1 }),
+    destroyedObjects: [],
+    drawRequests: {},
+    counteredStackItems: [],
+    zoneActions: [],
+  };
 }
 
 /**
