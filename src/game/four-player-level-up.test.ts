@@ -35,7 +35,7 @@ const evolved: CardDef = {
   name: "Four Player Level Evolved",
   region: "Tidecall",
   type: "Unit",
-  cost: 3,
+  cost: 5,
   power: 5,
   health: 6,
   race: "Spirit",
@@ -113,6 +113,62 @@ try {
   assert.equal((queued.queued[0]!.payload as { when?: string }).when, "onLevelUp");
   const resolved = resolveFourPlayerTriggeredAbility(queued.match, queued.queued[0]!);
   assert.equal(resolved.draws.p1, 1, "evolved form onLevelUp trigger resolves on the shared 4P stack");
+
+  const generalSelection = {
+    p1: base.defId,
+    p2: base.defId,
+    p3: base.defId,
+    p4: base.defId,
+  } as const;
+  const printedCosts = { p1: base.cost, p2: base.cost, p3: base.cost, p4: base.cost };
+  let generalProbe = createFourPlayerMatchState(
+    "p1",
+    generalSelection,
+    0,
+    printedCosts,
+    { p1: [], p2: [], p3: [], p4: [] },
+    { p1: baseBody },
+  );
+  generalProbe = {
+    ...generalProbe,
+    generals: {
+      ...generalProbe.generals,
+      p1: { ...generalProbe.generals.p1, location: "battlefield" },
+    },
+    seats: {
+      ...generalProbe.seats,
+      p1: {
+        ...generalProbe.seats.p1,
+        stats: { ...generalProbe.seats.p1.stats, spellsCast: 1 },
+      },
+    },
+    battlefield: putFourPlayerBattlefieldObject(generalProbe.battlefield!, {
+      id: "general:p1:1",
+      defId: base.defId,
+      kind: "general",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      keywords: ["Haste"],
+      combat: { ...baseBody, power: baseBody.power + 4 },
+      equipment: [{
+        instanceId: "general-eq",
+        defId: "virtual-eq",
+        ownerSeat: "p1",
+        physical: false,
+        buffPower: 0,
+        buffHealth: 0,
+        keywords: ["Barrier"],
+      }],
+    }),
+  };
+  const evolvedGeneral = advanceFourPlayerLevelUps(generalProbe).match;
+  const evolvedGeneralPrinted = createFourPlayerCombatBodySnapshot(evolved)!;
+  assert.equal(evolvedGeneral.generals.p1.defId, evolved.defId);
+  assert.equal(evolvedGeneral.generalPrintedCosts.p1, evolved.cost, "future General recasts use the evolved printed mana cost");
+  assert.equal(evolvedGeneral.generalCombatBodies?.p1?.power, evolvedGeneralPrinted.power, "future General recasts discard temporary battlefield power buffs");
+  assert.deepEqual(evolvedGeneral.generalKeywords?.p1, evolved.keywords ?? [], "future General recasts use only evolved printed keywords");
+  assert.equal(evolvedGeneral.generalCombatBodies?.p1?.barrier, evolvedGeneralPrinted.barrier, "future General recasts do not retain temporary Equipment Barrier");
 
   const cases = [
     { defId: "ember_champion", stat: "nexusDamageDealt" as const, amount: getCard("ember_champion").levelUp!.amount },
