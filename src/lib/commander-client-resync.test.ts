@@ -3,6 +3,7 @@ import {
   commanderMutationNeedsResync,
   commanderResumeNeedsResync,
   commanderRevisionChanged,
+  commanderSnapshotMayReplace,
 } from "./commander-client-resync";
 
 assert.equal(commanderMutationNeedsResync(409), true);
@@ -18,5 +19,10 @@ assert.equal(commanderResumeNeedsResync("window_focus", true), true);
 assert.equal(commanderResumeNeedsResync("visibility_resume", true), true);
 assert.equal(commanderResumeNeedsResync("mutation_conflict", true), false);
 assert.equal(commanderResumeNeedsResync("network_reconnect", false), false);
+
+assert.equal(commanderSnapshotMayReplace(8, 9), true);
+assert.equal(commanderSnapshotMayReplace(9, 9), true);
+assert.equal(commanderSnapshotMayReplace(10, 9), false);
+assert.equal(commanderSnapshotMayReplace(undefined, 9), true);
 
 console.log("COMMANDER CLIENT RESYNC CONTRACT: PASS");
