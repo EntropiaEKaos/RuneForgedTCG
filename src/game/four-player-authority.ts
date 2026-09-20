@@ -7,6 +7,7 @@ import {
   type FourPlayerServerEvent,
 } from "./four-player-protocol";
 import { reduceFourPlayerServerEvent } from "./four-player-reducer";
+import type { FourPlayerMechanicConditionContext } from "./four-player-mechanic-conditions";
 import { pumpFourPlayerServer, type FourPlayerServerPumpResult } from "./four-player-server-pump";
 import { assertSessionControlsSeat, type FourPlayerSessionRegistry } from "./four-player-session";
 
@@ -69,13 +70,14 @@ export function processAuthoritativeFourPlayerCommand(
   connectionEpoch: number,
   command: FourPlayerClientCommand,
   validateRules: FourPlayerRuleValidator,
+  conditionContext?: FourPlayerMechanicConditionContext,
 ): FourPlayerAcceptedCommand {
   assertSessionControlsSeat(state.sessions, sessionId, command.seat, connectionEpoch);
   assertMatchAcceptsCommand(state.match, command);
   validateRules(state.match, command);
   const accepted = acceptFourPlayerCommand(state.protocol, command);
   const reducedMatch = reduceFourPlayerServerEvent(state.match, accepted.event);
-  const pump = pumpFourPlayerServer(reducedMatch);
+  const pump = pumpFourPlayerServer(reducedMatch, conditionContext);
   return {
     state: { ...state, protocol: accepted.state, match: pump.match },
     event: accepted.event,
