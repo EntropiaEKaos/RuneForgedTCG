@@ -46,6 +46,8 @@ assert.match(bridge,/COMMANDER_COMBAT_ENGINE_VERSION = 9/, "Champion progress/le
 assert.match(bridge,/fourPlayerStackActionKind/, "bridge must project the authoritative 4P stack taxonomy");
 assert.match(bridge,/fourPlayerStackItemIsUncounterable/, "stack projection must publish authoritative uncounterable state");
 assert.match(bridge,/settleFourPlayerEffectZoneActions/, "ordered draw, mill and recall zone actions must settle through the bridge");
+assert.match(bridge,/advanceFourPlayerLevelUps/, "zone settlement must converge Champion progress before another client action");
+assert.match(bridge,/queueFourPlayerLevelUpTriggers/, "zone-settled level-ups must enter the shared 4P stack");
 assert.match(bridge,/fourPlayerStackActionKind/, "bridge must project the authoritative 4P stack taxonomy");
 assert.match(bridge,/stackTargetId/, "bridge must carry stack-target ids without trusting client card identity");
 assert.match(bridge,/counteredStackItems/, "countered stack cards must settle through authoritative zones");
