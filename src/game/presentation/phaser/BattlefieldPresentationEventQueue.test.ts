@@ -22,3 +22,20 @@ assert.equal(queue.size, 0);
 queue.enqueue({ type: "elimination", playerId: "p4" });
 queue.clear();
 assert.equal(queue.size, 0);
+
+
+const lifecycle = new BattlefieldPresentationEventQueue();
+lifecycle.enqueue({ type: "priority", playerId: "p2" });
+lifecycle.enqueue({ type: "fx", cue: "spell.fireball", sourceId: "a", targetIds: ["b"] });
+const active = lifecycle.beginNext();
+assert.equal(active?.sequence, 1);
+assert.equal(lifecycle.beginNext(), null);
+assert.equal(lifecycle.active?.sequence, 1);
+assert.equal(lifecycle.complete(999), false);
+assert.equal(lifecycle.complete(1), true);
+assert.equal(lifecycle.active, null);
+assert.equal(lifecycle.beginNext()?.sequence, 2);
+assert.equal(lifecycle.size, 1);
+lifecycle.clear();
+assert.equal(lifecycle.active, null);
+assert.equal(lifecycle.size, 0);
