@@ -39,6 +39,8 @@ export interface FourPlayerEffectResolutionContext {
   tokenNamespace?: string;
   /** Source race snapshot for source-relative authored gates (notably manaRefund). */
   sourceRaces?: readonly Race[];
+  /** Battlefield identity for source-relative self effects such as buffSelf. */
+  sourceTargetId?: string;
 }
 
 export type FourPlayerEffectZoneAction =
@@ -62,6 +64,7 @@ interface FourPlayerEffectRuntime {
   tokenOrdinal: number;
   attachmentOrdinal: number;
   sourceRaces?: readonly Race[];
+  sourceTargetId?: string;
 }
 
 function destinationFor(object: FourPlayerBattlefieldObject): FourPlayerCombatDestroyedObject["destination"] {
@@ -250,6 +253,34 @@ function resolveSingle(
     };
   }
 
+  if (effect.kind === "drawOnSummon") {
+    if (effect.target !== "none") throw new Error("4P drawOnSummon must use target none.");
+    if (!Number.isInteger(effect.amount)) throw new Error("4P drawOnSummon amount must be a non-negative integer.");
+    const controlled = (match.battlefield ?? createFourPlayerBattlefieldState()).objects.filter((object) =>
+      object.controllerSeat === actor
+      && !match.seats[object.controllerSeat].eliminated
+      && Boolean(object.combat && object.combat.health > 0),
+    );
+    const races = effect.races ?? (effect.race ? [effect.race] : undefined);
+    const amount = races !== undefined
+      ? Math.min((effect.amount || 1) * controlled.filter((object) =>
+          Boolean(object.combat?.races.some((race) => races.includes(race))),
+        ).length, 4)
+      : Math.min(
+          new Set(controlled.flatMap((object) => object.combat?.races ?? [])).size * Math.max(1, effect.amount || 1),
+          3,
+        );
+    return {
+      result: {
+        match,
+        destroyed: [],
+        draws: amount > 0 ? { [actor]: amount } : {},
+        ...(amount > 0 ? { zoneActions: [{ kind: "draw" as const, seat: actor, amount }] } : {}),
+      },
+      fallbackOpponent,
+    };
+  }
+
   if (effect.kind === "mill") {
     if (!Number.isInteger(effect.amount)) throw new Error("4P mill amount must be a non-negative integer.");
     const seat = target?.kind === "player"
@@ -418,6 +449,23 @@ function resolveSingle(
     return { result: { match: { ...match, battlefield: { objects } }, destroyed: [], draws: {} }, fallbackOpponent };
   }
 
+  if (effect.kind === "buffSelf") {
+    if (effect.target !== "self") throw new Error("4P buffSelf must use target self.");
+    if (target && target.kind !== "battlefield") throw new Error("4P buffSelf only accepts a battlefield self target.");
+    const sourceTargetId = target?.kind === "battlefield" ? target.objectId : runtime.sourceTargetId;
+    if (!sourceTargetId) {
+      // Mirrors 1v1 spell behavior: buffSelf without a concrete source is inert.
+      return { result: { match, destroyed: [], draws: {} }, fallbackOpponent };
+    }
+    const battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
+    const source = battlefield.objects.find((object) => object.id === sourceTargetId);
+    if (!source || source.controllerSeat !== actor || !source.combat || source.combat.health <= 0) {
+      return { result: { match, destroyed: [], draws: {} }, fallbackOpponent };
+    }
+    const buffed = replaceObject(battlefield, source.id, (current) => buffCombatObject(current, effect));
+    return { result: cleanupDestroyed({ ...match, battlefield: buffed }), fallbackOpponent };
+  }
+
   const object = assertFourPlayerTargetObject(match, actor, target, effect.target);
   const inferredOpponent = object.controllerSeat !== actor ? object.controllerSeat : fallbackOpponent;
   let battlefield = match.battlefield ?? createFourPlayerBattlefieldState();
@@ -575,6 +623,7 @@ export function resolveFourPlayerEffect(
     tokenOrdinal: 0,
     attachmentOrdinal: 0,
     ...(context.sourceRaces !== undefined ? { sourceRaces: [...context.sourceRaces] } : {}),
+    ...(context.sourceTargetId !== undefined ? { sourceTargetId: context.sourceTargetId } : {}),
   };
 
   for (let guard = 0; cursor && guard < 32; guard += 1) {
