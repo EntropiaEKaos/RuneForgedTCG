@@ -16,6 +16,7 @@ import { moveGeneralFromBattlefield, returnGeneralToZone } from "./four-player-g
 import {
   FOUR_PLAYER_POISON_LETHAL,
   FOUR_PLAYER_STARTING_LIFE,
+  addFourPlayerProgress,
   applyFourPlayerDamage,
   eliminateFourPlayerMatchSeat,
   type FourPlayerMatchState,
@@ -324,8 +325,13 @@ function resolveSingle(
         combat,
       });
     }
+    const summonedMatch = addFourPlayerProgress(
+      { ...match, battlefield },
+      actor,
+      { alliesSummoned: effect.amount },
+    );
     return {
-      result: { match: { ...match, battlefield }, destroyed: [], draws: {} },
+      result: { match: summonedMatch, destroyed: [], draws: {} },
       fallbackOpponent,
     };
   }
@@ -335,7 +341,9 @@ function resolveSingle(
       ? assertFourPlayerTargetPlayer(match, actor, target, "opponent")
       : fallbackOpponent;
     if (!seat) throw new Error("4P damageNexus requires an explicit opponent target.");
-    return { result: { match: applyFourPlayerDamage(match, seat, effect.amount), destroyed: [], draws: {} }, fallbackOpponent: seat };
+    const damaged = applyFourPlayerDamage(match, seat, effect.amount);
+    const progressed = addFourPlayerProgress(damaged, actor, { nexusDamageDealt: effect.amount });
+    return { result: { match: progressed, destroyed: [], draws: {} }, fallbackOpponent: seat };
   }
 
   if (effect.kind === "healNexus") {
