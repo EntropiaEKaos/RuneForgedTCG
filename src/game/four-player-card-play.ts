@@ -18,7 +18,7 @@ import {
   type FourPlayerCardZones,
 } from "./four-player-card-zones";
 import type { FourPlayerSeat } from "./four-player-general";
-import type { FourPlayerMatchState } from "./four-player-match";
+import { addFourPlayerProgress, type FourPlayerMatchState } from "./four-player-match";
 import {
   findFourPlayerStackItem,
   removeFourPlayerStackItemById,
@@ -173,7 +173,7 @@ export function stageFourPlayerCardCast(
   const regularPaid = usesSpellMana ? Math.min(seat.mana, definition.cost) : definition.cost;
   const spellManaPaid = usesSpellMana ? definition.cost - regularPaid : 0;
   const taken = takeFourPlayerCardFromHand(zones, actor, card.instanceId);
-  const paidMatch: FourPlayerMatchState = {
+  let paidMatch: FourPlayerMatchState = {
     ...match,
     seats: {
       ...match.seats,
@@ -184,6 +184,9 @@ export function stageFourPlayerCardCast(
       },
     },
   };
+  if (usesSpellMana) {
+    paidMatch = addFourPlayerProgress(paidMatch, actor, { spellsCast: 1 });
+  }
   const combat = createFourPlayerCombatBodySnapshot(definition);
   const durability = permanentDurability(definition);
   if (definition.type === "Spell") {
@@ -290,25 +293,28 @@ export function resolveFourPlayerCardCast(
       };
     }
   }
+  const enteredMatch: FourPlayerMatchState = {
+    ...match,
+    battlefield: putFourPlayerBattlefieldObject(
+      match.battlefield ?? createFourPlayerBattlefieldState(),
+      {
+        id: payload.instanceId,
+        defId: payload.defId,
+        kind: battlefieldKind(payload.cardType as Exclude<FourPlayerStageableCardType, "Spell" | "Equipment">),
+        ownerSeat: payload.ownerSeat,
+        controllerSeat: item.controller,
+        enteredTurn: match.turn.turn,
+        keywords: payload.keywords ?? [],
+        combat: payload.combat,
+        durability: payload.durability,
+        loyalty: payload.loyalty,
+      },
+    ),
+  };
   return {
-    match: {
-      ...match,
-      battlefield: putFourPlayerBattlefieldObject(
-        match.battlefield ?? createFourPlayerBattlefieldState(),
-        {
-          id: payload.instanceId,
-          defId: payload.defId,
-          kind: battlefieldKind(payload.cardType as Exclude<FourPlayerStageableCardType, "Spell" | "Equipment">),
-          ownerSeat: payload.ownerSeat,
-          controllerSeat: item.controller,
-          enteredTurn: match.turn.turn,
-          keywords: payload.keywords ?? [],
-          combat: payload.combat,
-          durability: payload.durability,
-          loyalty: payload.loyalty,
-        },
-      ),
-    },
+    match: payload.cardType === "Unit"
+      ? addFourPlayerProgress(enteredMatch, item.controller, { alliesSummoned: 1 })
+      : enteredMatch,
     zoneActions: [],
   };
 }

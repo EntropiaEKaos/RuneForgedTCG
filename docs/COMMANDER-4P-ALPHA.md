@@ -87,12 +87,14 @@ This slice certifies:
 27. combat-authored `onKill` provenance recorded only from the lethal battlefield strike and dispatched during casualty cleanup; spell/effect kills never manufacture an `onKill` source;
 28. simultaneous normal combat exchange remains atomic before impact triggers, while Quick Attack and Double Strike retain ordered strike semantics;
 29. isolation from Casual PvP, Ranked and the binary 1v1 `PlayerId` engine.
+30. certified 1v1-compatible race gates for automatic `draw` and source-relative `manaRefund`, including matching-source, matching-ally and mismatch behavior;
+31. Champion progression for `nexusDamage`, `spellsCast`, `alliesSummoned` and per-instance `nexusStrikes`, physical in-place transformation, durable buff/Equipment preservation and automatic `onLevelUp` stack triggers.
 
 ## Deliberately not claimed yet
 
-This Alpha still does not claim parity with `onLevelUp`, conditional `mechanics` trigger graphs, race-gated draw/refund trigger semantics or every reaction ability in the full catalog, nor Ranked/tournament support for Commander. Unsupported trigger primitives remain fail-closed and are expanded only behind explicit behavioral certification.
+This Alpha still does not claim parity with conditional `mechanics` trigger graphs or every reaction ability in the full catalog, nor Ranked/tournament support for Commander. Unsupported trigger primitives remain fail-closed and are expanded only behind explicit behavioral certification.
 
 
 ## Certification base
 
-The recovered Commander 4P combat branch is based on certified production `main` `b6891a54b1629183d031156dc1fe644ea22f3420`. The incremental combat-impact authority uses Commander combat envelope version 8 so older persisted Alpha rooms fail closed and must restart. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
+The current Commander 4P trigger-parity branch is based on certified production `main` `d491307d183fc28f3a46e08fa3e8d6635f23988b`. Champion progress and level-up authority use Commander combat envelope version 9 so older persisted Alpha rooms fail closed and must restart. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.

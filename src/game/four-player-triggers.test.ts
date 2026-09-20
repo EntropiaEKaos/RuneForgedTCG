@@ -67,6 +67,24 @@ const fixtures: CardDef[] = [
     maxHealth: 4, rarity: "Common", description: "4P trigger fixture.", emoji: "O",
   },
   {
+    defId: "four_player_trigger_race_watcher", name: "Race Watcher", region: "Emberhold", type: "Artifact", cost: 1,
+    maxHealth: 4, rarity: "Common", description: "Refund when a Dragon is summoned.", emoji: "F",
+    trigger: { when: "onPermanentSummon", effect: { kind: "manaRefund", amount: 1, target: "none", race: "Dragon" } },
+  },
+  {
+    defId: "four_player_trigger_self_watcher", name: "Self Subject Watcher", region: "Tidecall", type: "Artifact", cost: 1,
+    maxHealth: 4, rarity: "Common", description: "Barrier the summoned subject.", emoji: "B",
+    trigger: { when: "onPermanentSummon", effect: { kind: "grantBarrier", amount: 0, target: "self" } },
+  },
+  {
+    defId: "four_player_trigger_dragon", name: "Trigger Dragon", region: "Emberhold", type: "Unit", cost: 1,
+    power: 1, health: 2, race: "Dragon", rarity: "Common", description: "Dragon subject.", emoji: "G",
+  },
+  {
+    defId: "four_player_trigger_warrior", name: "Trigger Warrior", region: "Emberhold", type: "Unit", cost: 1,
+    power: 1, health: 2, race: "Warrior", rarity: "Common", description: "Warrior subject.", emoji: "Y",
+  },
+  {
     defId: "four_player_trigger_unsupported", name: "Unsupported Trigger", region: "Tidecall", type: "Unit", cost: 1,
     power: 1, health: 1, rarity: "Common", description: "4P trigger fixture.", emoji: "U",
     trigger: { when: "onSummon", effect: { kind: "drawOnSummon", amount: 1, target: "none" } },
@@ -153,6 +171,81 @@ try {
   assert.equal(watcherQueue.queued.some((entry) => entry.payload.when === "onPermanentSummon"), true);
   const watcherPump = pumpFourPlayerServer(passAllLiving(watcherQueue.match));
   assert.equal(watcherPump.drawRequests?.p1, 1);
+
+  // onPermanentSummon race gates use the summoned Unit as the 1v1-style effect subject.
+  let raceBefore: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "main_1" };
+  raceBefore = {
+    ...raceBefore,
+    seats: { ...raceBefore.seats, p1: { ...raceBefore.seats.p1, mana: 0, maxMana: 1 } },
+    battlefield: putFourPlayerBattlefieldObject(raceBefore.battlefield!, {
+      id: "race-watcher",
+      defId: "four_player_trigger_race_watcher",
+      kind: "permanent",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      durability: { health: 4, maxHealth: 4 },
+    }),
+  };
+  const withSubject = (defId: "four_player_trigger_dragon" | "four_player_trigger_warrior", id: string): FourPlayerMatchState => ({
+    ...raceBefore,
+    battlefield: putFourPlayerBattlefieldObject(raceBefore.battlefield!, {
+      id,
+      defId,
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: raceBefore.turn.turn,
+      combat: body(defId),
+    }),
+  });
+  const dragonQueue = queueFourPlayerTransitionTriggers(
+    raceBefore,
+    withSubject("four_player_trigger_dragon", "dragon-subject"),
+    [],
+    "dragon-race-subject",
+  );
+  const dragonPump = pumpFourPlayerServer(passAllLiving(dragonQueue.match));
+  assert.equal(dragonPump.match.seats.p1.mana, 1, "Dragon summon satisfies Forgeheart-style source-relative manaRefund");
+
+  const warriorQueue = queueFourPlayerTransitionTriggers(
+    raceBefore,
+    withSubject("four_player_trigger_warrior", "warrior-subject"),
+    [],
+    "warrior-race-subject",
+  );
+  const warriorPump = pumpFourPlayerServer(passAllLiving(warriorQueue.match));
+  assert.equal(warriorPump.match.seats.p1.mana, 0, "non-Dragon summon must not satisfy the race-gated refund");
+
+  let selfBefore: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "main_1" };
+  selfBefore = {
+    ...selfBefore,
+    battlefield: putFourPlayerBattlefieldObject(selfBefore.battlefield!, {
+      id: "self-watcher",
+      defId: "four_player_trigger_self_watcher",
+      kind: "permanent",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      durability: { health: 4, maxHealth: 4 },
+    }),
+  };
+  const selfAfter: FourPlayerMatchState = {
+    ...selfBefore,
+    battlefield: putFourPlayerBattlefieldObject(selfBefore.battlefield!, {
+      id: "self-subject-unit",
+      defId: "four_player_trigger_warrior",
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: selfBefore.turn.turn,
+      combat: body("four_player_trigger_warrior"),
+    }),
+  };
+  const selfQueue = queueFourPlayerTransitionTriggers(selfBefore, selfAfter, [], "permanent-self-subject");
+  const selfPump = pumpFourPlayerServer(passAllLiving(selfQueue.match));
+  const selfSubject = selfPump.match.battlefield?.objects.find((object) => object.id === "self-subject-unit");
+  assert.equal(selfSubject?.combat?.barrier, true, "onPermanentSummon target:self must resolve against the summoned Unit subject");
 
   // Death is explicit: recall-like removal without destroyed metadata cannot fire death triggers.
   let deathBefore: FourPlayerMatchState = { ...createFourPlayerMatchState("p1"), phase: "main_1" };

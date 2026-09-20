@@ -1,0 +1,283 @@
+import assert from "node:assert/strict";
+import { getCard } from "./cards";
+import { putFourPlayerBattlefieldObject } from "./four-player-battlefield";
+import { createFourPlayerCombatBodySnapshot } from "./four-player-combat-body";
+import { clearRegisteredCustomCards, registerCustomCards } from "./custom-registry";
+import {
+  advanceFourPlayerLevelUps,
+  fourPlayerChampionProgress,
+} from "./four-player-level-up";
+import { createFourPlayerMatchState } from "./four-player-match";
+import {
+  queueFourPlayerLevelUpTriggers,
+  resolveFourPlayerTriggeredAbility,
+} from "./four-player-triggers";
+import type { CardDef } from "./types";
+
+const base: CardDef = {
+  defId: "fourp_level_base",
+  name: "Four Player Level Base",
+  region: "Tidecall",
+  type: "Unit",
+  cost: 3,
+  power: 2,
+  health: 3,
+  race: "Spirit",
+  keywords: [],
+  description: "4P level-up fixture.",
+  rarity: "Legend",
+  emoji: "L",
+  isChampion: true,
+  levelUp: { type: "spellsCast", amount: 1, toDefId: "fourp_level_evolved", hint: "Cast one spell" },
+};
+const evolved: CardDef = {
+  defId: "fourp_level_evolved",
+  name: "Four Player Level Evolved",
+  region: "Tidecall",
+  type: "Unit",
+  cost: 5,
+  power: 5,
+  health: 6,
+  race: "Spirit",
+  keywords: ["Flying"],
+  description: "4P evolved fixture.",
+  rarity: "Legend",
+  emoji: "E",
+  isChampion: true,
+  collectible: false,
+  trigger: { when: "onLevelUp", effect: { kind: "draw", amount: 1, target: "none" } },
+};
+
+clearRegisteredCustomCards();
+registerCustomCards([base, evolved]);
+try {
+  const baseBody = createFourPlayerCombatBodySnapshot(base)!;
+  let match = createFourPlayerMatchState("p1");
+  match = {
+    ...match,
+    seats: {
+      ...match.seats,
+      p1: {
+        ...match.seats.p1,
+        stats: { ...match.seats.p1.stats, spellsCast: 1 },
+      },
+    },
+    battlefield: putFourPlayerBattlefieldObject(match.battlefield!, {
+      id: "physical-champion",
+      defId: base.defId,
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      keywords: ["Haste"],
+      combat: {
+        ...baseBody,
+        power: baseBody.power + 2,
+        maxHealth: baseBody.maxHealth + 1,
+        health: baseBody.health - 1,
+      },
+      nexusStrikes: 1,
+      equipment: [{
+        instanceId: "eq-1",
+        defId: "virtual-eq",
+        ownerSeat: "p1",
+        physical: false,
+        buffPower: 0,
+        buffHealth: 0,
+        keywords: ["Barrier"],
+      }],
+    }),
+  };
+
+  const before = match.battlefield!.objects[0]!;
+  const progress = fourPlayerChampionProgress(match, before);
+  assert.deepEqual(progress, { current: 1, goal: 1, hint: "Cast one spell" });
+
+  const leveled = advanceFourPlayerLevelUps(match);
+  assert.equal(leveled.leveled.length, 1);
+  const after = leveled.match.battlefield!.objects[0]!;
+  const nextBody = createFourPlayerCombatBodySnapshot(evolved)!;
+  assert.equal(after.id, before.id, "level-up preserves physical instance identity");
+  assert.equal(after.defId, evolved.defId);
+  assert.equal(after.combat?.power, nextBody.power + 2, "durable power delta survives transformation");
+  assert.equal(after.combat?.maxHealth, nextBody.maxHealth + 1, "durable max-health delta survives transformation");
+  assert.equal(after.combat?.health, (baseBody.health - 1) + ((nextBody.maxHealth + 1) - (baseBody.maxHealth + 1)), "existing damage is preserved across the new max health");
+  assert.equal(after.nexusStrikes, 1, "per-instance Nexus-strike progress survives transformation");
+  assert.equal(after.keywords.includes("Flying"), true, "new printed keywords are applied");
+  assert.equal(after.keywords.includes("Haste"), true, "gained durable keywords survive");
+  assert.equal(after.keywords.includes("Barrier"), true, "Equipment keywords are re-merged");
+  assert.equal(after.combat?.barrier, true, "Barrier is refreshed from the transformed durable keyword set");
+
+  const queued = queueFourPlayerLevelUpTriggers(leveled.match, leveled.leveled, "level-test");
+  assert.equal(queued.queued.length, 1);
+  assert.equal((queued.queued[0]!.payload as { when?: string }).when, "onLevelUp");
+  const resolved = resolveFourPlayerTriggeredAbility(queued.match, queued.queued[0]!);
+  assert.equal(resolved.draws.p1, 1, "evolved form onLevelUp trigger resolves on the shared 4P stack");
+
+  const generalSelection = {
+    p1: base.defId,
+    p2: base.defId,
+    p3: base.defId,
+    p4: base.defId,
+  } as const;
+  const printedCosts = { p1: base.cost, p2: base.cost, p3: base.cost, p4: base.cost };
+  let generalProbe = createFourPlayerMatchState(
+    "p1",
+    generalSelection,
+    0,
+    printedCosts,
+    { p1: [], p2: [], p3: [], p4: [] },
+    { p1: baseBody },
+  );
+  generalProbe = {
+    ...generalProbe,
+    generals: {
+      ...generalProbe.generals,
+      p1: { ...generalProbe.generals.p1, location: "battlefield" },
+    },
+    seats: {
+      ...generalProbe.seats,
+      p1: {
+        ...generalProbe.seats.p1,
+        stats: { ...generalProbe.seats.p1.stats, spellsCast: 1 },
+      },
+    },
+    battlefield: putFourPlayerBattlefieldObject(generalProbe.battlefield!, {
+      id: "general:p1:1",
+      defId: base.defId,
+      kind: "general",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      keywords: ["Haste"],
+      combat: { ...baseBody, power: baseBody.power + 4 },
+      equipment: [{
+        instanceId: "general-eq",
+        defId: "virtual-eq",
+        ownerSeat: "p1",
+        physical: false,
+        buffPower: 0,
+        buffHealth: 0,
+        keywords: ["Barrier"],
+      }],
+    }),
+  };
+  const evolvedGeneral = advanceFourPlayerLevelUps(generalProbe).match;
+  const evolvedGeneralPrinted = createFourPlayerCombatBodySnapshot(evolved)!;
+  assert.equal(evolvedGeneral.generals.p1.defId, evolved.defId);
+  assert.equal(evolvedGeneral.generalPrintedCosts.p1, evolved.cost, "future General recasts use the evolved printed mana cost");
+  assert.equal(evolvedGeneral.generalCombatBodies?.p1?.power, evolvedGeneralPrinted.power, "future General recasts discard temporary battlefield power buffs");
+  assert.deepEqual(evolvedGeneral.generalKeywords?.p1, evolved.keywords ?? [], "future General recasts use only evolved printed keywords");
+  assert.equal(evolvedGeneral.generalCombatBodies?.p1?.barrier, evolvedGeneralPrinted.barrier, "future General recasts do not retain temporary Equipment Barrier");
+
+  let headlessProbe = createFourPlayerMatchState("p1");
+  headlessProbe = {
+    ...headlessProbe,
+    battlefield: putFourPlayerBattlefieldObject(headlessProbe.battlefield!, {
+      id: "headless-combat-object",
+      defId: "headless-not-in-catalog",
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      combat: {
+        basePower: 2,
+        power: 2,
+        health: 2,
+        maxHealth: 2,
+        races: [],
+        classes: [],
+        barrier: false,
+        frostbitten: false,
+      },
+    }),
+  };
+  const headlessAdvanced = advanceFourPlayerLevelUps(headlessProbe);
+  assert.equal(headlessAdvanced.leveled.length, 0, "non-catalog headless combat fixtures remain outside Champion scanning");
+  assert.equal(headlessAdvanced.match.battlefield?.objects[0]?.defId, "headless-not-in-catalog");
+
+  const cases = [
+    { defId: "ember_champion", stat: "nexusDamageDealt" as const, amount: getCard("ember_champion").levelUp!.amount },
+    { defId: "tide_champion", stat: "spellsCast" as const, amount: getCard("tide_champion").levelUp!.amount },
+    { defId: "forest_champion", stat: "alliesSummoned" as const, amount: getCard("forest_champion").levelUp!.amount },
+  ];
+  for (const item of cases) {
+    const definition = getCard(item.defId);
+    const body = createFourPlayerCombatBodySnapshot(definition)!;
+    let probe = createFourPlayerMatchState("p1");
+    probe = {
+      ...probe,
+      seats: {
+        ...probe.seats,
+        p1: {
+          ...probe.seats.p1,
+          stats: { ...probe.seats.p1.stats, [item.stat]: item.amount },
+        },
+      },
+      battlefield: putFourPlayerBattlefieldObject(probe.battlefield!, {
+        id: `probe-${item.defId}`,
+        defId: item.defId,
+        kind: "unit",
+        ownerSeat: "p1",
+        controllerSeat: "p1",
+        enteredTurn: 0,
+        keywords: definition.keywords ?? [],
+        combat: body,
+      }),
+    };
+    assert.equal(fourPlayerChampionProgress(probe, probe.battlefield!.objects[0]!)?.current, item.amount);
+  }
+
+  let syntheticProbe = createFourPlayerMatchState("p1");
+  syntheticProbe = {
+    ...syntheticProbe,
+    battlefield: putFourPlayerBattlefieldObject(syntheticProbe.battlefield!, {
+      id: "synthetic-body",
+      defId: "synthetic-body-not-in-catalog",
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      keywords: [],
+      combat: {
+        basePower: 4,
+        power: 4,
+        health: 4,
+        maxHealth: 4,
+        races: [],
+        classes: [],
+        barrier: false,
+        frostbitten: false,
+      },
+    }),
+  };
+  const syntheticAdvance = advanceFourPlayerLevelUps(syntheticProbe);
+  assert.equal(syntheticAdvance.match, syntheticProbe, "non-catalog synthetic bodies are outside Champion level authority");
+  assert.equal(syntheticAdvance.leveled.length, 0);
+
+  const strikeDef = getCard("storm_champion");
+  let strikeProbe = createFourPlayerMatchState("p1");
+  strikeProbe = {
+    ...strikeProbe,
+    battlefield: putFourPlayerBattlefieldObject(strikeProbe.battlefield!, {
+      id: "strike-probe",
+      defId: strikeDef.defId,
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      keywords: strikeDef.keywords ?? [],
+      combat: createFourPlayerCombatBodySnapshot(strikeDef)!,
+      nexusStrikes: strikeDef.levelUp!.amount,
+    }),
+  };
+  assert.equal(
+    fourPlayerChampionProgress(strikeProbe, strikeProbe.battlefield!.objects[0]!)?.current,
+    strikeDef.levelUp!.amount,
+    "nexusStrikes uses physical-instance progress instead of seat-global stats",
+  );
+
+  console.log("FOUR PLAYER LEVEL UP: PASS — counters, physical transformation, durable state and onLevelUp stack trigger");
+} finally {
+  clearRegisteredCustomCards();
+}

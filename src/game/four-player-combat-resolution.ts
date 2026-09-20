@@ -14,6 +14,7 @@ import { moveGeneralFromBattlefield } from "./four-player-general-zone";
 import {
   FOUR_PLAYER_POISON_LETHAL,
   FOUR_PLAYER_STARTING_LIFE,
+  addFourPlayerProgress,
   eliminateFourPlayerMatchSeat,
   type FourPlayerMatchState,
   updateMatchGeneral,
@@ -231,11 +232,17 @@ function directStrike(
     poisonous: source.keywords.includes("Poisonous"),
   };
   const healing = source.keywords.includes("Lifesteal") ? amount : 0;
+  const struckState: FourPlayerBattlefieldState = {
+    objects: state.objects.map((object) => object.id === sourceId
+      ? { ...object, nexusStrikes: (object.nexusStrikes ?? 0) + 1 }
+      : object),
+  };
+  const struckSource = findFourPlayerBattlefieldObject(struckState, sourceId);
   return {
-    state: markEphemeralDead(state, sourceId),
+    state: markEphemeralDead(struckState, sourceId),
     hit,
     healing,
-    source: snapshotCombatObject(source),
+    source: snapshotCombatObject(struckSource),
   };
 }
 
@@ -308,8 +315,9 @@ function applyNexusHit(
   if (hit.sourceGeneral) {
     generalDamage[hit.target] = { [hit.sourceGeneral]: hit.amount };
   }
+  const damaged = applySeatTotals(match, nexusDamage, generalDamage, poisonAdded, healing);
   return {
-    match: applySeatTotals(match, nexusDamage, generalDamage, poisonAdded, healing),
+    match: addFourPlayerProgress(damaged, hit.sourceController, { nexusDamageDealt: hit.amount }),
     nexusDamage,
     poisonAdded,
     healing,

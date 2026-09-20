@@ -41,6 +41,8 @@ export interface FourPlayerBattlefieldObject {
   durability?: FourPlayerDurability;
   equipment?: readonly FourPlayerEquipmentAttachment[];
   loyalty?: number;
+  /** Per-physical-instance Nexus strike progress, preserved across Champion forms. */
+  nexusStrikes?: number;
   activatedAbilityUses?: Readonly<Record<string, FourPlayerActivatedAbilityUsage>>;
   sentinelaActivatedRound?: number;
   exhaustedRound?: number;
@@ -60,6 +62,7 @@ export interface FourPlayerBattlefieldObjectInput {
   durability?: FourPlayerDurability;
   equipment?: readonly FourPlayerEquipmentAttachment[];
   loyalty?: number;
+  nexusStrikes?: number;
   activatedAbilityUses?: Readonly<Record<string, FourPlayerActivatedAbilityUsage>>;
   sentinelaActivatedRound?: number;
   exhaustedRound?: number;
@@ -115,6 +118,7 @@ export function putFourPlayerBattlefieldObject(
     ...(input.durability ? { durability: { ...input.durability } } : {}),
     equipment: (input.equipment ?? []).map((entry) => ({ ...entry, keywords: [...entry.keywords] })),
     ...(input.loyalty !== undefined ? { loyalty: input.loyalty } : {}),
+    nexusStrikes: input.nexusStrikes ?? 0,
     ...(input.activatedAbilityUses ? { activatedAbilityUses: { ...input.activatedAbilityUses } } : {}),
     ...(input.sentinelaActivatedRound !== undefined ? { sentinelaActivatedRound: input.sentinelaActivatedRound } : {}),
     ...(input.exhaustedRound !== undefined ? { exhaustedRound: input.exhaustedRound } : {}),

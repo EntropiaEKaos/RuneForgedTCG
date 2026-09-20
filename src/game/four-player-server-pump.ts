@@ -6,12 +6,13 @@ import { advanceFourPlayerCombatStep, type FourPlayerCombatDestroyedObject } fro
 import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
 import { resolveFourPlayerFlow } from "./four-player-flow";
 import type { FourPlayerSeat } from "./four-player-general";
+import { advanceFourPlayerLevelUps } from "./four-player-level-up";
 import { resolveGeneralToBattlefield } from "./four-player-general-zone";
-import { updateMatchGeneral, type FourPlayerMatchState } from "./four-player-match";
+import { addFourPlayerProgress, updateMatchGeneral, type FourPlayerMatchState } from "./four-player-match";
 import { advanceFourPlayerPhase } from "./four-player-phase-machine";
 import { allLivingPlayersPassed, createFourPlayerPriorityState } from "./four-player-priority-manager";
 import type { FourPlayerStackItem } from "./four-player-stack";
-import { queueFourPlayerCombatDeclarationTriggers, queueFourPlayerCombatImpactTriggers, queueFourPlayerRoundStartTriggers, queueFourPlayerTransitionTriggers, resolveFourPlayerTriggeredAbility } from "./four-player-triggers";
+import { queueFourPlayerCombatDeclarationTriggers, queueFourPlayerCombatImpactTriggers, queueFourPlayerLevelUpTriggers, queueFourPlayerRoundStartTriggers, queueFourPlayerTransitionTriggers, resolveFourPlayerTriggeredAbility } from "./four-player-triggers";
 
 export interface FourPlayerServerPumpResult {
   match: FourPlayerMatchState;
@@ -61,7 +62,7 @@ function applyResolvedStackItem(
   }
   const resolvedGeneral = resolveGeneralToBattlefield(general);
   const withGeneral = updateMatchGeneral(match, item.controller, resolvedGeneral);
-  return { match: {
+  const enteredGeneral: FourPlayerMatchState = {
     ...withGeneral,
     battlefield: placeResolvedGeneralOnBattlefield(
       withGeneral.battlefield ?? createFourPlayerBattlefieldState(),
@@ -72,7 +73,24 @@ function applyResolvedStackItem(
       withGeneral.generalKeywords?.[item.controller] ?? [],
       withGeneral.generalCombatBodies?.[item.controller],
     ),
-  }, destroyedObjects: [], drawRequests: {}, counteredStackItems: [], zoneActions: [] };
+  };
+  return {
+    match: addFourPlayerProgress(enteredGeneral, item.controller, { alliesSummoned: 1 }),
+    destroyedObjects: [],
+    drawRequests: {},
+    counteredStackItems: [],
+    zoneActions: [],
+  };
+}
+
+function convergeFourPlayerLevelUps(
+  match: FourPlayerMatchState,
+  eventKey: string,
+): { match: FourPlayerMatchState; queued: number } {
+  const advanced = advanceFourPlayerLevelUps(match);
+  if (advanced.leveled.length === 0) return { match, queued: 0 };
+  const triggered = queueFourPlayerLevelUpTriggers(advanced.match, advanced.leveled, eventKey);
+  return { match: triggered.match, queued: triggered.queued.length };
 }
 
 /**
@@ -167,7 +185,23 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
             ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
           };
         }
-        const advanced = advanceFourPlayerPhase(stepping);
+        const leveled = convergeFourPlayerLevelUps(
+          triggered.match,
+          `level-up:combat:${combatReady.turn.turn}`,
+        );
+        if (leveled.queued > 0) {
+          return {
+            match: leveled.match,
+            resolved: [],
+            awaitingClientInput: true,
+            phaseAdvanced: false,
+            turnAdvanced: false,
+            combatResolved: true,
+            destroyedObjects: combat.destroyed,
+            ...(combat.zoneActions.length > 0 ? { zoneActions: combat.zoneActions } : {}),
+          };
+        }
+        const advanced = advanceFourPlayerPhase(leveled.match);
         return {
           match: advanced.match,
           resolved: [],
@@ -213,6 +247,12 @@ export function pumpFourPlayerServer(match: FourPlayerMatchState): FourPlayerSer
     `resolve:${result.resolved.id}`,
   );
   nextMatch = triggered.match;
+  if (triggered.queued.length === 0 && nextMatch.phase !== "combat") {
+    nextMatch = convergeFourPlayerLevelUps(
+      nextMatch,
+      `level-up:resolve:${result.resolved.id}`,
+    ).match;
+  }
   return {
     match: nextMatch,
     resolved: [result.resolved],

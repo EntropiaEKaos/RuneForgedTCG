@@ -10,6 +10,7 @@ import {
   type FourPlayerEffectZoneAction,
 } from "./four-player-effect-resolution";
 import { FOUR_PLAYER_SEATS, type FourPlayerSeat } from "./four-player-general";
+import type { FourPlayerLevelUpEvent } from "./four-player-level-up";
 import type { FourPlayerMatchState } from "./four-player-match";
 import { createFourPlayerPriorityState } from "./four-player-priority-manager";
 import { FOUR_PLAYER_RESOLVER_EFFECT_KINDS } from "./four-player-spell-contract";
@@ -18,7 +19,7 @@ import {
   assertFourPlayerTargetObject,
   type FourPlayerTargetRef,
 } from "./four-player-targeting";
-import type { CardDef, CardEffect, TriggerWhen } from "./types";
+import type { CardDef, CardEffect, Race, TriggerWhen } from "./types";
 
 export const FOUR_PLAYER_AUTOMATIC_TRIGGER_EVENTS = [
   "onSummon",
@@ -26,6 +27,7 @@ export const FOUR_PLAYER_AUTOMATIC_TRIGGER_EVENTS = [
   "onDeath",
   "onAllyDeath",
   "onRoundStart",
+  "onLevelUp",
   "onAttack",
   "onBlock",
   "onStrike",
@@ -42,6 +44,10 @@ export interface FourPlayerTriggeredAbilityPayload {
   when: FourPlayerAutomaticTriggerWhen;
   description: string;
   effect: CardEffect;
+  /** Battlefield identity of the 1v1-style effect subject ("self"), separate from ability identity. */
+  effectSourceTargetId?: string;
+  /** Snapshot of the 1v1-style effect subject ("self") races for source-relative gates. */
+  sourceRaces?: readonly Race[];
   targets: readonly (FourPlayerTargetRef | null)[];
 }
 
@@ -56,6 +62,7 @@ interface TriggerCandidate {
   sourceDefId: string;
   sourceKind: string;
   sourceTargetId?: string;
+  sourceRaces?: readonly Race[];
   when: FourPlayerAutomaticTriggerWhen;
   description: string;
   effect: CardEffect;
@@ -83,12 +90,6 @@ function automaticTriggerChainSupported(effect: CardEffect): boolean {
   for (let guard = 0; cursor && guard < 32; guard += 1) {
     if (!SUPPORTED_EFFECTS.has(cursor.kind)) return false;
     if (GRAVEYARD_TARGETS.has(cursor.target) || cursor.target === "spellOnStack") return false;
-    // The 1v1 resolver applies these race gates using unit-state semantics that
-    // Commander has not certified yet. Fail closed instead of silently changing
-    // authored behavior.
-    if ((cursor.kind === "draw" || cursor.kind === "manaRefund") && (cursor.race || cursor.races?.length)) {
-      return false;
-    }
     cursor = cursor.also;
   }
   return !cursor;
@@ -261,6 +262,7 @@ function candidateForObject(
     sourceDefId: object.defId,
     sourceKind: object.kind,
     sourceTargetId: object.id,
+    ...(object.combat ? { sourceRaces: [...object.combat.races] } : {}),
     when,
     description: `${definition.name} — ${when}`,
     effect: structuredClone(trigger.effect),
@@ -288,6 +290,7 @@ function equipmentCandidates(
       sourceDefId: equipment.defId,
       sourceKind: "equipment",
       sourceTargetId: bearer.id,
+      ...(bearer.combat ? { sourceRaces: [...bearer.combat.races] } : {}),
       when,
       description: `${definition.name} — ${when}`,
       effect: structuredClone(trigger.effect),
@@ -328,6 +331,8 @@ function queueCandidates(
         when: candidate.when,
         description: candidate.description,
         effect: structuredClone(candidate.effect),
+        ...(candidate.sourceTargetId ? { effectSourceTargetId: candidate.sourceTargetId } : {}),
+        ...(candidate.sourceRaces !== undefined ? { sourceRaces: [...candidate.sourceRaces] } : {}),
         targets: snapshotTargets(match, candidate.controller, candidate.effect, candidate.sourceTargetId),
       },
     };
@@ -373,7 +378,15 @@ export function queueFourPlayerTransitionTriggers(
       const watcherDef = safeCard(watcher.defId);
       if (!watcherDef || (watcherDef.type !== "Enchantment" && watcherDef.type !== "Artifact")) continue;
       const permanentSummon = candidateForObject(watcher, "onPermanentSummon", ordinal++);
-      if (permanentSummon) candidates.push(permanentSummon);
+      if (permanentSummon) {
+        candidates.push({
+          ...permanentSummon,
+          // 1v1 passes the newly summoned Unit as the effect subject for
+          // onPermanentSummon (e.g. Forgeheart's Dragon mana refund).
+          sourceTargetId: object.id,
+          ...(object.combat ? { sourceRaces: [...object.combat.races] } : { sourceRaces: [] }),
+        });
+      }
     }
   }
 
@@ -491,6 +504,23 @@ export function queueFourPlayerRoundStartTriggers(
   return queueCandidates(match, candidates, eventKey);
 }
 
+export function queueFourPlayerLevelUpTriggers(
+  match: FourPlayerMatchState,
+  leveled: readonly FourPlayerLevelUpEvent[],
+  eventKey = `level-up:${match.turn.turn}`,
+): FourPlayerTriggerQueueResult {
+  if (match.status === "completed" || leveled.length === 0) return { match, queued: [] };
+  const candidates: TriggerCandidate[] = [];
+  let ordinal = 0;
+  for (const event of leveled) {
+    const source = (match.battlefield?.objects ?? []).find((object) => object.id === event.objectId);
+    if (!source || source.defId !== event.toDefId) continue;
+    const candidate = candidateForObject(source, "onLevelUp", ordinal++);
+    if (candidate) candidates.push(candidate);
+  }
+  return queueCandidates(match, candidates, eventKey);
+}
+
 export function destroyedFourPlayerObjectsFromRemoval(
   before: FourPlayerMatchState,
   after: FourPlayerMatchState,
@@ -537,13 +567,16 @@ export function resolveFourPlayerTriggeredAbility(
   while (cursor && index < 32 && current.status === "active") {
     const single: CardEffect = { ...cursor, also: undefined };
     const target = payload.targets[index] ?? null;
-    if (targetStillLegal(current, item.controller, single, target, payload.sourceId)) {
+    if (targetStillLegal(current, item.controller, single, target, payload.effectSourceTargetId)) {
       const resolved = resolveFourPlayerEffect(
         current,
         item.controller,
         single,
         target ?? undefined,
-        { tokenNamespace: `${item.id}:${index}` },
+        {
+          tokenNamespace: `${item.id}:${index}`,
+          ...(payload.sourceRaces !== undefined ? { sourceRaces: payload.sourceRaces } : {}),
+        },
       );
       current = resolved.match;
       destroyed.push(...resolved.destroyed);
