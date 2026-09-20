@@ -32,6 +32,9 @@ assert.match(route,/action==="combat-command"/,"Commander endpoint must expose v
 assert.match(route,/for\("update"\)/,"Commander room transitions must retain PostgreSQL row locks");
 assert.match(route,/expectedRevision!==room\.version/,"room version must fail closed on stale commands");
 assert.match(route,/isCommanderCombatEnvelope\(room\.gameState\)/,"combat commands must reject incompatible persisted state");
+assert.match(route,/resolveExpiredCommanderPriority/,"Commander GET must resolve expired priority through server authority");
+assert.match(route,/commanderPriorityExpired/,"Commander timeout decision must use the authoritative deadline helper");
+assert.match(route,/eq\(commanderRooms\.version,room\.version\)/,"Commander timeout persistence must retain revision CAS");
 
 assert.match(bridge,/processAuthoritativeFourPlayerCommand/,"bridge must use recovered #209 authority pipeline");
 assert.match(bridge,/projectFourPlayerStateForSeat/,"bridge must preserve hidden-information projection");
@@ -58,6 +61,11 @@ assert.match(bridge,/stageFourPlayerCardCast/,"play_card must derive authoritati
 assert.match(bridge,/acceptAuthoritativeFourPlayerCommand/,"play_card must still consume the canonical revision/idempotency protocol");
 assert.match(bridge,/end_turn/);
 assert.match(bridge,/concede/);
+assert.match(bridge,/COMMANDER_PRIORITY_ACTIVE_WINDOW_MS = 45_000/);
+assert.match(bridge,/COMMANDER_PRIORITY_REACTION_WINDOW_MS = 15_000/);
+assert.match(bridge,/commanderPriorityDeadlineAt/);
+assert.match(bridge,/processCommanderPriorityTimeout/);
+assert.match(bridge,/server:priority-timeout:/,"server timeout must enter the same revisioned command protocol");
 assert.match(cardPlay,/semanticProactivePlayAllowed/, "Commander server must preserve reaction-only Trap timing");
 assert.match(cardPlay,/semanticReactionAllowed/, "Commander server must preserve semantic reaction legality");
 assert.match(cardPlay,/cardUsesSpellMana/, "Commander server must share the certified semantic spell-mana contract");
@@ -101,6 +109,8 @@ assert.match(client,/Jogar/);
 assert.match(client,/combatCommand\("end_turn"\)/);
 assert.match(client,/combatCommand\("concede"\)/);
 assert.match(client,/Passar prioridade/);
+assert.match(client,/priorityDeadlineAt/,"Commander client must render the server-projected priority deadline");
+assert.match(client,/prioritySeconds/,"Commander client countdown must remain presentation-only");
 assert.match(client,/Conjurar General/);
 assert.match(client,/Encerrar turno/);
 assert.match(client,/Conceder partida/);
