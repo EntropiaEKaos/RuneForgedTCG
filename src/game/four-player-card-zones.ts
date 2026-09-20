@@ -14,6 +14,12 @@ export interface FourPlayerCardZoneState {
 
 export type FourPlayerCardZones = Record<FourPlayerSeat, FourPlayerCardZoneState>;
 
+export function fourPlayerHandCounts(zones: FourPlayerCardZones): Record<FourPlayerSeat, number> {
+  return Object.fromEntries(
+    FOUR_PLAYER_SEATS.map((seat) => [seat, zones[seat].hand.length]),
+  ) as Record<FourPlayerSeat, number>;
+}
+
 function createDeckInstances(seat: FourPlayerSeat, deck: readonly string[]): FourPlayerCardInstance[] {
   return deck.map((defId, index) => ({
     instanceId: `${seat}:card:${index + 1}`,
