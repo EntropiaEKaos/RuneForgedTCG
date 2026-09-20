@@ -33,7 +33,7 @@ type AbilityOption = {
   respondsTo?:string[]; stackTargetId?:string;
 };
 type CombatState = {
-  kind:string; engineVersion:number; revision:number; viewerSeat:number; activeSeat:number; prioritySeat:number;
+  kind:string; engineVersion:number; revision:number; viewerSeat:number; activeSeat:number; prioritySeat:number; priorityDeadlineAt:number;
   round:number; turn:number; phase:string; status:string; winnerSeat:number|null; seats:CombatSeat[];
   stack:ProjectedStackItem[];
   abilities:AbilityOption[];
@@ -76,6 +76,7 @@ export default function CommanderClient(){
   const [abilityDiscardIds,setAbilityDiscardIds]=useState<string[]>([]);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
+  const [nowMs,setNowMs]=useState(0);
 
   const loadCollection=useCallback(async()=>{
     const response=await fetch("/api/collection",{cache:"no-store",credentials:"include"});
@@ -97,6 +98,13 @@ export default function CommanderClient(){
 
   useEffect(()=>{const id=window.setTimeout(()=>{void Promise.all([loadCollection(),loadRooms()]).catch((e)=>console.error("[commander] initial load failed",e));},0);return()=>window.clearTimeout(id);},[loadCollection,loadRooms]);
   useEffect(()=>{if(!room)return;const id=window.setInterval(()=>void loadRoom(room.code),3000);return()=>window.clearInterval(id)},[room,loadRoom]);
+  useEffect(()=>{
+    if(!room?.combat?.priorityDeadlineAt)return;
+    const tick=()=>setNowMs(Date.now());
+    tick();
+    const id=window.setInterval(tick,250);
+    return()=>window.clearInterval(id);
+  },[room?.combat?.priorityDeadlineAt]);
 
   const generals=useMemo(()=>collection.filter(card=>(card.isChampion||card.isLegend)&&card.owned>countOf(deck,card.defId)),[collection,deck]);
   const selectedGeneral=collection.find(card=>card.defId===general);
@@ -138,6 +146,9 @@ export default function CommanderClient(){
   const viewerHasPriority=Boolean(combat&&room?.viewerSeat!=null&&combat.prioritySeat===room.viewerSeat&&combat.status==="active");
   const viewerIsActive=Boolean(combat&&room?.viewerSeat!=null&&combat.activeSeat===room.viewerSeat&&combat.status==="active");
   const viewerAlive=Boolean(viewerRuntime&&!viewerRuntime.eliminated&&combat?.status==="active");
+  const prioritySeconds=combat?.priorityDeadlineAt&&nowMs
+    ? Math.max(0,Math.ceil((combat.priorityDeadlineAt-nowMs)/1000))
+    : null;
   const isMainPhase=Boolean(combat?.phase==="main_1"||combat?.phase==="main_2");
   const stackItems=combat?.stack||[];
   const stackTop=stackItems[stackItems.length-1];
@@ -295,7 +306,7 @@ export default function CommanderClient(){
             {combat?<><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div><small className="text-slate-500">FASE</small><b className="block text-amber-100">{phaseLabel(combat.phase)}</b></div>
               <div><small className="text-slate-500">TURNO</small><b className="block">P{combat.activeSeat+1} · #{combat.turn}</b></div>
-              <div><small className="text-slate-500">PRIORIDADE</small><b className="block text-cyan-200">P{combat.prioritySeat+1}</b></div>
+              <div><small className="text-slate-500">PRIORIDADE</small><b className="block text-cyan-200">P{combat.prioritySeat+1}{prioritySeconds!=null?` · ${prioritySeconds}s`:""}</b></div>
               <div><small className="text-slate-500">AUTORIDADE</small><b className="block">rev {combat.revision}</b></div>
             </div>
             {stackItems.length>0&&<div className="mt-4 border border-violet-300/15 bg-violet-950/10 p-3">
@@ -402,7 +413,7 @@ export default function CommanderClient(){
               </div>}
             </div>}
             <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <button className="btn-ghost" disabled={busy||!viewerHasPriority} onClick={()=>void combatCommand("pass_priority")}>Passar prioridade</button>
+              <button className="btn-ghost" disabled={busy||!viewerHasPriority} onClick={()=>void combatCommand("pass_priority")}>Passar prioridade{viewerHasPriority&&prioritySeconds!=null?` · ${prioritySeconds}s`:""}</button>
               <button className="btn-ghost" disabled={busy||!canCastGeneral} onClick={()=>void combatCommand("cast_general")}>Conjurar General</button>
               <button className="btn-primary" disabled={busy||!viewerIsActive||!viewerHasPriority||stackItems.length>0} onClick={()=>void combatCommand("end_turn")}>Encerrar turno</button>
               <button className="border border-rose-400/25 px-3 py-2 text-xs font-black uppercase text-rose-200 disabled:opacity-30" disabled={busy||!viewerAlive} onClick={()=>void combatCommand("concede")}>Conceder partida</button>
