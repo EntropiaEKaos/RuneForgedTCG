@@ -145,6 +145,9 @@ export function advanceFourPlayerLevelUps(match: FourPlayerMatchState): FourPlay
     const transformed = replacements.get(event.objectId);
     if (!transformed?.combat) continue;
     const general = next.generals[event.ownerSeat];
+    const evolvedDefinition = getCard(transformed.defId);
+    const evolvedPrintedBody = createFourPlayerCombatBodySnapshot(evolvedDefinition);
+    if (!evolvedPrintedBody) throw new Error("4P evolved General requires a printed combat body.");
     next = {
       ...next,
       generals: {
@@ -153,14 +156,14 @@ export function advanceFourPlayerLevelUps(match: FourPlayerMatchState): FourPlay
       },
       generalKeywords: {
         ...(next.generalKeywords ?? { p1: [], p2: [], p3: [], p4: [] }),
-        [event.ownerSeat]: [...transformed.keywords],
+        [event.ownerSeat]: [...(evolvedDefinition.keywords ?? [])],
       },
       generalCombatBodies: {
         ...(next.generalCombatBodies ?? {}),
         [event.ownerSeat]: {
-          ...transformed.combat,
-          races: [...transformed.combat.races],
-          classes: [...transformed.combat.classes],
+          ...evolvedPrintedBody,
+          races: [...evolvedPrintedBody.races],
+          classes: [...evolvedPrintedBody.classes],
         },
       },
     };
