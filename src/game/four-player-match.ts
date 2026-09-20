@@ -24,10 +24,17 @@ import {
 export const FOUR_PLAYER_PHASES = ["beginning", "main_1", "combat", "main_2", "ending"] as const;
 export type FourPlayerPhase = (typeof FOUR_PLAYER_PHASES)[number];
 
+export interface FourPlayerProgressStats {
+  nexusDamageDealt: number;
+  spellsCast: number;
+  alliesSummoned: number;
+}
+
 export interface FourPlayerMatchSeatState {
   seat: FourPlayerSeat;
   eliminated: boolean;
   generalCastsFromZone: number;
+  stats: FourPlayerProgressStats;
   mana: number;
   maxMana: number;
   spellMana: number;
@@ -83,7 +90,18 @@ export function createFourPlayerMatchState(
   const seats = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => {
     const isStartingSeat = seat === startingSeat;
     const maxMana = isStartingSeat ? Math.min(FOUR_PLAYER_MAX_MANA, startingMana + 1) : startingMana;
-    return [seat, { seat, eliminated: false, generalCastsFromZone: 0, mana: maxMana, maxMana, spellMana: 0, life: FOUR_PLAYER_STARTING_LIFE, poisonCounters: 0, generalDamageReceived: {} }];
+    return [seat, {
+      seat,
+      eliminated: false,
+      generalCastsFromZone: 0,
+      stats: { nexusDamageDealt: 0, spellsCast: 0, alliesSummoned: 0 },
+      mana: maxMana,
+      maxMana,
+      spellMana: 0,
+      life: FOUR_PLAYER_STARTING_LIFE,
+      poisonCounters: 0,
+      generalDamageReceived: {},
+    }];
   })) as Record<FourPlayerSeat, FourPlayerMatchSeatState>;
   const generals = Object.fromEntries(FOUR_PLAYER_SEATS.map((seat) => [seat, createGeneralZoneState(seat, generalSelection[seat])])) as Record<FourPlayerSeat, FourPlayerGeneralZoneState>;
   const keywordSnapshot: FourPlayerGeneralKeywords = {
@@ -99,6 +117,27 @@ export function createFourPlayerMatchState(
     ...(generalCombatBodies.p4 ? { p4: cloneFourPlayerCombatBody(generalCombatBodies.p4) } : {}),
   };
   return { seats, generals, generalPrintedCosts: { ...generalPrintedCosts }, generalKeywords: keywordSnapshot, generalCombatBodies: generalBodySnapshot, turn: createFourPlayerTurnState(startingSeat), phase: "beginning", resolution: createFourPlayerResolutionFlow(startingSeat), combat: createFourPlayerCombatState(startingSeat), battlefield: createFourPlayerBattlefieldState(), status: "active" };
+}
+
+export function addFourPlayerProgress(
+  state: FourPlayerMatchState,
+  seat: FourPlayerSeat,
+  delta: Partial<FourPlayerProgressStats>,
+): FourPlayerMatchState {
+  if (state.seats[seat].eliminated) return state;
+  const current = state.seats[seat].stats ?? { nexusDamageDealt: 0, spellsCast: 0, alliesSummoned: 0 };
+  const next: FourPlayerProgressStats = {
+    nexusDamageDealt: current.nexusDamageDealt + Math.max(0, delta.nexusDamageDealt ?? 0),
+    spellsCast: current.spellsCast + Math.max(0, delta.spellsCast ?? 0),
+    alliesSummoned: current.alliesSummoned + Math.max(0, delta.alliesSummoned ?? 0),
+  };
+  if (!Object.values(next).every((value) => Number.isFinite(value) && value >= 0)) {
+    throw new Error("4P progress counters must remain non-negative finite numbers.");
+  }
+  return {
+    ...state,
+    seats: { ...state.seats, [seat]: { ...state.seats[seat], stats: next } },
+  };
 }
 
 export function updateMatchGeneral(state: FourPlayerMatchState, seat: FourPlayerSeat, general: FourPlayerGeneralZoneState): FourPlayerMatchState {
