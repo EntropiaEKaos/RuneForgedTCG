@@ -94,6 +94,7 @@ This slice certifies:
 34. `handAtLeast` and `opponentHandAtLeast` using authoritative hand counts derived from Commander card zones only; private card identities never enter the mechanic-condition context, and the singular opponent rule continues to use the next living seat clockwise;
 35. `buffSelf` source identity carried through trigger/activated-ability stacks plus 1v1-compatible `drawOnSummon` race aggregation/caps; a behavioral parity invariant now fails if an authorable `CARD_EFFECT_KIND` is missing from the Commander spell/effect contract.
 36. server-authoritative priority deadlines: 45 seconds for active-seat action windows and 15 seconds for reaction/non-active priority windows; expiration is resolved under the locked Commander room through the same revisioned `pass_priority` protocol, while the browser receives only a presentation deadline/countdown.
+37. reconnect/resync recovery in the Commander client: HTTP 409 conflicts fetch a fresh authoritative room snapshot without replaying the rejected command; online/focus/visibility resume also refresh authority, stale local spell/ability intent is cleared on revision changes, and late polling snapshots cannot overwrite a newer combat revision.
 
 ## Deliberately not claimed yet
 
@@ -102,4 +103,4 @@ This Alpha still does not claim full parity for conditional `mechanics` trigger 
 
 ## Certification base
 
-The current Commander 4P priority-timeout branch is based on post-merge-certified production `main` `e95caf8b92178593ff144f2832eaebd46a3c20d4`. Commander combat remains on envelope version 9 because the priority clock is derived from the authoritative room `updatedAt` timestamp and does not widen persisted game-state shape. Expiration is resolved under a PostgreSQL row lock with room-version CAS and enters the same revisioned `pass_priority` authority path as an explicit player pass. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
+The current Commander 4P resync-recovery branch is based on post-merge-certified production `main` `2f0aa997b4c7fe83b150c30461aa00341e4ca4f1`. This slice changes only client recovery behavior and test contracts: the authoritative PostgreSQL room, combat envelope version 9, revision protocol and 1v1 engine remain unchanged. Rejected stale commands are never replayed automatically; recovery always fetches the newest per-seat projection before another user action. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
