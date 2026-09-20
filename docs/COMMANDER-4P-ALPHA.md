@@ -90,13 +90,14 @@ This slice certifies:
 30. certified 1v1-compatible race gates for automatic `draw` and source-relative `manaRefund`, including matching-source, matching-ally and mismatch behavior;
 31. Champion progression for `nexusDamage`, `spellsCast`, `alliesSummoned` and per-instance `nexusStrikes`, physical in-place transformation, durable buff/Equipment preservation and automatic `onLevelUp` stack triggers;
 32. controller-scoped Unit/General `mechanics` trigger graphs for public authoritative conditions: `always`, `selfDamaged`, allied race/class and board thresholds, own Nexus/mana/Spell Mana/progress thresholds, `roundAtLeast`, and recursive `and`/`or`/`not`; local LIFO push order preserves 1v1 resolution semantics with the printed trigger resolving before authored mechanics;
-33. explicit multiplayer opponent semantics for public `mechanics` conditions: `enemy*` aggregates all living opponents while singular `opponent*` resolves to the next living seat clockwise, skipping eliminated players.
+33. explicit multiplayer opponent semantics for public `mechanics` conditions: `enemy*` aggregates all living opponents while singular `opponent*` resolves to the next living seat clockwise, skipping eliminated players;
+34. `handAtLeast` and `opponentHandAtLeast` using authoritative hand counts derived from Commander card zones only; private card identities never enter the mechanic-condition context, and the singular opponent rule continues to use the next living seat clockwise.
 
 ## Deliberately not claimed yet
 
-This Alpha still does not claim full parity for conditional `mechanics` trigger graphs. Private `hand*` thresholds, non-Unit mechanic sources and other condition semantics not explicitly certified remain fail-closed. It also does not claim every reaction ability in the full catalog or Ranked/tournament support for Commander. Unsupported primitives are expanded only behind explicit behavioral certification.
+This Alpha still does not claim full parity for conditional `mechanics` trigger graphs. Non-Unit mechanic sources and other condition semantics not explicitly certified remain fail-closed. It also does not claim every reaction ability in the full catalog or Ranked/tournament support for Commander. Unsupported primitives are expanded only behind explicit behavioral certification.
 
 
 ## Certification base
 
-The current Commander 4P opponent-condition branch is based on certified production `main` `71ff8a862910c99772b70e5db9407ce3affdc5bb`. Champion progress and level-up authority remain on Commander combat envelope version 9; this slice does not change the persistence envelope because mechanic conditions derive only from already-authoritative match/battlefield state. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
+The current Commander 4P hand-condition branch is based on certified production `main` `64a48ebfc9a1d0b479eec537044e0ed538a0a605`. Champion progress and level-up authority remain on Commander combat envelope version 9; this slice does not change the persistence envelope because hand conditions receive only count snapshots derived from the already-authoritative Commander card zones. Each new Commander HEAD is recertified independently; green results from an older SHA are never reused after rules or UI authority changes.
