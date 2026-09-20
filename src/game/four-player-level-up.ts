@@ -16,14 +16,6 @@ function safeCard(defId: string) {
   }
 }
 
-function safeCard(defId: string) {
-  try {
-    return getCard(defId);
-  } catch {
-    return undefined;
-  }
-}
-
 export interface FourPlayerChampionProgress {
   current: number;
   goal: number;
