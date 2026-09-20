@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { adaptAuthoritativeBattlefieldEvent, buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldCombat, previewBattlefieldTarget } from "./battlefield-lab-scenario";
+import { adaptAuthoritativeBattlefieldEvent, buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldCombat, previewBattlefieldTarget, resolveBattlefieldFxRecipe } from "./battlefield-lab-scenario";
 
 const duel = buildBattlefieldLabScenario("duel-1v1", 32);
 assert.equal(duel.players.length, 2);
@@ -80,3 +80,11 @@ assert.deepEqual(
   adaptAuthoritativeBattlefieldEvent({ type: "player-eliminated", playerId: commander.players[3].id }),
   { type: "elimination", playerId: commander.players[3].id },
 );
+
+
+const fireballRecipe = resolveBattlefieldFxRecipe("spell.fireball");
+assert.equal(fireballRecipe.key, "spell.fireball");
+assert.deepEqual(fireballRecipe.primitives.map((primitive) => primitive.type), ["projectile", "particles", "impact"]);
+const lightningRecipe = resolveBattlefieldFxRecipe("spell.lightning");
+assert.equal(lightningRecipe.primitives.some((primitive) => primitive.type === "beam"), true);
+assert.equal(resolveBattlefieldFxRecipe("spell.unknown").key, "spell.generic");
