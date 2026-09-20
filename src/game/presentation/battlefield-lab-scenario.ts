@@ -217,3 +217,25 @@ export const BATTLEFIELD_FX_RECIPES: Record<string, BattlefieldFxRecipe> = {
 export function resolveBattlefieldFxRecipe(cue: string): BattlefieldFxRecipe {
   return BATTLEFIELD_FX_RECIPES[cue] ?? BATTLEFIELD_FX_RECIPES["spell.generic"];
 }
+
+
+export type BattlefieldFxQuality = "low" | "medium" | "high";
+
+export type BattlefieldFxExecutionPlan = {
+  cue: string;
+  quality: BattlefieldFxQuality;
+  primitives: BattlefieldFxPrimitive[];
+};
+
+export function buildBattlefieldFxExecutionPlan(
+  cue: string,
+  quality: BattlefieldFxQuality = "high",
+): BattlefieldFxExecutionPlan {
+  const recipe = resolveBattlefieldFxRecipe(cue);
+  const primitives = recipe.primitives.map((primitive) => {
+    if (primitive.type !== "particles") return primitive;
+    const multiplier = quality === "low" ? 0.35 : quality === "medium" ? 0.65 : 1;
+    return { ...primitive, count: Math.max(1, Math.round(primitive.count * multiplier)) };
+  });
+  return { cue: recipe.key, quality, primitives };
+}
