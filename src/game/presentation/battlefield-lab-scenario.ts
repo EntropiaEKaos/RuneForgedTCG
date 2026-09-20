@@ -143,3 +143,35 @@ export function previewBattlefieldCombat(
   if (!blocker || !attacker || blocker.controllerId === attacker.controllerId) return null;
   return { attackerId: attacker.id, blockerId: blocker.id, defendingPlayerId: blocker.controllerId };
 }
+
+
+export type BattlefieldAuthoritativeEvent =
+  | { type: "spell-resolved"; spellId: string; sourceId?: string; targetIds: string[]; fxKey?: string }
+  | { type: "damage-applied"; sourceId?: string; targetId: string; amount: number }
+  | { type: "entity-died"; entityId: string }
+  | { type: "priority-changed"; playerId: string }
+  | { type: "player-eliminated"; playerId: string };
+
+export type BattlefieldPresentationEvent =
+  | { type: "fx"; cue: string; sourceId?: string; targetIds: string[] }
+  | { type: "damage"; sourceId?: string; targetId: string; amount: number }
+  | { type: "death"; entityId: string }
+  | { type: "priority"; playerId: string }
+  | { type: "elimination"; playerId: string };
+
+export function adaptAuthoritativeBattlefieldEvent(
+  event: BattlefieldAuthoritativeEvent,
+): BattlefieldPresentationEvent {
+  switch (event.type) {
+    case "spell-resolved":
+      return { type: "fx", cue: event.fxKey ?? "spell.generic", sourceId: event.sourceId, targetIds: event.targetIds };
+    case "damage-applied":
+      return { type: "damage", sourceId: event.sourceId, targetId: event.targetId, amount: event.amount };
+    case "entity-died":
+      return { type: "death", entityId: event.entityId };
+    case "priority-changed":
+      return { type: "priority", playerId: event.playerId };
+    case "player-eliminated":
+      return { type: "elimination", playerId: event.playerId };
+  }
+}
