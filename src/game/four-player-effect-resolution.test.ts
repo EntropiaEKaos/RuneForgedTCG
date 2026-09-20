@@ -289,6 +289,27 @@ assert.equal(
   2,
   "source-less buffSelf preserves the 1v1 inert spell fallback",
 );
+assert.throws(
+  ()=>resolveFourPlayerEffect(
+    match,
+    "p1",
+    {kind:"buffSelf",amount:0,target:"self",buffPower:2,buffHealth:1},
+    {kind:"battlefield",objectId:"ally-unit"},
+  ),
+  /never accepts a client-selected target/,
+  "buffSelf cannot be redirected by a client-supplied target",
+);
+assert.throws(
+  ()=>resolveFourPlayerEffect(
+    match,
+    "p1",
+    {kind:"buffSelf",amount:0,target:"self",buffPower:2,buffHealth:1},
+    {kind:"battlefield",objectId:"ally-other"},
+    {sourceTargetId:"ally-unit"},
+  ),
+  /does not match its authoritative source identity/,
+  "snapshotted self targets must match the authoritative source",
+);
 
 const uniqueRaceDraw = resolveFourPlayerEffect(match,"p1",{kind:"drawOnSummon",amount:1,target:"none"});
 assert.equal(uniqueRaceDraw.draws.p1,2,"drawOnSummon counts unique races among living controlled combat bodies");
