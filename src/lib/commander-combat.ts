@@ -11,6 +11,7 @@ import { submitFourPlayerAction } from "@/game/four-player-flow";
 import { pumpFourPlayerServer } from "@/game/four-player-server-pump";
 import {
   createFourPlayerCardZones,
+  fourPlayerHandCounts,
   putFourPlayerCardInGraveyard,
   type FourPlayerCardZones,
 } from "@/game/four-player-card-zones";
@@ -254,6 +255,10 @@ function validateExposedCommand(match: FourPlayerMatchState, command: FourPlayer
   }
 }
 
+function mechanicConditionContext(zones: FourPlayerCardZones) {
+  return { handCounts: fourPlayerHandCounts(zones) };
+}
+
 function settleIncomingTurn(
   match: FourPlayerMatchState,
   zones: FourPlayerCardZones,
@@ -351,7 +356,7 @@ export function processCommanderCombatCommand(
       ...staged.match,
       resolution: submitFourPlayerAction(staged.match.resolution, staged.stackItem),
     };
-    const pumped = pumpFourPlayerServer(reducedMatch);
+    const pumped = pumpFourPlayerServer(reducedMatch, mechanicConditionContext(staged.zones));
     return {
       ...envelope,
       match: pumped.match,
@@ -407,9 +412,15 @@ export function processCommanderCombatCommand(
     };
     const costDeaths = destroyedFourPlayerObjectsFromRemoval(envelope.match, reducedMatch);
     const triggeredCosts = costDeaths.length > 0
-      ? queueFourPlayerTransitionTriggers(envelope.match, reducedMatch, costDeaths, `cost:${accepted.event.eventId}`)
+      ? queueFourPlayerTransitionTriggers(
+        envelope.match,
+        reducedMatch,
+        costDeaths,
+        `cost:${accepted.event.eventId}`,
+        mechanicConditionContext(staged.zones),
+      )
       : { match: reducedMatch, queued: [] };
-    const pumped = pumpFourPlayerServer(triggeredCosts.match);
+    const pumped = pumpFourPlayerServer(triggeredCosts.match, mechanicConditionContext(staged.zones));
     return {
       ...envelope,
       match: pumped.match,
@@ -424,6 +435,7 @@ export function processCommanderCombatCommand(
     1,
     command,
     validateExposedCommand,
+    mechanicConditionContext(envelope.zones),
   );
 
   let match = accepted.state.match;
@@ -485,6 +497,7 @@ export function processCommanderCombatCommand(
       match,
       [],
       `zones:${command.commandId}:${accepted.state.protocol.revision}`,
+      mechanicConditionContext(zones),
     );
     match = zoneTransitions.match;
     if (zoneTransitions.queued.length === 0 && match.status === "active") {
@@ -493,6 +506,7 @@ export function processCommanderCombatCommand(
         leveled.match,
         leveled.leveled,
         `level-up:zones:${command.commandId}:${accepted.state.protocol.revision}`,
+        mechanicConditionContext(zones),
       ).match;
     }
   } else if (accepted.pump?.drawRequests) {
