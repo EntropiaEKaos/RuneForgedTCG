@@ -19,7 +19,7 @@ import {
   assertFourPlayerTargetObject,
   type FourPlayerTargetRef,
 } from "./four-player-targeting";
-import type { CardDef, CardEffect, TriggerWhen } from "./types";
+import type { CardDef, CardEffect, Race, TriggerWhen } from "./types";
 
 export const FOUR_PLAYER_AUTOMATIC_TRIGGER_EVENTS = [
   "onSummon",
@@ -44,6 +44,8 @@ export interface FourPlayerTriggeredAbilityPayload {
   when: FourPlayerAutomaticTriggerWhen;
   description: string;
   effect: CardEffect;
+  /** Snapshot of the 1v1-style effect subject ("self") races for source-relative gates. */
+  sourceRaces?: readonly Race[];
   targets: readonly (FourPlayerTargetRef | null)[];
 }
 
@@ -58,6 +60,7 @@ interface TriggerCandidate {
   sourceDefId: string;
   sourceKind: string;
   sourceTargetId?: string;
+  sourceRaces?: readonly Race[];
   when: FourPlayerAutomaticTriggerWhen;
   description: string;
   effect: CardEffect;
@@ -257,6 +260,7 @@ function candidateForObject(
     sourceDefId: object.defId,
     sourceKind: object.kind,
     sourceTargetId: object.id,
+    ...(object.combat ? { sourceRaces: [...object.combat.races] } : {}),
     when,
     description: `${definition.name} — ${when}`,
     effect: structuredClone(trigger.effect),
@@ -284,6 +288,7 @@ function equipmentCandidates(
       sourceDefId: equipment.defId,
       sourceKind: "equipment",
       sourceTargetId: bearer.id,
+      ...(bearer.combat ? { sourceRaces: [...bearer.combat.races] } : {}),
       when,
       description: `${definition.name} — ${when}`,
       effect: structuredClone(trigger.effect),
@@ -324,6 +329,7 @@ function queueCandidates(
         when: candidate.when,
         description: candidate.description,
         effect: structuredClone(candidate.effect),
+        ...(candidate.sourceRaces !== undefined ? { sourceRaces: [...candidate.sourceRaces] } : {}),
         targets: snapshotTargets(match, candidate.controller, candidate.effect, candidate.sourceTargetId),
       },
     };
@@ -369,7 +375,15 @@ export function queueFourPlayerTransitionTriggers(
       const watcherDef = safeCard(watcher.defId);
       if (!watcherDef || (watcherDef.type !== "Enchantment" && watcherDef.type !== "Artifact")) continue;
       const permanentSummon = candidateForObject(watcher, "onPermanentSummon", ordinal++);
-      if (permanentSummon) candidates.push(permanentSummon);
+      if (permanentSummon) {
+        candidates.push({
+          ...permanentSummon,
+          // 1v1 passes the newly summoned Unit as the effect subject for
+          // onPermanentSummon (e.g. Forgeheart's Dragon mana refund).
+          sourceTargetId: object.id,
+          ...(object.combat ? { sourceRaces: [...object.combat.races] } : { sourceRaces: [] }),
+        });
+      }
     }
   }
 
@@ -540,13 +554,6 @@ export function resolveFourPlayerTriggeredAbility(
     throw new Error(`Resolved 4P trigger ${payload.sourceDefId} contains an unsupported effect chain.`);
   }
 
-  const sourceDefinition = safeCard(payload.sourceDefId);
-  const sourceRaces = sourceDefinition
-    ? [...new Set(sourceDefinition.race
-      ? [sourceDefinition.race, ...(sourceDefinition.secondaryRaces ?? [])]
-      : [...(sourceDefinition.secondaryRaces ?? [])])]
-    : undefined;
-
   let current = match;
   const destroyed: FourPlayerCombatDestroyedObject[] = [];
   const draws: Partial<Record<FourPlayerSeat, number>> = {};
@@ -565,7 +572,7 @@ export function resolveFourPlayerTriggeredAbility(
         target ?? undefined,
         {
           tokenNamespace: `${item.id}:${index}`,
-          ...(sourceRaces !== undefined ? { sourceRaces } : {}),
+          ...(payload.sourceRaces !== undefined ? { sourceRaces: payload.sourceRaces } : {}),
         },
       );
       current = resolved.match;
