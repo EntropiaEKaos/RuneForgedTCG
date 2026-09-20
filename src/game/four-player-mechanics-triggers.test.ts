@@ -34,6 +34,36 @@ const supported: CardDef = {
   }],
 };
 
+const ordered: CardDef = {
+  defId: "fourp_mechanic_ordered",
+  name: "4P Mechanic Ordered",
+  region: "Emberhold",
+  type: "Unit",
+  cost: 2,
+  power: 2,
+  health: 3,
+  rarity: "Rare",
+  description: "Fixture",
+  emoji: "O",
+  trigger: { when: "onRoundStart", effect: { kind: "healNexus", amount: 1, target: "none" } },
+  mechanics: [
+    {
+      key: "first_authored",
+      name: "First Authored",
+      trigger: "onRoundStart",
+      condition: { kind: "always" },
+      effect: { kind: "healNexus", amount: 2, target: "none" },
+    },
+    {
+      key: "second_authored",
+      name: "Second Authored",
+      trigger: "onRoundStart",
+      condition: { kind: "always" },
+      effect: { kind: "healNexus", amount: 3, target: "none" },
+    },
+  ],
+};
+
 const unsupported: CardDef = {
   defId: "fourp_mechanic_unsupported_opponent",
   name: "4P Mechanic Unsupported Opponent",
@@ -54,7 +84,7 @@ const unsupported: CardDef = {
 };
 
 clearRegisteredCustomCards();
-registerCustomCards([supported, unsupported]);
+registerCustomCards([supported, ordered, unsupported]);
 
 try {
   const body = createFourPlayerCombatBodySnapshot(supported)!;
@@ -94,6 +124,31 @@ try {
     queueFourPlayerRoundStartTriggers(fullHealth, "mechanic-condition-false").queued.length,
     0,
     "false supported mechanic condition must not queue",
+  );
+
+  const orderedBody = createFourPlayerCombatBodySnapshot(ordered)!;
+  const orderedMatch = {
+    ...createFourPlayerMatchState("p1"),
+    battlefield: putFourPlayerBattlefieldObject(createFourPlayerMatchState("p1").battlefield!, {
+      id: "ordered-source",
+      defId: ordered.defId,
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      keywords: [],
+      combat: orderedBody,
+    }),
+  };
+  const orderedQueue = queueFourPlayerRoundStartTriggers(orderedMatch, "mechanic-order");
+  assert.deepEqual(
+    orderedQueue.queued.map((item) => item.payload.description),
+    [
+      "Second Authored — onRoundStart",
+      "First Authored — onRoundStart",
+      "4P Mechanic Ordered — onRoundStart",
+    ],
+    "LIFO push order must resolve printed first, then mechanics in authored order like 1v1",
   );
 
   const unsupportedBody = createFourPlayerCombatBodySnapshot(unsupported)!;
