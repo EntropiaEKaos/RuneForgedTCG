@@ -96,7 +96,7 @@
     "test:ranked-2.97": "tsx src/lib/ranked-launch-2.97.test.ts",
     "test:pvp-content-2.97": "tsx src/lib/pvp-content-snapshot-2.97.test.ts",
     "test:pvp-public-2.97": "tsx src/lib/pvp-public-state-2.97.test.ts",
-    "test:battlefield-lab": "tsx src/game/presentation/battlefield-lab-scenario.test.ts"
+    "test:battlefield-lab": "tsx src/game/presentation/battlefield-lab-scenario.test.ts && tsx src/game/presentation/phaser/BattlefieldPresentationEventQueue.test.ts"
   },
   "dependencies": {
     "dotenv": "17.3.1",
