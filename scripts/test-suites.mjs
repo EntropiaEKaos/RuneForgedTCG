@@ -2,6 +2,7 @@
 export const behavioralTests = [
   "src/game/presentation/battlefield-lab-scenario.test.ts",
   "src/game/presentation/phaser/BattlefieldPresentationEventQueue.test.ts",
+  "src/game/presentation/phaser/BattlefieldPresentationScheduler.test.ts",
   "src/components/MatchExperience.test.ts",
   "src/game/ability-system.test.ts",
   "src/game/aura-2-ability-system.test.ts",
