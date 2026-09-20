@@ -101,6 +101,11 @@ assert.ok(
     && gameplayBrandCss.includes("content: 'STRESS'"),
   "notebook density screenshots must identify synthetic stress probes instead of resembling blank production cards",
 );
+assert.ok(
+  densityCert.includes("async function waitForEnabledCurrentPhaseAction")
+    && densityCert.indexOf("await waitForEnabledCurrentPhaseAction(cdp)") < densityCert.indexOf("const hoverTarget = await hoverRealHandCard(cdp)"),
+  "notebook density certification must wait for a live current-phase action before hit-test evidence",
+);
 assert.ok(pvp.includes("request.actionId") && pvp.includes("response.status === 409"));
 assert.ok(locale.includes("ptBR") && game.includes("PARTIDA AO VIVO"));
 assert.ok(game.includes('event.key === "Escape"') && game.includes('aria-keyshortcuts="?"'));
