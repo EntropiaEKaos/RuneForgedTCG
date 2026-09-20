@@ -542,7 +542,7 @@ export function resolveFourPlayerTriggeredAbility(
 
   const sourceDefinition = safeCard(payload.sourceDefId);
   const sourceRaces = sourceDefinition
-    ? (sourceDefinition.race ? [sourceDefinition.race] : [])
+    ? [...new Set([sourceDefinition.race, ...(sourceDefinition.secondaryRaces ?? [])].filter(Boolean))]
     : undefined;
 
   let current = match;
