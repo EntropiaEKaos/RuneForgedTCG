@@ -261,13 +261,21 @@ async function driveMatchToResult(cdp, timeoutMs = 240_000) {
       continue;
     }
     if (snapshot.phase === "combat") {
-      const fresh = await readDriveState();
-      if (fresh.result || fresh.phase === "gameover") return { rounds, lastPhase: fresh.phase || lastPhase };
-      if (fresh.phase !== snapshot.phase) {
+      const combatAction = await evaluate(cdp, `(() => {
+        const actions = [...document.querySelectorAll('.tcg-actions button')].filter((button) => !button.disabled);
+        const target = actions.find((button) => /Confirmar bloqueios/i.test(button.textContent || ''))
+          ?? actions.find((button) => /Atacar com/i.test(button.textContent || ''));
+        if (!target) return null;
+        const label = (target.textContent || '').replace(/\\s+/g, ' ').trim();
+        target.click();
+        return label;
+      })()`);
+      if (!combatAction) {
+        const fresh = await readDriveState();
+        if (fresh.result || fresh.phase === "gameover") return { rounds, lastPhase: fresh.phase || lastPhase };
         await sleep(80);
         continue;
       }
-      await pressKey(cdp, "Enter", "Enter");
       await sleep(220);
       continue;
     }
