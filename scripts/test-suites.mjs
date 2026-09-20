@@ -178,6 +178,7 @@ export const sourceContractTests = [
   "src/lib/commander-combat-regression.test.ts",
   "src/lib/ci-chrome-bootstrap-regression.test.ts",
   "src/lib/alpha-visual-feature-freeze-regression.test.ts",
+  "src/lib/alpha-visual-gameover-race-regression.test.ts",
   "src/lib/flagship-champion-art-regression.test.ts",
   "src/lib/art-optimization-2.95.test.ts",
   "src/lib/brawl-contract-assistant-regression.test.ts",
