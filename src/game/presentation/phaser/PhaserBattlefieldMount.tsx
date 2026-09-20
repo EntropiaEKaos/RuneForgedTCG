@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { adaptAuthoritativeBattlefieldEvent, layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
 import { playBattlefieldPresentationEvent } from "./BattlefieldFxExecutor";
+import { BattlefieldPresentationEventQueue } from "./BattlefieldPresentationEventQueue";
+import { BattlefieldPresentationScheduler } from "./BattlefieldPresentationScheduler";
 
 type Props = { scenario: BattlefieldLabScenario };
 
@@ -44,6 +46,18 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
             let selectedUnit: { id: string; shape: Phaser.GameObjects.Rectangle } | null = null;
             let targetLine: Phaser.GameObjects.Line | null = null;
             let combatLine: Phaser.GameObjects.Line | null = null;
+            const presentationQueue = new BattlefieldPresentationEventQueue();
+            const presentationScheduler = new BattlefieldPresentationScheduler(
+              presentationQueue,
+              async ({ event }) => {
+                playBattlefieldPresentationEvent(this, entityLayout, event, "high");
+                if (event.type === "fx") {
+                  const planDuration = event.cue === "spell.fireball" ? 760 : 520;
+                  await new Promise<void>((resolve) => this.time.delayedCall(planDuration, resolve));
+                }
+              },
+            );
+            this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => presentationScheduler.clear());
 
             scenario.players.forEach((player, playerIndex) => {
               const col = playerIndex % cols;
@@ -111,7 +125,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                       targetIds: [entity.id],
                       fxKey: "spell.fireball",
                     });
-                    playBattlefieldPresentationEvent(this, entityLayout, presentationEvent, "high");
+                    presentationScheduler.enqueue(presentationEvent);
                   }
                 });
               });
