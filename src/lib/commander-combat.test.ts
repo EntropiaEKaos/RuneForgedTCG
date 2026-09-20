@@ -3,10 +3,15 @@ import { putFourPlayerBattlefieldObject } from "../game/four-player-battlefield"
 import { collectibleCards } from "../game/cards";
 import { canFourPlayerCounterStackItem } from "../game/four-player-reactions";
 import {
+  COMMANDER_PRIORITY_ACTIVE_WINDOW_MS,
+  COMMANDER_PRIORITY_REACTION_WINDOW_MS,
   type CommanderCombatEnvelope,
   commanderCombatPersistence,
+  commanderPriorityDeadlineAt,
+  commanderPriorityExpired,
   createCommanderCombatEnvelope,
   processCommanderCombatCommand,
+  processCommanderPriorityTimeout,
   projectCommanderCombatState,
 } from "./commander-combat";
 
@@ -39,6 +44,28 @@ async function main() {
   assert.equal(initial.zones.p1.hand.length, 5);
   assert.equal(initial.zones.p1.deck.length, 55);
   assert.equal(initial.match.battlefield?.objects.length, 0);
+
+  const activeClockBase = 1_000_000;
+  assert.equal(
+    commanderPriorityDeadlineAt(initial, activeClockBase),
+    activeClockBase + COMMANDER_PRIORITY_ACTIVE_WINDOW_MS,
+    "active-seat priority receives the longer action window",
+  );
+  assert.equal(commanderPriorityExpired(initial, activeClockBase, activeClockBase + COMMANDER_PRIORITY_ACTIVE_WINDOW_MS - 1), false);
+  assert.equal(commanderPriorityExpired(initial, activeClockBase, activeClockBase + COMMANDER_PRIORITY_ACTIVE_WINDOW_MS), true);
+  assert.throws(
+    () => processCommanderPriorityTimeout(initial, activeClockBase, activeClockBase + COMMANDER_PRIORITY_ACTIVE_WINDOW_MS - 1),
+    /deadline has not expired/,
+    "server timeout must fail closed before the authoritative deadline",
+  );
+  const activeTimedOut = processCommanderPriorityTimeout(
+    initial,
+    activeClockBase,
+    activeClockBase + COMMANDER_PRIORITY_ACTIVE_WINDOW_MS,
+  );
+  assert.equal(activeTimedOut.protocol.revision, 6);
+  assert.equal(activeTimedOut.match.resolution.priority.holder, "p2");
+  assert.equal(activeTimedOut.match.resolution.priority.consecutivePasses, 1);
 
   const p1 = projectCommanderCombatState(initial, 0);
   assert.equal(p1.revision, 5);
@@ -173,6 +200,20 @@ async function main() {
   assert.equal(p2ReactionProjection.stack[0]?.actionKind, "spell");
   assert.equal(p2ReactionProjection.stack[0]?.defId, burn.defId);
   assert.equal(p2ReactionProjection.prioritySeat, 1);
+  const reactionClockBase = 2_000_000;
+  assert.equal(
+    commanderPriorityDeadlineAt(reactionEnvelope, reactionClockBase),
+    reactionClockBase + COMMANDER_PRIORITY_REACTION_WINDOW_MS,
+    "open stack priority receives the shorter reaction window",
+  );
+  const reactionTimedOut = processCommanderPriorityTimeout(
+    reactionEnvelope,
+    reactionClockBase,
+    reactionClockBase + COMMANDER_PRIORITY_REACTION_WINDOW_MS,
+  );
+  assert.equal(reactionTimedOut.protocol.revision, 52);
+  assert.equal(reactionTimedOut.match.resolution.priority.holder, "p3");
+  assert.equal(reactionTimedOut.match.resolution.stack.items.length, 1, "one timeout passes priority without skipping unresolved stack order");
 
   const reactionCounter = reactionEnvelope.zones.p2.hand[0]!;
   reactionEnvelope = processCommanderCombatCommand(reactionEnvelope, 101, 1, {
