@@ -3,6 +3,7 @@ import { fourPlayerActivatedAbilityOptions, stageFourPlayerActivatedAbility } fr
 import { acceptAuthoritativeFourPlayerCommand, processAuthoritativeFourPlayerCommand, assertPriorityHolder } from "@/game/four-player-authority";
 import { stageFourPlayerCardCast } from "@/game/four-player-card-play";
 import { returnGeneralToZone } from "@/game/four-player-general-zone";
+import { advanceFourPlayerLevelUps } from "@/game/four-player-level-up";
 import { fourPlayerStackActionKind, fourPlayerStackItemIsUncounterable } from "@/game/four-player-reactions";
 import { parseFourPlayerTargetRef } from "@/game/four-player-targeting";
 import { settleFourPlayerEffectDraws, settleFourPlayerEffectZoneActions } from "@/game/four-player-effect-zones";
@@ -38,7 +39,7 @@ import {
   createFourPlayerSessionRegistry,
 } from "@/game/four-player-session";
 import { settleFourPlayerTurnStart } from "@/game/four-player-turn-start";
-import { destroyedFourPlayerObjectsFromRemoval, queueFourPlayerTransitionTriggers } from "@/game/four-player-triggers";
+import { destroyedFourPlayerObjectsFromRemoval, queueFourPlayerLevelUpTriggers, queueFourPlayerTransitionTriggers } from "@/game/four-player-triggers";
 import { seededShuffle } from "@/game/rng";
 import { COMMANDER_ALPHA_RULES, type CommanderSeatIndex } from "@/lib/commander-rules";
 
@@ -479,12 +480,21 @@ export function processCommanderCombatCommand(
     const settledZones = settleFourPlayerEffectZoneActions(match, zones, accepted.pump.zoneActions);
     match = settledZones.match;
     zones = settledZones.zones;
-    match = queueFourPlayerTransitionTriggers(
+    const zoneTransitions = queueFourPlayerTransitionTriggers(
       beforeZoneSettlement,
       match,
       [],
       `zones:${command.commandId}:${accepted.state.protocol.revision}`,
-    ).match;
+    );
+    match = zoneTransitions.match;
+    if (zoneTransitions.queued.length === 0 && match.status === "active") {
+      const leveled = advanceFourPlayerLevelUps(match);
+      match = queueFourPlayerLevelUpTriggers(
+        leveled.match,
+        leveled.leveled,
+        `level-up:zones:${command.commandId}:${accepted.state.protocol.revision}`,
+      ).match;
+    }
   } else if (accepted.pump?.drawRequests) {
     const settledDraws = settleFourPlayerEffectDraws(match, zones, accepted.pump.drawRequests);
     match = settledDraws.match;
