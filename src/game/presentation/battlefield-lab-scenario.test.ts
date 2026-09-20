@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldCombat, previewBattlefieldTarget } from "./battlefield-lab-scenario";
+import { adaptAuthoritativeBattlefieldEvent, buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldCombat, previewBattlefieldTarget } from "./battlefield-lab-scenario";
 
 const duel = buildBattlefieldLabScenario("duel-1v1", 32);
 assert.equal(duel.players.length, 2);
@@ -58,3 +58,25 @@ assert.equal(
   null,
 );
 assert.equal(previewBattlefieldCombat(commander, { type: "clear-combat" }), null);
+
+
+assert.deepEqual(
+  adaptAuthoritativeBattlefieldEvent({ type: "spell-resolved", spellId: "spell-1", sourceId: source.id, targetIds: [opponent.id], fxKey: "spell.fireball" }),
+  { type: "fx", cue: "spell.fireball", sourceId: source.id, targetIds: [opponent.id] },
+);
+assert.deepEqual(
+  adaptAuthoritativeBattlefieldEvent({ type: "damage-applied", sourceId: source.id, targetId: opponent.id, amount: 4 }),
+  { type: "damage", sourceId: source.id, targetId: opponent.id, amount: 4 },
+);
+assert.deepEqual(
+  adaptAuthoritativeBattlefieldEvent({ type: "entity-died", entityId: opponent.id }),
+  { type: "death", entityId: opponent.id },
+);
+assert.deepEqual(
+  adaptAuthoritativeBattlefieldEvent({ type: "priority-changed", playerId: commander.players[1].id }),
+  { type: "priority", playerId: commander.players[1].id },
+);
+assert.deepEqual(
+  adaptAuthoritativeBattlefieldEvent({ type: "player-eliminated", playerId: commander.players[3].id }),
+  { type: "elimination", playerId: commander.players[3].id },
+);
