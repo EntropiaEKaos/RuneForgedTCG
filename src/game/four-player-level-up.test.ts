@@ -170,6 +170,32 @@ try {
   assert.deepEqual(evolvedGeneral.generalKeywords?.p1, evolved.keywords ?? [], "future General recasts use only evolved printed keywords");
   assert.equal(evolvedGeneral.generalCombatBodies?.p1?.barrier, evolvedGeneralPrinted.barrier, "future General recasts do not retain temporary Equipment Barrier");
 
+  let headlessProbe = createFourPlayerMatchState("p1");
+  headlessProbe = {
+    ...headlessProbe,
+    battlefield: putFourPlayerBattlefieldObject(headlessProbe.battlefield!, {
+      id: "headless-combat-object",
+      defId: "headless-not-in-catalog",
+      kind: "unit",
+      ownerSeat: "p1",
+      controllerSeat: "p1",
+      enteredTurn: 0,
+      combat: {
+        basePower: 2,
+        power: 2,
+        health: 2,
+        maxHealth: 2,
+        races: [],
+        classes: [],
+        barrier: false,
+        frostbitten: false,
+      },
+    }),
+  };
+  const headlessAdvanced = advanceFourPlayerLevelUps(headlessProbe);
+  assert.equal(headlessAdvanced.leveled.length, 0, "non-catalog headless combat fixtures remain outside Champion scanning");
+  assert.equal(headlessAdvanced.match.battlefield?.objects[0]?.defId, "headless-not-in-catalog");
+
   const cases = [
     { defId: "ember_champion", stat: "nexusDamageDealt" as const, amount: getCard("ember_champion").levelUp!.amount },
     { defId: "tide_champion", stat: "spellsCast" as const, amount: getCard("tide_champion").levelUp!.amount },
