@@ -396,13 +396,13 @@ function validateAbility(
   validateCosts(match, zones, actor, source, descriptor, discardInstanceIds, allowMissingDiscard);
   validateExplicitTarget(match, zones, actor, descriptor.choice.effect, target, allowMissingTarget);
   if (descriptor.timing === "main" && !allowMissingTarget) {
-    resolveFourPlayerEffect(match, actor, descriptor.choice.effect, target, { tokenNamespace: `ability-preview:${source.id}:${abilityIndex}` });
+    resolveFourPlayerEffect(match, actor, descriptor.choice.effect, target, { tokenNamespace: `ability-preview:${source.id}:${abilityIndex}`, sourceTargetId: source.id });
   } else if (
     descriptor.timing === "reaction"
     && descriptor.choice.effect.kind !== "negateSpell"
     && !allowMissingTarget
   ) {
-    resolveFourPlayerEffect(match, actor, descriptor.choice.effect, target, { tokenNamespace: `reaction-preview:${source.id}:${abilityIndex}` });
+    resolveFourPlayerEffect(match, actor, descriptor.choice.effect, target, { tokenNamespace: `reaction-preview:${source.id}:${abilityIndex}`, sourceTargetId: source.id });
   }
   return { source, descriptor };
 }
@@ -600,7 +600,7 @@ export function resolveFourPlayerActivatedAbility(
     let draws: Partial<Record<FourPlayerSeat, number>> = {};
     let zoneActions: readonly FourPlayerEffectZoneAction[] | undefined;
     if (payload.effect.also) {
-      const secondary = resolveFourPlayerEffect(nextMatch, item.controller, payload.effect.also, undefined, { tokenNamespace: item.id });
+      const secondary = resolveFourPlayerEffect(nextMatch, item.controller, payload.effect.also, undefined, { tokenNamespace: item.id, sourceTargetId: payload.sourceId });
       nextMatch = secondary.match;
       destroyed = secondary.destroyed;
       draws = secondary.draws;
@@ -616,7 +616,7 @@ export function resolveFourPlayerActivatedAbility(
   }
 
   try {
-    const resolved = resolveFourPlayerEffect(match, item.controller, payload.effect, payload.target, { tokenNamespace: item.id });
+    const resolved = resolveFourPlayerEffect(match, item.controller, payload.effect, payload.target, { tokenNamespace: item.id, sourceTargetId: payload.sourceId });
     return { ...resolved, countered: [] };
   } catch {
     // Targeted abilities fizzle if their authoritative target disappeared or
