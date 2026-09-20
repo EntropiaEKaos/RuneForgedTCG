@@ -234,24 +234,39 @@ async function driveMatchToResult(cdp, timeoutMs = 240_000) {
   const deadline = Date.now() + timeoutMs;
   let lastPhase = "unknown";
   let rounds = 0;
+
+  const readDriveState = () => evaluate(cdp, `(() => {
+    const arena = document.querySelector('.tcg-arena');
+    const result = document.querySelector('.match-result-backdrop');
+    const round = document.querySelector('.tcg-round-pill')?.textContent || '';
+    return { phase: arena?.dataset?.matchPhase || null, result: Boolean(result), round };
+  })()`);
+
   while (Date.now() < deadline) {
-    const snapshot = await evaluate(cdp, `(() => {
-      const arena = document.querySelector('.tcg-arena');
-      const result = document.querySelector('.match-result-backdrop');
-      const round = document.querySelector('.tcg-round-pill')?.textContent || '';
-      return { phase: arena?.dataset?.matchPhase || null, result: Boolean(result), round };
-    })()`);
+    const snapshot = await readDriveState();
     if (snapshot.result || snapshot.phase === "gameover") return { rounds, lastPhase: snapshot.phase || lastPhase };
     if (snapshot.phase) lastPhase = snapshot.phase;
     const roundMatch = String(snapshot.round || "").match(/(\d+)/);
     if (roundMatch) rounds = Math.max(rounds, Number(roundMatch[1]));
 
     if (snapshot.phase === "response" || snapshot.phase === "main") {
+      const fresh = await readDriveState();
+      if (fresh.result || fresh.phase === "gameover") return { rounds, lastPhase: fresh.phase || lastPhase };
+      if (fresh.phase !== snapshot.phase) {
+        await sleep(80);
+        continue;
+      }
       await pressKey(cdp, " ", "Space");
       await sleep(220);
       continue;
     }
     if (snapshot.phase === "combat") {
+      const fresh = await readDriveState();
+      if (fresh.result || fresh.phase === "gameover") return { rounds, lastPhase: fresh.phase || lastPhase };
+      if (fresh.phase !== snapshot.phase) {
+        await sleep(80);
+        continue;
+      }
       await pressKey(cdp, "Enter", "Enter");
       await sleep(220);
       continue;
