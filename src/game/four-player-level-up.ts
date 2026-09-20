@@ -8,6 +8,14 @@ import type { FourPlayerSeat } from "./four-player-general";
 import type { FourPlayerMatchState, FourPlayerProgressStats } from "./four-player-match";
 import type { Keyword } from "./types";
 
+function safeCard(defId: string) {
+  try {
+    return getCard(defId);
+  } catch {
+    return undefined;
+  }
+}
+
 export interface FourPlayerChampionProgress {
   current: number;
   goal: number;
@@ -37,8 +45,8 @@ export function fourPlayerChampionProgress(
   object: FourPlayerBattlefieldObject,
 ): FourPlayerChampionProgress | null {
   if (!object.combat || object.combat.health <= 0) return null;
-  const definition = getCard(object.defId);
-  if (!definition.levelUp) return null;
+  const definition = safeCard(object.defId);
+  if (!definition?.levelUp) return null;
   const stats = statsFor(match, object.ownerSeat);
   let current = 0;
   switch (definition.levelUp.type) {
