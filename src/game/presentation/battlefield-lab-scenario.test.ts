@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { adaptAuthoritativeBattlefieldEvent, buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldCombat, previewBattlefieldTarget, resolveBattlefieldFxRecipe } from "./battlefield-lab-scenario";
+import { adaptAuthoritativeBattlefieldEvent, buildBattlefieldFxExecutionPlan, buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldCombat, previewBattlefieldTarget, resolveBattlefieldFxRecipe } from "./battlefield-lab-scenario";
 
 const duel = buildBattlefieldLabScenario("duel-1v1", 32);
 assert.equal(duel.players.length, 2);
@@ -88,3 +88,13 @@ assert.deepEqual(fireballRecipe.primitives.map((primitive) => primitive.type), [
 const lightningRecipe = resolveBattlefieldFxRecipe("spell.lightning");
 assert.equal(lightningRecipe.primitives.some((primitive) => primitive.type === "beam"), true);
 assert.equal(resolveBattlefieldFxRecipe("spell.unknown").key, "spell.generic");
+
+
+const highFx = buildBattlefieldFxExecutionPlan("spell.fireball", "high");
+const lowFx = buildBattlefieldFxExecutionPlan("spell.fireball", "low");
+const highParticles = highFx.primitives.find((primitive) => primitive.type === "particles");
+const lowParticles = lowFx.primitives.find((primitive) => primitive.type === "particles");
+assert.ok(highParticles && highParticles.type === "particles");
+assert.ok(lowParticles && lowParticles.type === "particles");
+assert.equal(lowParticles.count < highParticles.count, true);
+assert.equal(buildBattlefieldFxExecutionPlan("spell.unknown", "medium").cue, "spell.generic");
