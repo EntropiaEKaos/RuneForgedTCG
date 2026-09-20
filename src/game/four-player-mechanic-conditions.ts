@@ -8,6 +8,11 @@ export interface FourPlayerMechanicConditionResult {
   matches: boolean;
 }
 
+export interface FourPlayerMechanicConditionContext {
+  /** Public authoritative hand sizes only. Card identities never enter condition evaluation. */
+  handCounts?: Readonly<Partial<Record<FourPlayerSeat, number>>>;
+}
+
 function liveObject(object: FourPlayerBattlefieldObject): boolean {
   if (object.combat && object.combat.health <= 0) return false;
   if (object.durability && object.durability.health <= 0) return false;
@@ -55,6 +60,7 @@ export function fourPlayerMechanicConditionMatches(
   match: FourPlayerMatchState,
   source: FourPlayerBattlefieldObject,
   condition: MechanicCondition | undefined,
+  context?: FourPlayerMechanicConditionContext,
 ): FourPlayerMechanicConditionResult {
   if (!condition || condition.kind === "always") return supported(true);
   if (!source.combat) return unsupported();
@@ -62,14 +68,14 @@ export function fourPlayerMechanicConditionMatches(
   if (condition.kind === "selfDamaged") return supported(source.combat.health < source.combat.maxHealth);
 
   if (condition.kind === "and" || condition.kind === "or") {
-    const children = condition.children.map((child) => fourPlayerMechanicConditionMatches(match, source, child));
+    const children = condition.children.map((child) => fourPlayerMechanicConditionMatches(match, source, child, context));
     if (children.some((child) => !child.supported)) return unsupported();
     return supported(condition.kind === "and"
       ? children.every((child) => child.matches)
       : children.some((child) => child.matches));
   }
   if (condition.kind === "not") {
-    const child = fourPlayerMechanicConditionMatches(match, source, condition.child);
+    const child = fourPlayerMechanicConditionMatches(match, source, condition.child, context);
     return child.supported ? supported(!child.matches) : unsupported();
   }
 
@@ -121,9 +127,15 @@ export function fourPlayerMechanicConditionMatches(
   if (condition.kind === "opponentNexusDamageDealtAtLeast") {
     return supported(Boolean(opponent && (opponent.stats?.nexusDamageDealt ?? 0) >= condition.amount));
   }
+  if (condition.kind === "handAtLeast") {
+    const count = context?.handCounts?.[source.controllerSeat];
+    return count === undefined ? unsupported() : supported(count >= condition.amount);
+  }
+  if (condition.kind === "opponentHandAtLeast") {
+    const count = opponentSeat ? context?.handCounts?.[opponentSeat] : undefined;
+    return count === undefined ? unsupported() : supported(count >= condition.amount);
+  }
   if (condition.kind === "roundAtLeast") return supported(match.turn.round >= condition.amount);
 
-  // Hand thresholds stay fail-closed until the trigger evaluator receives
-  // authoritative zone counts without leaking private card identities.
   return unsupported();
 }
