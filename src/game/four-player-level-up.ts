@@ -16,6 +16,14 @@ function safeCard(defId: string) {
   }
 }
 
+function safeCard(defId: string) {
+  try {
+    return getCard(defId);
+  } catch {
+    return undefined;
+  }
+}
+
 export interface FourPlayerChampionProgress {
   current: number;
   goal: number;
@@ -76,8 +84,8 @@ function equipmentKeywords(object: FourPlayerBattlefieldObject): Keyword[] {
 
 function transformObject(object: FourPlayerBattlefieldObject): FourPlayerBattlefieldObject | null {
   if (!object.combat || object.combat.health <= 0) return null;
-  const definition = getCard(object.defId);
-  if (!definition.levelUp) return null;
+  const definition = safeCard(object.defId);
+  if (!definition?.levelUp) return null;
   const next = getCard(definition.levelUp.toDefId);
   if (next.type !== "Unit" || !next.isChampion) {
     throw new Error(`4P level-up target ${next.defId} must be a Champion Unit.`);
