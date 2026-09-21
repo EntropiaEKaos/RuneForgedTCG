@@ -109,7 +109,7 @@ async function waitUntil<T>(
   while(Date.now()<deadline){
     try{
       const value=await check();
-      if(value!==false&&value!=null)return value;
+      if(value)return value as T;
     }catch(error){lastError=error;}
     await sleep(125);
   }
