@@ -53,6 +53,7 @@
     "test:e2e:http": "tsx scripts/e2e-pvp-ranked.ts",
     "test:e2e:alpha-journey": "tsx scripts/alpha-player-journey.ts",
     "test:e2e:marketplace": "tsx scripts/p2p-marketplace-browser-cert.ts",
+    "test:e2e:commander-4p": "tsx scripts/commander-4p-browser-cert.ts",
     "db:bootstrap": "tsx scripts/database-bootstrap.ts",
     "db:upgrade": "tsx scripts/database-upgrade-2.31.ts && tsx scripts/database-upgrade-marketplace.ts",
     "release:preflight": "tsx scripts/release-preflight.ts",
