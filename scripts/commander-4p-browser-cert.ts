@@ -363,6 +363,28 @@ async function joinCommanderRoomViaCode(browser:Browser,code:string){
     return false;
   },`${browser.label} authoritative membership in Commander room ${code}`,20_000);
   assert.equal(joined.body.room.code,code,`${browser.label} joined the wrong Commander room`);
+  assert.ok(Number.isInteger(joined.body.room.viewerSeat),`${browser.label} must receive an authoritative Commander viewer seat after join`);
+
+  await sleep(500);
+  const roomVisible=await evaluate<boolean>(browser.cdp,`document.body?.innerText?.includes(${JSON.stringify(`Sala ${code}`)})===true`);
+  if(!roomVisible){
+    const encodedRoomLabel=JSON.stringify(`Sala ${code}`);
+    await waitUntil(()=>evaluate(browser.cdp,`(()=>{
+      const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+      const article=[...document.querySelectorAll('article')].find((node)=>normalize(node.textContent).includes(${encodedRoomLabel}));
+      const button=article?.querySelector('button');
+      return Boolean(button&&!button.disabled&&['Abrir','Entrar'].includes(normalize(button.textContent)));
+    })()`),`${browser.label} room card for ${code}`,20_000);
+    const opened=await evaluate<boolean>(browser.cdp,`(()=>{
+      const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+      const article=[...document.querySelectorAll('article')].find((node)=>normalize(node.textContent).includes(${encodedRoomLabel}));
+      const button=article?.querySelector('button');
+      if(!button||button.disabled||!['Abrir','Entrar'].includes(normalize(button.textContent)))return false;
+      button.click();
+      return true;
+    })()`);
+    assert.equal(opened,true,`${browser.label} could not open the joined Commander room card ${code}`);
+  }
   await waitForText(browser.cdp,`Sala ${code}`,20_000);
 }
 
