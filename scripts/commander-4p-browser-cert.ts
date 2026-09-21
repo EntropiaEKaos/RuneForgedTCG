@@ -171,6 +171,7 @@ async function setInputValue(cdp:CdpClient,selector:string,value:string){
 }
 
 async function setGeneral(cdp:CdpClient,defId:string){
+  await waitUntil(()=>evaluate(cdp,`Boolean(document.querySelector('select option[value="${defId}"]'))`),`Commander General option ${defId}`);
   const changed=await evaluate<boolean>(cdp,`(()=>{
     const select=document.querySelector('select');
     if(!select)return false;
@@ -183,18 +184,24 @@ async function setGeneral(cdp:CdpClient,defId:string){
 }
 
 async function addCardCopy(cdp:CdpClient,name:string){
+  await waitUntil(()=>evaluate(cdp,`(()=>{
+    const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+    const label=[...document.querySelectorAll('b')].find((node)=>normalize(node.textContent)===${JSON.stringify(name)});
+    const row=label?.parentElement?.parentElement;
+    const plus=row?[...row.querySelectorAll('button')].find((button)=>normalize(button.textContent)==='+'):null;
+    return Boolean(plus&&!plus.disabled);
+  })()`),`enabled add-card control for ${name}`);
   const clicked=await evaluate<boolean>(cdp,`(()=>{
     const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
     const label=[...document.querySelectorAll('b')].find((node)=>normalize(node.textContent)===${JSON.stringify(name)});
     const row=label?.parentElement?.parentElement;
-    if(!row)return false;
-    const plus=[...row.querySelectorAll('button')].find((button)=>normalize(button.textContent)==='+');
+    const plus=row?[...row.querySelectorAll('button')].find((button)=>normalize(button.textContent)==='+'):null;
     if(!plus||plus.disabled)return false;
     plus.click();
     return true;
   })()`);
   assert.equal(clicked,true,`Could not add Commander deck card ${name}`);
-  await sleep(20);
+  await sleep(30);
 }
 
 async function capture(browser:Browser,filename:string,stage:string,manifest:any[]){
@@ -311,7 +318,6 @@ async function seedOwnedLoadout(browsers:Browser[],loadout:ReturnType<typeof cho
 async function configureLoadout(browser:Browser,loadout:ReturnType<typeof chooseLoadout>){
   await navigate(browser.cdp,"/commander");
   await waitForText(browser.cdp,"Commander 4P Alpha");
-  await waitForText(browser.cdp,browser.identity!.name);
   await setGeneral(browser.cdp,loadout.general.defId);
   await waitForText(browser.cdp,`General fora do deck: ${loadout.general.name}`);
   for(const card of loadout.deckDefs){
