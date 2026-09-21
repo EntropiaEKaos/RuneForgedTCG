@@ -6,7 +6,8 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { db } from "@/db";
 import { playerCards } from "@/db/schema";
 import { allCards } from "@/game/cards";
-// @ts-expect-error Shared Chrome bootstrap is an intentional JavaScript E2E helper without a declaration file.\nimport { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
+// @ts-expect-error Shared Chrome bootstrap is an intentional JavaScript E2E helper without a declaration file.
+import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
 
 const baseUrl=(process.env.E2E_BASE_URL||"http://127.0.0.1:3000").replace(/\/$/,"");
 const outputDir=resolve(process.env.ALPHA_VISUAL_DIR||"artifacts/alpha-visual");
