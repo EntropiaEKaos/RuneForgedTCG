@@ -508,7 +508,11 @@ export default function CommanderClient(){
         <section className="border border-white/10 bg-black/20 p-5">
           <h2 className="text-xl font-black">Salas abertas</h2>
           <div className="mt-4 flex gap-2"><input className="rf-input flex-1" value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())} placeholder="Código da sala"/><button className="btn-primary" disabled={!canSubmit||joinCode.length<6} onClick={()=>void mutate(`/api/commander/${joinCode}`,{action:"join",...loadout})}>Entrar</button></div>
-          <div className="mt-5 space-y-3">{rooms.map(item=><article key={item.code} className="flex items-center justify-between border border-white/10 p-4"><div><b>Sala {item.code}</b><p className="text-xs text-slate-500">{item.seatCount}/4 jogadores</p></div><button className="btn-ghost" disabled={!canSubmit||item.seatCount>=4} onClick={()=>void mutate(`/api/commander/${item.code}`,{action:"join",...loadout})}>{item.viewerJoined?"Abrir":"Entrar"}</button></article>)}{!rooms.length&&<p className="text-sm text-slate-500">Nenhuma sala Commander aguardando jogadores.</p>}</div>
+          <div className="mt-5 space-y-3">{rooms.map(item=><article key={item.code} className="flex items-center justify-between border border-white/10 p-4"><div><b>Sala {item.code}</b><p className="text-xs text-slate-500">{item.seatCount}/4 jogadores</p></div><button
+  className="btn-ghost"
+  disabled={item.viewerJoined?false:(!canSubmit||item.seatCount>=4)}
+  onClick={()=>item.viewerJoined?void loadRoom(item.code):void mutate(`/api/commander/${item.code}`,{action:"join",...loadout})}
+>{item.viewerJoined?"Abrir":"Entrar"}</button></article>)}{!rooms.length&&<p className="text-sm text-slate-500">Nenhuma sala Commander aguardando jogadores.</p>}</div>
         </section>
       </div>}
     </div>
