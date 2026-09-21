@@ -6,7 +6,7 @@ import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { db } from "@/db";
 import { playerCards } from "@/db/schema";
 import { allCards } from "@/game/cards";
-import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
+// @ts-expect-error Shared Chrome bootstrap is an intentional JavaScript E2E helper without a declaration file.\nimport { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
 
 const baseUrl=(process.env.E2E_BASE_URL||"http://127.0.0.1:3000").replace(/\/$/,"");
 const outputDir=resolve(process.env.ALPHA_VISUAL_DIR||"artifacts/alpha-visual");
@@ -98,17 +98,21 @@ async function evaluate<T=any>(cdp:CdpClient,expression:string):Promise<T>{
   return result.result?.value as T;
 }
 
-async function waitUntil<T>(check:()=>Promise<T>|T,label:string,timeoutMs=25_000):Promise<T>{
+async function waitUntil<T>(
+  check:()=>Promise<T|false|null|undefined>|T|false|null|undefined,
+  label:string,
+  timeoutMs=25_000,
+):Promise<T>{
   const deadline=Date.now()+timeoutMs;
-  let last:unknown;
+  let lastError:unknown;
   while(Date.now()<deadline){
     try{
-      last=await check();
-      if(last)return last;
-    }catch(error){last=error;}
+      const value=await check();
+      if(value!==false&&value!=null)return value;
+    }catch(error){lastError=error;}
     await sleep(125);
   }
-  throw new Error(`Timed out waiting for ${label}${last instanceof Error?`: ${last.message}`:""}`);
+  throw new Error(`Timed out waiting for ${label}${lastError instanceof Error?`: ${lastError.message}`:""}`);
 }
 
 async function navigate(cdp:CdpClient,path:string){
