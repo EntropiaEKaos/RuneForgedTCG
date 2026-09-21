@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { db } from "@/db";
 import { playerCards } from "@/db/schema";
 import { allCards } from "@/game/cards";
@@ -86,7 +86,7 @@ class CdpClient{
 type Browser={
   label:string;
   profileDir:string;
-  chrome:ChildProcessWithoutNullStreams;
+  chrome:ChildProcess;
   cdp:CdpClient;
   stderr:string;
   identity?:{id:number;name:string};
@@ -214,7 +214,7 @@ async function capture(browser:Browser,filename:string,stage:string,manifest:any
   manifest.push({browser:browser.label,stage,file:filename,...metrics});
 }
 
-async function waitForProcessExit(child:ChildProcessWithoutNullStreams,timeoutMs:number){
+async function waitForProcessExit(child:ChildProcess,timeoutMs:number){
   if(child.exitCode!=null||child.signalCode!=null)return true;
   return new Promise<boolean>((resolvePromise)=>{
     let finished=false;
