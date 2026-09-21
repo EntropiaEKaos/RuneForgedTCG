@@ -339,6 +339,33 @@ async function fetchCommander(browser:Browser,code:string){
   })()`);
 }
 
+async function joinCommanderRoomViaCode(browser:Browser,code:string){
+  await setInputValue(browser.cdp,'input[placeholder="Código da sala"]',code);
+  await waitUntil(()=>evaluate(browser.cdp,`(()=>{
+    const input=document.querySelector('input[placeholder="Código da sala"]');
+    const button=input?.parentElement?.querySelector('button');
+    return Boolean(button&&!button.disabled&&(button.textContent||'').trim()==='Entrar');
+  })()`),`${browser.label} code-join button for ${code}`);
+  const clicked=await evaluate<boolean>(browser.cdp,`(()=>{
+    const input=document.querySelector('input[placeholder="Código da sala"]');
+    const button=input?.parentElement?.querySelector('button');
+    if(!button||button.disabled||(button.textContent||'').trim()!=='Entrar')return false;
+    button.click();
+    return true;
+  })()`);
+  assert.equal(clicked,true,`${browser.label} could not click the code-specific Commander join button`);
+
+  const joined=await waitUntil(async()=>{
+    const response=await fetchCommander(browser,code);
+    if(response.status===200&&response.body?.room?.code===code)return response;
+    const error=await evaluate<string>(browser.cdp,`document.querySelector('.text-red-200')?.textContent||''`);
+    if(error)throw new Error(`${browser.label} Commander join UI error: ${error}`);
+    return false;
+  },`${browser.label} authoritative membership in Commander room ${code}`,20_000);
+  assert.equal(joined.body.room.code,code,`${browser.label} joined the wrong Commander room`);
+  await waitForText(browser.cdp,`Sala ${code}`,20_000);
+}
+
 async function waitForAllRoomVersion(browsers:Browser[],code:string,minimumRevision:number,timeoutMs=20_000){
   return waitUntil(async()=>{
     const responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,code)));
@@ -403,10 +430,7 @@ async function main(){
     assert.match(roomCode,/^[A-Z2-9]{6}$/);
 
     for(const guest of browsers.slice(1)){
-      await setInputValue(guest.cdp,'input[placeholder="Código da sala"]',roomCode);
-      await waitForEnabledButton(guest.cdp,"Entrar");
-      await clickText(guest.cdp,"Entrar",true);
-      await waitForText(guest.cdp,`Sala ${roomCode}`);
+      await joinCommanderRoomViaCode(guest,roomCode);
     }
 
     await waitUntil(async()=>{
