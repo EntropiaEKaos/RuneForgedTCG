@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import CardView from "@/components/CardView";
+import CommanderPhaserRuntime from "./CommanderPhaserRuntime";
 
 type ProjectedCard = { instanceId:string; defId:string };
 type BattlefieldObject = {
@@ -400,6 +401,8 @@ export default function CommanderBattlefield4P({
   const [selectedAttackerId,setSelectedAttackerId]=useState<string|null>(null);
   const [selectedBlockerId,setSelectedBlockerId]=useState<string|null>(null);
   const previousCombatRef=useRef<CombatState|null>(null);
+  const battlefieldScrollRef=useRef<HTMLElement|null>(null);
+  const [cameraZoom,setCameraZoom]=useState<80|90|100>(90);
   const [resolutionFx,setResolutionFx]=useState<ResolutionFx|null>(null);
   useEffect(()=>{
     const previous=previousCombatRef.current;
@@ -438,6 +441,19 @@ export default function CommanderBattlefield4P({
       .map(object=>object.id),
   );
 
+  function focusCamera(target:"table"|"stack"|"self"){
+    const root=battlefieldScrollRef.current;
+    if(!root)return;
+    if(target==="table"){
+      root.scrollTo({left:Math.max(0,(root.scrollWidth-root.clientWidth)/2),behavior:"smooth"});
+      return;
+    }
+    const selector=target==="stack"
+      ? '[data-commander-stack-depth]'
+      : `[data-commander-seat="${viewer}"]`;
+    root.querySelector<HTMLElement>(selector)?.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});
+  }
+
   async function commitAttack(defendingSeat:number){
     if(!selectedAttackerId||busy)return;
     const unitId=selectedAttackerId;
@@ -451,16 +467,41 @@ export default function CommanderBattlefield4P({
     await onDeclareBlocker(unitId,attackerId);
   }
 
-  return <section className="relative mt-5 overflow-x-auto overflow-y-hidden rounded-[2rem] border border-cyan-200/10 bg-[#02060b] p-3 shadow-[inset_0_0_90px_rgba(8,145,178,.06)]" data-commander-battlefield="cinematic-v1">
+  return <section ref={battlefieldScrollRef} className="relative mt-5 overflow-x-auto overflow-y-hidden rounded-[2rem] border border-cyan-200/10 bg-[#02060b] p-3 shadow-[inset_0_0_90px_rgba(8,145,178,.06)]" data-commander-battlefield="cinematic-v1" data-commander-camera-zoom={cameraZoom}>
     <div className="pointer-events-none absolute inset-0 opacity-70" style={{backgroundImage:"radial-gradient(circle at center, rgba(34,211,238,.08), transparent 27%), linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px)",backgroundSize:"auto, 42px 42px, 42px 42px"}}/>
     <div className="pointer-events-none absolute inset-[12%] rounded-[45%] border border-cyan-200/[.06] shadow-[0_0_90px_rgba(34,211,238,.05)]"/>
+    <div className="sticky left-3 top-3 z-50 flex w-fit flex-wrap items-center gap-1 rounded-full border border-cyan-100/15 bg-slate-950/95 p-1 shadow-xl backdrop-blur-md" data-commander-camera-controls="local">
+      <button type="button" className="rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wide text-cyan-100 hover:bg-cyan-200/10" onClick={()=>focusCamera("table")}>Mesa</button>
+      <button type="button" className="rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wide text-violet-100 hover:bg-violet-200/10" onClick={()=>focusCamera("stack")}>Stack</button>
+      <button type="button" className="rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wide text-amber-100 hover:bg-amber-200/10" onClick={()=>focusCamera("self")}>Meu campo</button>
+      <span className="mx-1 h-4 w-px bg-white/10"/>
+      {([80,90,100] as const).map(level=><button
+        key={level}
+        type="button"
+        className={`rounded-full px-2 py-1 text-[8px] font-black ${cameraZoom===level?"bg-white/10 text-white":"text-slate-500 hover:text-slate-200"}`}
+        aria-pressed={cameraZoom===level}
+        onClick={()=>setCameraZoom(level)}
+      >{level}%</button>)}
+    </div>
     <AttackOverlay combat={combat} viewer={viewer}/>
+    <CommanderPhaserRuntime
+      combat={{
+        revision:combat.revision,
+        attackers:combat.combat.attackers,
+        blockers:combat.combat.blockers,
+      }}
+      resolutionRevision={resolutionFx?.revision??null}
+      viewerSeat={viewer}
+    />
     <ResolutionDepartureFx departures={resolutionFx?.departures||[]}/>
     {(selectedAttackerId||selectedBlockerId)&&<div className="sticky left-4 top-4 z-40 w-fit rounded-full border border-cyan-200/25 bg-slate-950/95 px-3 py-1.5 text-[9px] font-black uppercase tracking-[.14em] text-cyan-100 shadow-xl">
       {selectedAttackerId?"Atacante selecionado · escolha um Nexus inimigo":"Bloqueador selecionado · escolha um atacante contra você"}
       <button type="button" className="ml-3 text-slate-500 underline" onClick={()=>{setSelectedAttackerId(null);setSelectedBlockerId(null);}}>Cancelar</button>
     </div>}
-    <div className="relative z-20 grid min-h-[900px] min-w-[980px] grid-cols-[minmax(260px,1fr)_minmax(360px,1.5fr)_minmax(260px,1fr)] grid-rows-[minmax(240px,1fr)_minmax(260px,.9fr)_minmax(240px,1fr)] items-center gap-4">
+    <div
+      className={`relative z-20 grid min-h-[900px] min-w-[980px] origin-top grid-cols-[minmax(260px,1fr)_minmax(360px,1.5fr)_minmax(260px,1fr)] grid-rows-[minmax(240px,1fr)_minmax(260px,.9fr)_minmax(240px,1fr)] items-center gap-4 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
+      data-commander-camera-surface="table"
+    >
       {(["top","left","right","bottom"] as Position[]).map(position=>{
         const runtime=seatByPosition.get(position);
         if(!runtime)return null;

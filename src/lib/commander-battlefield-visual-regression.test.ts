@@ -7,6 +7,9 @@ const read=(file:string)=>fs.readFileSync(path.join(root,file),"utf8");
 
 const client=read("src/app/commander/CommanderClient.tsx");
 const battlefield=read("src/app/commander/CommanderBattlefield4P.tsx");
+const phaserRuntime=read("src/app/commander/CommanderPhaserRuntime.tsx");
+const packageJson=read("package.json");
+const packageLock=read("package-lock.json");
 
 assert.match(client,/CommanderBattlefield4P/,"Commander client must mount the cinematic 4P battlefield");
 assert.match(client,/combat=\{combat\}/,"cinematic battlefield must consume the authoritative projected combat state");
@@ -38,6 +41,13 @@ assert.match(battlefield,/data-commander-nexus-damage/,"Nexus damage must expose
 assert.match(battlefield,/data-commander-damage-fx/,"battlefield damage must expose a stable visual evidence marker");
 assert.match(battlefield,/data-commander-barrier-break="true"/,"Barrier break must expose a stable visual evidence marker");
 assert.match(battlefield,/data-commander-departure-fx="authoritative"/,"destroyed/departed card FX must be marked as authoritative-state driven");
+assert.match(battlefield,/data-commander-camera-controls="local"/,"battlefield must expose local-only camera controls");
+assert.match(battlefield,/data-commander-camera-zoom=\{cameraZoom\}/,"camera zoom must remain local presentation state");
+assert.match(battlefield,/focusCamera\(target:"table"\|"stack"\|"self"\)/,"camera focus must be constrained to table, stack or local seat");
+assert.match(battlefield,/scrollIntoView\(\{behavior:"smooth",block:"nearest",inline:"center"\}\)/,"camera focus must be DOM framing only");
+assert.match(battlefield,/\(\[80,90,100\] as const\)/,"camera must retain bounded zoom presets");
+assert.match(battlefield,/data-commander-camera-surface="table"/,"camera surface must expose a stable certification marker");
+
 assert.doesNotMatch(battlefield,/effectivePower|applyFourPlayerBattlefieldDamage|advanceFourPlayerCombatStep/,"presentation must not recalculate authoritative combat resolution");
 
 
@@ -66,6 +76,23 @@ assert.match(client,/onDeclareAttacker=\{\(unitId,defendingSeat\)=>combatCommand
 assert.match(client,/onDeclareBlocker=\{\(unitId,attackerId\)=>combatCommand\("declare_blocker"/,"Commander client must keep authoritative block command ownership");
 
 
+assert.match(battlefield,/CommanderPhaserRuntime/,"Commander battlefield must mount the isolated Phaser presentation overlay");
+assert.match(phaserRuntime,/void import\("phaser"\)/,"Phaser must load client-side behind the React boundary");
+assert.match(phaserRuntime,/new Phaser\.Game/,"presentation overlay must instantiate a real Phaser.Game runtime");
+assert.match(phaserRuntime,/projectAuthoritativeCombatDelta/,"Phaser runtime must consume the certified authoritative combat adapter");
+assert.match(phaserRuntime,/viewerSeat:number/,"Phaser runtime must receive the local Commander viewer seat");
+assert.match(phaserRuntime,/seatPoint\(route\.controllerSeat,viewerSeat\)/,"attacker FX must originate from its authoritative controller seat in local perspective");
+assert.match(phaserRuntime,/seatPoint\(route\.defendingSeat,viewerSeat\)/,"attacker FX must target its authoritative defending seat in local perspective");
+assert.match(phaserRuntime,/frame\.attackRoutes\.find\(entry=>entry\.unitId===route\.attackerId\)/,"blocker FX must bind to the exact authoritative attacker id");
+assert.match(phaserRuntime,/collisionPoint\(attackerStart,defender\)/,"blocker FX must terminate at the authoritative attacker route collision point");
+assert.match(battlefield,/viewerSeat=\{viewer\}/,"Commander battlefield must provide the viewer seat to the presentation-only Phaser overlay");
+
+assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
+assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
+assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
+assert.match(packageLock,/"node_modules\/phaser"/,"runtime dependency must remain locked");
+assert.doesNotMatch(phaserRuntime,/fetch\(|combatCommand|onDeclareAttacker|onDeclareBlocker/,"Phaser runtime must not own network or gameplay commands");
+assert.match(phaserRuntime,/React battlefield remains active/,"Phaser runtime failure must preserve the React battlefield fallback");
 assert.doesNotMatch(battlefield,/fetch\(/,"cinematic battlefield must remain a pure projection layer with no network authority");
 assert.doesNotMatch(battlefield,/combatCommand|mutate\(/,"cinematic battlefield must not create a second command authority");
 
