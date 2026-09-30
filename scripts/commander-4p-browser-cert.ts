@@ -285,7 +285,10 @@ async function seedCommanderLegalityCatalog(){
 }
 
 async function cleanupCommanderLegalityCatalog(defIds:string[]){
-  for(const defId of defIds)await db.delete(customCards).where(eq(customCards.defId,defId));
+  for(const defId of defIds){
+    await db.delete(playerCards).where(eq(playerCards.defId,defId));
+    await db.delete(customCards).where(eq(customCards.defId,defId));
+  }
   await refreshCustomCardCache();
 }
 
@@ -977,7 +980,7 @@ async function main(){
     );
     assert.equal(forgedFilteredCounter.status,409,"forged spell-only counter against Unit must fail closed");
     assert.equal(forgedFilteredCounter.body?.ok,false,"forged filtered counter rejection must return ok:false");
-    assert.match(String(forgedFilteredCounter.body?.error||""),/cannot counter stack item/i,"server must reject the illegal filtered counter target");
+    assert.match(String(forgedFilteredCounter.body?.error||""),/(Only legal Fast\/Burst reaction spells|cannot counter stack item)/i,"server must reject the illegal filtered counter target");
 
     responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,roomCode)));
     rooms=validateFourClientProjection(responses,"after forged filtered-counter rejection");
@@ -1020,7 +1023,7 @@ async function main(){
     );
     assert.equal(forgedUncounterableCounter.status,409,"forged Deny against uncounterable Spell must fail closed");
     assert.equal(forgedUncounterableCounter.body?.ok,false,"uncounterable counter rejection must return ok:false");
-    assert.match(String(forgedUncounterableCounter.body?.error||""),/cannot counter stack item/i,"server must reject the uncounterable target");
+    assert.match(String(forgedUncounterableCounter.body?.error||""),/(Only legal Fast\/Burst reaction spells|cannot counter stack item)/i,"server must reject the uncounterable target");
 
     responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,roomCode)));
     rooms=validateFourClientProjection(responses,"after forged uncounterable counter rejection");
