@@ -47,7 +47,6 @@ export function buildBattlefieldLabScenario(mode: BattlefieldLabMode, requestedU
   return { schemaVersion: 1, seed: mode === "commander-4p" ? 404240 : 101240, mode, players, entities };
 }
 
-
 export type BattlefieldLabPoint = { x: number; y: number; angle: number };
 
 export function layoutBattlefieldEntities(
@@ -87,7 +86,6 @@ export function layoutBattlefieldEntities(
   return result;
 }
 
-
 export type BattlefieldInteractionIntent =
   | { type: "select"; sourceId: string }
   | { type: "target"; sourceId: string; targetId: string }
@@ -114,7 +112,6 @@ export function previewBattlefieldTarget(
     relation: source.controllerId === target.controllerId ? "friendly" : "opponent",
   };
 }
-
 
 export type BattlefieldCombatIntent =
   | { type: "declare-attacker"; attackerId: string; defendingPlayerId: string }
@@ -143,7 +140,6 @@ export function previewBattlefieldCombat(
   if (!blocker || !attacker || blocker.controllerId === attacker.controllerId) return null;
   return { attackerId: attacker.id, blockerId: blocker.id, defendingPlayerId: blocker.controllerId };
 }
-
 
 export type BattlefieldAuthoritativeEvent =
   | { type: "spell-resolved"; spellId: string; sourceId?: string; targetIds: string[]; fxKey?: string }
@@ -175,7 +171,6 @@ export function adaptAuthoritativeBattlefieldEvent(
       return { type: "elimination", playerId: event.playerId };
   }
 }
-
 
 export type BattlefieldFxPrimitive =
   | { type: "projectile"; durationMs: number; trail: boolean }
@@ -218,7 +213,6 @@ export function resolveBattlefieldFxRecipe(cue: string): BattlefieldFxRecipe {
   return BATTLEFIELD_FX_RECIPES[cue] ?? BATTLEFIELD_FX_RECIPES["spell.generic"];
 }
 
-
 export type BattlefieldFxQuality = "low" | "medium" | "high";
 
 export type BattlefieldFxExecutionPlan = {
@@ -238,4 +232,16 @@ export function buildBattlefieldFxExecutionPlan(
     return { ...primitive, count: Math.max(1, Math.round(primitive.count * multiplier)) };
   });
   return { cue: recipe.key, quality, primitives };
+}
+
+export function getBattlefieldFxPlanDurationMs(plan: BattlefieldFxExecutionPlan): number {
+  return plan.primitives.reduce((duration, primitive) => Math.max(duration, primitive.durationMs), 0);
+}
+
+export function getBattlefieldPresentationDurationMs(
+  event: BattlefieldPresentationEvent,
+  quality: BattlefieldFxQuality = "high",
+): number {
+  if (event.type !== "fx") return 0;
+  return getBattlefieldFxPlanDurationMs(buildBattlefieldFxExecutionPlan(event.cue, quality));
 }
