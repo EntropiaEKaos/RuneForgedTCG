@@ -6,6 +6,7 @@ import {
   type AuthoritativeCombatProjection,
 } from "@/game/presentation/phaser/BattlefieldAuthoritativeCombatAdapter";
 import type { BattlefieldCombatPresentationFrame } from "@/game/presentation/phaser/BattlefieldCombatPresentation";
+import { playCombatLaneFx } from "@/game/presentation/phaser/BattlefieldCombatFx";
 
 type CombatProjection = {
   revision:number;
@@ -116,8 +117,8 @@ export default function CommanderPhaserRuntime({
               const start=seatPoint(route.controllerSeat,viewerSeat);
               const end=seatPoint(route.defendingSeat,viewerSeat);
               const impact=collisionPoint(start,end);
+              playCombatLaneFx(this,start,impact,"attackers");
               const orb=this.add.circle(start.x,start.y,7,tone,.95);
-              const trail=this.add.line(0,0,start.x,start.y,impact.x,impact.y,tone,.28).setOrigin(0,0);
               this.tweens.add({
                 targets:orb,
                 x:impact.x,
@@ -126,7 +127,7 @@ export default function CommanderPhaserRuntime({
                 scale:1.8,
                 duration:850,
                 ease:"Cubic.easeOut",
-                onComplete:()=>{orb.destroy();trail.destroy();},
+                onComplete:()=>orb.destroy(),
               });
             });
           }else if(frame.phase==="blockers"){
@@ -137,8 +138,8 @@ export default function CommanderPhaserRuntime({
               const defender=seatPoint(attack.defendingSeat,viewerSeat);
               const impact=collisionPoint(attackerStart,defender);
               const start=seatPoint(route.controllerSeat,viewerSeat);
+              playCombatLaneFx(this,start,impact,"blockers");
               const orb=this.add.circle(start.x,start.y,6,tone,.9);
-              const trail=this.add.line(0,0,start.x,start.y,impact.x,impact.y,tone,.32).setOrigin(0,0);
               this.tweens.add({
                 targets:orb,
                 x:impact.x,
@@ -147,7 +148,7 @@ export default function CommanderPhaserRuntime({
                 scale:1.6,
                 duration:720,
                 ease:"Cubic.easeOut",
-                onComplete:()=>{orb.destroy();trail.destroy();},
+                onComplete:()=>orb.destroy(),
               });
             });
           }else{
