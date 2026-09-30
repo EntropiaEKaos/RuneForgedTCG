@@ -177,6 +177,7 @@ jobs:
           node scripts/alpha-runtime-tooltip-cert.mjs
           node scripts/alpha-activated-ability-browser-cert.mjs
           node scripts/alpha-casual-pvp-journey.mjs
+          npm run test:e2e:commander-4p
           node scripts/alpha-pvp-reaction-priority-browser-cert.mjs
           node scripts/studio-card-rules-rbac-browser-cert.mjs
           node scripts/studio-modal-ability-browser-cert.mjs

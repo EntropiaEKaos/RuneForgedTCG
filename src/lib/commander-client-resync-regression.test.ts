@@ -15,6 +15,8 @@ assert.match(client,/window\.addEventListener\("focus"/,"window focus must refre
 assert.match(client,/document\.addEventListener\("visibilitychange"/,"tab resume must refresh Commander authority");
 assert.match(client,/clearPendingCombatIntent/,"resync must clear stale spell\/ability intent");
 assert.match(client,/loadRoom\(room\.code\)/,"mutation conflicts must fetch a fresh authoritative snapshot");
+assert.match(client,/item\.viewerJoined\?void loadRoom\(item\.code\):void mutate/,"joined Commander room cards must reopen existing authority instead of rejoining");
+assert.match(client,/disabled=\{item\.viewerJoined\?false:/,"joined Commander room cards must remain openable after local loadout state is lost");
 assert.match(client,/Estado Commander atualizado após conflito de revisão/,"stale commands must not be silently replayed");
 
 assert.match(resync,/status === 409/,"only conflict responses trigger mutation resync");
