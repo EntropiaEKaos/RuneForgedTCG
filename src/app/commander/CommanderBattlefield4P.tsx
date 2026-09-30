@@ -196,16 +196,39 @@ function SeatZone({
 }
 
 function AttackOverlay({combat,viewer}:{combat:CombatState;viewer:number}){
-  return <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+  return <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" data-commander-attack-fx="authoritative">
     <defs>
-      <marker id="commander-arrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill="rgba(251,113,133,.9)"/></marker>
+      <linearGradient id="commander-attack-beam" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stopColor="rgba(251,191,36,.2)"/>
+        <stop offset="45%" stopColor="rgba(251,113,133,.95)"/>
+        <stop offset="100%" stopColor="rgba(244,63,94,.7)"/>
+      </linearGradient>
+      <filter id="commander-attack-glow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation=".8" result="blur"/>
+        <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+      <marker id="commander-arrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill="rgba(251,113,133,.95)"/></marker>
     </defs>
     {combat.combat.attackers.map((attack,index)=>{
       const from=anchor[relativePosition(attack.controllerSeat,viewer)];
       const to=anchor[relativePosition(attack.defendingSeat,viewer)];
-      return <g key={attack.unitId+":"+index}>
-        <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="rgba(251,113,133,.55)" strokeWidth="0.7" strokeDasharray="2 1.4" markerEnd="url(#commander-arrow)"/>
-        <circle cx={(from.x+to.x)/2} cy={(from.y+to.y)/2} r="1.8" fill="rgba(2,6,23,.88)" stroke="rgba(251,113,133,.65)" strokeWidth=".35"/>
+      const midX=(from.x+to.x)/2;
+      const midY=(from.y+to.y)/2;
+      return <g key={attack.unitId+":"+index} data-commander-attack-route={attack.unitId}>
+        <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="rgba(244,63,94,.18)" strokeWidth="2.2" filter="url(#commander-attack-glow)"/>
+        <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="url(#commander-attack-beam)" strokeWidth=".85" strokeDasharray="3 1.8" markerEnd="url(#commander-arrow)">
+          <animate attributeName="stroke-dashoffset" from="9" to="0" dur=".85s" repeatCount="indefinite"/>
+        </line>
+        <circle cx={from.x} cy={from.y} r="1" fill="rgba(251,191,36,.9)" filter="url(#commander-attack-glow)">
+          <animate attributeName="cx" from={String(from.x)} to={String(to.x)} dur="1.15s" repeatCount="indefinite"/>
+          <animate attributeName="cy" from={String(from.y)} to={String(to.y)} dur="1.15s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0;1;1;0" dur="1.15s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx={to.x} cy={to.y} r="1.5" fill="rgba(251,113,133,.35)" stroke="rgba(254,202,202,.9)" strokeWidth=".3">
+          <animate attributeName="r" values="1.5;4.5;1.5" dur="1.15s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values=".9;0;.9" dur="1.15s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx={midX} cy={midY} r="1.8" fill="rgba(2,6,23,.9)" stroke="rgba(251,113,133,.75)" strokeWidth=".35"/>
       </g>;
     })}
   </svg>;
@@ -213,7 +236,8 @@ function AttackOverlay({combat,viewer}:{combat:CombatState;viewer:number}){
 
 function StackCore({combat,collection}:{combat:CombatState;collection:CollectionCard[]}){
   const items=[...combat.stack].reverse();
-  return <div className="relative z-20 w-[min(30vw,280px)] rounded-[1.6rem] border border-violet-200/20 bg-[radial-gradient(circle_at_top,rgba(139,92,246,.22),rgba(2,6,23,.92)_70%)] p-4 text-center shadow-[0_0_60px_rgba(124,58,237,.14)]">
+  const visible=items.slice(0,4);
+  return <div className="relative z-20 w-[min(32vw,300px)] rounded-[1.6rem] border border-violet-200/20 bg-[radial-gradient(circle_at_top,rgba(139,92,246,.25),rgba(2,6,23,.94)_70%)] p-4 text-center shadow-[0_0_70px_rgba(124,58,237,.18)]" data-commander-stack-depth={visible.length}>
     <div className="absolute inset-2 rounded-[1.2rem] border border-white/[.04]"/>
     <p className="relative text-[9px] font-black uppercase tracking-[.24em] text-violet-200/70">NEXUS DA STACK</p>
     <div className="relative mt-2 grid grid-cols-3 gap-1 text-[9px]">
@@ -221,14 +245,32 @@ function StackCore({combat,collection}:{combat:CombatState;collection:Collection
       <span className="rounded border border-white/8 p-1"><b className="block text-cyan-100">P{combat.prioritySeat+1}</b>PRIO.</span>
       <span className="rounded border border-white/8 p-1"><b className="block text-slate-100">#{combat.turn}</b>TURNO</span>
     </div>
-    <div className="relative mt-3 min-h-20">
-      {items.length?items.slice(0,4).map((item,index)=><div key={item.id} className={`mx-auto -mt-1 w-[92%] rounded-lg border px-2 py-2 text-left text-[9px] shadow-lg first:mt-0 ${index===0?"border-violet-200/45 bg-violet-950/80":"border-white/10 bg-slate-950/90"}`} style={{transform:`scale(${1-index*.035})`}}>
-        <b className="block truncate text-violet-50">{index===0?"TOPO · ":""}{item.abilityDescription||nameOf(item.defId,collection)||item.actionKind}</b>
-        <span className="text-slate-500">P{item.controllerSeat+1} · {item.speed||item.actionKind}{item.uncounterable?" · NÃO ANULÁVEL":""}</span>
-      </div>):<div className="grid min-h-20 place-items-center text-[9px] uppercase tracking-[.18em] text-slate-700">stack vazia</div>}
-      {items.length>4&&<span className="mt-1 block text-[9px] text-violet-300/60">+{items.length-4} objeto(s)</span>}
+    <div className="relative mx-auto mt-4 h-40 w-40" data-commander-stack-cards="physical">
+      {visible.length?visible.map((item,index)=>{
+        const hasCard=Boolean(item.defId&&collection.some(card=>card.defId===item.defId));
+        const rotation=[0,-8,7,-4][index]??0;
+        const offset=index*8;
+        return <div
+          key={item.id}
+          className={`absolute left-1/2 top-0 transition-all duration-300 ${index===0?"z-40 animate-pulse":"z-20 opacity-75"}`}
+          style={{transform:`translate(calc(-50% + ${offset}px), ${offset}px) rotate(${rotation}deg) scale(${1-index*.055})`,transformOrigin:"50% 50%"}}
+          data-commander-stack-item={item.id}
+          data-commander-stack-top={index===0||undefined}
+        >
+          {hasCard&&item.defId
+            ? <CardView defId={item.defId} size="sm" dimmed={index>0}/>
+            : <div className="grid h-28 w-20 place-items-center rounded-xl border border-violet-200/25 bg-violet-950/90 p-2 text-[8px] font-black text-violet-50 shadow-xl">{item.abilityDescription||item.actionKind||"AÇÃO"}</div>}
+          {index===0&&<span className="absolute -top-2 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full border border-violet-200/35 bg-violet-950/95 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-violet-100 shadow-lg">TOPO · P{item.controllerSeat+1}</span>}
+          {item.uncounterable&&<span className="absolute -bottom-2 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-200/30 bg-amber-950/95 px-2 py-0.5 text-[7px] font-black uppercase text-amber-100">NÃO ANULÁVEL</span>}
+        </div>;
+      }):<div className="grid h-full place-items-center text-[9px] uppercase tracking-[.18em] text-slate-700">stack vazia</div>}
     </div>
-    <div className="relative mt-3 text-[8px] uppercase tracking-[.2em] text-slate-600">rev {combat.revision}</div>
+    {visible[0]&&<div className="relative mt-1 rounded-lg border border-violet-200/10 bg-black/25 px-2 py-1.5 text-left text-[9px]">
+      <b className="block truncate text-violet-50">{visible[0].abilityDescription||nameOf(visible[0].defId,collection)||visible[0].actionKind}</b>
+      <span className="text-slate-500">P{visible[0].controllerSeat+1} · {visible[0].speed||visible[0].actionKind}</span>
+    </div>}
+    {items.length>4&&<span className="relative mt-1 block text-[9px] text-violet-300/60">+{items.length-4} objeto(s)</span>}
+    <div className="relative mt-2 text-[8px] uppercase tracking-[.2em] text-slate-600">rev {combat.revision}</div>
   </div>;
 }
 

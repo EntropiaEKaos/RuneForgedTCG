@@ -17,8 +17,18 @@ assert.match(battlefield,/CardView defId=\{runtime\.general\.defId\}/,"General z
 assert.match(battlefield,/runeforge-card-back\.svg/,"opponent hidden hands and deck piles must use the certified card back");
 assert.match(battlefield,/combat\.combat\.attackers\.map/,"battlefield must render authoritative attack routes");
 assert.match(battlefield,/markerEnd="url\(#commander-arrow\)"/,"attack routes must retain directional arrows");
+assert.match(battlefield,/data-commander-attack-fx="authoritative"/,"attack FX must be visibly marked as authoritative-state driven");
+assert.match(battlefield,/stroke-dashoffset/,"attack routes must retain animated directional flow");
+assert.match(battlefield,/attributeName="cx"/,"attack FX must retain a projectile moving from controller to defender");
+assert.match(battlefield,/attributeName="r"/,"defending seat must retain an impact pulse driven by an authoritative attacker");
+
 assert.match(battlefield,/NEXUS DA STACK/,"battlefield must retain a central authoritative stack surface");
 assert.match(battlefield,/combat\.stack/,"stack presentation must be derived from projected server state");
+assert.match(battlefield,/data-commander-stack-cards="physical"/,"stack must retain a physical layered-card presentation");
+assert.match(battlefield,/data-commander-stack-top/,"stack must expose its visual top object");
+assert.match(battlefield,/CardView defId=\{item\.defId\} size="sm"/,"stack card objects must reuse the certified CardView renderer");
+assert.match(battlefield,/NÃO ANULÁVEL/,"stack physical presentation must preserve uncounterable state");
+
 assert.match(battlefield,/runtime\.graveyard\.length/,"public graveyard counts must remain visible");
 assert.match(battlefield,/runtime\.handCount/,"opponent hidden-hand presentation must use public counts only");
 assert.match(battlefield,/function VisibleHand/,"local viewer must receive a real visible-hand presentation");
