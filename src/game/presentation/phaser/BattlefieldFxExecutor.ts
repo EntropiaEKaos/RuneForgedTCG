@@ -48,17 +48,56 @@ export function playBattlefieldFx(
   return true;
 }
 
-
 export function playBattlefieldPresentationEvent(
   scene: Phaser.Scene,
   layout: BattlefieldFxLayout,
   event: BattlefieldPresentationEvent,
   quality: BattlefieldFxQuality = "high",
 ): boolean {
-  if (event.type !== "fx" || !event.sourceId || event.targetIds.length === 0) return false;
-  let played = false;
-  event.targetIds.forEach((targetId) => {
-    played = playBattlefieldFx(scene, layout, event.cue, event.sourceId!, targetId, quality) || played;
-  });
-  return played;
+  if (event.type === "fx") {
+    if (!event.sourceId || event.targetIds.length === 0) return false;
+    let played = false;
+    event.targetIds.forEach((targetId) => {
+      played = playBattlefieldFx(scene, layout, event.cue, event.sourceId!, targetId, quality) || played;
+    });
+    return played;
+  }
+
+  if (event.type === "damage") {
+    const target = layout[event.targetId];
+    if (!target) return false;
+    const label = scene.add.text(target.x, target.y - 12, `-${event.amount}`, {
+      fontFamily: "system-ui",
+      fontSize: "22px",
+      fontStyle: "bold",
+      color: "#fecaca",
+      stroke: "#7f1d1d",
+      strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(45);
+    scene.tweens.add({ targets: label, y: target.y - 54, alpha: 0, scale: 1.25, duration: 520, ease: "Cubic.easeOut", onComplete: () => label.destroy() });
+    return true;
+  }
+
+  if (event.type === "death") {
+    const target = layout[event.entityId];
+    if (!target) return false;
+    const ring = scene.add.circle(target.x, target.y, 8, 0x0f172a, 0.2).setStrokeStyle(4, 0xe2e8f0, 0.9).setDepth(44);
+    scene.tweens.add({ targets: ring, scale: 4.5, alpha: 0, duration: 620, ease: "Sine.easeOut", onComplete: () => ring.destroy() });
+    return true;
+  }
+
+  if (event.type === "priority") {
+    const banner = scene.add.text(scene.scale.width / 2, 42, `PRIORITY · ${event.playerId.toUpperCase()}`, {
+      fontFamily: "system-ui",
+      fontSize: "14px",
+      fontStyle: "bold",
+      color: "#e0f2fe",
+      backgroundColor: "#082f49dd",
+      padding: { x: 14, y: 8 },
+    }).setOrigin(0.5).setDepth(50).setAlpha(0);
+    scene.tweens.add({ targets: banner, alpha: 1, y: 52, duration: 160, yoyo: true, hold: 520, onComplete: () => banner.destroy() });
+    return true;
+  }
+
+  return false;
 }
