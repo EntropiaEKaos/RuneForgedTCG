@@ -529,7 +529,7 @@ function validateFourClientProjection(
     const serialized=JSON.stringify(room);
     for(const [seat,ids] of ownHands){
       if(seat===room.viewerSeat)continue;
-      for(const id of ids)assert.equal(serialized.includes(id),false,`${label}: P${room.viewerSeat+1} leaked P${seat+1} private hand identity ${id}`);
+      for(const id of ids)assert.equal(serialized.includes(JSON.stringify(id)),false,`${label}: P${room.viewerSeat+1} leaked P${seat+1} private hand identity ${id}`);
     }
   }
   return rooms;
