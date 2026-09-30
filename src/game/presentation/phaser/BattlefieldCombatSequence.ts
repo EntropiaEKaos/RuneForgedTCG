@@ -35,11 +35,12 @@ export function playDeterministicCombatSequence(
         return;
       }
 
-      if (frame.phase === "blockers" || frame.phase === "damage") {
+      const combatPhase = frame.phase;
+      if (combatPhase === "blockers" || combatPhase === "damage") {
         frame.blockerPairs.forEach(({ attackerId, blockerId }) => {
           const attackerPoint = layout[attackerId];
           const blockerPoint = layout[blockerId];
-          if (attackerPoint && blockerPoint) playCombatLaneFx(scene, attackerPoint, blockerPoint, frame.phase);
+          if (attackerPoint && blockerPoint) playCombatLaneFx(scene, attackerPoint, blockerPoint, combatPhase);
         });
       }
     }));
