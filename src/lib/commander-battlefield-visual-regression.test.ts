@@ -38,6 +38,13 @@ assert.match(battlefield,/data-commander-nexus-damage/,"Nexus damage must expose
 assert.match(battlefield,/data-commander-damage-fx/,"battlefield damage must expose a stable visual evidence marker");
 assert.match(battlefield,/data-commander-barrier-break="true"/,"Barrier break must expose a stable visual evidence marker");
 assert.match(battlefield,/data-commander-departure-fx="authoritative"/,"destroyed/departed card FX must be marked as authoritative-state driven");
+assert.match(battlefield,/data-commander-camera-controls="local"/,"battlefield must expose local-only camera controls");
+assert.match(battlefield,/data-commander-camera-zoom=\{cameraZoom\}/,"camera zoom must remain local presentation state");
+assert.match(battlefield,/focusCamera\(target:"table"\|"stack"\|"self"\)/,"camera focus must be constrained to table, stack or local seat");
+assert.match(battlefield,/scrollIntoView\(\{behavior:"smooth",block:"nearest",inline:"center"\}\)/,"camera focus must be DOM framing only");
+assert.match(battlefield,/\(\[80,90,100\] as const\)/,"camera must retain bounded zoom presets");
+assert.match(battlefield,/data-commander-camera-surface="table"/,"camera surface must expose a stable certification marker");
+
 assert.doesNotMatch(battlefield,/effectivePower|applyFourPlayerBattlefieldDamage|advanceFourPlayerCombatStep/,"presentation must not recalculate authoritative combat resolution");
 
 
