@@ -3,9 +3,13 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { playerCards } from "@/db/schema";
+import { commanderRooms, playerCards } from "@/db/schema";
 import { allCards } from "@/game/cards";
+import { createFourPlayerResolutionFlow } from "@/game/four-player-flow";
+import type { FourPlayerSeat } from "@/game/four-player-general";
+import { commanderCombatPersistence, isCommanderCombatEnvelope } from "@/lib/commander-combat";
 // @ts-expect-error Shared Chrome bootstrap is an intentional JavaScript E2E helper without a declaration file.
 import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
 
@@ -138,6 +142,22 @@ async function settle(cdp:CdpClient){
 async function waitForText(cdp:CdpClient,text:string,timeoutMs=25_000){
   const encoded=JSON.stringify(text);
   return waitUntil(()=>evaluate(cdp,`document.body?.innerText?.includes(${encoded})===true`),`text ${encoded}`,timeoutMs);
+}
+
+async function waitForCommanderUiAuthority(
+  browser:Browser,
+  revision:number,
+  priorityState:"yours"|"urgent"|"waiting"="yours",
+  timeoutMs=25_000,
+){
+  await evaluate(browser.cdp,`(()=>{ window.dispatchEvent(new Event('focus')); return true; })()`);
+  const revisionText=JSON.stringify(`rev ${revision}`);
+  const state=JSON.stringify(priorityState);
+  return waitUntil(()=>evaluate(browser.cdp,`(()=>{
+    const bodyText=document.body?.innerText||'';
+    const priority=document.querySelector('[data-commander-priority-state]');
+    return bodyText.includes(${revisionText})&&priority?.getAttribute('data-commander-priority-state')===${state};
+  })()`),`${browser.label} Commander UI revision ${revision} with priority state ${priorityState}`,timeoutMs);
 }
 
 async function clickText(cdp:CdpClient,text:string,exact=false){
@@ -288,24 +308,39 @@ async function registerPlayer(browser:Browser,displayName:string){
 
 function chooseLoadout(){
   const cards=allCards().filter((card)=>card.collectible!==false);
+  const sourceSpell=cards.find((card)=>card.defId==="tide_erosion");
+  const counterSpell=cards.find((card)=>card.defId==="tide_deny");
+  assert.ok(sourceSpell&&counterSpell,"Commander reaction cert requires Tidecall source/counter fixtures");
+  assert.equal(sourceSpell.region,counterSpell.region,"Commander reaction source and counter must share a legal Commander region");
+  assert.equal(counterSpell.speed,"Burst");
+  assert.equal(counterSpell.spell?.kind,"negateSpell");
+
   const general=cards.find((candidate)=>{
-    if(!candidate.isChampion&&!candidate.isLegend)return false;
+    if((!candidate.isChampion&&!candidate.isLegend)||candidate.region!==sourceSpell.region)return false;
     const sameRegion=cards.filter((card)=>card.defId!==candidate.defId&&card.region===candidate.region);
     const uniqueNames=new Set(sameRegion.map((card)=>card.name));
     return uniqueNames.size>=20;
   });
-  assert.ok(general,"Commander browser cert requires a collectible Champion/Legend with at least 20 same-region cards");
-  const seen=new Set<string>();
-  const deckDefs=cards.filter((card)=>{
-    if(card.defId===general.defId||card.region!==general.region||seen.has(card.name))return false;
+  assert.ok(general,"Commander browser cert requires a Tidecall Champion/Legend with at least 20 same-region cards");
+
+  const required=[sourceSpell,counterSpell];
+  const seen=new Set(required.map((card)=>card.name));
+  const fillers=cards.filter((card)=>{
+    if(card.defId===general.defId||card.region!==general.region||required.some((requiredCard)=>requiredCard.defId===card.defId)||seen.has(card.name))return false;
     seen.add(card.name);
     return true;
-  }).slice(0,20);
+  });
+  const deckDefs=[...required,...fillers].slice(0,20);
   assert.equal(deckDefs.length,20,"Commander browser cert requires 20 unique same-region deck definitions");
+
   return {
     general:{defId:general.defId,name:general.name,region:general.region},
     deckDefs:deckDefs.map((card)=>({defId:card.defId,name:card.name})),
     deckCards:deckDefs.flatMap((card)=>[card.defId,card.defId,card.defId]),
+    reaction:{
+      source:{defId:sourceSpell.defId,name:sourceSpell.name},
+      counter:{defId:counterSpell.defId,name:counterSpell.name},
+    },
   };
 }
 
@@ -337,6 +372,71 @@ async function fetchCommander(browser:Browser,code:string){
     const body=await response.json().catch(()=>({}));
     return {status:response.status,body};
   })()`);
+}
+
+function swapDefinitionIntoHand(
+  zones:any,
+  seat:FourPlayerSeat,
+  defId:string,
+){
+  const source=zones[seat];
+  const existing=source.hand.find((card:any)=>card.defId===defId);
+  if(existing)return {zones,card:existing};
+  const deckIndex=source.deck.findIndex((card:any)=>card.defId===defId);
+  assert.ok(deckIndex>=0,`${seat} reaction fixture is missing ${defId} in its deck`);
+  const card=source.deck[deckIndex];
+  const displaced=source.hand[0];
+  const deck=[...source.deck];
+  deck.splice(deckIndex,1);
+  if(displaced)deck.push(displaced);
+  const hand=displaced?[card,...source.hand.slice(1)]:[...source.hand,card];
+  return {
+    card,
+    zones:{...zones,[seat]:{...source,hand,deck}},
+  };
+}
+
+async function seedCommanderReactionFixture(roomCode:string,loadout:ReturnType<typeof chooseLoadout>){
+  const [row]=await db.select().from(commanderRooms).where(eq(commanderRooms.code,roomCode)).limit(1);
+  assert.ok(row&&isCommanderCombatEnvelope(row.gameState),"Commander reaction fixture requires a live combat envelope");
+
+  let zones=row.gameState.zones;
+  const sourceSwap=swapDefinitionIntoHand(zones,"p1",loadout.reaction.source.defId);
+  zones=sourceSwap.zones;
+  const counterSwap=swapDefinitionIntoHand(zones,"p2",loadout.reaction.counter.defId);
+  zones=counterSwap.zones;
+
+  const match={
+    ...row.gameState.match,
+    phase:"main_1" as const,
+    turn:{...row.gameState.match.turn,activeSeat:"p1" as const},
+    seats:{
+      ...row.gameState.match.seats,
+      p1:{...row.gameState.match.seats.p1,mana:10,maxMana:10,spellMana:3},
+      p2:{...row.gameState.match.seats.p2,mana:10,maxMana:10,spellMana:3},
+    },
+    resolution:createFourPlayerResolutionFlow(
+      "p1",
+      row.gameState.match.turn.eliminatedSeats,
+      row.gameState.match.resolution.priority.mode,
+    ),
+  };
+  const next={
+    ...row.gameState,
+    match,
+    zones,
+    protocol:{...row.gameState.protocol,revision:row.gameState.protocol.revision+1},
+  };
+  const persistence=commanderCombatPersistence(next);
+  const [updated]=await db.update(commanderRooms).set({...persistence,updatedAt:new Date()})
+    .where(eq(commanderRooms.id,row.id)).returning();
+  assert.ok(updated,"Commander reaction fixture failed to persist");
+  return {
+    revision:next.protocol.revision,
+    sourceInstanceId:sourceSwap.card.instanceId,
+    counterInstanceId:counterSwap.card.instanceId,
+    targetDeckCount:next.zones.p2.deck.length,
+  };
 }
 
 async function joinCommanderRoomViaCode(browser:Browser,code:string){
@@ -401,7 +501,11 @@ async function waitForAllRoomVersion(browsers:Browser[],code:string,minimumRevis
   },`all four Commander clients at revision >= ${minimumRevision}`,timeoutMs);
 }
 
-function validateFourClientProjection(responses:any[],label:string){
+function validateFourClientProjection(
+  responses:any[],
+  label:string,
+  expectedHandCounts:[number,number,number,number]=[5,5,5,5],
+){
   const rooms=responses.map((response)=>response.body.room);
   const revisions=rooms.map((room)=>room.combat.revision);
   assert.equal(new Set(revisions).size,1,`${label}: combat revisions must match across four clients`);
@@ -413,19 +517,19 @@ function validateFourClientProjection(responses:any[],label:string){
     assert.equal(room.combat.status,"active",`${label}: combat must be active`);
     const own=room.combat.seats.find((seat:any)=>seat.seat===room.viewerSeat);
     assert.ok(Array.isArray(own?.hand),`${label}: viewer P${room.viewerSeat+1} must receive private hand identities`);
-    assert.equal(own.hand.length,5,`${label}: viewer P${room.viewerSeat+1} starting hand must contain 5 cards`);
+    assert.equal(own.hand.length,expectedHandCounts[room.viewerSeat],`${label}: viewer P${room.viewerSeat+1} private hand count must match authoritative expectation`);
     ownHands.set(room.viewerSeat,own.hand.map((card:any)=>String(card.instanceId)));
     for(const seat of room.combat.seats){
       if(seat.seat===room.viewerSeat)continue;
       assert.equal(seat.hand,undefined,`${label}: opponent P${seat.seat+1} hand identities must be hidden`);
-      assert.equal(seat.handCount,5,`${label}: opponent P${seat.seat+1} public hand count must remain visible`);
+      assert.equal(seat.handCount,expectedHandCounts[seat.seat],`${label}: opponent P${seat.seat+1} public hand count must remain visible`);
     }
   }
   for(const room of rooms){
     const serialized=JSON.stringify(room);
     for(const [seat,ids] of ownHands){
       if(seat===room.viewerSeat)continue;
-      for(const id of ids)assert.equal(serialized.includes(id),false,`${label}: P${room.viewerSeat+1} leaked P${seat+1} private hand identity ${id}`);
+      for(const id of ids)assert.equal(serialized.includes(JSON.stringify(id)),false,`${label}: P${room.viewerSeat+1} leaked P${seat+1} private hand identity ${id}`);
     }
   }
   return rooms;
@@ -494,7 +598,7 @@ async function main(){
       const holderRoom=rooms.find((room)=>room.viewerSeat===holder);
       assert.ok(holderRoom,`priority holder P${holder+1} must have a browser client`);
       const browser=browsers[holderRoom.viewerSeat];
-      await waitForText(browser.cdp,`rev ${revision}`,15_000);
+      await waitForCommanderUiAuthority(browser,revision,"yours",20_000);
       await waitForEnabledButton(browser.cdp,"Passar prioridade",15_000);
       await clickText(browser.cdp,"Passar prioridade");
       responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
@@ -509,6 +613,67 @@ async function main(){
     const settledRevision=finalRooms[0].combat.revision;
     assert.equal(settledRevision,initialRevision+4,"four browser passes must commit four authoritative revisions");
     assert.equal(new Set(finalRooms.map((room)=>room.combat.revision)).size,1,"all four clients must converge on the settled revision");
+
+    const reactionFixture=await seedCommanderReactionFixture(roomCode,loadout);
+    responses=await waitForAllRoomVersion(browsers,roomCode,reactionFixture.revision,20_000);
+    rooms=validateFourClientProjection(responses,"Commander deterministic reaction fixture");
+    assert.equal(rooms[0].combat.phase,"main_1","reaction fixture must reopen a legal main phase");
+    assert.equal(rooms[0].combat.prioritySeat,0,"reaction fixture must begin with P1 priority");
+
+    const sourceBrowser=browsers[0];
+    await waitForCommanderUiAuthority(sourceBrowser,reactionFixture.revision,"yours",20_000);
+    await waitForEnabledButton(sourceBrowser.cdp,loadout.reaction.source.name,15_000);
+    await clickText(sourceBrowser.cdp,loadout.reaction.source.name);
+    await waitForEnabledButton(sourceBrowser.cdp,"Nexus P2",15_000);
+    await clickText(sourceBrowser.cdp,"Nexus P2",true);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,reactionFixture.revision+1,20_000);
+    rooms=validateFourClientProjection(responses,"after Commander source spell",[4,5,5,5]);
+    const sourceRevision=rooms[0].combat.revision;
+    assert.equal(rooms[0].combat.stack.length,1,"source spell must open exactly one real Commander stack item");
+    assert.equal(rooms[0].combat.stack[0].defId,loadout.reaction.source.defId,"source spell identity must be projected on the public stack");
+    assert.equal(rooms[0].combat.prioritySeat,1,"priority must move from source P1 to responder P2");
+
+    const counterBrowser=browsers[1];
+    await waitForCommanderUiAuthority(counterBrowser,sourceRevision,"yours",20_000);
+    await waitForText(counterBrowser.cdp,"Janela de reação aberta",15_000);
+    await capture(counterBrowser,"67-commander-4p-reaction-window-p2.png","Commander P2 authoritative reaction window",manifest);
+    await waitForEnabledButton(counterBrowser.cdp,loadout.reaction.counter.name,15_000);
+    await clickText(counterBrowser.cdp,loadout.reaction.counter.name);
+    await waitForEnabledButton(counterBrowser.cdp,loadout.reaction.source.name,15_000);
+    await clickText(counterBrowser.cdp,loadout.reaction.source.name);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,sourceRevision+1,20_000);
+    rooms=validateFourClientProjection(responses,"after Commander Burst counter",[4,4,5,5]);
+    const counterRevision=rooms[0].combat.revision;
+    assert.equal(rooms[0].combat.stack.length,2,"Burst counter must stack above the source spell");
+    assert.equal(rooms[0].combat.stack[1].defId,loadout.reaction.counter.defId,"counter must be the LIFO stack top");
+    assert.equal(rooms[0].combat.prioritySeat,2,"counter action must move priority clockwise to P3");
+    await capture(browsers[2],"68-commander-4p-counter-stack.png","Commander counter stacked with P3 holding priority",manifest);
+
+    const reactionHolders:number[]=[];
+    for(let pass=0;pass<4;pass++){
+      rooms=responses.map((response)=>response.body.room);
+      const revision=rooms[0].combat.revision;
+      const holder=rooms[0].combat.prioritySeat;
+      reactionHolders.push(holder);
+      const browser=browsers[holder];
+      await waitForCommanderUiAuthority(browser,revision,"yours",20_000);
+      await waitForEnabledButton(browser.cdp,"Passar reação",15_000);
+      await clickText(browser.cdp,"Passar reação");
+      responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
+      validateFourClientProjection(responses,`after counter priority pass ${pass+1}`,[4,4,5,5]);
+    }
+    assert.deepEqual(reactionHolders,[2,3,0,1],"counter resolution priority must rotate P3 → P4 → P1 → P2");
+
+    const counterSettledRooms=responses.map((response)=>response.body.room);
+    const counterSettledRevision=counterSettledRooms[0].combat.revision;
+    assert.equal(counterSettledRevision,counterRevision+4,"counter resolution requires one full four-player pass cycle");
+    assert.equal(counterSettledRooms[0].combat.stack.length,0,"resolved negateSpell must remove itself and the targeted source spell");
+    assert.equal(counterSettledRooms[0].combat.seats[1].deckCount,reactionFixture.targetDeckCount,"countered Tidal Erosion must not mill P2");
+    assert.ok(counterSettledRooms[0].combat.seats[0].graveyard.some((card:any)=>card.defId===loadout.reaction.source.defId),"countered source spell must settle to P1 graveyard");
+    assert.ok(counterSettledRooms[0].combat.seats[1].graveyard.some((card:any)=>card.defId===loadout.reaction.counter.defId),"resolved counter must settle to P2 graveyard");
+    await capture(host,"69-commander-4p-counter-settled.png","Commander Burst negateSpell settled without source effect",manifest);
 
     for(const browser of browsers){
       const runtimeExceptions=browser.cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown");
@@ -527,6 +692,16 @@ async function main(){
       initialRevision,
       settledRevision,
       priorityHolders:holders,
+      reaction:{
+        fixtureRevision:reactionFixture.revision,
+        sourceRevision,
+        counterRevision,
+        settledRevision:counterSettledRevision,
+        source:loadout.reaction.source,
+        counter:loadout.reaction.counter,
+        priorityHolders:reactionHolders,
+        deterministicCiSetup:true,
+      },
       proof:{
         independentBrowserProfiles:4,
         independentStablePlayerSessions:4,
@@ -537,12 +712,16 @@ async function main(){
         opponentHandIdentityRedaction:true,
         circularPriorityViaUi:true,
         authoritativeRevisionConvergence:true,
+        authoritativeReactionWindowViaUi:true,
+        burstNegateSpellViaUi:true,
+        counterPreventedSourceResolution:true,
+        reactionRevisionConvergence:true,
         browserRuntimeExceptions:0,
       },
       screenshots:manifest,
     };
     await writeFile(join(outputDir,"commander-4p-browser-manifest.json"),`${JSON.stringify(report,null,2)}\n`);
-    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, rev ${initialRevision} → ${settledRevision}, priority ${holders.map((seat)=>`P${seat+1}`).join(" → ")}`);
+    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, baseline rev ${initialRevision} → ${settledRevision}; Burst counter rev ${reactionFixture.revision} → ${counterSettledRevision}; priority ${reactionHolders.map((seat)=>`P${seat+1}`).join(" → ")}`);
   }finally{
     await Promise.all(browsers.map((browser)=>shutdownBrowser(browser)));
     if(process.env.ALPHA_VISUAL_DEBUG==="1"){
