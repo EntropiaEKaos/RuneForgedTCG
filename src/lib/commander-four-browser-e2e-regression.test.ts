@@ -13,6 +13,7 @@ assert.match(script,/\[0,1,2,3\]\.map/,"Commander browser cert must launch four 
 assert.match(script,/independentBrowserProfiles:4/,"Commander browser evidence must record four independent profiles");
 assert.match(script,/independentStablePlayerSessions:4/,"Commander browser evidence must record four distinct sessions");
 assert.match(script,/opponentHandIdentityRedaction:true/,"Commander browser cert must prove hidden-hand isolation");
+assert.match(script,/serialized\.includes\(JSON\.stringify\(id\)\)/,"Commander hidden-hand cert must compare exact serialized identities instead of prefix substrings");
 assert.match(script,/circularPriorityViaUi:true/,"Commander browser cert must prove circular priority through UI actions");
 assert.match(script,/Passar prioridade/,"Commander browser cert must exercise the visible priority control");
 assert.match(script,/waitForCommanderUiAuthority/,"Commander browser cert must wait atomically for revision plus visible priority authority");
