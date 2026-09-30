@@ -15,6 +15,9 @@ assert.match(script,/independentStablePlayerSessions:4/,"Commander browser evide
 assert.match(script,/opponentHandIdentityRedaction:true/,"Commander browser cert must prove hidden-hand isolation");
 assert.match(script,/circularPriorityViaUi:true/,"Commander browser cert must prove circular priority through UI actions");
 assert.match(script,/Passar prioridade/,"Commander browser cert must exercise the visible priority control");
+assert.match(script,/waitForCommanderUiAuthority/,"Commander browser cert must wait atomically for revision plus visible priority authority");
+assert.match(script,/data-commander-priority-state/,"Commander browser cert must bind its authority wait to the rendered priority state");
+assert.match(script,/window\.dispatchEvent\(new Event\('focus'\)\)/,"Commander browser cert must exercise the production focus-resync path after deterministic fixture mutation");
 assert.match(script,/tide_erosion/,"Commander browser cert must stage a real counterable Tidecall source spell");
 assert.match(script,/tide_deny/,"Commander browser cert must stage a real Burst negateSpell response");
 assert.match(script,/Janela de reação aberta/,"Commander browser cert must observe the visible authoritative reaction window");
