@@ -5,8 +5,11 @@ import { join, resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { commanderRooms, playerCards } from "@/db/schema";
+import { commanderRooms, customCards, playerCards } from "@/db/schema";
 import { allCards } from "@/game/cards";
+import { refreshCustomCardCache } from "@/game/catalog";
+import { validateAuthorableCardWithSemanticTypes } from "@/game/semantic-card-type-authoring";
+import type { CardDef } from "@/game/types";
 import { createFourPlayerResolutionFlow } from "@/game/four-player-flow";
 import type { FourPlayerSeat } from "@/game/four-player-general";
 import { commanderCombatPersistence, isCommanderCombatEnvelope } from "@/lib/commander-combat";
@@ -182,6 +185,110 @@ async function waitForEnabledButton(cdp:CdpClient,text:string,timeoutMs=25_000){
   })()`),`enabled button containing ${text}`,timeoutMs);
 }
 
+async function waitForDisabledButton(cdp:CdpClient,text:string,timeoutMs=25_000){
+  const encoded=JSON.stringify(text);
+  return waitUntil(()=>evaluate(cdp,`(()=>{
+    const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+    return Boolean([...document.querySelectorAll('button')].find((button)=>normalize(button.textContent).includes(${encoded})&&button.disabled));
+  })()`),`disabled button containing ${text}`,timeoutMs);
+}
+
+async function sendForgedCommanderCombatCommand(
+  browser:Browser,
+  code:string,
+  expectedRevision:number,
+  commandType:string,
+  payload:Record<string,unknown>,
+){
+  return evaluate<any>(browser.cdp,`(async()=>{
+    const response=await fetch('/api/commander/${code}',{
+      method:'POST',credentials:'include',headers:{'content-type':'application/json'},
+      body:JSON.stringify({
+        action:'combat-command',
+        commandType:${JSON.stringify(commandType)},
+        expectedRevision:${expectedRevision},
+        commandId:crypto.randomUUID(),
+        payload:${JSON.stringify(payload)}
+      })
+    });
+    const body=await response.json().catch(()=>({}));
+    return {status:response.status,body};
+  })()`);
+}
+
+function validateCiAuthoredCard(raw:Partial<CardDef>):CardDef{
+  const result=validateAuthorableCardWithSemanticTypes(raw);
+  assert.equal(result.ok,true,`CI Commander legality fixture must pass Studio authoring validation: ${result.ok?"":result.error}`);
+  if(!result.ok)throw new Error(result.error);
+  return result.card;
+}
+
+async function seedCommanderLegalityCatalog(){
+  const cards=[
+    validateCiAuthoredCard({
+      defId:`ci_cmd_unit_${runId}`,
+      name:`CI Tide Unit ${runId}`,
+      region:"Tidecall",
+      type:"Unit",
+      cost:1,
+      power:1,
+      health:1,
+      description:"CI-only Commander reaction legality fixture.",
+      rarity:"Common",
+      emoji:"🧪",
+    }),
+    validateCiAuthoredCard({
+      defId:`ci_cmd_spell_counter_${runId}`,
+      name:`CI Spell-Only Deny ${runId}`,
+      region:"Tidecall",
+      type:"Spell",
+      cost:1,
+      speed:"Burst",
+      spell:{kind:"negateSpell",amount:0,target:"spellOnStack"},
+      customKeywords:["counter_spell"],
+      description:"CI-only Burst counter restricted to Spells.",
+      rarity:"Rare",
+      emoji:"🧪",
+    }),
+    validateCiAuthoredCard({
+      defId:`ci_cmd_uncounterable_${runId}`,
+      name:`CI Uncounterable Current ${runId}`,
+      region:"Tidecall",
+      type:"Spell",
+      cost:1,
+      speed:"Fast",
+      spell:{kind:"draw",amount:1,target:"none"},
+      customKeywords:["uncounterable"],
+      description:"CI-only Fast Spell that cannot be countered.",
+      rarity:"Rare",
+      emoji:"🧪",
+    }),
+  ];
+  await db.insert(customCards).values(cards.map((card)=>({
+    defId:card.defId,
+    name:card.name,
+    region:card.region,
+    type:card.type,
+    cost:card.cost,
+    enabled:true,
+    data:card,
+  })));
+  await refreshCustomCardCache();
+  const catalog=new Map(allCards().map((card)=>[card.defId,card]));
+  for(const card of cards)assert.ok(catalog.has(card.defId),`custom Commander legality fixture ${card.defId} must enter the server catalog`);
+  return {
+    unit:cards[0],
+    spellOnlyCounter:cards[1],
+    uncounterableSpell:cards[2],
+    defIds:cards.map((card)=>card.defId),
+  };
+}
+
+async function cleanupCommanderLegalityCatalog(defIds:string[]){
+  for(const defId of defIds)await db.delete(customCards).where(eq(customCards.defId,defId));
+  await refreshCustomCardCache();
+}
+
 async function setInputValue(cdp:CdpClient,selector:string,value:string){
   const changed=await evaluate<boolean>(cdp,`(()=>{
     const input=document.querySelector(${JSON.stringify(selector)});
@@ -306,7 +413,7 @@ async function registerPlayer(browser:Browser,displayName:string){
   browser.identity={id:Number(result.body.player.id),name:String(result.body.player.name)};
 }
 
-function chooseLoadout(){
+function chooseLoadout(legality:Awaited<ReturnType<typeof seedCommanderLegalityCatalog>>){
   const cards=allCards().filter((card)=>card.collectible!==false);
   const sourceSpell=cards.find((card)=>card.defId==="tide_erosion");
   const counterSpell=cards.find((card)=>card.defId==="tide_deny");
@@ -326,7 +433,7 @@ function chooseLoadout(){
   });
   assert.ok(general,"Commander browser cert requires a Tidecall Champion/Legend with at least 20 same-region cards");
 
-  const required=[sourceSpell,counterSpell];
+  const required=[sourceSpell,counterSpell,legality.unit,legality.spellOnlyCounter,legality.uncounterableSpell];
   const seen=new Set(required.map((card)=>card.name));
   const fillers=cards.filter((card)=>{
     if(card.defId===general.defId||card.region!==general.region||required.some((requiredCard)=>requiredCard.defId===card.defId)||seen.has(card.name))return false;
@@ -343,6 +450,11 @@ function chooseLoadout(){
     reaction:{
       source:{defId:sourceSpell.defId,name:sourceSpell.name,amount:sourceAmount},
       counter:{defId:counterSpell.defId,name:counterSpell.name},
+    },
+    legality:{
+      unit:{defId:legality.unit.defId,name:legality.unit.name},
+      spellOnlyCounter:{defId:legality.spellOnlyCounter.defId,name:legality.spellOnlyCounter.name},
+      uncounterableSpell:{defId:legality.uncounterableSpell.defId,name:legality.uncounterableSpell.name},
     },
   };
 }
