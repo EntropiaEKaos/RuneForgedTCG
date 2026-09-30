@@ -52,8 +52,10 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
               async ({ event }) => {
                 playBattlefieldPresentationEvent(this, entityLayout, event, "high");
                 const durationMs = getBattlefieldPresentationDurationMs(event, "high");
-                if (durationMs > 0) {
-                  await new Promise<void>((resolve) => this.time.delayedCall(durationMs, resolve));
+                const fallbackDuration = event.type === "damage" ? 520 : event.type === "death" ? 620 : event.type === "priority" ? 840 : 0;
+                const presentationDuration = Math.max(durationMs, fallbackDuration);
+                if (presentationDuration > 0) {
+                  await new Promise<void>((resolve) => this.time.delayedCall(presentationDuration, resolve));
                 }
               },
             );
@@ -118,14 +120,17 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                     selectedUnit.shape.setStrokeStyle(3, 0xf97316, 1);
                     unit.setStrokeStyle(3, 0xfacc15, 1);
                     setCombat({ attacker: selectedUnit.id, blocker: entity.id });
-                    const presentationEvent = adaptAuthoritativeBattlefieldEvent({
-                      type: "spell-resolved",
-                      spellId: "lab-fireball",
-                      sourceId: selectedUnit.id,
-                      targetIds: [entity.id],
-                      fxKey: "spell.fireball",
-                    });
-                    presentationScheduler.enqueue(presentationEvent);
+
+                    const nextPlayer = scenario.players.find((player) => player.id !== entity.controllerId) ?? scenario.players[0];
+                    const authoritativeSequence = [
+                      { type: "spell-resolved" as const, spellId: "lab-fireball", sourceId: selectedUnit.id, targetIds: [entity.id], fxKey: "spell.fireball" },
+                      { type: "damage-applied" as const, sourceId: selectedUnit.id, targetId: entity.id, amount: 4 },
+                      { type: "entity-died" as const, entityId: entity.id },
+                      { type: "priority-changed" as const, playerId: nextPlayer.id },
+                    ];
+                    authoritativeSequence
+                      .map(adaptAuthoritativeBattlefieldEvent)
+                      .forEach((event) => presentationScheduler.enqueue(event));
                   }
                 });
               });
