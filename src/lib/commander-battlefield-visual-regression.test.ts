@@ -24,6 +24,14 @@ assert.match(battlefield,/runtime\.handCount/,"opponent hidden-hand presentation
 assert.match(battlefield,/function VisibleHand/,"local viewer must receive a real visible-hand presentation");
 assert.match(battlefield,/runtime\.hand\?/,"visible hand must be driven only by the viewer-private projected hand");
 assert.match(battlefield,/overflow-x-auto/,"four-seat arena must remain navigable on narrow viewports");
+assert.match(battlefield,/selectedAttackerId/,"cinematic battlefield must support local attacker selection");
+assert.match(battlefield,/selectedBlockerId/,"cinematic battlefield must support local blocker selection");
+assert.match(battlefield,/onDeclareAttacker/,"cinematic battlefield must delegate attack commitment to its parent authority");
+assert.match(battlefield,/onDeclareBlocker/,"cinematic battlefield must delegate block commitment to its parent authority");
+assert.match(battlefield,/data-commander-nexus-target/,"opponent Nexus surfaces must become explicit attack targets");
+assert.match(client,/onDeclareAttacker=\{\(unitId,defendingSeat\)=>combatCommand\("declare_attacker"/,"Commander client must keep authoritative attack command ownership");
+assert.match(client,/onDeclareBlocker=\{\(unitId,attackerId\)=>combatCommand\("declare_blocker"/,"Commander client must keep authoritative block command ownership");
+
 
 assert.doesNotMatch(battlefield,/fetch\(/,"cinematic battlefield must remain a pure projection layer with no network authority");
 assert.doesNotMatch(battlefield,/combatCommand|mutate\(/,"cinematic battlefield must not create a second command authority");
