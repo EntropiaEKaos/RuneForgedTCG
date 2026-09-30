@@ -491,6 +491,7 @@ export default function CommanderBattlefield4P({
         blockers:combat.combat.blockers,
       }}
       resolutionRevision={resolutionFx?.revision??null}
+      viewerSeat={viewer}
     />
     <ResolutionDepartureFx departures={resolutionFx?.departures||[]}/>
     {(selectedAttackerId||selectedBlockerId)&&<div className="sticky left-4 top-4 z-40 w-fit rounded-full border border-cyan-200/25 bg-slate-950/95 px-3 py-1.5 text-[9px] font-black uppercase tracking-[.14em] text-cyan-100 shadow-xl">
