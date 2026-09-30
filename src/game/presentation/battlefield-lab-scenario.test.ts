@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { adaptAuthoritativeBattlefieldEvent, buildBattlefieldFxExecutionPlan, buildBattlefieldLabScenario, layoutBattlefieldEntities, previewBattlefieldCombat, previewBattlefieldTarget, resolveBattlefieldFxRecipe } from "./battlefield-lab-scenario";
+import { adaptAuthoritativeBattlefieldEvent, buildBattlefieldFxExecutionPlan, buildBattlefieldLabScenario, getBattlefieldFxPlanDurationMs, getBattlefieldPresentationDurationMs, layoutBattlefieldEntities, previewBattlefieldCombat, previewBattlefieldTarget, resolveBattlefieldFxRecipe } from "./battlefield-lab-scenario";
 
 const duel = buildBattlefieldLabScenario("duel-1v1", 32);
 assert.equal(duel.players.length, 2);
@@ -17,13 +17,11 @@ assert.equal(capped.entities.length, 160);
 
 console.log("battlefield lab scenario: ok");
 
-
 const layout = layoutBattlefieldEntities(commander, 1200, 800);
 assert.equal(Object.keys(layout).length, 160);
 assert.equal(Object.values(layout).every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)), true);
 assert.equal(Object.values(layout).every((point) => point.x > 0 && point.x < 1200 && point.y > 0 && point.y < 800), true);
 assert.deepEqual(layout, layoutBattlefieldEntities(commander, 1200, 800));
-
 
 const source = commander.entities[0];
 const friendly = commander.entities.find((entity) => entity.controllerId === source.controllerId && entity.id !== source.id);
@@ -34,7 +32,6 @@ assert.equal(previewBattlefieldTarget(commander, source.id, friendly.id)?.relati
 assert.equal(previewBattlefieldTarget(commander, source.id, opponent.id)?.relation, "opponent");
 assert.equal(previewBattlefieldTarget(commander, source.id, source.id), null);
 assert.equal(previewBattlefieldTarget(commander, source.id, "missing"), null);
-
 
 const attacker = commander.entities[0];
 const defendingPlayer = commander.players.find((player) => player.id !== attacker.controllerId);
@@ -59,7 +56,6 @@ assert.equal(
 );
 assert.equal(previewBattlefieldCombat(commander, { type: "clear-combat" }), null);
 
-
 assert.deepEqual(
   adaptAuthoritativeBattlefieldEvent({ type: "spell-resolved", spellId: "spell-1", sourceId: source.id, targetIds: [opponent.id], fxKey: "spell.fireball" }),
   { type: "fx", cue: "spell.fireball", sourceId: source.id, targetIds: [opponent.id] },
@@ -81,14 +77,12 @@ assert.deepEqual(
   { type: "elimination", playerId: commander.players[3].id },
 );
 
-
 const fireballRecipe = resolveBattlefieldFxRecipe("spell.fireball");
 assert.equal(fireballRecipe.key, "spell.fireball");
 assert.deepEqual(fireballRecipe.primitives.map((primitive) => primitive.type), ["projectile", "particles", "impact"]);
 const lightningRecipe = resolveBattlefieldFxRecipe("spell.lightning");
 assert.equal(lightningRecipe.primitives.some((primitive) => primitive.type === "beam"), true);
 assert.equal(resolveBattlefieldFxRecipe("spell.unknown").key, "spell.generic");
-
 
 const highFx = buildBattlefieldFxExecutionPlan("spell.fireball", "high");
 const lowFx = buildBattlefieldFxExecutionPlan("spell.fireball", "low");
@@ -98,3 +92,9 @@ assert.ok(highParticles && highParticles.type === "particles");
 assert.ok(lowParticles && lowParticles.type === "particles");
 assert.equal(lowParticles.count < highParticles.count, true);
 assert.equal(buildBattlefieldFxExecutionPlan("spell.unknown", "medium").cue, "spell.generic");
+assert.equal(getBattlefieldFxPlanDurationMs(highFx), 620);
+assert.equal(
+  getBattlefieldPresentationDurationMs({ type: "fx", cue: "spell.fireball", sourceId: source.id, targetIds: [opponent.id] }, "high"),
+  620,
+);
+assert.equal(getBattlefieldPresentationDurationMs({ type: "damage", targetId: opponent.id, amount: 4 }), 0);
