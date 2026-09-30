@@ -13,7 +13,7 @@ type BattlefieldObject = {
 type CombatSeat = {
   seat:number; handCount:number; deckCount:number; graveyard:ProjectedCard[];
   nexusHealth:number; eliminated:boolean; life?:number; mana?:number; maxMana?:number; spellMana?:number;
-  battlefield?:BattlefieldObject[];
+  battlefield?:BattlefieldObject[]; hand?:ProjectedCard[];
   general:{defId:string;zone:string;castCount:number};
 };
 type StackItem = {
@@ -69,6 +69,16 @@ function BattlefieldCard({object,collection}:{object:BattlefieldObject;collectio
       {object.equipment.length>0&&<span title="Equipamentos">⚙{object.equipment.length}</span>}
     </div>
     <span className="pointer-events-none absolute left-1 top-1 z-20 rounded bg-black/75 px-1 text-[8px] uppercase tracking-wider text-white/70">{object.kind}</span>
+  </div>;
+}
+
+function VisibleHand({cards}:{cards:ProjectedCard[]}){
+  const shown=cards.slice(0,7);
+  return <div className="flex min-h-16 items-end justify-center overflow-x-auto px-2" aria-label={`${cards.length} cartas na sua mão`}>
+    {shown.map((card,index)=><div key={card.instanceId} className="-ml-5 first:ml-0 origin-bottom transition-transform hover:z-30 hover:-translate-y-3" style={{transform:`rotate(${(index-(shown.length-1)/2)*3.5}deg)`}}>
+      <CardView defId={card.defId} size="sm"/>
+    </div>)}
+    {cards.length>shown.length&&<span className="ml-2 self-center text-[9px] font-black text-cyan-100">+{cards.length-shown.length}</span>}
   </div>;
 }
 
@@ -139,9 +149,9 @@ function SeatZone({
       </div>
     </div>
 
-    <div className="mt-2 flex items-center justify-between gap-2">
-      <HiddenHand count={runtime.handCount}/>
-      <span className="truncate text-[9px] text-slate-600">{graveTop?`Topo do cemitério: ${nameOf(graveTop.defId,collection)}`:"Cemitério vazio"}</span>
+    <div className="mt-2 flex items-end justify-between gap-2">
+      <div className="min-w-0 flex-1">{isViewer&&runtime.hand?<VisibleHand cards={runtime.hand}/>:<HiddenHand count={runtime.handCount}/>}</div>
+      <span className="max-w-32 truncate text-right text-[9px] text-slate-600">{graveTop?`Topo do cemitério: ${nameOf(graveTop.defId,collection)}`:"Cemitério vazio"}</span>
     </div>
   </section>;
 }
@@ -192,11 +202,11 @@ export default function CommanderBattlefield4P({
   const seatByPosition=new Map<Position,CombatSeat>();
   for(const runtime of combat.seats)seatByPosition.set(relativePosition(runtime.seat,viewer),runtime);
 
-  return <section className="relative mt-5 overflow-hidden rounded-[2rem] border border-cyan-200/10 bg-[#02060b] p-3 shadow-[inset_0_0_90px_rgba(8,145,178,.06)]" data-commander-battlefield="cinematic-v1">
+  return <section className="relative mt-5 overflow-x-auto overflow-y-hidden rounded-[2rem] border border-cyan-200/10 bg-[#02060b] p-3 shadow-[inset_0_0_90px_rgba(8,145,178,.06)]" data-commander-battlefield="cinematic-v1">
     <div className="pointer-events-none absolute inset-0 opacity-70" style={{backgroundImage:"radial-gradient(circle at center, rgba(34,211,238,.08), transparent 27%), linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px)",backgroundSize:"auto, 42px 42px, 42px 42px"}}/>
     <div className="pointer-events-none absolute inset-[12%] rounded-[45%] border border-cyan-200/[.06] shadow-[0_0_90px_rgba(34,211,238,.05)]"/>
     <AttackOverlay combat={combat} viewer={viewer}/>
-    <div className="relative z-20 grid min-h-[900px] grid-cols-[minmax(260px,1fr)_minmax(360px,1.5fr)_minmax(260px,1fr)] grid-rows-[minmax(240px,1fr)_minmax(260px,.9fr)_minmax(240px,1fr)] items-center gap-4">
+    <div className="relative z-20 grid min-h-[900px] min-w-[980px] grid-cols-[minmax(260px,1fr)_minmax(360px,1.5fr)_minmax(260px,1fr)] grid-rows-[minmax(240px,1fr)_minmax(260px,.9fr)_minmax(240px,1fr)] items-center gap-4">
       {(["top","left","right","bottom"] as Position[]).map(position=>{
         const runtime=seatByPosition.get(position);
         if(!runtime)return null;
