@@ -594,6 +594,68 @@ async function main(){
     assert.equal(settledRevision,initialRevision+4,"four browser passes must commit four authoritative revisions");
     assert.equal(new Set(finalRooms.map((room)=>room.combat.revision)).size,1,"all four clients must converge on the settled revision");
 
+    const reactionFixture=await seedCommanderReactionFixture(roomCode,loadout);
+    responses=await waitForAllRoomVersion(browsers,roomCode,reactionFixture.revision,20_000);
+    rooms=validateFourClientProjection(responses,"Commander deterministic reaction fixture");
+    assert.equal(rooms[0].combat.phase,"main_1","reaction fixture must reopen a legal main phase");
+    assert.equal(rooms[0].combat.prioritySeat,0,"reaction fixture must begin with P1 priority");
+
+    const sourceBrowser=browsers[0];
+    await waitForText(sourceBrowser.cdp,`rev ${reactionFixture.revision}`,15_000);
+    await waitForText(sourceBrowser.cdp,"Sua prioridade",15_000);
+    await waitForEnabledButton(sourceBrowser.cdp,loadout.reaction.source.name,15_000);
+    await clickText(sourceBrowser.cdp,loadout.reaction.source.name);
+    await waitForEnabledButton(sourceBrowser.cdp,"Nexus P2",15_000);
+    await clickText(sourceBrowser.cdp,"Nexus P2",true);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,reactionFixture.revision+1,20_000);
+    rooms=validateFourClientProjection(responses,"after Commander source spell");
+    const sourceRevision=rooms[0].combat.revision;
+    assert.equal(rooms[0].combat.stack.length,1,"source spell must open exactly one real Commander stack item");
+    assert.equal(rooms[0].combat.stack[0].defId,loadout.reaction.source.defId,"source spell identity must be projected on the public stack");
+    assert.equal(rooms[0].combat.prioritySeat,1,"priority must move from source P1 to responder P2");
+
+    const counterBrowser=browsers[1];
+    await waitForText(counterBrowser.cdp,"Sua prioridade",15_000);
+    await waitForText(counterBrowser.cdp,"Janela de reação aberta",15_000);
+    await capture(counterBrowser,"67-commander-4p-reaction-window-p2.png","Commander P2 authoritative reaction window",manifest);
+    await waitForEnabledButton(counterBrowser.cdp,loadout.reaction.counter.name,15_000);
+    await clickText(counterBrowser.cdp,loadout.reaction.counter.name);
+    await waitForEnabledButton(counterBrowser.cdp,loadout.reaction.source.name,15_000);
+    await clickText(counterBrowser.cdp,loadout.reaction.source.name);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,sourceRevision+1,20_000);
+    rooms=validateFourClientProjection(responses,"after Commander Burst counter");
+    const counterRevision=rooms[0].combat.revision;
+    assert.equal(rooms[0].combat.stack.length,2,"Burst counter must stack above the source spell");
+    assert.equal(rooms[0].combat.stack[1].defId,loadout.reaction.counter.defId,"counter must be the LIFO stack top");
+    assert.equal(rooms[0].combat.prioritySeat,2,"counter action must move priority clockwise to P3");
+    await capture(browsers[2],"68-commander-4p-counter-stack.png","Commander counter stacked with P3 holding priority",manifest);
+
+    const reactionHolders:number[]=[];
+    for(let pass=0;pass<4;pass++){
+      rooms=responses.map((response)=>response.body.room);
+      const revision=rooms[0].combat.revision;
+      const holder=rooms[0].combat.prioritySeat;
+      reactionHolders.push(holder);
+      const browser=browsers[holder];
+      await waitForText(browser.cdp,`rev ${revision}`,15_000);
+      await waitForEnabledButton(browser.cdp,"Passar reação",15_000);
+      await clickText(browser.cdp,"Passar reação");
+      responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
+      validateFourClientProjection(responses,`after counter priority pass ${pass+1}`);
+    }
+    assert.deepEqual(reactionHolders,[2,3,0,1],"counter resolution priority must rotate P3 → P4 → P1 → P2");
+
+    const counterSettledRooms=responses.map((response)=>response.body.room);
+    const counterSettledRevision=counterSettledRooms[0].combat.revision;
+    assert.equal(counterSettledRevision,counterRevision+4,"counter resolution requires one full four-player pass cycle");
+    assert.equal(counterSettledRooms[0].combat.stack.length,0,"resolved negateSpell must remove itself and the targeted source spell");
+    assert.equal(counterSettledRooms[0].combat.seats[1].deckCount,reactionFixture.targetDeckCount,"countered Tidal Erosion must not mill P2");
+    assert.ok(counterSettledRooms[0].combat.seats[0].graveyard.some((card:any)=>card.defId===loadout.reaction.source.defId),"countered source spell must settle to P1 graveyard");
+    assert.ok(counterSettledRooms[0].combat.seats[1].graveyard.some((card:any)=>card.defId===loadout.reaction.counter.defId),"resolved counter must settle to P2 graveyard");
+    await capture(host,"69-commander-4p-counter-settled.png","Commander Burst negateSpell settled without source effect",manifest);
+
     for(const browser of browsers){
       const runtimeExceptions=browser.cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown");
       assert.equal(runtimeExceptions.length,0,`${browser.label} browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0,3))}`);
@@ -611,6 +673,16 @@ async function main(){
       initialRevision,
       settledRevision,
       priorityHolders:holders,
+      reaction:{
+        fixtureRevision:reactionFixture.revision,
+        sourceRevision,
+        counterRevision,
+        settledRevision:counterSettledRevision,
+        source:loadout.reaction.source,
+        counter:loadout.reaction.counter,
+        priorityHolders:reactionHolders,
+        deterministicCiSetup:true,
+      },
       proof:{
         independentBrowserProfiles:4,
         independentStablePlayerSessions:4,
@@ -621,12 +693,16 @@ async function main(){
         opponentHandIdentityRedaction:true,
         circularPriorityViaUi:true,
         authoritativeRevisionConvergence:true,
+        authoritativeReactionWindowViaUi:true,
+        burstNegateSpellViaUi:true,
+        counterPreventedSourceResolution:true,
+        reactionRevisionConvergence:true,
         browserRuntimeExceptions:0,
       },
       screenshots:manifest,
     };
     await writeFile(join(outputDir,"commander-4p-browser-manifest.json"),`${JSON.stringify(report,null,2)}\n`);
-    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, rev ${initialRevision} → ${settledRevision}, priority ${holders.map((seat)=>`P${seat+1}`).join(" → ")}`);
+    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, baseline rev ${initialRevision} → ${settledRevision}; Burst counter rev ${reactionFixture.revision} → ${counterSettledRevision}; priority ${reactionHolders.map((seat)=>`P${seat+1}`).join(" → ")}`);
   }finally{
     await Promise.all(browsers.map((browser)=>shutdownBrowser(browser)));
     if(process.env.ALPHA_VISUAL_DEBUG==="1"){
