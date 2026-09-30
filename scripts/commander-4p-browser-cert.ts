@@ -606,6 +606,12 @@ async function seedCommanderLegalityFixture(
     sourceHandCount:next.zones.p1.hand.length,
     sourceDeckCount:next.zones.p1.deck.length,
     responderHandCount:next.zones.p2.hand.length,
+    handCounts:[
+      next.zones.p1.hand.length,
+      next.zones.p2.hand.length,
+      next.zones.p3.hand.length,
+      next.zones.p4.hand.length,
+    ] as [number,number,number,number],
   };
 }
 
@@ -951,7 +957,7 @@ async function main(){
       loadout.legality.spellOnlyCounter.defId,
     );
     responses=await waitForAllRoomVersion(browsers,roomCode,filteredCounterFixture.revision,20_000);
-    rooms=validateFourClientProjection(responses,"Commander spell-only counter legality fixture");
+    rooms=validateFourClientProjection(responses,"Commander spell-only counter legality fixture",filteredCounterFixture.handCounts);
     assert.equal(rooms[0].combat.prioritySeat,0,"filtered-counter fixture must begin with P1 priority");
 
     await waitForCommanderUiAuthority(browsers[0],filteredCounterFixture.revision,"yours",20_000);
@@ -959,7 +965,12 @@ async function main(){
     await clickText(browsers[0].cdp,loadout.legality.unit.name);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,filteredCounterFixture.revision+1,20_000);
-    rooms=validateFourClientProjection(responses,"after Commander Unit opens filtered-counter window");
+    rooms=validateFourClientProjection(responses,"after Commander Unit opens filtered-counter window",[
+      filteredCounterFixture.handCounts[0]-1,
+      filteredCounterFixture.handCounts[1],
+      filteredCounterFixture.handCounts[2],
+      filteredCounterFixture.handCounts[3],
+    ]);
     const filteredCounterRevision=rooms[0].combat.revision;
     const filteredUnitStack=rooms[0].combat.stack.at(-1);
     assert.ok(filteredUnitStack,"filtered-counter fixture must expose the Unit stack item");
@@ -982,7 +993,12 @@ async function main(){
     assert.match(String(forgedFilteredCounter.body?.error||""),/(Only legal Fast\/Burst reaction spells|cannot counter stack item)/i,"server must reject the illegal filtered counter target");
 
     responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,roomCode)));
-    rooms=validateFourClientProjection(responses,"after forged filtered-counter rejection");
+    rooms=validateFourClientProjection(responses,"after forged filtered-counter rejection",[
+      filteredCounterFixture.handCounts[0]-1,
+      filteredCounterFixture.handCounts[1],
+      filteredCounterFixture.handCounts[2],
+      filteredCounterFixture.handCounts[3],
+    ]);
     assert.equal(rooms[0].combat.revision,filteredCounterRevision,"illegal filtered counter must not advance Commander revision");
     assert.equal(rooms[0].combat.stack.length,1,"illegal filtered counter must not mutate the stack");
     assert.equal(rooms[0].combat.seats[1].handCount,filteredCounterFixture.responderHandCount,"illegal filtered counter must remain in P2 hand");
@@ -993,7 +1009,7 @@ async function main(){
       loadout.reaction.counter.defId,
     );
     responses=await waitForAllRoomVersion(browsers,roomCode,uncounterableFixture.revision,20_000);
-    rooms=validateFourClientProjection(responses,"Commander uncounterable legality fixture");
+    rooms=validateFourClientProjection(responses,"Commander uncounterable legality fixture",uncounterableFixture.handCounts);
     assert.equal(rooms[0].combat.prioritySeat,0,"uncounterable fixture must begin with P1 priority");
 
     await waitForCommanderUiAuthority(browsers[0],uncounterableFixture.revision,"yours",20_000);
@@ -1001,7 +1017,12 @@ async function main(){
     await clickText(browsers[0].cdp,loadout.legality.uncounterableSpell.name);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,uncounterableFixture.revision+1,20_000);
-    rooms=validateFourClientProjection(responses,"after uncounterable Commander Spell");
+    rooms=validateFourClientProjection(responses,"after uncounterable Commander Spell",[
+      uncounterableFixture.handCounts[0]-1,
+      uncounterableFixture.handCounts[1],
+      uncounterableFixture.handCounts[2],
+      uncounterableFixture.handCounts[3],
+    ]);
     const uncounterableRevision=rooms[0].combat.revision;
     const protectedStackItem=rooms[0].combat.stack.at(-1);
     assert.ok(protectedStackItem,"uncounterable fixture must expose a stack item");
@@ -1025,7 +1046,12 @@ async function main(){
     assert.match(String(forgedUncounterableCounter.body?.error||""),/(Only legal Fast\/Burst reaction spells|cannot counter stack item)/i,"server must reject the uncounterable target");
 
     responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,roomCode)));
-    rooms=validateFourClientProjection(responses,"after forged uncounterable counter rejection");
+    rooms=validateFourClientProjection(responses,"after forged uncounterable counter rejection",[
+      uncounterableFixture.handCounts[0]-1,
+      uncounterableFixture.handCounts[1],
+      uncounterableFixture.handCounts[2],
+      uncounterableFixture.handCounts[3],
+    ]);
     assert.equal(rooms[0].combat.revision,uncounterableRevision,"illegal uncounterable counter must not advance revision");
     assert.equal(rooms[0].combat.stack.length,1,"illegal uncounterable counter must leave protected source on stack");
     assert.equal(rooms[0].combat.seats[1].handCount,uncounterableFixture.responderHandCount,"rejected Deny must remain in P2 hand");
@@ -1041,7 +1067,18 @@ async function main(){
       await waitForEnabledButton(browser.cdp,"Passar reação",15_000);
       await clickText(browser.cdp,"Passar reação");
       responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
-      validateFourClientProjection(responses,`after uncounterable priority pass ${pass+1}`);
+      validateFourClientProjection(
+        responses,
+        `after uncounterable priority pass ${pass+1}`,
+        pass===3
+          ? uncounterableFixture.handCounts
+          : [
+              uncounterableFixture.handCounts[0]-1,
+              uncounterableFixture.handCounts[1],
+              uncounterableFixture.handCounts[2],
+              uncounterableFixture.handCounts[3],
+            ],
+      );
     }
     assert.deepEqual(uncounterableHolders,[1,2,3,0],"uncounterable source priority must rotate P2 → P3 → P4 → P1");
 
