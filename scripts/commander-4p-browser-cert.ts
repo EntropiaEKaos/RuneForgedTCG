@@ -558,6 +558,55 @@ async function seedCommanderReactionFixture(roomCode:string,loadout:ReturnType<t
   };
 }
 
+async function seedCommanderLegalityFixture(
+  roomCode:string,
+  sourceDefId:string,
+  responderDefId:string,
+){
+  const [row]=await db.select().from(commanderRooms).where(eq(commanderRooms.code,roomCode)).limit(1);
+  assert.ok(row&&isCommanderCombatEnvelope(row.gameState),"Commander legality fixture requires a live combat envelope");
+
+  let zones=row.gameState.zones;
+  const sourceSwap=swapDefinitionIntoHand(zones,"p1",sourceDefId);
+  zones=sourceSwap.zones;
+  const responderSwap=swapDefinitionIntoHand(zones,"p2",responderDefId);
+  zones=responderSwap.zones;
+
+  const match={
+    ...row.gameState.match,
+    phase:"main_1" as const,
+    turn:{...row.gameState.match.turn,activeSeat:"p1" as const},
+    seats:{
+      ...row.gameState.match.seats,
+      p1:{...row.gameState.match.seats.p1,mana:10,maxMana:10,spellMana:3},
+      p2:{...row.gameState.match.seats.p2,mana:10,maxMana:10,spellMana:3},
+    },
+    resolution:createFourPlayerResolutionFlow(
+      "p1",
+      row.gameState.match.turn.eliminatedSeats,
+      row.gameState.match.resolution.priority.mode,
+    ),
+  };
+  const next={
+    ...row.gameState,
+    match,
+    zones,
+    protocol:{...row.gameState.protocol,revision:row.gameState.protocol.revision+1},
+  };
+  const persistence=commanderCombatPersistence(next);
+  const [updated]=await db.update(commanderRooms).set({...persistence,updatedAt:new Date()})
+    .where(eq(commanderRooms.id,row.id)).returning();
+  assert.ok(updated,"Commander legality fixture failed to persist");
+  return {
+    revision:next.protocol.revision,
+    sourceInstanceId:sourceSwap.card.instanceId,
+    responderInstanceId:responderSwap.card.instanceId,
+    sourceHandCount:next.zones.p1.hand.length,
+    sourceDeckCount:next.zones.p1.deck.length,
+    responderHandCount:next.zones.p2.hand.length,
+  };
+}
+
 async function joinCommanderRoomViaCode(browser:Browser,code:string){
   await setInputValue(browser.cdp,'input[placeholder="Código da sala"]',code);
   await waitUntil(()=>evaluate(browser.cdp,`(()=>{
@@ -659,11 +708,13 @@ async function main(){
   const chromePath=findChrome();
   const manifest:any[]=[];
   const browsers=await Promise.all([0,1,2,3].map((index)=>launchBrowser(`p${index+1}`,chromePath)));
+  let legalityCatalog:Awaited<ReturnType<typeof seedCommanderLegalityCatalog>>|null=null;
   try{
+    legalityCatalog=await seedCommanderLegalityCatalog();
     for(let i=0;i<browsers.length;i++)await registerPlayer(browsers[i],participantNames[i]);
     assert.equal(new Set(browsers.map((browser)=>browser.identity!.id)).size,4,"Commander certification requires four independent player identities");
 
-    const loadout=chooseLoadout();
+    const loadout=chooseLoadout(legalityCatalog);
     assert.equal(loadout.deckCards.length,60);
     await seedOwnedLoadout(browsers,loadout);
     for(const browser of browsers)await configureLoadout(browser,loadout);
@@ -960,9 +1011,13 @@ async function main(){
     await writeFile(join(outputDir,"commander-4p-browser-manifest.json"),`${JSON.stringify(report,null,2)}\n`);
     console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, baseline rev ${initialRevision} → ${settledRevision}; Burst counter rev ${reactionFixture.revision} → ${counterSettledRevision}; counter-chain rev ${counterChainFixture.revision} → ${counterChainSettledRevision}`);
   }finally{
-    await Promise.all(browsers.map((browser)=>shutdownBrowser(browser)));
-    if(process.env.ALPHA_VISUAL_DEBUG==="1"){
-      for(const browser of browsers)if(browser.stderr)console.error(`[${browser.label} Chrome]\n${browser.stderr}`);
+    try{
+      await Promise.all(browsers.map((browser)=>shutdownBrowser(browser)));
+      if(process.env.ALPHA_VISUAL_DEBUG==="1"){
+        for(const browser of browsers)if(browser.stderr)console.error(`[${browser.label} Chrome]\n${browser.stderr}`);
+      }
+    }finally{
+      if(legalityCatalog)await cleanupCommanderLegalityCatalog(legalityCatalog.defIds);
     }
   }
 }
