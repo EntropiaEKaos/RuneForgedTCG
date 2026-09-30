@@ -314,6 +314,9 @@ function chooseLoadout(){
   assert.equal(sourceSpell.region,counterSpell.region,"Commander reaction source and counter must share a legal Commander region");
   assert.equal(counterSpell.speed,"Burst");
   assert.equal(counterSpell.spell?.kind,"negateSpell");
+  assert.equal(sourceSpell.spell?.kind,"mill");
+  const sourceAmount=Number(sourceSpell.spell?.amount||0);
+  assert.ok(sourceAmount>0,"Commander reaction source fixture must mill at least one card");
 
   const general=cards.find((candidate)=>{
     if((!candidate.isChampion&&!candidate.isLegend)||candidate.region!==sourceSpell.region)return false;
@@ -338,7 +341,7 @@ function chooseLoadout(){
     deckDefs:deckDefs.map((card)=>({defId:card.defId,name:card.name})),
     deckCards:deckDefs.flatMap((card)=>[card.defId,card.defId,card.defId]),
     reaction:{
-      source:{defId:sourceSpell.defId,name:sourceSpell.name},
+      source:{defId:sourceSpell.defId,name:sourceSpell.name,amount:sourceAmount},
       counter:{defId:counterSpell.defId,name:counterSpell.name},
     },
   };
@@ -405,6 +408,8 @@ async function seedCommanderReactionFixture(roomCode:string,loadout:ReturnType<t
   zones=sourceSwap.zones;
   const counterSwap=swapDefinitionIntoHand(zones,"p2",loadout.reaction.counter.defId);
   zones=counterSwap.zones;
+  const counterOfCounterSwap=swapDefinitionIntoHand(zones,"p3",loadout.reaction.counter.defId);
+  zones=counterOfCounterSwap.zones;
 
   const match={
     ...row.gameState.match,
@@ -414,6 +419,7 @@ async function seedCommanderReactionFixture(roomCode:string,loadout:ReturnType<t
       ...row.gameState.match.seats,
       p1:{...row.gameState.match.seats.p1,mana:10,maxMana:10,spellMana:3},
       p2:{...row.gameState.match.seats.p2,mana:10,maxMana:10,spellMana:3},
+      p3:{...row.gameState.match.seats.p3,mana:10,maxMana:10,spellMana:3},
     },
     resolution:createFourPlayerResolutionFlow(
       "p1",
@@ -435,6 +441,7 @@ async function seedCommanderReactionFixture(roomCode:string,loadout:ReturnType<t
     revision:next.protocol.revision,
     sourceInstanceId:sourceSwap.card.instanceId,
     counterInstanceId:counterSwap.card.instanceId,
+    counterOfCounterInstanceId:counterOfCounterSwap.card.instanceId,
     targetDeckCount:next.zones.p2.deck.length,
   };
 }
@@ -675,6 +682,104 @@ async function main(){
     assert.ok(counterSettledRooms[0].combat.seats[1].graveyard.some((card:any)=>card.defId===loadout.reaction.counter.defId),"resolved counter must settle to P2 graveyard");
     await capture(host,"69-commander-4p-counter-settled.png","Commander Burst negateSpell settled without source effect",manifest);
 
+    const counterChainFixture=await seedCommanderReactionFixture(roomCode,loadout);
+    responses=await waitForAllRoomVersion(browsers,roomCode,counterChainFixture.revision,20_000);
+    rooms=validateFourClientProjection(responses,"Commander counter-chain fixture",[4,4,5,5]);
+    assert.equal(rooms[0].combat.prioritySeat,0,"counter-chain fixture must reopen P1 priority");
+
+    await waitForCommanderUiAuthority(browsers[0],counterChainFixture.revision,"yours",20_000);
+    await waitForEnabledButton(browsers[0].cdp,loadout.reaction.source.name,15_000);
+    await clickText(browsers[0].cdp,loadout.reaction.source.name);
+    await waitForEnabledButton(browsers[0].cdp,"Nexus P2",15_000);
+    await clickText(browsers[0].cdp,"Nexus P2",true);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,counterChainFixture.revision+1,20_000);
+    rooms=validateFourClientProjection(responses,"counter-chain source cast",[3,4,5,5]);
+    const chainSourceRevision=rooms[0].combat.revision;
+    const chainSourceStackId=rooms[0].combat.stack[0]?.id;
+    assert.ok(chainSourceStackId,"counter-chain source spell must expose a public stack id");
+    assert.equal(rooms[0].combat.prioritySeat,1,"counter-chain source must hand priority to P2");
+
+    await waitForCommanderUiAuthority(browsers[1],chainSourceRevision,"yours",20_000);
+    await waitForEnabledButton(browsers[1].cdp,loadout.reaction.counter.name,15_000);
+    await clickText(browsers[1].cdp,loadout.reaction.counter.name);
+    await waitForEnabledButton(browsers[1].cdp,loadout.reaction.source.name,15_000);
+    await clickText(browsers[1].cdp,loadout.reaction.source.name);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,chainSourceRevision+1,20_000);
+    rooms=validateFourClientProjection(responses,"counter-chain first counter",[3,3,5,5]);
+    const chainCounterRevision=rooms[0].combat.revision;
+    const chainCounterStackId=rooms[0].combat.stack.at(-1)?.id;
+    assert.ok(chainCounterStackId,"P2 counter must expose a public stack id");
+    assert.equal(rooms[0].combat.stack.length,2,"counter-chain must contain source plus P2 counter before P3 answers");
+    assert.equal(rooms[0].combat.prioritySeat,2,"P2 counter must hand priority to P3");
+
+    await waitForCommanderUiAuthority(browsers[2],chainCounterRevision,"yours",20_000);
+    await waitForEnabledButton(browsers[2].cdp,loadout.reaction.counter.name,15_000);
+    await clickText(browsers[2].cdp,loadout.reaction.counter.name);
+    await waitForEnabledButton(browsers[2].cdp,"TOPO · "+loadout.reaction.counter.name,15_000);
+    await clickText(browsers[2].cdp,"TOPO · "+loadout.reaction.counter.name);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,chainCounterRevision+1,20_000);
+    rooms=validateFourClientProjection(responses,"counter-chain P3 counter-of-counter",[3,3,4,5]);
+    const counterOfCounterRevision=rooms[0].combat.revision;
+    assert.equal(rooms[0].combat.stack.length,3,"counter-of-counter proof requires three simultaneous stack objects");
+    assert.equal(rooms[0].combat.stack[0].id,chainSourceStackId,"original source must remain at stack base");
+    assert.equal(rooms[0].combat.stack[1].id,chainCounterStackId,"P2 counter must remain between source and P3 answer");
+    assert.equal(rooms[0].combat.stack[2].defId,loadout.reaction.counter.defId,"P3 Deny must be the LIFO top");
+    assert.equal(rooms[0].combat.prioritySeat,3,"P3 counter-of-counter must hand priority to P4");
+    await capture(browsers[3],"70-commander-4p-counter-chain-three-stack.png","Commander source + counter + counter-of-counter on real stack",manifest);
+
+    const counterOfCounterHolders:number[]=[];
+    for(let pass=0;pass<4;pass++){
+      rooms=responses.map((response)=>response.body.room);
+      const revision=rooms[0].combat.revision;
+      const holder=rooms[0].combat.prioritySeat;
+      counterOfCounterHolders.push(holder);
+      const browser=browsers[holder];
+      await waitForCommanderUiAuthority(browser,revision,"yours",20_000);
+      await waitForEnabledButton(browser.cdp,"Passar reação",15_000);
+      await clickText(browser.cdp,"Passar reação");
+      responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
+      validateFourClientProjection(responses,`after counter-of-counter priority pass ${pass+1}`,[3,3,4,5]);
+    }
+    assert.deepEqual(counterOfCounterHolders,[3,0,1,2],"counter-of-counter resolution priority must rotate P4 → P1 → P2 → P3");
+
+    const counterOfCounterSettled=responses.map((response)=>response.body.room);
+    const counterOfCounterSettledRevision=counterOfCounterSettled[0].combat.revision;
+    assert.equal(counterOfCounterSettledRevision,counterOfCounterRevision+4,"counter-of-counter requires one full four-player pass cycle");
+    assert.equal(counterOfCounterSettled[0].combat.stack.length,1,"counter-of-counter must remove P2 counter while leaving source pending");
+    assert.equal(counterOfCounterSettled[0].combat.stack[0].id,chainSourceStackId,"original source spell must survive the counter chain");
+    assert.equal(counterOfCounterSettled[0].combat.seats[1].deckCount,counterChainFixture.targetDeckCount,"source must remain unresolved after the first counter-chain cycle");
+    assert.ok(counterOfCounterSettled[0].combat.seats[1].graveyard.some((card:any)=>card.defId===loadout.reaction.counter.defId),"countered P2 Deny must settle to P2 graveyard");
+    assert.ok(counterOfCounterSettled[0].combat.seats[2].graveyard.some((card:any)=>card.defId===loadout.reaction.counter.defId),"resolved P3 Deny must settle to P3 graveyard");
+    assert.equal(counterOfCounterSettled[0].combat.seats[0].graveyard.some((card:any)=>card.instanceId===counterChainFixture.sourceInstanceId),false,"original source must not enter graveyard before its own resolution");
+    assert.equal(counterOfCounterSettled[0].combat.prioritySeat,0,"surviving source spell must restart reaction priority at P1");
+    await capture(browsers[0],"71-commander-4p-counter-chain-source-survives.png","Commander counter-of-counter leaves original source pending",manifest);
+
+    const sourceResolutionHolders:number[]=[];
+    for(let pass=0;pass<4;pass++){
+      rooms=responses.map((response)=>response.body.room);
+      const revision=rooms[0].combat.revision;
+      const holder=rooms[0].combat.prioritySeat;
+      sourceResolutionHolders.push(holder);
+      const browser=browsers[holder];
+      await waitForCommanderUiAuthority(browser,revision,"yours",20_000);
+      await waitForEnabledButton(browser.cdp,"Passar reação",15_000);
+      await clickText(browser.cdp,"Passar reação");
+      responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
+      validateFourClientProjection(responses,`after surviving-source priority pass ${pass+1}`,[3,3,4,5]);
+    }
+    assert.deepEqual(sourceResolutionHolders,[0,1,2,3],"surviving source resolution priority must rotate P1 → P2 → P3 → P4");
+
+    const counterChainSettled=responses.map((response)=>response.body.room);
+    const counterChainSettledRevision=counterChainSettled[0].combat.revision;
+    assert.equal(counterChainSettledRevision,counterOfCounterSettledRevision+4,"surviving source requires its own full four-player pass cycle");
+    assert.equal(counterChainSettled[0].combat.stack.length,0,"surviving source must resolve after the second full priority cycle");
+    assert.equal(counterChainSettled[0].combat.seats[1].deckCount,counterChainFixture.targetDeckCount-loadout.reaction.source.amount,"Tidal Erosion must mill its exact catalog amount after its counter is countered");
+    assert.ok(counterChainSettled[0].combat.seats[0].graveyard.some((card:any)=>card.instanceId===counterChainFixture.sourceInstanceId),"resolved original source must settle to P1 graveyard");
+    await capture(host,"72-commander-4p-counter-chain-source-resolved.png","Commander original source resolves after counter-of-counter",manifest);
+
     for(const browser of browsers){
       const runtimeExceptions=browser.cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown");
       assert.equal(runtimeExceptions.length,0,`${browser.label} browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0,3))}`);
@@ -702,6 +807,21 @@ async function main(){
         priorityHolders:reactionHolders,
         deterministicCiSetup:true,
       },
+      counterChain:{
+        fixtureRevision:counterChainFixture.revision,
+        sourceRevision:chainSourceRevision,
+        counterRevision:chainCounterRevision,
+        counterOfCounterRevision,
+        counterOfCounterSettledRevision,
+        settledRevision:counterChainSettledRevision,
+        counterOfCounterPriorityHolders:counterOfCounterHolders,
+        sourceResolutionPriorityHolders:sourceResolutionHolders,
+        source:loadout.reaction.source,
+        counter:loadout.reaction.counter,
+        targetDeckBeforeResolution:counterChainFixture.targetDeckCount,
+        targetDeckAfterResolution:counterChainSettled[0].combat.seats[1].deckCount,
+        deterministicCiSetup:true,
+      },
       proof:{
         independentBrowserProfiles:4,
         independentStablePlayerSessions:4,
@@ -716,12 +836,17 @@ async function main(){
         burstNegateSpellViaUi:true,
         counterPreventedSourceResolution:true,
         reactionRevisionConvergence:true,
+        counterOfCounterViaUi:true,
+        threeObjectLifoStackViaUi:true,
+        counteredCounterLeftSourcePending:true,
+        originalSourceResolvedAfterCounterChain:true,
+        counterChainRevisionConvergence:true,
         browserRuntimeExceptions:0,
       },
       screenshots:manifest,
     };
     await writeFile(join(outputDir,"commander-4p-browser-manifest.json"),`${JSON.stringify(report,null,2)}\n`);
-    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, baseline rev ${initialRevision} → ${settledRevision}; Burst counter rev ${reactionFixture.revision} → ${counterSettledRevision}; priority ${reactionHolders.map((seat)=>`P${seat+1}`).join(" → ")}`);
+    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, baseline rev ${initialRevision} → ${settledRevision}; Burst counter rev ${reactionFixture.revision} → ${counterSettledRevision}; counter-chain rev ${counterChainFixture.revision} → ${counterChainSettledRevision}`);
   }finally{
     await Promise.all(browsers.map((browser)=>shutdownBrowser(browser)));
     if(process.env.ALPHA_VISUAL_DEBUG==="1"){

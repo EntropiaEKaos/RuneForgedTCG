@@ -25,9 +25,22 @@ assert.match(script,/Janela de reação aberta/,"Commander browser cert must obs
 assert.match(script,/Passar reação/,"Commander browser cert must drive the visible reaction-priority control");
 assert.match(script,/burstNegateSpellViaUi:true/,"Commander browser manifest must certify the Burst counter through UI");
 assert.match(script,/counterPreventedSourceResolution:true/,"Commander browser manifest must prove the counter prevented source resolution");
+assert.match(script,/TOPO · /,"Commander counter-chain cert must target the visible top stack object");
+assert.match(script,/counterOfCounterViaUi:true/,"Commander browser manifest must certify counter-of-counter through visible UI");
+assert.match(script,/threeObjectLifoStackViaUi:true/,"Commander browser manifest must certify a three-object LIFO stack");
+assert.match(script,/counteredCounterLeftSourcePending:true/,"Commander browser manifest must prove the original source survives its counter being countered");
+assert.match(script,/originalSourceResolvedAfterCounterChain:true/,"Commander browser manifest must prove the surviving source later resolves");
+assert.match(script,/counterOfCounterHolders,\[3,0,1,2\]/,"Commander counter-of-counter priority must rotate P4 → P1 → P2 → P3");
+assert.match(script,/sourceResolutionHolders,\[0,1,2,3\]/,"Commander surviving-source priority must rotate P1 → P2 → P3 → P4");
+assert.match(script,/targetDeckCount-loadout\.reaction\.source\.amount/,"Commander counter-chain cert must prove the exact catalog mill amount");
+
 assert.match(script,/67-commander-4p-reaction-window-p2\.png/,"Commander browser cert must retain reaction-window evidence");
 assert.match(script,/68-commander-4p-counter-stack\.png/,"Commander browser cert must retain counter-stack evidence");
 assert.match(script,/69-commander-4p-counter-settled\.png/,"Commander browser cert must retain settled-counter evidence");
+assert.match(script,/70-commander-4p-counter-chain-three-stack\.png/,"Commander browser cert must retain three-object stack evidence");
+assert.match(script,/71-commander-4p-counter-chain-source-survives\.png/,"Commander browser cert must retain surviving-source evidence");
+assert.match(script,/72-commander-4p-counter-chain-source-resolved\.png/,"Commander browser cert must retain final source-resolution evidence");
+
 assert.match(script,/62-commander-4p-lobby\.png/,"Commander browser cert must retain lobby evidence");
 assert.match(script,/commander-4p-browser-manifest\.json/,"Commander browser cert must emit a machine-readable manifest");
 
