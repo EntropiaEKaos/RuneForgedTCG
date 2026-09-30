@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CardView from "@/components/CardView";
 
 type ProjectedCard = { instanceId:string; defId:string };
@@ -62,11 +62,61 @@ function combatMotionTransform(position:Position,motion:CombatMotion){
   return `translate3d(-${distance}px,0,0) scale(${motion==="attacking"?1.06:1.035})`;
 }
 
+type ResolutionDeparture={id:string;defId:string;seat:number;destination:"graveyard"|"general_zone"};
+type ResolutionFx={
+  revision:number;
+  nexusDamage:Record<number,number>;
+  objectDamage:Record<string,number>;
+  barrierBroken:string[];
+  departures:ResolutionDeparture[];
+};
+function seatLife(seat:CombatSeat){return seat.life??seat.nexusHealth;}
+function battlefieldMap(combat:CombatState){
+  return new Map(combat.seats.flatMap(seat=>(seat.battlefield||[]).map(object=>[object.id,{seat:seat.seat,object}] as const)));
+}
+function deriveAuthoritativeResolutionFx(previous:CombatState,current:CombatState):ResolutionFx|null{
+  if(current.revision<=previous.revision)return null;
+  const nexusDamage:Record<number,number>={};
+  const objectDamage:Record<string,number>={};
+  const barrierBroken:string[]=[];
+  const departures:ResolutionDeparture[]=[];
+  for(const seat of current.seats){
+    const before=previous.seats.find(entry=>entry.seat===seat.seat);
+    if(!before)continue;
+    const damage=seatLife(before)-seatLife(seat);
+    if(damage>0)nexusDamage[seat.seat]=damage;
+  }
+  const beforeObjects=battlefieldMap(previous);
+  const afterObjects=battlefieldMap(current);
+  for(const [id,before] of beforeObjects){
+    const after=afterObjects.get(id);
+    if(after){
+      const beforeHealth=before.object.combat?.health;
+      const afterHealth=after.object.combat?.health;
+      if(typeof beforeHealth==="number"&&typeof afterHealth==="number"&&afterHealth<beforeHealth)objectDamage[id]=beforeHealth-afterHealth;
+      if(before.object.combat?.barrier===true&&after.object.combat?.barrier===false)barrierBroken.push(id);
+      continue;
+    }
+    const ownerIndex=Number(String(before.object.ownerSeat).replace(/^p/,""))-1;
+    const owner=current.seats.find(seat=>seat.seat===ownerIndex);
+    if(before.object.kind==="general"&&owner?.general.defId===before.object.defId&&owner.general.zone!=="battlefield"){
+      departures.push({id,defId:before.object.defId,seat:ownerIndex,destination:"general_zone"});
+      continue;
+    }
+    if(owner?.graveyard.some(card=>card.instanceId===id)){
+      departures.push({id,defId:before.object.defId,seat:ownerIndex,destination:"graveyard"});
+    }
+  }
+  return Object.keys(nexusDamage).length||Object.keys(objectDamage).length||barrierBroken.length||departures.length
+    ? {revision:current.revision,nexusDamage,objectDamage,barrierBroken,departures}
+    : null;
+}
+
 function BattlefieldCard({
-  object,collection,selected,targetable,onClick,badge,position,motion,
+  object,collection,selected,targetable,onClick,badge,position,motion,damage,barrierBroken,
 }:{
   object:BattlefieldObject;collection:CollectionCard[];selected?:boolean;targetable?:boolean;onClick?:()=>void;badge?:string;
-  position:Position;motion:CombatMotion;
+  position:Position;motion:CombatMotion;damage?:number;barrierBroken?:boolean;
 }){
   const stat=object.combat
     ? `${object.combat.power}/${object.combat.health}`
@@ -82,6 +132,8 @@ function BattlefieldCard({
     style={{transform:combatMotionTransform(position,motion),transition:"transform 420ms cubic-bezier(.2,.85,.2,1), filter 300ms ease",filter:motion==="attacking"?"drop-shadow(0 0 14px rgba(251,113,133,.28))":motion==="blocking"?"drop-shadow(0 0 12px rgba(34,211,238,.24))":undefined}}
   >
     <CardView defId={object.defId} size="sm" attacking={object.attackedThisTurn} selected={selected} targetable={targetable} onClick={onClick}/>
+    {Boolean(damage)&&<span className="pointer-events-none absolute left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border border-rose-100/80 bg-rose-500/45 px-2 py-1 text-sm font-black text-white shadow-[0_0_24px_rgba(244,63,94,.6)]" data-commander-damage-fx={damage}>-{damage}</span>}
+    {barrierBroken&&<span className="pointer-events-none absolute inset-1 z-30 grid place-items-center rounded-xl border-2 border-cyan-100/80 bg-cyan-300/10 text-[8px] font-black uppercase tracking-wider text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,.42)]" data-commander-barrier-break="true">BARREIRA QUEBROU</span>}
     {badge&&<span className="pointer-events-none absolute -top-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border border-rose-200/30 bg-rose-950/90 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-rose-100 shadow-lg">{badge}</span>}
     <div className="pointer-events-none absolute -bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/95 px-2 py-0.5 text-[9px] font-black text-white shadow-xl">
       {stat&&<span>{stat}</span>}
@@ -119,11 +171,12 @@ function HiddenHand({count}:{count:number}){
 function SeatZone({
   position,seat,runtime,collection,isViewer,isActive,hasPriority,
   attackableIds,blockableIds,incomingAttackerIds,declaredAttackerIds,declaredBlockerIds,selectedAttackerId,selectedBlockerId,
+  nexusDamage,objectDamage,barrierBrokenIds,
   canTargetNexus,onTargetNexus,onSelectAttacker,onSelectBlocker,onTargetIncomingAttacker,busy,
 }:{
   position:Position;seat:Seat|undefined;runtime:CombatSeat;collection:CollectionCard[];isViewer:boolean;isActive:boolean;hasPriority:boolean;
   attackableIds:Set<string>;blockableIds:Set<string>;incomingAttackerIds:Set<string>;declaredAttackerIds:Set<string>;declaredBlockerIds:Set<string>;
-  selectedAttackerId:string|null;selectedBlockerId:string|null;
+  selectedAttackerId:string|null;selectedBlockerId:string|null;nexusDamage:number;objectDamage:Record<string,number>;barrierBrokenIds:Set<string>;
   canTargetNexus:boolean;onTargetNexus?:()=>void;
   onSelectAttacker:(id:string)=>void;onSelectBlocker:(id:string)=>void;onTargetIncomingAttacker:(id:string)=>void;busy:boolean;
 }){
@@ -154,7 +207,7 @@ function SeatZone({
           disabled={!canTargetNexus||busy}
           onClick={onTargetNexus}
           data-commander-nexus-target={canTargetNexus?runtime.seat:undefined}
-        ><b className="block text-sm text-rose-100">{runtime.life??runtime.nexusHealth}</b>{canTargetNexus?"ATACAR":"NEXUS"}</button>
+        ><b className="block text-sm text-rose-100">{runtime.life??runtime.nexusHealth}</b>{canTargetNexus?"ATACAR":"NEXUS"}{nexusDamage>0&&<span className="absolute -right-2 -top-2 z-30 animate-ping rounded-full bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white shadow-[0_0_20px_rgba(244,63,94,.65)]" data-commander-nexus-damage={nexusDamage}>-{nexusDamage}</span>}</button>
         <span className="rounded border border-cyan-300/15 bg-cyan-950/20 px-2 py-1"><b className="block text-sm text-cyan-100">{runtime.mana??0}/{runtime.maxMana??0}</b>MANA</span>
         <span className="rounded border border-violet-300/15 bg-violet-950/20 px-2 py-1"><b className="block text-sm text-violet-100">{runtime.spellMana??0}</b>✦</span>
       </div>
@@ -191,6 +244,8 @@ function SeatZone({
               badge={incoming?"ATACANDO VOCÊ":motion==="blocking"?"INTERCEPTANDO":attackable?"ATACANTE":blockable?"BLOQUEADOR":undefined}
               position={position}
               motion={motion}
+              damage={objectDamage[object.id]}
+              barrierBroken={barrierBrokenIds.has(object.id)}
             />;
           }):<span className="mx-auto text-[9px] uppercase tracking-[.18em] text-slate-700">campo vazio</span>}
         </div>
@@ -282,6 +337,18 @@ function AttackOverlay({combat,viewer}:{combat:CombatState;viewer:number}){
     })}
   </svg>;
 }
+function ResolutionDepartureFx({departures}:{departures:ResolutionDeparture[]}){
+  if(!departures.length)return null;
+  return <div className="pointer-events-none absolute left-1/2 top-1/2 z-50 flex -translate-x-1/2 -translate-y-1/2 gap-3" data-commander-departure-fx="authoritative">
+    {departures.slice(0,4).map((entry,index)=><div key={entry.id} className="relative animate-bounce" style={{animationDelay:`${index*90}ms`}}>
+      <CardView defId={entry.defId} size="sm" dimmed/>
+      <span className="absolute -bottom-2 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/95 px-2 py-0.5 text-[8px] font-black uppercase text-slate-100 shadow-xl" data-commander-departure={entry.destination}>
+        {entry.destination==="graveyard"?"→ CEMITÉRIO":"→ GENERAL ZONE"}
+      </span>
+    </div>)}
+  </div>;
+}
+
 function StackCore({combat,collection}:{combat:CombatState;collection:CollectionCard[]}){
   const items=[...combat.stack].reverse();
   const visible=items.slice(0,4);
@@ -332,6 +399,18 @@ export default function CommanderBattlefield4P({
   const viewer=room.viewerSeat??0;
   const [selectedAttackerId,setSelectedAttackerId]=useState<string|null>(null);
   const [selectedBlockerId,setSelectedBlockerId]=useState<string|null>(null);
+  const previousCombatRef=useRef<CombatState|null>(null);
+  const [resolutionFx,setResolutionFx]=useState<ResolutionFx|null>(null);
+  useEffect(()=>{
+    const previous=previousCombatRef.current;
+    previousCombatRef.current=combat;
+    if(!previous||combat.revision<=previous.revision)return;
+    const nextFx=deriveAuthoritativeResolutionFx(previous,combat);
+    if(!nextFx)return;
+    setResolutionFx(nextFx);
+    const timer=window.setTimeout(()=>setResolutionFx(current=>current?.revision===nextFx.revision?null:current),1400);
+    return ()=>window.clearTimeout(timer);
+  },[combat]);
   const seatByPosition=new Map<Position,CombatSeat>();
   for(const runtime of combat.seats)seatByPosition.set(relativePosition(runtime.seat,viewer),runtime);
 
@@ -376,6 +455,7 @@ export default function CommanderBattlefield4P({
     <div className="pointer-events-none absolute inset-0 opacity-70" style={{backgroundImage:"radial-gradient(circle at center, rgba(34,211,238,.08), transparent 27%), linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px)",backgroundSize:"auto, 42px 42px, 42px 42px"}}/>
     <div className="pointer-events-none absolute inset-[12%] rounded-[45%] border border-cyan-200/[.06] shadow-[0_0_90px_rgba(34,211,238,.05)]"/>
     <AttackOverlay combat={combat} viewer={viewer}/>
+    <ResolutionDepartureFx departures={resolutionFx?.departures||[]}/>
     {(selectedAttackerId||selectedBlockerId)&&<div className="sticky left-4 top-4 z-40 w-fit rounded-full border border-cyan-200/25 bg-slate-950/95 px-3 py-1.5 text-[9px] font-black uppercase tracking-[.14em] text-cyan-100 shadow-xl">
       {selectedAttackerId?"Atacante selecionado · escolha um Nexus inimigo":"Bloqueador selecionado · escolha um atacante contra você"}
       <button type="button" className="ml-3 text-slate-500 underline" onClick={()=>{setSelectedAttackerId(null);setSelectedBlockerId(null);}}>Cancelar</button>
@@ -401,6 +481,9 @@ export default function CommanderBattlefield4P({
             declaredBlockerIds={assignedBlockerIds}
             selectedAttackerId={selectedAttackerId}
             selectedBlockerId={selectedBlockerId}
+            nexusDamage={resolutionFx?.nexusDamage[runtime.seat]||0}
+            objectDamage={resolutionFx?.objectDamage||{}}
+            barrierBrokenIds={new Set(resolutionFx?.barrierBroken||[])}
             canTargetNexus={Boolean(selectedAttackerId&&runtime.seat!==viewer&&!runtime.eliminated)}
             onTargetNexus={()=>void commitAttack(runtime.seat)}
             onSelectAttacker={(id)=>{setSelectedAttackerId(current=>current===id?null:id);setSelectedBlockerId(null);}}
