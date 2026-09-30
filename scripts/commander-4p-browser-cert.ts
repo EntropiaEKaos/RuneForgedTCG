@@ -144,6 +144,22 @@ async function waitForText(cdp:CdpClient,text:string,timeoutMs=25_000){
   return waitUntil(()=>evaluate(cdp,`document.body?.innerText?.includes(${encoded})===true`),`text ${encoded}`,timeoutMs);
 }
 
+async function waitForCommanderUiAuthority(
+  browser:Browser,
+  revision:number,
+  priorityState:"yours"|"urgent"|"waiting"="yours",
+  timeoutMs=25_000,
+){
+  await evaluate(browser.cdp,`(()=>{ window.dispatchEvent(new Event('focus')); return true; })()`);
+  const revisionText=JSON.stringify(`rev ${revision}`);
+  const state=JSON.stringify(priorityState);
+  return waitUntil(()=>evaluate(browser.cdp,`(()=>{
+    const bodyText=document.body?.innerText||'';
+    const priority=document.querySelector('[data-commander-priority-state]');
+    return bodyText.includes(${revisionText})&&priority?.getAttribute('data-commander-priority-state')===${state};
+  })()`),`${browser.label} Commander UI revision ${revision} with priority state ${priorityState}`,timeoutMs);
+}
+
 async function clickText(cdp:CdpClient,text:string,exact=false){
   const encoded=JSON.stringify(text);
   const clicked=await evaluate<boolean>(cdp,`(()=>{
@@ -582,7 +598,7 @@ async function main(){
       const holderRoom=rooms.find((room)=>room.viewerSeat===holder);
       assert.ok(holderRoom,`priority holder P${holder+1} must have a browser client`);
       const browser=browsers[holderRoom.viewerSeat];
-      await waitForText(browser.cdp,`rev ${revision}`,15_000);
+      await waitForCommanderUiAuthority(browser,revision,"yours",20_000);
       await waitForEnabledButton(browser.cdp,"Passar prioridade",15_000);
       await clickText(browser.cdp,"Passar prioridade");
       responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
@@ -605,8 +621,7 @@ async function main(){
     assert.equal(rooms[0].combat.prioritySeat,0,"reaction fixture must begin with P1 priority");
 
     const sourceBrowser=browsers[0];
-    await waitForText(sourceBrowser.cdp,`rev ${reactionFixture.revision}`,15_000);
-    await waitForText(sourceBrowser.cdp,"Sua prioridade",15_000);
+    await waitForCommanderUiAuthority(sourceBrowser,reactionFixture.revision,"yours",20_000);
     await waitForEnabledButton(sourceBrowser.cdp,loadout.reaction.source.name,15_000);
     await clickText(sourceBrowser.cdp,loadout.reaction.source.name);
     await waitForEnabledButton(sourceBrowser.cdp,"Nexus P2",15_000);
@@ -620,7 +635,7 @@ async function main(){
     assert.equal(rooms[0].combat.prioritySeat,1,"priority must move from source P1 to responder P2");
 
     const counterBrowser=browsers[1];
-    await waitForText(counterBrowser.cdp,"Sua prioridade",15_000);
+    await waitForCommanderUiAuthority(counterBrowser,sourceRevision,"yours",20_000);
     await waitForText(counterBrowser.cdp,"Janela de reação aberta",15_000);
     await capture(counterBrowser,"67-commander-4p-reaction-window-p2.png","Commander P2 authoritative reaction window",manifest);
     await waitForEnabledButton(counterBrowser.cdp,loadout.reaction.counter.name,15_000);
@@ -643,7 +658,7 @@ async function main(){
       const holder=rooms[0].combat.prioritySeat;
       reactionHolders.push(holder);
       const browser=browsers[holder];
-      await waitForText(browser.cdp,`rev ${revision}`,15_000);
+      await waitForCommanderUiAuthority(browser,revision,"yours",20_000);
       await waitForEnabledButton(browser.cdp,"Passar reação",15_000);
       await clickText(browser.cdp,"Passar reação");
       responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
