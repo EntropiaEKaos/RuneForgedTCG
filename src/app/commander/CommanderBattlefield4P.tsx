@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import CardView from "@/components/CardView";
+import CommanderPhaserRuntime from "./CommanderPhaserRuntime";
 
 type ProjectedCard = { instanceId:string; defId:string };
 type BattlefieldObject = {
@@ -483,6 +484,14 @@ export default function CommanderBattlefield4P({
       >{level}%</button>)}
     </div>
     <AttackOverlay combat={combat} viewer={viewer}/>
+    <CommanderPhaserRuntime
+      combat={{
+        revision:combat.revision,
+        attackers:combat.combat.attackers,
+        blockers:combat.combat.blockers,
+      }}
+      resolutionRevision={resolutionFx?.revision??null}
+    />
     <ResolutionDepartureFx departures={resolutionFx?.departures||[]}/>
     {(selectedAttackerId||selectedBlockerId)&&<div className="sticky left-4 top-4 z-40 w-fit rounded-full border border-cyan-200/25 bg-slate-950/95 px-3 py-1.5 text-[9px] font-black uppercase tracking-[.14em] text-cyan-100 shadow-xl">
       {selectedAttackerId?"Atacante selecionado · escolha um Nexus inimigo":"Bloqueador selecionado · escolha um atacante contra você"}
