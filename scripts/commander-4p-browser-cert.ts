@@ -943,6 +943,116 @@ async function main(){
     assert.ok(counterChainSettled[0].combat.seats[0].graveyard.some((card:any)=>card.instanceId===counterChainFixture.sourceInstanceId),"resolved original source must settle to P1 graveyard");
     await capture(host,"72-commander-4p-counter-chain-source-resolved.png","Commander original source resolves after counter-of-counter",manifest);
 
+    const filteredCounterFixture=await seedCommanderLegalityFixture(
+      roomCode,
+      loadout.legality.unit.defId,
+      loadout.legality.spellOnlyCounter.defId,
+    );
+    responses=await waitForAllRoomVersion(browsers,roomCode,filteredCounterFixture.revision,20_000);
+    rooms=validateFourClientProjection(responses,"Commander spell-only counter legality fixture");
+    assert.equal(rooms[0].combat.prioritySeat,0,"filtered-counter fixture must begin with P1 priority");
+
+    await waitForCommanderUiAuthority(browsers[0],filteredCounterFixture.revision,"yours",20_000);
+    await waitForEnabledButton(browsers[0].cdp,loadout.legality.unit.name,15_000);
+    await clickText(browsers[0].cdp,loadout.legality.unit.name);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,filteredCounterFixture.revision+1,20_000);
+    rooms=validateFourClientProjection(responses,"after Commander Unit opens filtered-counter window");
+    const filteredCounterRevision=rooms[0].combat.revision;
+    const filteredUnitStack=rooms[0].combat.stack.at(-1);
+    assert.ok(filteredUnitStack,"filtered-counter fixture must expose the Unit stack item");
+    assert.equal(filteredUnitStack.actionKind,"unit","filtered-counter fixture must expose a Unit action kind");
+    assert.equal(rooms[0].combat.prioritySeat,1,"Unit cast must move priority to P2");
+
+    await waitForCommanderUiAuthority(browsers[1],filteredCounterRevision,"yours",20_000);
+    await waitForDisabledButton(browsers[1].cdp,loadout.legality.spellOnlyCounter.name,15_000);
+    await capture(browsers[1],"73-commander-4p-counter-filter-disabled.png","Commander spell-only counter disabled against Unit stack target",manifest);
+
+    const forgedFilteredCounter=await sendForgedCommanderCombatCommand(
+      browsers[1],
+      roomCode,
+      filteredCounterRevision,
+      "play_card",
+      {instanceId:filteredCounterFixture.responderInstanceId,stackTargetId:filteredUnitStack.id},
+    );
+    assert.equal(forgedFilteredCounter.status,409,"forged spell-only counter against Unit must fail closed");
+    assert.equal(forgedFilteredCounter.body?.ok,false,"forged filtered counter rejection must return ok:false");
+    assert.match(String(forgedFilteredCounter.body?.error||""),/cannot counter stack item/i,"server must reject the illegal filtered counter target");
+
+    responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,roomCode)));
+    rooms=validateFourClientProjection(responses,"after forged filtered-counter rejection");
+    assert.equal(rooms[0].combat.revision,filteredCounterRevision,"illegal filtered counter must not advance Commander revision");
+    assert.equal(rooms[0].combat.stack.length,1,"illegal filtered counter must not mutate the stack");
+    assert.equal(rooms[0].combat.seats[1].handCount,filteredCounterFixture.responderHandCount,"illegal filtered counter must remain in P2 hand");
+
+    const uncounterableFixture=await seedCommanderLegalityFixture(
+      roomCode,
+      loadout.legality.uncounterableSpell.defId,
+      loadout.reaction.counter.defId,
+    );
+    responses=await waitForAllRoomVersion(browsers,roomCode,uncounterableFixture.revision,20_000);
+    rooms=validateFourClientProjection(responses,"Commander uncounterable legality fixture");
+    assert.equal(rooms[0].combat.prioritySeat,0,"uncounterable fixture must begin with P1 priority");
+
+    await waitForCommanderUiAuthority(browsers[0],uncounterableFixture.revision,"yours",20_000);
+    await waitForEnabledButton(browsers[0].cdp,loadout.legality.uncounterableSpell.name,15_000);
+    await clickText(browsers[0].cdp,loadout.legality.uncounterableSpell.name);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,uncounterableFixture.revision+1,20_000);
+    rooms=validateFourClientProjection(responses,"after uncounterable Commander Spell");
+    const uncounterableRevision=rooms[0].combat.revision;
+    const protectedStackItem=rooms[0].combat.stack.at(-1);
+    assert.ok(protectedStackItem,"uncounterable fixture must expose a stack item");
+    assert.equal(protectedStackItem.actionKind,"spell","uncounterable fixture must project a Spell action kind");
+    assert.equal(protectedStackItem.uncounterable,true,"Commander projection must publish authoritative uncounterable state");
+    assert.equal(rooms[0].combat.prioritySeat,1,"uncounterable Spell must move priority to P2");
+
+    await waitForCommanderUiAuthority(browsers[1],uncounterableRevision,"yours",20_000);
+    await waitForDisabledButton(browsers[1].cdp,loadout.reaction.counter.name,15_000);
+    await capture(browsers[1],"74-commander-4p-uncounterable-deny-disabled.png","Commander Deny disabled against authoritative uncounterable Spell",manifest);
+
+    const forgedUncounterableCounter=await sendForgedCommanderCombatCommand(
+      browsers[1],
+      roomCode,
+      uncounterableRevision,
+      "play_card",
+      {instanceId:uncounterableFixture.responderInstanceId,stackTargetId:protectedStackItem.id},
+    );
+    assert.equal(forgedUncounterableCounter.status,409,"forged Deny against uncounterable Spell must fail closed");
+    assert.equal(forgedUncounterableCounter.body?.ok,false,"uncounterable counter rejection must return ok:false");
+    assert.match(String(forgedUncounterableCounter.body?.error||""),/cannot counter stack item/i,"server must reject the uncounterable target");
+
+    responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,roomCode)));
+    rooms=validateFourClientProjection(responses,"after forged uncounterable counter rejection");
+    assert.equal(rooms[0].combat.revision,uncounterableRevision,"illegal uncounterable counter must not advance revision");
+    assert.equal(rooms[0].combat.stack.length,1,"illegal uncounterable counter must leave protected source on stack");
+    assert.equal(rooms[0].combat.seats[1].handCount,uncounterableFixture.responderHandCount,"rejected Deny must remain in P2 hand");
+
+    const uncounterableHolders:number[]=[];
+    for(let pass=0;pass<4;pass++){
+      rooms=responses.map((response)=>response.body.room);
+      const revision=rooms[0].combat.revision;
+      const holder=rooms[0].combat.prioritySeat;
+      uncounterableHolders.push(holder);
+      const browser=browsers[holder];
+      await waitForCommanderUiAuthority(browser,revision,"yours",20_000);
+      await waitForEnabledButton(browser.cdp,"Passar reação",15_000);
+      await clickText(browser.cdp,"Passar reação");
+      responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
+      validateFourClientProjection(responses,`after uncounterable priority pass ${pass+1}`);
+    }
+    assert.deepEqual(uncounterableHolders,[1,2,3,0],"uncounterable source priority must rotate P2 → P3 → P4 → P1");
+
+    const uncounterableSettled=responses.map((response)=>response.body.room);
+    const uncounterableSettledRevision=uncounterableSettled[0].combat.revision;
+    assert.equal(uncounterableSettledRevision,uncounterableRevision+4,"uncounterable source requires one complete four-player pass cycle");
+    assert.equal(uncounterableSettled[0].combat.stack.length,0,"uncounterable source must resolve after all players pass");
+    assert.equal(uncounterableSettled[0].combat.seats[0].handCount,uncounterableFixture.sourceHandCount,"draw-one protected source must restore P1 hand count after resolving");
+    assert.equal(uncounterableSettled[0].combat.seats[0].deckCount,uncounterableFixture.sourceDeckCount-1,"protected draw-one source must consume exactly one P1 deck card");
+    assert.ok(uncounterableSettled[0].combat.seats[0].graveyard.some((card:any)=>card.instanceId===uncounterableFixture.sourceInstanceId),"resolved uncounterable source must settle to P1 graveyard");
+    assert.equal(new Set(uncounterableSettled.map((room)=>room.combat.revision)).size,1,"all four clients must converge after uncounterable source resolution");
+    await capture(host,"75-commander-4p-uncounterable-source-resolved.png","Commander uncounterable source resolves after rejected Deny",manifest);
+
     for(const browser of browsers){
       const runtimeExceptions=browser.cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown");
       assert.equal(runtimeExceptions.length,0,`${browser.label} browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0,3))}`);
@@ -985,6 +1095,25 @@ async function main(){
         targetDeckAfterResolution:counterChainSettled[0].combat.seats[1].deckCount,
         deterministicCiSetup:true,
       },
+      legality:{
+        studioAuthoringValidatedFixtures:true,
+        filteredCounter:{
+          fixtureRevision:filteredCounterFixture.revision,
+          sourceRevision:filteredCounterRevision,
+          source:loadout.legality.unit,
+          counter:loadout.legality.spellOnlyCounter,
+          forgedStatus:forgedFilteredCounter.status,
+        },
+        uncounterable:{
+          fixtureRevision:uncounterableFixture.revision,
+          sourceRevision:uncounterableRevision,
+          settledRevision:uncounterableSettledRevision,
+          source:loadout.legality.uncounterableSpell,
+          counter:loadout.reaction.counter,
+          priorityHolders:uncounterableHolders,
+          forgedStatus:forgedUncounterableCounter.status,
+        },
+      },
       proof:{
         independentBrowserProfiles:4,
         independentStablePlayerSessions:4,
@@ -1004,12 +1133,20 @@ async function main(){
         counteredCounterLeftSourcePending:true,
         originalSourceResolvedAfterCounterChain:true,
         counterChainRevisionConvergence:true,
+        studioAuthoringValidatedLegalityFixtures:true,
+        counterFilterDisabledIllegalTargetViaUi:true,
+        serverRejectedForgedFilteredCounter:true,
+        uncounterableProjectedAuthoritatively:true,
+        denyDisabledAgainstUncounterableViaUi:true,
+        serverRejectedForgedUncounterableCounter:true,
+        uncounterableSourceResolvedAfterRejectedCounter:true,
+        legalityRevisionConvergence:true,
         browserRuntimeExceptions:0,
       },
       screenshots:manifest,
     };
     await writeFile(join(outputDir,"commander-4p-browser-manifest.json"),`${JSON.stringify(report,null,2)}\n`);
-    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, baseline rev ${initialRevision} → ${settledRevision}; Burst counter rev ${reactionFixture.revision} → ${counterSettledRevision}; counter-chain rev ${counterChainFixture.revision} → ${counterChainSettledRevision}`);
+    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, baseline rev ${initialRevision} → ${settledRevision}; Burst counter rev ${reactionFixture.revision} → ${counterSettledRevision}; counter-chain rev ${counterChainFixture.revision} → ${counterChainSettledRevision}; legality rev ${filteredCounterFixture.revision} → ${uncounterableSettledRevision}`);
   }finally{
     try{
       await Promise.all(browsers.map((browser)=>shutdownBrowser(browser)));
