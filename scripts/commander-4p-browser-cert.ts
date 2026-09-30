@@ -5,8 +5,11 @@ import { join, resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { commanderRooms, playerCards } from "@/db/schema";
+import { commanderRooms, customCards, playerCards } from "@/db/schema";
 import { allCards } from "@/game/cards";
+import { refreshCustomCardCache } from "@/game/catalog";
+import { validateAuthorableCardWithSemanticTypes } from "@/game/semantic-card-type-authoring";
+import type { CardDef } from "@/game/types";
 import { createFourPlayerResolutionFlow } from "@/game/four-player-flow";
 import type { FourPlayerSeat } from "@/game/four-player-general";
 import { commanderCombatPersistence, isCommanderCombatEnvelope } from "@/lib/commander-combat";
@@ -182,6 +185,112 @@ async function waitForEnabledButton(cdp:CdpClient,text:string,timeoutMs=25_000){
   })()`),`enabled button containing ${text}`,timeoutMs);
 }
 
+async function waitForDisabledButton(cdp:CdpClient,text:string,timeoutMs=25_000){
+  const encoded=JSON.stringify(text);
+  return waitUntil(()=>evaluate(cdp,`(()=>{
+    const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+    return Boolean([...document.querySelectorAll('button')].find((button)=>normalize(button.textContent).includes(${encoded})&&button.disabled));
+  })()`),`disabled button containing ${text}`,timeoutMs);
+}
+
+async function sendForgedCommanderCombatCommand(
+  browser:Browser,
+  code:string,
+  expectedRevision:number,
+  commandType:string,
+  payload:Record<string,unknown>,
+){
+  return evaluate<any>(browser.cdp,`(async()=>{
+    const response=await fetch('/api/commander/${code}',{
+      method:'POST',credentials:'include',headers:{'content-type':'application/json'},
+      body:JSON.stringify({
+        action:'combat-command',
+        commandType:${JSON.stringify(commandType)},
+        expectedRevision:${expectedRevision},
+        commandId:crypto.randomUUID(),
+        payload:${JSON.stringify(payload)}
+      })
+    });
+    const body=await response.json().catch(()=>({}));
+    return {status:response.status,body};
+  })()`);
+}
+
+function validateCiAuthoredCard(raw:Partial<CardDef>):CardDef{
+  const result=validateAuthorableCardWithSemanticTypes(raw);
+  if(!result.ok)throw new Error(`CI Commander legality fixture must pass Studio authoring validation: ${result.error}`);
+  return result.card;
+}
+
+async function seedCommanderLegalityCatalog(){
+  const cards=[
+    validateCiAuthoredCard({
+      defId:`ci_cmd_unit_${runId}`,
+      name:`CI Tide Unit ${runId}`,
+      region:"Tidecall",
+      type:"Unit",
+      cost:1,
+      power:1,
+      health:1,
+      description:"CI-only Commander reaction legality fixture.",
+      rarity:"Common",
+      emoji:"🧪",
+    }),
+    validateCiAuthoredCard({
+      defId:`ci_cmd_spell_counter_${runId}`,
+      name:`CI Spell-Only Deny ${runId}`,
+      region:"Tidecall",
+      type:"Spell",
+      cost:1,
+      speed:"Burst",
+      spell:{kind:"negateSpell",amount:0,target:"spellOnStack"},
+      customKeywords:["counter_spell"],
+      description:"CI-only Burst counter restricted to Spells.",
+      rarity:"Rare",
+      emoji:"🧪",
+    }),
+    validateCiAuthoredCard({
+      defId:`ci_cmd_uncounterable_${runId}`,
+      name:`CI Uncounterable Current ${runId}`,
+      region:"Tidecall",
+      type:"Spell",
+      cost:1,
+      speed:"Fast",
+      spell:{kind:"draw",amount:1,target:"none"},
+      customKeywords:["uncounterable"],
+      description:"CI-only Fast Spell that cannot be countered.",
+      rarity:"Rare",
+      emoji:"🧪",
+    }),
+  ];
+  await db.insert(customCards).values(cards.map((card)=>({
+    defId:card.defId,
+    name:card.name,
+    region:card.region,
+    type:card.type,
+    cost:card.cost,
+    enabled:true,
+    data:card,
+  })));
+  await refreshCustomCardCache();
+  const catalog=new Map(allCards().map((card)=>[card.defId,card]));
+  for(const card of cards)assert.ok(catalog.has(card.defId),`custom Commander legality fixture ${card.defId} must enter the server catalog`);
+  return {
+    unit:cards[0],
+    spellOnlyCounter:cards[1],
+    uncounterableSpell:cards[2],
+    defIds:cards.map((card)=>card.defId),
+  };
+}
+
+async function cleanupCommanderLegalityCatalog(defIds:string[]){
+  for(const defId of defIds){
+    await db.delete(playerCards).where(eq(playerCards.defId,defId));
+    await db.delete(customCards).where(eq(customCards.defId,defId));
+  }
+  await refreshCustomCardCache();
+}
+
 async function setInputValue(cdp:CdpClient,selector:string,value:string){
   const changed=await evaluate<boolean>(cdp,`(()=>{
     const input=document.querySelector(${JSON.stringify(selector)});
@@ -306,7 +415,7 @@ async function registerPlayer(browser:Browser,displayName:string){
   browser.identity={id:Number(result.body.player.id),name:String(result.body.player.name)};
 }
 
-function chooseLoadout(){
+function chooseLoadout(legality:Awaited<ReturnType<typeof seedCommanderLegalityCatalog>>){
   const cards=allCards().filter((card)=>card.collectible!==false);
   const sourceSpell=cards.find((card)=>card.defId==="tide_erosion");
   const counterSpell=cards.find((card)=>card.defId==="tide_deny");
@@ -326,7 +435,7 @@ function chooseLoadout(){
   });
   assert.ok(general,"Commander browser cert requires a Tidecall Champion/Legend with at least 20 same-region cards");
 
-  const required=[sourceSpell,counterSpell];
+  const required=[sourceSpell,counterSpell,legality.unit,legality.spellOnlyCounter,legality.uncounterableSpell];
   const seen=new Set(required.map((card)=>card.name));
   const fillers=cards.filter((card)=>{
     if(card.defId===general.defId||card.region!==general.region||required.some((requiredCard)=>requiredCard.defId===card.defId)||seen.has(card.name))return false;
@@ -343,6 +452,11 @@ function chooseLoadout(){
     reaction:{
       source:{defId:sourceSpell.defId,name:sourceSpell.name,amount:sourceAmount},
       counter:{defId:counterSpell.defId,name:counterSpell.name},
+    },
+    legality:{
+      unit:{defId:legality.unit.defId,name:legality.unit.name},
+      spellOnlyCounter:{defId:legality.spellOnlyCounter.defId,name:legality.spellOnlyCounter.name},
+      uncounterableSpell:{defId:legality.uncounterableSpell.defId,name:legality.uncounterableSpell.name},
     },
   };
 }
@@ -443,6 +557,61 @@ async function seedCommanderReactionFixture(roomCode:string,loadout:ReturnType<t
     counterInstanceId:counterSwap.card.instanceId,
     counterOfCounterInstanceId:counterOfCounterSwap.card.instanceId,
     targetDeckCount:next.zones.p2.deck.length,
+  };
+}
+
+async function seedCommanderLegalityFixture(
+  roomCode:string,
+  sourceDefId:string,
+  responderDefId:string,
+){
+  const [row]=await db.select().from(commanderRooms).where(eq(commanderRooms.code,roomCode)).limit(1);
+  assert.ok(row&&isCommanderCombatEnvelope(row.gameState),"Commander legality fixture requires a live combat envelope");
+
+  let zones=row.gameState.zones;
+  const sourceSwap=swapDefinitionIntoHand(zones,"p1",sourceDefId);
+  zones=sourceSwap.zones;
+  const responderSwap=swapDefinitionIntoHand(zones,"p2",responderDefId);
+  zones=responderSwap.zones;
+
+  const match={
+    ...row.gameState.match,
+    phase:"main_1" as const,
+    turn:{...row.gameState.match.turn,activeSeat:"p1" as const},
+    seats:{
+      ...row.gameState.match.seats,
+      p1:{...row.gameState.match.seats.p1,mana:10,maxMana:10,spellMana:3},
+      p2:{...row.gameState.match.seats.p2,mana:10,maxMana:10,spellMana:3},
+    },
+    resolution:createFourPlayerResolutionFlow(
+      "p1",
+      row.gameState.match.turn.eliminatedSeats,
+      row.gameState.match.resolution.priority.mode,
+    ),
+  };
+  const next={
+    ...row.gameState,
+    match,
+    zones,
+    protocol:{...row.gameState.protocol,revision:row.gameState.protocol.revision+1},
+  };
+  const persistence=commanderCombatPersistence(next);
+  const [updated]=await db.update(commanderRooms).set({...persistence,updatedAt:new Date()})
+    .where(eq(commanderRooms.id,row.id)).returning();
+  assert.ok(updated,"Commander legality fixture failed to persist");
+  return {
+    revision:next.protocol.revision,
+    sourceInstanceId:sourceSwap.card.instanceId,
+    responderInstanceId:responderSwap.card.instanceId,
+    sourceHandCount:next.zones.p1.hand.length,
+    sourceDeckCount:next.zones.p1.deck.length,
+    responderHandCount:next.zones.p2.hand.length,
+    handCounts:[
+      next.zones.p1.hand.length,
+      next.zones.p2.hand.length,
+      next.zones.p3.hand.length,
+      next.zones.p4.hand.length,
+    ] as [number,number,number,number],
   };
 }
 
@@ -547,11 +716,13 @@ async function main(){
   const chromePath=findChrome();
   const manifest:any[]=[];
   const browsers=await Promise.all([0,1,2,3].map((index)=>launchBrowser(`p${index+1}`,chromePath)));
+  let legalityCatalog:Awaited<ReturnType<typeof seedCommanderLegalityCatalog>>|null=null;
   try{
+    legalityCatalog=await seedCommanderLegalityCatalog();
     for(let i=0;i<browsers.length;i++)await registerPlayer(browsers[i],participantNames[i]);
     assert.equal(new Set(browsers.map((browser)=>browser.identity!.id)).size,4,"Commander certification requires four independent player identities");
 
-    const loadout=chooseLoadout();
+    const loadout=chooseLoadout(legalityCatalog);
     assert.equal(loadout.deckCards.length,60);
     await seedOwnedLoadout(browsers,loadout);
     for(const browser of browsers)await configureLoadout(browser,loadout);
@@ -780,6 +951,147 @@ async function main(){
     assert.ok(counterChainSettled[0].combat.seats[0].graveyard.some((card:any)=>card.instanceId===counterChainFixture.sourceInstanceId),"resolved original source must settle to P1 graveyard");
     await capture(host,"72-commander-4p-counter-chain-source-resolved.png","Commander original source resolves after counter-of-counter",manifest);
 
+    const filteredCounterFixture=await seedCommanderLegalityFixture(
+      roomCode,
+      loadout.legality.unit.defId,
+      loadout.legality.spellOnlyCounter.defId,
+    );
+    responses=await waitForAllRoomVersion(browsers,roomCode,filteredCounterFixture.revision,20_000);
+    rooms=validateFourClientProjection(responses,"Commander spell-only counter legality fixture",filteredCounterFixture.handCounts);
+    assert.equal(rooms[0].combat.prioritySeat,0,"filtered-counter fixture must begin with P1 priority");
+
+    await waitForCommanderUiAuthority(browsers[0],filteredCounterFixture.revision,"yours",20_000);
+    await waitForEnabledButton(browsers[0].cdp,loadout.legality.unit.name,15_000);
+    await clickText(browsers[0].cdp,loadout.legality.unit.name);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,filteredCounterFixture.revision+1,20_000);
+    rooms=validateFourClientProjection(responses,"after Commander Unit opens filtered-counter window",[
+      filteredCounterFixture.handCounts[0]-1,
+      filteredCounterFixture.handCounts[1],
+      filteredCounterFixture.handCounts[2],
+      filteredCounterFixture.handCounts[3],
+    ]);
+    const filteredCounterRevision=rooms[0].combat.revision;
+    const filteredUnitStack=rooms[0].combat.stack.at(-1);
+    assert.ok(filteredUnitStack,"filtered-counter fixture must expose the Unit stack item");
+    assert.equal(filteredUnitStack.actionKind,"unit","filtered-counter fixture must expose a Unit action kind");
+    assert.equal(rooms[0].combat.prioritySeat,1,"Unit cast must move priority to P2");
+
+    await waitForCommanderUiAuthority(browsers[1],filteredCounterRevision,"yours",20_000);
+    await waitForDisabledButton(browsers[1].cdp,loadout.legality.spellOnlyCounter.name,15_000);
+    await capture(browsers[1],"73-commander-4p-counter-filter-disabled.png","Commander spell-only counter disabled against Unit stack target",manifest);
+
+    const forgedFilteredCounter=await sendForgedCommanderCombatCommand(
+      browsers[1],
+      roomCode,
+      filteredCounterRevision,
+      "play_card",
+      {instanceId:filteredCounterFixture.responderInstanceId,stackTargetId:filteredUnitStack.id},
+    );
+    assert.equal(forgedFilteredCounter.status,409,"forged spell-only counter against Unit must fail closed");
+    assert.equal(forgedFilteredCounter.body?.ok,false,"forged filtered counter rejection must return ok:false");
+    assert.match(String(forgedFilteredCounter.body?.error||""),/(Only legal Fast\/Burst reaction spells|cannot counter stack item)/i,"server must reject the illegal filtered counter target");
+
+    responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,roomCode)));
+    rooms=validateFourClientProjection(responses,"after forged filtered-counter rejection",[
+      filteredCounterFixture.handCounts[0]-1,
+      filteredCounterFixture.handCounts[1],
+      filteredCounterFixture.handCounts[2],
+      filteredCounterFixture.handCounts[3],
+    ]);
+    assert.equal(rooms[0].combat.revision,filteredCounterRevision,"illegal filtered counter must not advance Commander revision");
+    assert.equal(rooms[0].combat.stack.length,1,"illegal filtered counter must not mutate the stack");
+    assert.equal(rooms[0].combat.seats[1].handCount,filteredCounterFixture.responderHandCount,"illegal filtered counter must remain in P2 hand");
+
+    const uncounterableFixture=await seedCommanderLegalityFixture(
+      roomCode,
+      loadout.legality.uncounterableSpell.defId,
+      loadout.reaction.counter.defId,
+    );
+    responses=await waitForAllRoomVersion(browsers,roomCode,uncounterableFixture.revision,20_000);
+    rooms=validateFourClientProjection(responses,"Commander uncounterable legality fixture",uncounterableFixture.handCounts);
+    assert.equal(rooms[0].combat.prioritySeat,0,"uncounterable fixture must begin with P1 priority");
+
+    await waitForCommanderUiAuthority(browsers[0],uncounterableFixture.revision,"yours",20_000);
+    await waitForEnabledButton(browsers[0].cdp,loadout.legality.uncounterableSpell.name,15_000);
+    await clickText(browsers[0].cdp,loadout.legality.uncounterableSpell.name);
+
+    responses=await waitForAllRoomVersion(browsers,roomCode,uncounterableFixture.revision+1,20_000);
+    rooms=validateFourClientProjection(responses,"after uncounterable Commander Spell",[
+      uncounterableFixture.handCounts[0]-1,
+      uncounterableFixture.handCounts[1],
+      uncounterableFixture.handCounts[2],
+      uncounterableFixture.handCounts[3],
+    ]);
+    const uncounterableRevision=rooms[0].combat.revision;
+    const protectedStackItem=rooms[0].combat.stack.at(-1);
+    assert.ok(protectedStackItem,"uncounterable fixture must expose a stack item");
+    assert.equal(protectedStackItem.actionKind,"spell","uncounterable fixture must project a Spell action kind");
+    assert.equal(protectedStackItem.uncounterable,true,"Commander projection must publish authoritative uncounterable state");
+    assert.equal(rooms[0].combat.prioritySeat,1,"uncounterable Spell must move priority to P2");
+
+    await waitForCommanderUiAuthority(browsers[1],uncounterableRevision,"yours",20_000);
+    await waitForDisabledButton(browsers[1].cdp,loadout.reaction.counter.name,15_000);
+    await capture(browsers[1],"74-commander-4p-uncounterable-deny-disabled.png","Commander Deny disabled against authoritative uncounterable Spell",manifest);
+
+    const forgedUncounterableCounter=await sendForgedCommanderCombatCommand(
+      browsers[1],
+      roomCode,
+      uncounterableRevision,
+      "play_card",
+      {instanceId:uncounterableFixture.responderInstanceId,stackTargetId:protectedStackItem.id},
+    );
+    assert.equal(forgedUncounterableCounter.status,409,"forged Deny against uncounterable Spell must fail closed");
+    assert.equal(forgedUncounterableCounter.body?.ok,false,"uncounterable counter rejection must return ok:false");
+    assert.match(String(forgedUncounterableCounter.body?.error||""),/(Only legal Fast\/Burst reaction spells|cannot counter stack item)/i,"server must reject the uncounterable target");
+
+    responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,roomCode)));
+    rooms=validateFourClientProjection(responses,"after forged uncounterable counter rejection",[
+      uncounterableFixture.handCounts[0]-1,
+      uncounterableFixture.handCounts[1],
+      uncounterableFixture.handCounts[2],
+      uncounterableFixture.handCounts[3],
+    ]);
+    assert.equal(rooms[0].combat.revision,uncounterableRevision,"illegal uncounterable counter must not advance revision");
+    assert.equal(rooms[0].combat.stack.length,1,"illegal uncounterable counter must leave protected source on stack");
+    assert.equal(rooms[0].combat.seats[1].handCount,uncounterableFixture.responderHandCount,"rejected Deny must remain in P2 hand");
+
+    const uncounterableHolders:number[]=[];
+    for(let pass=0;pass<4;pass++){
+      rooms=responses.map((response)=>response.body.room);
+      const revision=rooms[0].combat.revision;
+      const holder=rooms[0].combat.prioritySeat;
+      uncounterableHolders.push(holder);
+      const browser=browsers[holder];
+      await waitForCommanderUiAuthority(browser,revision,"yours",20_000);
+      await waitForEnabledButton(browser.cdp,"Passar reação",15_000);
+      await clickText(browser.cdp,"Passar reação");
+      responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
+      validateFourClientProjection(
+        responses,
+        `after uncounterable priority pass ${pass+1}`,
+        pass===3
+          ? uncounterableFixture.handCounts
+          : [
+              uncounterableFixture.handCounts[0]-1,
+              uncounterableFixture.handCounts[1],
+              uncounterableFixture.handCounts[2],
+              uncounterableFixture.handCounts[3],
+            ],
+      );
+    }
+    assert.deepEqual(uncounterableHolders,[1,2,3,0],"uncounterable source priority must rotate P2 → P3 → P4 → P1");
+
+    const uncounterableSettled=responses.map((response)=>response.body.room);
+    const uncounterableSettledRevision=uncounterableSettled[0].combat.revision;
+    assert.equal(uncounterableSettledRevision,uncounterableRevision+4,"uncounterable source requires one complete four-player pass cycle");
+    assert.equal(uncounterableSettled[0].combat.stack.length,0,"uncounterable source must resolve after all players pass");
+    assert.equal(uncounterableSettled[0].combat.seats[0].handCount,uncounterableFixture.sourceHandCount,"draw-one protected source must restore P1 hand count after resolving");
+    assert.equal(uncounterableSettled[0].combat.seats[0].deckCount,uncounterableFixture.sourceDeckCount-1,"protected draw-one source must consume exactly one P1 deck card");
+    assert.ok(uncounterableSettled[0].combat.seats[0].graveyard.some((card:any)=>card.instanceId===uncounterableFixture.sourceInstanceId),"resolved uncounterable source must settle to P1 graveyard");
+    assert.equal(new Set(uncounterableSettled.map((room)=>room.combat.revision)).size,1,"all four clients must converge after uncounterable source resolution");
+    await capture(host,"75-commander-4p-uncounterable-source-resolved.png","Commander uncounterable source resolves after rejected Deny",manifest);
+
     for(const browser of browsers){
       const runtimeExceptions=browser.cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown");
       assert.equal(runtimeExceptions.length,0,`${browser.label} browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0,3))}`);
@@ -822,6 +1134,25 @@ async function main(){
         targetDeckAfterResolution:counterChainSettled[0].combat.seats[1].deckCount,
         deterministicCiSetup:true,
       },
+      legality:{
+        studioAuthoringValidatedFixtures:true,
+        filteredCounter:{
+          fixtureRevision:filteredCounterFixture.revision,
+          sourceRevision:filteredCounterRevision,
+          source:loadout.legality.unit,
+          counter:loadout.legality.spellOnlyCounter,
+          forgedStatus:forgedFilteredCounter.status,
+        },
+        uncounterable:{
+          fixtureRevision:uncounterableFixture.revision,
+          sourceRevision:uncounterableRevision,
+          settledRevision:uncounterableSettledRevision,
+          source:loadout.legality.uncounterableSpell,
+          counter:loadout.reaction.counter,
+          priorityHolders:uncounterableHolders,
+          forgedStatus:forgedUncounterableCounter.status,
+        },
+      },
       proof:{
         independentBrowserProfiles:4,
         independentStablePlayerSessions:4,
@@ -841,16 +1172,28 @@ async function main(){
         counteredCounterLeftSourcePending:true,
         originalSourceResolvedAfterCounterChain:true,
         counterChainRevisionConvergence:true,
+        studioAuthoringValidatedLegalityFixtures:true,
+        counterFilterDisabledIllegalTargetViaUi:true,
+        serverRejectedForgedFilteredCounter:true,
+        uncounterableProjectedAuthoritatively:true,
+        denyDisabledAgainstUncounterableViaUi:true,
+        serverRejectedForgedUncounterableCounter:true,
+        uncounterableSourceResolvedAfterRejectedCounter:true,
+        legalityRevisionConvergence:true,
         browserRuntimeExceptions:0,
       },
       screenshots:manifest,
     };
     await writeFile(join(outputDir,"commander-4p-browser-manifest.json"),`${JSON.stringify(report,null,2)}\n`);
-    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, baseline rev ${initialRevision} → ${settledRevision}; Burst counter rev ${reactionFixture.revision} → ${counterSettledRevision}; counter-chain rev ${counterChainFixture.revision} → ${counterChainSettledRevision}`);
+    console.log(`COMMANDER 4P FOUR-BROWSER E2E: PASS — ${roomCode}, baseline rev ${initialRevision} → ${settledRevision}; Burst counter rev ${reactionFixture.revision} → ${counterSettledRevision}; counter-chain rev ${counterChainFixture.revision} → ${counterChainSettledRevision}; legality rev ${filteredCounterFixture.revision} → ${uncounterableSettledRevision}`);
   }finally{
-    await Promise.all(browsers.map((browser)=>shutdownBrowser(browser)));
-    if(process.env.ALPHA_VISUAL_DEBUG==="1"){
-      for(const browser of browsers)if(browser.stderr)console.error(`[${browser.label} Chrome]\n${browser.stderr}`);
+    try{
+      await Promise.all(browsers.map((browser)=>shutdownBrowser(browser)));
+      if(process.env.ALPHA_VISUAL_DEBUG==="1"){
+        for(const browser of browsers)if(browser.stderr)console.error(`[${browser.label} Chrome]\n${browser.stderr}`);
+      }
+    }finally{
+      if(legalityCatalog)await cleanupCommanderLegalityCatalog(legalityCatalog.defIds);
     }
   }
 }

@@ -15,6 +15,7 @@ import {
   reactionSpeedRuleText,
 } from "./reaction-presentation";
 import { applyGameAction } from "./reducer";
+import { validateAuthorableCardWithSemanticTypes } from "./semantic-card-type-authoring";
 import type { DeckInput } from "./types";
 
 const deck: DeckInput = {
@@ -70,6 +71,71 @@ if (reactionEligibility(contractState, "player", "contract-dispel", unitAction).
 const unitReactionIds = eligibleReactionCards(contractState, "player", unitAction).map((card) => card.instanceId);
 if (!unitReactionIds.includes("contract-shield") || !unitReactionIds.includes("contract-deny") || unitReactionIds.includes("contract-dispel")) {
   throw new Error(`Unit reaction candidates drifted from the canonical contract: ${unitReactionIds.join(",")}`);
+}
+
+// Studio authoring must preserve reserved reaction metadata without weakening
+// generic Mechanics custom-keyword validation.
+const authoredSpellOnlyCounter=validateAuthorableCardWithSemanticTypes({
+  defId:"authoring_spell_only_counter",
+  name:"Authoring Spell-Only Counter",
+  region:"Tidecall",
+  type:"Spell",
+  cost:1,
+  speed:"Burst",
+  spell:{kind:"negateSpell",amount:0,target:"spellOnStack"},
+  customKeywords:["counter_spell"],
+  description:"Counter only Spells.",
+  rarity:"Rare",
+  emoji:"🧪",
+});
+if(!authoredSpellOnlyCounter.ok || !authoredSpellOnlyCounter.card.customKeywords?.includes("counter_spell")) {
+  throw new Error(`Studio authoring failed to preserve counter_spell: ${authoredSpellOnlyCounter.ok?"missing reserved rule":authoredSpellOnlyCounter.error}`);
+}
+const authoredUncounterableSpell=validateAuthorableCardWithSemanticTypes({
+  defId:"authoring_uncounterable_spell",
+  name:"Authoring Uncounterable Spell",
+  region:"Tidecall",
+  type:"Spell",
+  cost:1,
+  speed:"Fast",
+  spell:{kind:"draw",amount:1,target:"none"},
+  customKeywords:["uncounterable"],
+  description:"Cannot be countered.",
+  rarity:"Rare",
+  emoji:"🧪",
+});
+if(!authoredUncounterableSpell.ok || !authoredUncounterableSpell.card.customKeywords?.includes("uncounterable")) {
+  throw new Error(`Studio authoring failed to preserve uncounterable: ${authoredUncounterableSpell.ok?"missing reserved rule":authoredUncounterableSpell.error}`);
+}
+const invalidCounterFilter=validateAuthorableCardWithSemanticTypes({
+  defId:"authoring_invalid_counter_filter",
+  name:"Invalid Counter Filter",
+  region:"Tidecall",
+  type:"Spell",
+  cost:1,
+  spell:{kind:"draw",amount:1,target:"none"},
+  customKeywords:["counter_spell"],
+  description:"Invalid reserved rule placement.",
+  rarity:"Common",
+  emoji:"🧪",
+});
+if(invalidCounterFilter.ok || !invalidCounterFilter.error.includes("negateSpell")) {
+  throw new Error("counter_* rules must fail closed outside negateSpell Spell cards");
+}
+const invalidGenericSpellKeyword=validateAuthorableCardWithSemanticTypes({
+  defId:"authoring_invalid_generic_keyword",
+  name:"Invalid Generic Keyword",
+  region:"Tidecall",
+  type:"Spell",
+  cost:1,
+  spell:{kind:"draw",amount:1,target:"none"},
+  customKeywords:["designer_visible"],
+  description:"Generic custom keyword must remain Mechanics-gated.",
+  rarity:"Common",
+  emoji:"🧪",
+});
+if(invalidGenericSpellKeyword.ok || !invalidGenericSpellKeyword.error.includes("Unit cards only")) {
+  throw new Error("Reserved reaction-rule support must not weaken generic Mechanics keyword validation");
 }
 
 // Specific counters are opt-in rule keys; no filter means universal.
