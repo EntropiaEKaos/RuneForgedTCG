@@ -2,8 +2,8 @@ import type { BattlefieldCombatPresentationFrame } from "./BattlefieldCombatPres
 
 export type AuthoritativeCombatProjection = {
   revision: number;
-  attackers: Array<{ unitId: string; defenderId?: string | null }>;
-  blockers: Array<{ unitId: string; attackerId: string }>;
+  attackers: Array<{ unitId: string; controllerSeat: number; defendingSeat: number }>;
+  blockers: Array<{ unitId: string; controllerSeat: number; attackerId: string }>;
   resolution?: unknown | null;
 };
 
@@ -22,19 +22,46 @@ export function projectAuthoritativeCombatDelta(
   const previousBlockers = new Set((previous?.blockers ?? []).map((entry) => `${entry.attackerId}:${entry.unitId}`));
   const attackerIds = current.attackers.map((entry) => entry.unitId);
   const blockerPairs = current.blockers.map((entry) => ({ attackerId: entry.attackerId, blockerId: entry.unitId }));
+  const attackRoutes = current.attackers.map((entry) => ({
+    unitId: entry.unitId,
+    controllerSeat: entry.controllerSeat,
+    defendingSeat: entry.defendingSeat,
+  }));
+  const blockRoutes = current.blockers.map((entry) => ({
+    unitId: entry.unitId,
+    controllerSeat: entry.controllerSeat,
+    attackerId: entry.attackerId,
+  }));
   const frames: BattlefieldCombatPresentationFrame[] = [];
 
   if (current.attackers.some((entry) => !previousAttackers.has(entry.unitId))) {
-    frames.push({ phase: "attackers", attackerIds, blockerPairs: [], headline: "ATTACKERS DECLARED", detail: `${attackerIds.length} authoritative attacker${attackerIds.length === 1 ? "" : "s"}` });
+    frames.push({
+      phase: "attackers",
+      attackerIds,
+      blockerPairs: [],
+      attackRoutes,
+      blockRoutes: [],
+      headline: "ATTACKERS DECLARED",
+      detail: `${attackerIds.length} authoritative attacker${attackerIds.length === 1 ? "" : "s"}`,
+    });
   }
 
   if (current.blockers.some((entry) => !previousBlockers.has(`${entry.attackerId}:${entry.unitId}`))) {
-    frames.push({ phase: "blockers", attackerIds, blockerPairs, headline: "BLOCKERS DECLARED", detail: `${blockerPairs.length} authoritative block${blockerPairs.length === 1 ? "" : "s"}` });
+    frames.push({
+      phase: "blockers",
+      attackerIds,
+      blockerPairs,
+      attackRoutes,
+      blockRoutes,
+      headline: "BLOCKERS DECLARED",
+      detail: `${blockerPairs.length} authoritative block${blockerPairs.length === 1 ? "" : "s"}`,
+    });
   }
 
   if (!previous?.resolution && current.resolution) {
-    frames.push({ phase: "damage", attackerIds, blockerPairs, headline: "COMBAT DAMAGE", detail: "Authoritative combat resolution received" });
-    frames.push({ phase: "complete", attackerIds, blockerPairs, headline: "COMBAT COMPLETE", detail: "Authoritative combat revision resolved" });
+    const shared = { attackerIds, blockerPairs, attackRoutes, blockRoutes };
+    frames.push({ phase: "damage", ...shared, headline: "COMBAT DAMAGE", detail: "Authoritative combat resolution received" });
+    frames.push({ phase: "complete", ...shared, headline: "COMBAT COMPLETE", detail: "Authoritative combat revision resolved" });
   }
 
   return frames.length ? { revision: current.revision, frames } : null;

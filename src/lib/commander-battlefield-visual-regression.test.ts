@@ -80,6 +80,13 @@ assert.match(battlefield,/CommanderPhaserRuntime/,"Commander battlefield must mo
 assert.match(phaserRuntime,/void import\("phaser"\)/,"Phaser must load client-side behind the React boundary");
 assert.match(phaserRuntime,/new Phaser\.Game/,"presentation overlay must instantiate a real Phaser.Game runtime");
 assert.match(phaserRuntime,/projectAuthoritativeCombatDelta/,"Phaser runtime must consume the certified authoritative combat adapter");
+assert.match(phaserRuntime,/viewerSeat:number/,"Phaser runtime must receive the local Commander viewer seat");
+assert.match(phaserRuntime,/seatPoint\(route\.controllerSeat,viewerSeat\)/,"attacker FX must originate from its authoritative controller seat in local perspective");
+assert.match(phaserRuntime,/seatPoint\(route\.defendingSeat,viewerSeat\)/,"attacker FX must target its authoritative defending seat in local perspective");
+assert.match(phaserRuntime,/frame\.attackRoutes\.find\(entry=>entry\.unitId===route\.attackerId\)/,"blocker FX must bind to the exact authoritative attacker id");
+assert.match(phaserRuntime,/collisionPoint\(attackerStart,defender\)/,"blocker FX must terminate at the authoritative attacker route collision point");
+assert.match(battlefield,/viewerSeat=\{viewer\}/,"Commander battlefield must provide the viewer seat to the presentation-only Phaser overlay");
+
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
 assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");

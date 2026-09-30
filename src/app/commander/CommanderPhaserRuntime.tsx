@@ -21,22 +21,32 @@ type PhaserGameHandle = {
 
 const FRAME_EVENT="runeforged:commander:combat-frame";
 
-function seatPoint(seat:number){
+function seatPoint(seat:number,viewerSeat:number){
   const points=[
     {x:490,y:760},
     {x:160,y:450},
     {x:490,y:140},
     {x:820,y:450},
   ];
-  return points[seat]||points[0];
+  const relative=(seat-viewerSeat+4)%4;
+  return points[relative]||points[0];
+}
+
+function collisionPoint(from:{x:number;y:number},to:{x:number;y:number}){
+  return {
+    x:from.x+(to.x-from.x)*.66,
+    y:from.y+(to.y-from.y)*.66,
+  };
 }
 
 export default function CommanderPhaserRuntime({
   combat,
   resolutionRevision,
+  viewerSeat,
 }:{
   combat:CombatProjection;
   resolutionRevision:number|null;
+  viewerSeat:number;
 }){
   const hostRef=useRef<HTMLDivElement|null>(null);
   const gameRef=useRef<PhaserGameHandle|null>(null);
@@ -47,10 +57,12 @@ export default function CommanderPhaserRuntime({
     revision:combat.revision,
     attackers:combat.attackers.map(entry=>({
       unitId:entry.unitId,
-      defenderId:String(entry.defendingSeat),
+      controllerSeat:entry.controllerSeat,
+      defendingSeat:entry.defendingSeat,
     })),
     blockers:combat.blockers.map(entry=>({
       unitId:entry.unitId,
+      controllerSeat:entry.controllerSeat,
       attackerId:entry.attackerId,
     })),
     resolution:resolutionRevision===combat.revision?{revision:resolutionRevision}:null,
@@ -100,33 +112,42 @@ export default function CommanderPhaserRuntime({
           this.tweens.add({targets:[this.headline,this.detail],alpha:0,duration:500,delay:900,ease:"Sine.easeIn"});
 
           if(frame.phase==="attackers"){
-            frame.attackerIds.slice(0,8).forEach((_,index)=>{
-              const start=seatPoint(index%4);
+            frame.attackRoutes.slice(0,8).forEach((route)=>{
+              const start=seatPoint(route.controllerSeat,viewerSeat);
+              const end=seatPoint(route.defendingSeat,viewerSeat);
+              const impact=collisionPoint(start,end);
               const orb=this.add.circle(start.x,start.y,7,tone,.95);
+              const trail=this.add.line(0,0,start.x,start.y,impact.x,impact.y,tone,.28).setOrigin(0,0);
               this.tweens.add({
                 targets:orb,
-                x:center.x+(index%2===0?-35:35),
-                y:center.y+(index%3-1)*28,
+                x:impact.x,
+                y:impact.y,
                 alpha:0,
                 scale:1.8,
                 duration:850,
                 ease:"Cubic.easeOut",
-                onComplete:()=>orb.destroy(),
+                onComplete:()=>{orb.destroy();trail.destroy();},
               });
             });
           }else if(frame.phase==="blockers"){
-            frame.blockerPairs.slice(0,8).forEach((_,index)=>{
-              const start=seatPoint((index+1)%4);
+            frame.blockRoutes.slice(0,8).forEach((route)=>{
+              const attack=frame.attackRoutes.find(entry=>entry.unitId===route.attackerId);
+              if(!attack)return;
+              const attackerStart=seatPoint(attack.controllerSeat,viewerSeat);
+              const defender=seatPoint(attack.defendingSeat,viewerSeat);
+              const impact=collisionPoint(attackerStart,defender);
+              const start=seatPoint(route.controllerSeat,viewerSeat);
               const orb=this.add.circle(start.x,start.y,6,tone,.9);
+              const trail=this.add.line(0,0,start.x,start.y,impact.x,impact.y,tone,.32).setOrigin(0,0);
               this.tweens.add({
                 targets:orb,
-                x:center.x+(index%2===0?28:-28),
-                y:center.y+(index%3-1)*22,
+                x:impact.x,
+                y:impact.y,
                 alpha:0,
                 scale:1.6,
                 duration:720,
                 ease:"Cubic.easeOut",
-                onComplete:()=>orb.destroy(),
+                onComplete:()=>{orb.destroy();trail.destroy();},
               });
             });
           }else{
@@ -170,7 +191,7 @@ export default function CommanderPhaserRuntime({
       game?.destroy(true);
       host.replaceChildren();
     };
-  },[]);
+  },[viewerSeat]);
 
   useEffect(()=>{
     const previous=previousProjectionRef.current;
