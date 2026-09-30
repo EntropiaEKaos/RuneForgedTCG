@@ -7,6 +7,9 @@ const read=(file:string)=>fs.readFileSync(path.join(root,file),"utf8");
 
 const client=read("src/app/commander/CommanderClient.tsx");
 const battlefield=read("src/app/commander/CommanderBattlefield4P.tsx");
+const phaserRuntime=read("src/app/commander/CommanderPhaserRuntime.tsx");
+const packageJson=read("package.json");
+const packageLock=read("package-lock.json");
 
 assert.match(client,/CommanderBattlefield4P/,"Commander client must mount the cinematic 4P battlefield");
 assert.match(client,/combat=\{combat\}/,"cinematic battlefield must consume the authoritative projected combat state");
@@ -73,6 +76,16 @@ assert.match(client,/onDeclareAttacker=\{\(unitId,defendingSeat\)=>combatCommand
 assert.match(client,/onDeclareBlocker=\{\(unitId,attackerId\)=>combatCommand\("declare_blocker"/,"Commander client must keep authoritative block command ownership");
 
 
+assert.match(battlefield,/CommanderPhaserRuntime/,"Commander battlefield must mount the isolated Phaser presentation overlay");
+assert.match(phaserRuntime,/void import\("phaser"\)/,"Phaser must load client-side behind the React boundary");
+assert.match(phaserRuntime,/new Phaser\.Game/,"presentation overlay must instantiate a real Phaser.Game runtime");
+assert.match(phaserRuntime,/projectAuthoritativeCombatDelta/,"Phaser runtime must consume the certified authoritative combat adapter");
+assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
+assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
+assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
+assert.match(packageLock,/"node_modules\/phaser"/,"runtime dependency must remain locked");
+assert.doesNotMatch(phaserRuntime,/fetch\(|combatCommand|onDeclareAttacker|onDeclareBlocker/,"Phaser runtime must not own network or gameplay commands");
+assert.match(phaserRuntime,/React battlefield remains active/,"Phaser runtime failure must preserve the React battlefield fallback");
 assert.doesNotMatch(battlefield,/fetch\(/,"cinematic battlefield must remain a pure projection layer with no network authority");
 assert.doesNotMatch(battlefield,/combatCommand|mutate\(/,"cinematic battlefield must not create a second command authority");
 
