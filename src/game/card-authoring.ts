@@ -21,6 +21,7 @@ import type { ActivatedAbility, ActivatedAbilityCost } from "./activated-ability
 import { CANONICAL_KEYWORDS, keywordCardContractError, keywordIsGrantable } from "./keywords";
 import { isTriggerSupported, triggerContractError } from "./trigger-contract";
 import { EFFECT_CHAIN_MAX_SUPPORTED_DEPTH } from "./effect-chain-contract";
+import { COUNTER_FILTER_KEYS, UNCOUNTERABLE_RULE_KEY } from "./counter-rules";
 
 /**
  * Canonical authoring catalog. Keep every closed engine vocabulary here so UI,
@@ -53,6 +54,12 @@ export interface CardEffectContract {
 const UNIT_TARGETS = ["enemyUnit", "allyUnit", "anyUnit", "self"] as const satisfies readonly TargetKind[];
 const PERMANENT_TARGETS = ["enemyPermanent", "allyPermanent", "anyPermanent"] as const satisfies readonly TargetKind[];
 const GRAVEYARD_TARGETS = ["allyGraveyardCard", "enemyGraveyardCard", "anyGraveyardCard", "allyGraveyardUnit"] as const satisfies readonly TargetKind[];
+const RESERVED_REACTION_RULE_KEYS = new Set<string>([
+  UNCOUNTERABLE_RULE_KEY,
+  ...Object.values(COUNTER_FILTER_KEYS),
+]);
+const COUNTER_FILTER_RULE_KEYS = new Set<string>(Object.values(COUNTER_FILTER_KEYS));
+
 
 /**
  * Canonical semantic contract shared by authoring validation and Studio UI.
@@ -476,8 +483,9 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
     }
     card.mechanics = mechanics;
   }
-  if ((card.mechanics?.length || card.customKeywords?.length) && card.type !== "Unit") return { ok: false, error: "Mechanics Studio keywords currently execute on Unit cards only; use effect macros/triggers for other structural card types." };
-  if (card.customKeywords?.some((key) => !card.mechanics?.some((m) => m.key === key))) return { ok: false, error: "Every custom keyword must embed its compiled mechanic contract." };
+  const mechanicCustomKeywords=(card.customKeywords ?? []).filter((key)=>!RESERVED_REACTION_RULE_KEYS.has(key));
+  if ((card.mechanics?.length || mechanicCustomKeywords.length) && card.type !== "Unit") return { ok: false, error: "Mechanics Studio keywords currently execute on Unit cards only; use effect macros/triggers for other structural card types." };
+  if (mechanicCustomKeywords.some((key) => !card.mechanics?.some((m) => m.key === key))) return { ok: false, error: "Every non-reserved custom keyword must embed its compiled mechanic contract." };
 
   if (raw.costReduction !== undefined) {
     const costReduction = sanitizeCostReduction(raw.costReduction);
@@ -500,6 +508,11 @@ export function validateAuthorableCard(raw: Partial<CardDef>): CardValidationRes
       if (card.speed) return { ok: false, error: "Graveyard-targeted Spells are main-phase only in Graveyard Effects 1.0" };
     }
     card.spell = spell;
+  }
+
+  const authoredCounterFilters=(card.customKeywords ?? []).filter((key)=>COUNTER_FILTER_RULE_KEYS.has(key));
+  if (authoredCounterFilters.length && (card.type !== "Spell" || card.spell?.kind !== "negateSpell")) {
+    return { ok: false, error: "counter_* reaction rules are valid only on negateSpell Spell cards." };
   }
 
   if (raw.trigger !== undefined) {
