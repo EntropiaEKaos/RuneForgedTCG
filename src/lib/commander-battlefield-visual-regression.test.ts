@@ -80,6 +80,10 @@ assert.match(battlefield,/CommanderPhaserRuntime/,"Commander battlefield must mo
 assert.match(phaserRuntime,/void import\("phaser"\)/,"Phaser must load client-side behind the React boundary");
 assert.match(phaserRuntime,/new Phaser\.Game/,"presentation overlay must instantiate a real Phaser.Game runtime");
 assert.match(phaserRuntime,/projectAuthoritativeCombatDelta/,"Phaser runtime must consume the certified authoritative combat adapter");
+assert.match(phaserRuntime,/playCombatLaneFx\(this,start,impact,"attackers"\)/,"attacker lanes must use the certified Phaser combat FX helper");
+assert.match(phaserRuntime,/playCombatLaneFx\(this,start,impact,"blockers"\)/,"blocker lanes must use the certified Phaser combat FX helper");
+assert.doesNotMatch(phaserRuntime,/const trail=this\.add\.line/,"Commander Phaser runtime must not duplicate combat lane rendering outside the shared helper");
+
 assert.match(phaserRuntime,/viewerSeat:number/,"Phaser runtime must receive the local Commander viewer seat");
 assert.match(phaserRuntime,/seatPoint\(route\.controllerSeat,viewerSeat\)/,"attacker FX must originate from its authoritative controller seat in local perspective");
 assert.match(phaserRuntime,/seatPoint\(route\.defendingSeat,viewerSeat\)/,"attacker FX must target its authoritative defending seat in local perspective");
