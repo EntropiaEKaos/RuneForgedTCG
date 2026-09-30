@@ -203,7 +203,7 @@ function SeatZone({
       <div className="grid grid-cols-3 gap-1 text-center text-[9px]">
         <button
           type="button"
-          className={`rounded border px-2 py-1 transition ${canTargetNexus?"border-rose-200/55 bg-rose-900/35 text-rose-50 shadow-[0_0_18px_rgba(251,113,133,.14)]":"border-rose-300/15 bg-rose-950/25"}`}
+          className={`relative rounded border px-2 py-1 transition ${canTargetNexus?"border-rose-200/55 bg-rose-900/35 text-rose-50 shadow-[0_0_18px_rgba(251,113,133,.14)]":"border-rose-300/15 bg-rose-950/25"}`}
           disabled={!canTargetNexus||busy}
           onClick={onTargetNexus}
           data-commander-nexus-target={canTargetNexus?runtime.seat:undefined}
