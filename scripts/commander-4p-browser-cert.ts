@@ -3,9 +3,13 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { playerCards } from "@/db/schema";
+import { commanderRooms, playerCards } from "@/db/schema";
 import { allCards } from "@/game/cards";
+import { createFourPlayerResolutionFlow } from "@/game/four-player-flow";
+import type { FourPlayerSeat } from "@/game/four-player-general";
+import { commanderCombatPersistence, isCommanderCombatEnvelope } from "@/lib/commander-combat";
 // @ts-expect-error Shared Chrome bootstrap is an intentional JavaScript E2E helper without a declaration file.
 import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrome-devtools-bootstrap.mjs";
 
@@ -288,24 +292,39 @@ async function registerPlayer(browser:Browser,displayName:string){
 
 function chooseLoadout(){
   const cards=allCards().filter((card)=>card.collectible!==false);
+  const sourceSpell=cards.find((card)=>card.defId==="tide_erosion");
+  const counterSpell=cards.find((card)=>card.defId==="tide_deny");
+  assert.ok(sourceSpell&&counterSpell,"Commander reaction cert requires Tidecall source/counter fixtures");
+  assert.equal(sourceSpell.region,counterSpell.region,"Commander reaction source and counter must share a legal Commander region");
+  assert.equal(counterSpell.speed,"Burst");
+  assert.equal(counterSpell.spell?.kind,"negateSpell");
+
   const general=cards.find((candidate)=>{
-    if(!candidate.isChampion&&!candidate.isLegend)return false;
+    if((!candidate.isChampion&&!candidate.isLegend)||candidate.region!==sourceSpell.region)return false;
     const sameRegion=cards.filter((card)=>card.defId!==candidate.defId&&card.region===candidate.region);
     const uniqueNames=new Set(sameRegion.map((card)=>card.name));
     return uniqueNames.size>=20;
   });
-  assert.ok(general,"Commander browser cert requires a collectible Champion/Legend with at least 20 same-region cards");
-  const seen=new Set<string>();
-  const deckDefs=cards.filter((card)=>{
-    if(card.defId===general.defId||card.region!==general.region||seen.has(card.name))return false;
+  assert.ok(general,"Commander browser cert requires a Tidecall Champion/Legend with at least 20 same-region cards");
+
+  const required=[sourceSpell,counterSpell];
+  const seen=new Set(required.map((card)=>card.name));
+  const fillers=cards.filter((card)=>{
+    if(card.defId===general.defId||card.region!==general.region||required.some((requiredCard)=>requiredCard.defId===card.defId)||seen.has(card.name))return false;
     seen.add(card.name);
     return true;
-  }).slice(0,20);
+  });
+  const deckDefs=[...required,...fillers].slice(0,20);
   assert.equal(deckDefs.length,20,"Commander browser cert requires 20 unique same-region deck definitions");
+
   return {
     general:{defId:general.defId,name:general.name,region:general.region},
     deckDefs:deckDefs.map((card)=>({defId:card.defId,name:card.name})),
     deckCards:deckDefs.flatMap((card)=>[card.defId,card.defId,card.defId]),
+    reaction:{
+      source:{defId:sourceSpell.defId,name:sourceSpell.name},
+      counter:{defId:counterSpell.defId,name:counterSpell.name},
+    },
   };
 }
 
@@ -337,6 +356,71 @@ async function fetchCommander(browser:Browser,code:string){
     const body=await response.json().catch(()=>({}));
     return {status:response.status,body};
   })()`);
+}
+
+function swapDefinitionIntoHand(
+  zones:any,
+  seat:FourPlayerSeat,
+  defId:string,
+){
+  const source=zones[seat];
+  const existing=source.hand.find((card:any)=>card.defId===defId);
+  if(existing)return {zones,card:existing};
+  const deckIndex=source.deck.findIndex((card:any)=>card.defId===defId);
+  assert.ok(deckIndex>=0,`${seat} reaction fixture is missing ${defId} in its deck`);
+  const card=source.deck[deckIndex];
+  const displaced=source.hand[0];
+  const deck=[...source.deck];
+  deck.splice(deckIndex,1);
+  if(displaced)deck.push(displaced);
+  const hand=displaced?[card,...source.hand.slice(1)]:[...source.hand,card];
+  return {
+    card,
+    zones:{...zones,[seat]:{...source,hand,deck}},
+  };
+}
+
+async function seedCommanderReactionFixture(roomCode:string,loadout:ReturnType<typeof chooseLoadout>){
+  const [row]=await db.select().from(commanderRooms).where(eq(commanderRooms.code,roomCode)).limit(1);
+  assert.ok(row&&isCommanderCombatEnvelope(row.gameState),"Commander reaction fixture requires a live combat envelope");
+
+  let zones=row.gameState.zones;
+  const sourceSwap=swapDefinitionIntoHand(zones,"p1",loadout.reaction.source.defId);
+  zones=sourceSwap.zones;
+  const counterSwap=swapDefinitionIntoHand(zones,"p2",loadout.reaction.counter.defId);
+  zones=counterSwap.zones;
+
+  const match={
+    ...row.gameState.match,
+    phase:"main_1" as const,
+    turn:{...row.gameState.match.turn,activeSeat:"p1" as const},
+    seats:{
+      ...row.gameState.match.seats,
+      p1:{...row.gameState.match.seats.p1,mana:10,maxMana:10,spellMana:3},
+      p2:{...row.gameState.match.seats.p2,mana:10,maxMana:10,spellMana:3},
+    },
+    resolution:createFourPlayerResolutionFlow(
+      "p1",
+      row.gameState.match.turn.eliminatedSeats,
+      row.gameState.match.resolution.priority.mode,
+    ),
+  };
+  const next={
+    ...row.gameState,
+    match,
+    zones,
+    protocol:{...row.gameState.protocol,revision:row.gameState.protocol.revision+1},
+  };
+  const persistence=commanderCombatPersistence(next);
+  const [updated]=await db.update(commanderRooms).set({...persistence,updatedAt:new Date()})
+    .where(eq(commanderRooms.id,row.id)).returning();
+  assert.ok(updated,"Commander reaction fixture failed to persist");
+  return {
+    revision:next.protocol.revision,
+    sourceInstanceId:sourceSwap.card.instanceId,
+    counterInstanceId:counterSwap.card.instanceId,
+    targetDeckCount:next.zones.p2.deck.length,
+  };
 }
 
 async function joinCommanderRoomViaCode(browser:Browser,code:string){
