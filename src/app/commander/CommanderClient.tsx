@@ -211,6 +211,7 @@ export default function CommanderClient(){
   const prioritySeconds=combat?.priorityDeadlineAt&&nowMs
     ? Math.max(0,Math.ceil((combat.priorityDeadlineAt-nowMs)/1000))
     : null;
+  const stackItems=combat?.stack||[];
   const priorityHolderName=combat
     ? room?.seats.find(seat=>seat.seat===combat.prioritySeat)?.playerName||`P${combat.prioritySeat+1}`
     : null;
@@ -221,7 +222,6 @@ export default function CommanderClient(){
     ? (priorityUrgent?"border-rose-300/50 bg-rose-950/25 text-rose-100":"border-cyan-300/35 bg-cyan-950/20 text-cyan-100")
     : "border-white/10 bg-black/20 text-slate-400";
   const isMainPhase=Boolean(combat?.phase==="main_1"||combat?.phase==="main_2");
-  const stackItems=combat?.stack||[];
   const stackTop=stackItems[stackItems.length-1];
   const canCastGeneral=Boolean(viewerHasPriority&&viewerIsActive&&isMainPhase&&stackItems.length===0&&viewerRuntime?.general.zone==="general_zone");
   const canPlayPhysicalCard=Boolean(viewerHasPriority&&viewerIsActive&&isMainPhase&&viewerAlive&&stackItems.length===0);
