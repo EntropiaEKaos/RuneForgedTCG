@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isFourPlayerSpellChainSupported } from "@/game/four-player-spell-contract";
+import CommanderBattlefield4P from "./CommanderBattlefield4P";
 import {
   commanderMutationNeedsResync,
   commanderResumeNeedsResync,
@@ -375,7 +376,7 @@ export default function CommanderClient(){
             })}
           </div>
           {room.state==="playing"&&<div className="mt-5 border border-white/10 p-4">
-            {combat?<><div className={`mb-4 border p-3 ${priorityTone}`} data-commander-priority-state={viewerHasPriority?(priorityUrgent?"urgent":"yours"):"waiting"}>
+            {combat?<><CommanderBattlefield4P room={room} combat={combat} collection={collection}/><div className={`mb-4 mt-5 border p-3 ${priorityTone}`} data-commander-priority-state={viewerHasPriority?(priorityUrgent?"urgent":"yours"):"waiting"}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <b className="text-xs uppercase tracking-[.18em]">{viewerHasPriority?"Sua prioridade":`Prioridade · ${priorityHolderName}`}</b>
