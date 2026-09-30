@@ -21,6 +21,10 @@ assert.match(battlefield,/NEXUS DA STACK/,"battlefield must retain a central aut
 assert.match(battlefield,/combat\.stack/,"stack presentation must be derived from projected server state");
 assert.match(battlefield,/runtime\.graveyard\.length/,"public graveyard counts must remain visible");
 assert.match(battlefield,/runtime\.handCount/,"opponent hidden-hand presentation must use public counts only");
+assert.match(battlefield,/function VisibleHand/,"local viewer must receive a real visible-hand presentation");
+assert.match(battlefield,/runtime\.hand\?/,"visible hand must be driven only by the viewer-private projected hand");
+assert.match(battlefield,/overflow-x-auto/,"four-seat arena must remain navigable on narrow viewports");
+
 assert.doesNotMatch(battlefield,/fetch\(/,"cinematic battlefield must remain a pure projection layer with no network authority");
 assert.doesNotMatch(battlefield,/combatCommand|mutate\(/,"cinematic battlefield must not create a second command authority");
 
