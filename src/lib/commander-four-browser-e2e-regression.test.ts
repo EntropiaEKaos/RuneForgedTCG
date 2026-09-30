@@ -8,6 +8,7 @@ const read=(file:string)=>fs.readFileSync(path.join(root,file),"utf8");
 const script=read("scripts/commander-4p-browser-cert.ts");
 const pkg=read("package.json");
 const ci=read(".github/workflows/ci.yml");
+const cardAuthoring=read("src/game/card-authoring.ts");
 
 assert.match(script,/\[0,1,2,3\]\.map/,"Commander browser cert must launch four clients");
 assert.match(script,/independentBrowserProfiles:4/,"Commander browser evidence must record four independent profiles");
@@ -59,6 +60,10 @@ assert.match(script,/62-commander-4p-lobby\.png/,"Commander browser cert must re
 assert.match(script,/commander-4p-browser-manifest\.json/,"Commander browser cert must emit a machine-readable manifest");
 
 assert.match(pkg,/"test:e2e:commander-4p": "tsx scripts\/commander-4p-browser-cert\.ts"/);
+assert.match(cardAuthoring,/RESERVED_REACTION_RULE_KEYS/,"Studio authoring must separate reserved reaction rules from Mechanics custom keywords");
+assert.match(cardAuthoring,/COUNTER_FILTER_RULE_KEYS/,"Studio authoring must validate counter filters as reserved engine rules");
+assert.match(cardAuthoring,/counter_\* reaction rules are valid only on negateSpell Spell cards/,"Studio authoring must fail closed when counter filters are placed on non-counter cards");
+
 assert.match(ci,/npm run test:e2e:commander-4p/,"main CI browser gate must execute Commander four-browser certification");
 
 console.log("COMMANDER FOUR-BROWSER E2E SOURCE CONTRACT: PASS");
