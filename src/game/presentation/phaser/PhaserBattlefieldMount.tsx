@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { adaptAuthoritativeBattlefieldEvent, layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
+import { adaptAuthoritativeBattlefieldEvent, getBattlefieldPresentationDurationMs, layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
 import { playBattlefieldPresentationEvent } from "./BattlefieldFxExecutor";
 import { BattlefieldPresentationEventQueue } from "./BattlefieldPresentationEventQueue";
 import { BattlefieldPresentationScheduler } from "./BattlefieldPresentationScheduler";
@@ -51,9 +51,9 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
               presentationQueue,
               async ({ event }) => {
                 playBattlefieldPresentationEvent(this, entityLayout, event, "high");
-                if (event.type === "fx") {
-                  const planDuration = event.cue === "spell.fireball" ? 760 : 520;
-                  await new Promise<void>((resolve) => this.time.delayedCall(planDuration, resolve));
+                const durationMs = getBattlefieldPresentationDurationMs(event, "high");
+                if (durationMs > 0) {
+                  await new Promise<void>((resolve) => this.time.delayedCall(durationMs, resolve));
                 }
               },
             );
