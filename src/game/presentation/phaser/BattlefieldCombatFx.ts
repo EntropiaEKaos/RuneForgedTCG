@@ -1,9 +1,40 @@
-import type Phaser from "phaser";
-
 export type BattlefieldCombatFxPoint = { x: number; y: number };
 
+type CombatFxDisplayObject = {
+  setOrigin(x: number, y: number): CombatFxDisplayObject;
+  setLineWidth(width: number): CombatFxDisplayObject;
+  setDepth(depth: number): CombatFxDisplayObject;
+  setAlpha(alpha: number): CombatFxDisplayObject;
+  setStrokeStyle(width: number, color: number, alpha?: number): CombatFxDisplayObject;
+  destroy(): void;
+};
+
+type CombatFxScene = {
+  add: {
+    line(x: number, y: number, x1: number, y1: number, x2: number, y2: number, color: number, alpha?: number): CombatFxDisplayObject;
+    circle(x: number, y: number, radius: number, color: number, alpha?: number): CombatFxDisplayObject;
+  };
+  tweens: {
+    add(config: {
+      targets: CombatFxDisplayObject | CombatFxDisplayObject[];
+      alpha?: number;
+      scale?: number;
+      duration: number;
+      yoyo?: boolean;
+      hold?: number;
+      ease?: string;
+      onComplete?: () => void;
+    }): unknown;
+  };
+  cameras: {
+    main: {
+      shake(duration: number, intensity: number): unknown;
+    };
+  };
+};
+
 export function playCombatLaneFx(
-  scene: Phaser.Scene,
+  scene: CombatFxScene,
   source: BattlefieldCombatFxPoint,
   target: BattlefieldCombatFxPoint,
   phase: "attackers" | "blockers" | "damage",
