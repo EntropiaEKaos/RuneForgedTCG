@@ -469,7 +469,7 @@ export default function CommanderBattlefield4P({
   return <section ref={battlefieldScrollRef} className="relative mt-5 overflow-x-auto overflow-y-hidden rounded-[2rem] border border-cyan-200/10 bg-[#02060b] p-3 shadow-[inset_0_0_90px_rgba(8,145,178,.06)]" data-commander-battlefield="cinematic-v1" data-commander-camera-zoom={cameraZoom}>
     <div className="pointer-events-none absolute inset-0 opacity-70" style={{backgroundImage:"radial-gradient(circle at center, rgba(34,211,238,.08), transparent 27%), linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px)",backgroundSize:"auto, 42px 42px, 42px 42px"}}/>
     <div className="pointer-events-none absolute inset-[12%] rounded-[45%] border border-cyan-200/[.06] shadow-[0_0_90px_rgba(34,211,238,.05)]"/>
-    <div className="sticky left-3 top-3 z-50 flex w-fit flex-wrap items-center gap-1 rounded-full border border-cyan-100/15 bg-slate-950/92 p-1 shadow-xl backdrop-blur-md" data-commander-camera-controls="local">
+    <div className="sticky left-3 top-3 z-50 flex w-fit flex-wrap items-center gap-1 rounded-full border border-cyan-100/15 bg-slate-950/95 p-1 shadow-xl backdrop-blur-md" data-commander-camera-controls="local">
       <button type="button" className="rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wide text-cyan-100 hover:bg-cyan-200/10" onClick={()=>focusCamera("table")}>Mesa</button>
       <button type="button" className="rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wide text-violet-100 hover:bg-violet-200/10" onClick={()=>focusCamera("stack")}>Stack</button>
       <button type="button" className="rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wide text-amber-100 hover:bg-amber-200/10" onClick={()=>focusCamera("self")}>Meu campo</button>
@@ -489,7 +489,7 @@ export default function CommanderBattlefield4P({
       <button type="button" className="ml-3 text-slate-500 underline" onClick={()=>{setSelectedAttackerId(null);setSelectedBlockerId(null);}}>Cancelar</button>
     </div>}
     <div
-      className={`relative z-20 grid min-h-[900px] min-w-[980px] origin-top-center grid-cols-[minmax(260px,1fr)_minmax(360px,1.5fr)_minmax(260px,1fr)] grid-rows-[minmax(240px,1fr)_minmax(260px,.9fr)_minmax(240px,1fr)] items-center gap-4 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
+      className={`relative z-20 grid min-h-[900px] min-w-[980px] origin-top grid-cols-[minmax(260px,1fr)_minmax(360px,1.5fr)_minmax(260px,1fr)] grid-rows-[minmax(240px,1fr)_minmax(260px,.9fr)_minmax(240px,1fr)] items-center gap-4 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
       data-commander-camera-surface="table"
     >
       {(["top","left","right","bottom"] as Position[]).map(position=>{
