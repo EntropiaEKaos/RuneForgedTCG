@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { adaptAuthoritativeBattlefieldEvent, getBattlefieldPresentationDurationMs, layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
+import { getBattlefieldPresentationDurationMs, layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
+import { buildDeterministicBattlefieldDemoSequence } from "./BattlefieldDemoSequence";
 import { playBattlefieldPresentationEvent } from "./BattlefieldFxExecutor";
 import { BattlefieldPresentationEventQueue } from "./BattlefieldPresentationEventQueue";
 import { BattlefieldPresentationScheduler } from "./BattlefieldPresentationScheduler";
@@ -15,10 +16,12 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
   const [metrics, setMetrics] = useState({ fps: 0, objects: 0, renderer: "pending" });
   const [interaction, setInteraction] = useState({ selected: "", target: "", relation: "" as "" | "friendly" | "opponent" });
   const [combat, setCombat] = useState({ attacker: "", blocker: "" });
+  const [demo, setDemo] = useState({ beat: "idle", elapsedMs: 0, totalMs: 0 });
 
   useEffect(() => {
     let cancelled = false;
     setStatus("loading");
+    setDemo({ beat: "idle", elapsedMs: 0, totalMs: 0 });
 
     async function mount() {
       const host = hostRef.current;
@@ -42,22 +45,33 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
             const zoneW = width / cols;
             const zoneH = height / rows;
             const entityLayout = layoutBattlefieldEntities(scenario, width, height);
+            const demoSequence = buildDeterministicBattlefieldDemoSequence(scenario, "high");
+            setDemo({ beat: "ready", elapsedMs: 0, totalMs: demoSequence.totalDurationMs });
 
             let selectedUnit: { id: string; shape: Phaser.GameObjects.Rectangle } | null = null;
             let targetLine: Phaser.GameObjects.Line | null = null;
             let combatLine: Phaser.GameObjects.Line | null = null;
+            let demoStarted = false;
             const presentationQueue = new BattlefieldPresentationEventQueue();
             const presentationScheduler = new BattlefieldPresentationScheduler(
               presentationQueue,
               async ({ event }) => {
                 playBattlefieldPresentationEvent(this, entityLayout, event, "high");
                 const presentationDuration = getBattlefieldPresentationDurationMs(event, "high");
-                if (presentationDuration > 0) {
-                  await new Promise<void>((resolve) => this.time.delayedCall(presentationDuration, resolve));
-                }
+                if (presentationDuration > 0) await new Promise<void>((resolve) => this.time.delayedCall(presentationDuration, resolve));
               },
             );
             this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => presentationScheduler.clear());
+
+            const runDeterministicDemo = () => {
+              if (demoStarted) return;
+              demoStarted = true;
+              demoSequence.beats.forEach((beat) => {
+                this.time.delayedCall(beat.startMs, () => setDemo({ beat: beat.id, elapsedMs: beat.startMs, totalMs: demoSequence.totalDurationMs }));
+                presentationScheduler.enqueue(beat.event);
+              });
+              this.time.delayedCall(demoSequence.totalDurationMs, () => setDemo({ beat: "complete", elapsedMs: demoSequence.totalDurationMs, totalMs: demoSequence.totalDurationMs }));
+            };
 
             scenario.players.forEach((player, playerIndex) => {
               const col = playerIndex % cols;
@@ -104,19 +118,13 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                     combatLine = this.add.line(0, 0, selectedUnit.shape.x, selectedUnit.shape.y, unit.x, unit.y, 0xf97316, 0.72).setOrigin(0, 0).setLineWidth(5).setDepth(17);
                     selectedUnit.shape.setStrokeStyle(3, 0xf97316, 1); unit.setStrokeStyle(3, 0xfacc15, 1);
                     setCombat({ attacker: selectedUnit.id, blocker: entity.id });
-                    const nextPlayer = scenario.players.find((player) => player.id !== entity.controllerId) ?? scenario.players[0];
-                    [
-                      { type: "spell-resolved" as const, spellId: "lab-fireball", sourceId: selectedUnit.id, targetIds: [entity.id], fxKey: "spell.fireball" },
-                      { type: "damage-applied" as const, sourceId: selectedUnit.id, targetId: entity.id, amount: 4 },
-                      { type: "entity-died" as const, entityId: entity.id },
-                      { type: "priority-changed" as const, playerId: nextPlayer.id },
-                    ].map(adaptAuthoritativeBattlefieldEvent).forEach((event) => presentationScheduler.enqueue(event));
                   }
                 });
               });
             });
 
             this.add.text(width / 2, height / 2, "STACK", { fontFamily: "system-ui", fontSize: "10px", color: "#94a3b8", backgroundColor: "#020617aa", padding: { x: 8, y: 5 } }).setOrigin(0.5).setDepth(20);
+            this.add.text(width - 18, height - 18, "DEMO", { fontFamily: "system-ui", fontSize: "12px", color: "#f8fafc", backgroundColor: "#7c2d12dd", padding: { x: 12, y: 7 } }).setOrigin(1, 1).setDepth(30).setInteractive({ useHandCursor: true }).on("pointerdown", runDeterministicDemo);
             setMetrics((current) => ({ ...current, objects: this.children.length }));
           }
         }
@@ -142,8 +150,9 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
 
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/30">
-      <div className="absolute left-4 top-4 z-20 flex gap-2 text-[10px] font-mono text-slate-300">
+      <div className="absolute left-4 top-4 z-20 flex flex-wrap gap-2 text-[10px] font-mono text-slate-300">
         <span className="rounded bg-black/70 px-2 py-1">{metrics.renderer}</span><span className="rounded bg-black/70 px-2 py-1">{metrics.fps} FPS</span><span className="rounded bg-black/70 px-2 py-1">{metrics.objects} objects</span>
+        <span className="rounded bg-orange-950/80 px-2 py-1">demo: {demo.beat} · {demo.elapsedMs}/{demo.totalMs}ms</span>
         {interaction.selected && <span className="rounded bg-cyan-950/80 px-2 py-1">selected: {interaction.selected}</span>}{interaction.target && <span className="rounded bg-rose-950/80 px-2 py-1">target: {interaction.target}</span>}{interaction.relation && <span className="rounded bg-slate-950/80 px-2 py-1">preview: {interaction.relation}</span>}{combat.attacker && <span className="rounded bg-orange-950/80 px-2 py-1">attacker: {combat.attacker}</span>}{combat.blocker && <span className="rounded bg-amber-950/80 px-2 py-1">blocker preview: {combat.blocker}</span>}
       </div>
       <div ref={hostRef} className="min-h-[560px] w-full" aria-label="Phaser Battlefield Lab canvas" />
