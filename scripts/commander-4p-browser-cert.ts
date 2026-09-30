@@ -485,7 +485,11 @@ async function waitForAllRoomVersion(browsers:Browser[],code:string,minimumRevis
   },`all four Commander clients at revision >= ${minimumRevision}`,timeoutMs);
 }
 
-function validateFourClientProjection(responses:any[],label:string){
+function validateFourClientProjection(
+  responses:any[],
+  label:string,
+  expectedHandCounts:[number,number,number,number]=[5,5,5,5],
+){
   const rooms=responses.map((response)=>response.body.room);
   const revisions=rooms.map((room)=>room.combat.revision);
   assert.equal(new Set(revisions).size,1,`${label}: combat revisions must match across four clients`);
@@ -497,12 +501,12 @@ function validateFourClientProjection(responses:any[],label:string){
     assert.equal(room.combat.status,"active",`${label}: combat must be active`);
     const own=room.combat.seats.find((seat:any)=>seat.seat===room.viewerSeat);
     assert.ok(Array.isArray(own?.hand),`${label}: viewer P${room.viewerSeat+1} must receive private hand identities`);
-    assert.equal(own.hand.length,5,`${label}: viewer P${room.viewerSeat+1} starting hand must contain 5 cards`);
+    assert.equal(own.hand.length,expectedHandCounts[room.viewerSeat],`${label}: viewer P${room.viewerSeat+1} private hand count must match authoritative expectation`);
     ownHands.set(room.viewerSeat,own.hand.map((card:any)=>String(card.instanceId)));
     for(const seat of room.combat.seats){
       if(seat.seat===room.viewerSeat)continue;
       assert.equal(seat.hand,undefined,`${label}: opponent P${seat.seat+1} hand identities must be hidden`);
-      assert.equal(seat.handCount,5,`${label}: opponent P${seat.seat+1} public hand count must remain visible`);
+      assert.equal(seat.handCount,expectedHandCounts[seat.seat],`${label}: opponent P${seat.seat+1} public hand count must remain visible`);
     }
   }
   for(const room of rooms){
@@ -609,7 +613,7 @@ async function main(){
     await clickText(sourceBrowser.cdp,"Nexus P2",true);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,reactionFixture.revision+1,20_000);
-    rooms=validateFourClientProjection(responses,"after Commander source spell");
+    rooms=validateFourClientProjection(responses,"after Commander source spell",[4,5,5,5]);
     const sourceRevision=rooms[0].combat.revision;
     assert.equal(rooms[0].combat.stack.length,1,"source spell must open exactly one real Commander stack item");
     assert.equal(rooms[0].combat.stack[0].defId,loadout.reaction.source.defId,"source spell identity must be projected on the public stack");
@@ -625,7 +629,7 @@ async function main(){
     await clickText(counterBrowser.cdp,loadout.reaction.source.name);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,sourceRevision+1,20_000);
-    rooms=validateFourClientProjection(responses,"after Commander Burst counter");
+    rooms=validateFourClientProjection(responses,"after Commander Burst counter",[4,4,5,5]);
     const counterRevision=rooms[0].combat.revision;
     assert.equal(rooms[0].combat.stack.length,2,"Burst counter must stack above the source spell");
     assert.equal(rooms[0].combat.stack[1].defId,loadout.reaction.counter.defId,"counter must be the LIFO stack top");
@@ -643,7 +647,7 @@ async function main(){
       await waitForEnabledButton(browser.cdp,"Passar reação",15_000);
       await clickText(browser.cdp,"Passar reação");
       responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
-      validateFourClientProjection(responses,`after counter priority pass ${pass+1}`);
+      validateFourClientProjection(responses,`after counter priority pass ${pass+1}`,[4,4,5,5]);
     }
     assert.deepEqual(reactionHolders,[2,3,0,1],"counter resolution priority must rotate P3 → P4 → P1 → P2");
 
