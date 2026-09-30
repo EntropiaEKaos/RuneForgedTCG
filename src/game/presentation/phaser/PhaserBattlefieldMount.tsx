@@ -51,9 +51,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
               presentationQueue,
               async ({ event }) => {
                 playBattlefieldPresentationEvent(this, entityLayout, event, "high");
-                const durationMs = getBattlefieldPresentationDurationMs(event, "high");
-                const fallbackDuration = event.type === "damage" ? 520 : event.type === "death" ? 620 : event.type === "priority" ? 840 : 0;
-                const presentationDuration = Math.max(durationMs, fallbackDuration);
+                const presentationDuration = getBattlefieldPresentationDurationMs(event, "high");
                 if (presentationDuration > 0) {
                   await new Promise<void>((resolve) => this.time.delayedCall(presentationDuration, resolve));
                 }
@@ -66,10 +64,8 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
               const row = Math.floor(playerIndex / cols);
               const x0 = col * zoneW;
               const y0 = row * zoneH;
-              this.add.rectangle(x0 + zoneW / 2, y0 + zoneH / 2, zoneW - 10, zoneH - 10, 0x111827, 0.78)
-                .setStrokeStyle(1, 0x64748b, 0.45);
+              this.add.rectangle(x0 + zoneW / 2, y0 + zoneH / 2, zoneW - 10, zoneH - 10, 0x111827, 0.78).setStrokeStyle(1, 0x64748b, 0.45);
               this.add.text(x0 + 16, y0 + 14, `${player.label} · ${player.life}`, { fontFamily: "system-ui", fontSize: "13px", color: "#e2e8f0" });
-
               const entities = scenario.entities.filter((entity) => entity.controllerId === player.id);
               const cardW = Math.max(12, Math.min(34, zoneW / Math.max(8, Math.ceil(Math.sqrt(entities.length * 1.6)))));
               const cardH = cardW * 1.32;
@@ -77,12 +73,8 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
               entities.forEach((entity) => {
                 const point = entityLayout[entity.id];
                 if (!point) return;
-                const ux = point.x;
-                const uy = point.y;
                 const fill = entity.kind === "token" ? 0x7c3aed : 0x0891b2;
-                const unit = this.add.rectangle(ux, uy, cardW, cardH, fill, 0.68)
-                  .setStrokeStyle(1, entity.tapped ? 0xf59e0b : 0xcbd5e1, 0.65)
-                  .setInteractive({ useHandCursor: true });
+                const unit = this.add.rectangle(point.x, point.y, cardW, cardH, fill, 0.68).setStrokeStyle(1, entity.tapped ? 0xf59e0b : 0xcbd5e1, 0.65).setInteractive({ useHandCursor: true });
                 unit.setAngle(point.angle);
                 unit.on("pointerover", () => unit.setAlpha(1));
                 unit.on("pointerout", () => unit.setAlpha(selectedUnit?.id === entity.id ? 1 : 0.68));
@@ -96,8 +88,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                   if (selectedUnit.id === entity.id) {
                     selectedUnit.shape.setAlpha(0.68).setStrokeStyle(1, entity.tapped ? 0xf59e0b : 0xcbd5e1, 0.65);
                     selectedUnit = null;
-                    targetLine?.destroy();
-                    targetLine = null;
+                    targetLine?.destroy(); targetLine = null;
                     setInteraction({ selected: "", target: "", relation: "" });
                     return;
                   }
@@ -105,32 +96,21 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
                   const preview = previewBattlefieldTarget(scenario, selectedUnit.id, entity.id);
                   if (!preview) return;
                   const lineColor = preview.relation === "friendly" ? 0x22c55e : 0xf43f5e;
-                  targetLine = this.add.line(0, 0, selectedUnit.shape.x, selectedUnit.shape.y, unit.x, unit.y, lineColor, 0.9)
-                    .setOrigin(0, 0)
-                    .setLineWidth(2)
-                    .setDepth(18);
+                  targetLine = this.add.line(0, 0, selectedUnit.shape.x, selectedUnit.shape.y, unit.x, unit.y, lineColor, 0.9).setOrigin(0, 0).setLineWidth(2).setDepth(18);
                   unit.setStrokeStyle(3, lineColor, 1);
                   setInteraction({ selected: selectedUnit.id, target: entity.id, relation: preview.relation });
                   if (preview.relation === "opponent") {
                     combatLine?.destroy();
-                    combatLine = this.add.line(0, 0, selectedUnit.shape.x, selectedUnit.shape.y, unit.x, unit.y, 0xf97316, 0.72)
-                      .setOrigin(0, 0)
-                      .setLineWidth(5)
-                      .setDepth(17);
-                    selectedUnit.shape.setStrokeStyle(3, 0xf97316, 1);
-                    unit.setStrokeStyle(3, 0xfacc15, 1);
+                    combatLine = this.add.line(0, 0, selectedUnit.shape.x, selectedUnit.shape.y, unit.x, unit.y, 0xf97316, 0.72).setOrigin(0, 0).setLineWidth(5).setDepth(17);
+                    selectedUnit.shape.setStrokeStyle(3, 0xf97316, 1); unit.setStrokeStyle(3, 0xfacc15, 1);
                     setCombat({ attacker: selectedUnit.id, blocker: entity.id });
-
                     const nextPlayer = scenario.players.find((player) => player.id !== entity.controllerId) ?? scenario.players[0];
-                    const authoritativeSequence = [
+                    [
                       { type: "spell-resolved" as const, spellId: "lab-fireball", sourceId: selectedUnit.id, targetIds: [entity.id], fxKey: "spell.fireball" },
                       { type: "damage-applied" as const, sourceId: selectedUnit.id, targetId: entity.id, amount: 4 },
                       { type: "entity-died" as const, entityId: entity.id },
                       { type: "priority-changed" as const, playerId: nextPlayer.id },
-                    ];
-                    authoritativeSequence
-                      .map(adaptAuthoritativeBattlefieldEvent)
-                      .forEach((event) => presentationScheduler.enqueue(event));
+                    ].map(adaptAuthoritativeBattlefieldEvent).forEach((event) => presentationScheduler.enqueue(event));
                   }
                 });
               });
@@ -141,27 +121,14 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
           }
         }
 
-        const game = new Phaser.Game({
-          type: Phaser.AUTO,
-          parent: hostRef.current,
-          width: Math.max(640, hostRef.current.clientWidth || 960),
-          height: 560,
-          backgroundColor: "#070b16",
-          scene: BattlefieldLabScene,
-          render: { antialias: true, pixelArt: false },
-          input: { activePointers: 2 },
-        });
+        const game = new Phaser.Game({ type: Phaser.AUTO, parent: hostRef.current, width: Math.max(640, hostRef.current.clientWidth || 960), height: 560, backgroundColor: "#070b16", scene: BattlefieldLabScene, render: { antialias: true, pixelArt: false }, input: { activePointers: 2 } });
         gameRef.current = game;
         const renderer = game.renderer?.type === Phaser.WEBGL ? "WebGL" : game.renderer?.type === Phaser.CANVAS ? "Canvas" : "Unknown";
         setMetrics({ fps: 0, objects: scenario.entities.length, renderer });
-        const metricsTimer = window.setInterval(() => {
-          if (!cancelled && game.loop) setMetrics((current) => ({ ...current, fps: Math.round(game.loop.actualFps || 0) }));
-        }, 1000);
+        const metricsTimer = window.setInterval(() => { if (!cancelled && game.loop) setMetrics((current) => ({ ...current, fps: Math.round(game.loop.actualFps || 0) })); }, 1000);
         (game as Phaser.Game & { __labMetricsTimer?: number }).__labMetricsTimer = metricsTimer;
         setStatus("ready");
-      } catch {
-        if (!cancelled) setStatus("fallback");
-      }
+      } catch { if (!cancelled) setStatus("fallback"); }
     }
 
     void mount();
@@ -169,29 +136,18 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
       cancelled = true;
       const game = gameRef.current as (typeof gameRef.current & { __labMetricsTimer?: number });
       if (game?.__labMetricsTimer) window.clearInterval(game.__labMetricsTimer);
-      game?.destroy(true);
-      gameRef.current = null;
+      game?.destroy(true); gameRef.current = null;
     };
   }, [scenario]);
 
   return (
     <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-black/30">
       <div className="absolute left-4 top-4 z-20 flex gap-2 text-[10px] font-mono text-slate-300">
-        <span className="rounded bg-black/70 px-2 py-1">{metrics.renderer}</span>
-        <span className="rounded bg-black/70 px-2 py-1">{metrics.fps} FPS</span>
-        <span className="rounded bg-black/70 px-2 py-1">{metrics.objects} objects</span>
-        {interaction.selected && <span className="rounded bg-cyan-950/80 px-2 py-1">selected: {interaction.selected}</span>}
-        {interaction.target && <span className="rounded bg-rose-950/80 px-2 py-1">target: {interaction.target}</span>}
-        {interaction.relation && <span className="rounded bg-slate-950/80 px-2 py-1">preview: {interaction.relation}</span>}
-        {combat.attacker && <span className="rounded bg-orange-950/80 px-2 py-1">attacker: {combat.attacker}</span>}
-        {combat.blocker && <span className="rounded bg-amber-950/80 px-2 py-1">blocker preview: {combat.blocker}</span>}
+        <span className="rounded bg-black/70 px-2 py-1">{metrics.renderer}</span><span className="rounded bg-black/70 px-2 py-1">{metrics.fps} FPS</span><span className="rounded bg-black/70 px-2 py-1">{metrics.objects} objects</span>
+        {interaction.selected && <span className="rounded bg-cyan-950/80 px-2 py-1">selected: {interaction.selected}</span>}{interaction.target && <span className="rounded bg-rose-950/80 px-2 py-1">target: {interaction.target}</span>}{interaction.relation && <span className="rounded bg-slate-950/80 px-2 py-1">preview: {interaction.relation}</span>}{combat.attacker && <span className="rounded bg-orange-950/80 px-2 py-1">attacker: {combat.attacker}</span>}{combat.blocker && <span className="rounded bg-amber-950/80 px-2 py-1">blocker preview: {combat.blocker}</span>}
       </div>
       <div ref={hostRef} className="min-h-[560px] w-full" aria-label="Phaser Battlefield Lab canvas" />
-      {status !== "ready" && (
-        <div className="pointer-events-none absolute inset-0 grid place-items-center p-6 text-center text-sm text-slate-400">
-          {status === "loading" ? "Inicializando renderer experimental…" : "Phaser indisponível neste build. O Alpha e o renderer atual permanecem intactos."}
-        </div>
-      )}
+      {status !== "ready" && <div className="pointer-events-none absolute inset-0 grid place-items-center p-6 text-center text-sm text-slate-400">{status === "loading" ? "Inicializando renderer experimental…" : "Phaser indisponível neste build. O Alpha e o renderer atual permanecem intactos."}</div>}
     </div>
   );
 }
