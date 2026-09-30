@@ -26,6 +26,20 @@ assert.match(battlefield,/declaredBlockerIds=\{assignedBlockerIds\}/,"physical b
 assert.match(battlefield,/blockerByAttacker/,"attack FX must correlate blockers with authoritative attacker ids");
 assert.match(battlefield,/data-commander-attack-blocked/,"blocked attacks must expose a distinct impact state");
 assert.match(battlefield,/data-commander-block-route/,"blocker interception must retain a visible route to the collision point");
+assert.match(battlefield,/deriveAuthoritativeResolutionFx/,"resolution FX must be derived from consecutive authoritative projections");
+assert.match(battlefield,/combat\.revision<=previous\.revision/,"resolution FX must ignore stale or duplicate revisions");
+assert.match(battlefield,/seatLife\(before\)-seatLife\(seat\)/,"Nexus damage FX must come from observed authoritative life deltas");
+assert.match(battlefield,/afterHealth<beforeHealth/,"battlefield damage FX must come from observed authoritative health deltas");
+assert.match(battlefield,/barrier===true&&after\.object\.combat\?\.barrier===false/,"Barrier break FX must require an authoritative true-to-false transition");
+assert.match(battlefield,/graveyard\.some\(card=>card\.instanceId===id\)/,"graveyard departure FX must require exact physical instance identity");
+assert.match(battlefield,/owner\.general\.zone!=="battlefield"/,"General departure FX must require the projected General to leave the battlefield");
+assert.match(battlefield,/previousCombatRef=useRef<CombatState\|null>/,"resolution FX must compare projected revisions locally without gameplay mutation");
+assert.match(battlefield,/data-commander-nexus-damage/,"Nexus damage must expose a stable visual evidence marker");
+assert.match(battlefield,/data-commander-damage-fx/,"battlefield damage must expose a stable visual evidence marker");
+assert.match(battlefield,/data-commander-barrier-break="true"/,"Barrier break must expose a stable visual evidence marker");
+assert.match(battlefield,/data-commander-departure-fx="authoritative"/,"destroyed/departed card FX must be marked as authoritative-state driven");
+assert.doesNotMatch(battlefield,/effectivePower|applyFourPlayerBattlefieldDamage|advanceFourPlayerCombatStep/,"presentation must not recalculate authoritative combat resolution");
+
 
 assert.match(battlefield,/stroke-dashoffset/,"attack routes must retain animated directional flow");
 assert.match(battlefield,/attributeName="cx"/,"attack FX must retain a projectile moving from controller to defender");
