@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import CardView from "@/components/CardView";
 
 type ProjectedCard = { instanceId:string; defId:string };
@@ -51,7 +52,11 @@ function nameOf(defId:string|undefined|null,collection:CollectionCard[]){
 function relativePosition(seat:number,viewer:number):Position{
   return positionOrder[(seat-viewer+4)%4];
 }
-function BattlefieldCard({object,collection}:{object:BattlefieldObject;collection:CollectionCard[]}){
+function BattlefieldCard({
+  object,collection,selected,targetable,onClick,badge,
+}:{
+  object:BattlefieldObject;collection:CollectionCard[];selected?:boolean;targetable?:boolean;onClick?:()=>void;badge?:string;
+}){
   const stat=object.combat
     ? `${object.combat.power}/${object.combat.health}`
     : object.durability
@@ -60,7 +65,8 @@ function BattlefieldCard({object,collection}:{object:BattlefieldObject;collectio
         ? `L${object.loyalty}`
         : "";
   return <div className="group relative shrink-0" data-commander-object={object.id}>
-    <CardView defId={object.defId} size="sm" attacking={object.attackedThisTurn}/>
+    <CardView defId={object.defId} size="sm" attacking={object.attackedThisTurn} selected={selected} targetable={targetable} onClick={onClick}/>
+    {badge&&<span className="pointer-events-none absolute -top-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border border-rose-200/30 bg-rose-950/90 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-rose-100 shadow-lg">{badge}</span>}
     <div className="pointer-events-none absolute -bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/95 px-2 py-0.5 text-[9px] font-black text-white shadow-xl">
       {stat&&<span>{stat}</span>}
       {object.stunned&&<span title="Atordoado">✦</span>}
@@ -96,8 +102,14 @@ function HiddenHand({count}:{count:number}){
 
 function SeatZone({
   position,seat,runtime,collection,isViewer,isActive,hasPriority,
+  attackableIds,blockableIds,incomingAttackerIds,selectedAttackerId,selectedBlockerId,
+  canTargetNexus,onTargetNexus,onSelectAttacker,onSelectBlocker,onTargetIncomingAttacker,busy,
 }:{
   position:Position;seat:Seat|undefined;runtime:CombatSeat;collection:CollectionCard[];isViewer:boolean;isActive:boolean;hasPriority:boolean;
+  attackableIds:Set<string>;blockableIds:Set<string>;incomingAttackerIds:Set<string>;
+  selectedAttackerId:string|null;selectedBlockerId:string|null;
+  canTargetNexus:boolean;onTargetNexus?:()=>void;
+  onSelectAttacker:(id:string)=>void;onSelectBlocker:(id:string)=>void;onTargetIncomingAttacker:(id:string)=>void;busy:boolean;
 }){
   const battlefield=runtime.battlefield||[];
   const playerName=seat?.playerName||`P${runtime.seat+1}`;
@@ -120,7 +132,13 @@ function SeatZone({
         </div>
       </div>
       <div className="grid grid-cols-3 gap-1 text-center text-[9px]">
-        <span className="rounded border border-rose-300/15 bg-rose-950/25 px-2 py-1"><b className="block text-sm text-rose-100">{runtime.life??runtime.nexusHealth}</b>NEXUS</span>
+        <button
+          type="button"
+          className={`rounded border px-2 py-1 transition ${canTargetNexus?"border-rose-200/55 bg-rose-900/35 text-rose-50 shadow-[0_0_18px_rgba(251,113,133,.14)]":"border-rose-300/15 bg-rose-950/25"}`}
+          disabled={!canTargetNexus||busy}
+          onClick={onTargetNexus}
+          data-commander-nexus-target={canTargetNexus?runtime.seat:undefined}
+        ><b className="block text-sm text-rose-100">{runtime.life??runtime.nexusHealth}</b>{canTargetNexus?"ATACAR":"NEXUS"}</button>
         <span className="rounded border border-cyan-300/15 bg-cyan-950/20 px-2 py-1"><b className="block text-sm text-cyan-100">{runtime.mana??0}/{runtime.maxMana??0}</b>MANA</span>
         <span className="rounded border border-violet-300/15 bg-violet-950/20 px-2 py-1"><b className="block text-sm text-violet-100">{runtime.spellMana??0}</b>✦</span>
       </div>
@@ -134,7 +152,28 @@ function SeatZone({
 
       <div className="min-w-0">
         <div className="flex min-h-32 items-center gap-2 overflow-x-auto overflow-y-hidden rounded-xl border border-white/8 bg-black/25 px-2 py-3">
-          {battlefield.length?battlefield.map(object=><BattlefieldCard key={object.id} object={object} collection={collection}/>):<span className="mx-auto text-[9px] uppercase tracking-[.18em] text-slate-700">campo vazio</span>}
+          {battlefield.length?battlefield.map(object=>{
+            const attackable=isViewer&&attackableIds.has(object.id);
+            const blockable=isViewer&&blockableIds.has(object.id);
+            const incoming=incomingAttackerIds.has(object.id);
+            const incomingTarget=Boolean(!isViewer&&incoming&&selectedBlockerId);
+            const onClick=attackable
+              ? ()=>onSelectAttacker(object.id)
+              : blockable
+                ? ()=>onSelectBlocker(object.id)
+                : incomingTarget
+                  ? ()=>onTargetIncomingAttacker(object.id)
+                  : undefined;
+            return <BattlefieldCard
+              key={object.id}
+              object={object}
+              collection={collection}
+              selected={object.id===selectedAttackerId||object.id===selectedBlockerId}
+              targetable={incomingTarget}
+              onClick={busy?undefined:onClick}
+              badge={incoming?"ATACANDO VOCÊ":attackable?"ATACANTE":blockable?"BLOQUEADOR":undefined}
+            />;
+          }):<span className="mx-auto text-[9px] uppercase tracking-[.18em] text-slate-700">campo vazio</span>}
         </div>
       </div>
 
@@ -194,18 +233,63 @@ function StackCore({combat,collection}:{combat:CombatState;collection:Collection
 }
 
 export default function CommanderBattlefield4P({
-  room,combat,collection,
+  room,combat,collection,busy,onDeclareAttacker,onDeclareBlocker,
 }:{
-  room:Room;combat:CombatState;collection:CollectionCard[];
+  room:Room;combat:CombatState;collection:CollectionCard[];busy:boolean;
+  onDeclareAttacker:(unitId:string,defendingSeat:number)=>void|Promise<void>;
+  onDeclareBlocker:(unitId:string,attackerId:string)=>void|Promise<void>;
 }){
   const viewer=room.viewerSeat??0;
+  const [selectedAttackerId,setSelectedAttackerId]=useState<string|null>(null);
+  const [selectedBlockerId,setSelectedBlockerId]=useState<string|null>(null);
   const seatByPosition=new Map<Position,CombatSeat>();
   for(const runtime of combat.seats)seatByPosition.set(relativePosition(runtime.seat,viewer),runtime);
+
+  const viewerRuntime=combat.seats.find(seat=>seat.seat===viewer);
+  const assignedAttackerIds=new Set(combat.combat.attackers.map(attack=>attack.unitId));
+  const assignedBlockerIds=new Set(combat.combat.blockers.map(block=>block.unitId));
+  const blockedAttackerIds=new Set(combat.combat.blockers.map(block=>block.attackerId));
+  const canCombatInteract=combat.phase==="combat"&&combat.prioritySeat===viewer&&!viewerRuntime?.eliminated;
+  const viewerIsActive=combat.activeSeat===viewer;
+  const attackableIds=new Set(
+    (canCombatInteract&&viewerIsActive?(viewerRuntime?.battlefield||[]):[])
+      .filter(object=>["unit","general","token"].includes(object.kind))
+      .filter(object=>Boolean(object.combat&&object.combat.health>0))
+      .filter(object=>!object.stunned&&!object.attackedThisTurn&&!assignedAttackerIds.has(object.id))
+      .filter(object=>object.enteredTurn<combat.turn||object.keywords.includes("Haste"))
+      .map(object=>object.id),
+  );
+  const incomingAttackers=combat.combat.attackers.filter(attack=>attack.defendingSeat===viewer&&!blockedAttackerIds.has(attack.unitId));
+  const incomingAttackerIds=new Set(incomingAttackers.map(attack=>attack.unitId));
+  const blockableIds=new Set(
+    (canCombatInteract&&!viewerIsActive&&incomingAttackers.length?(viewerRuntime?.battlefield||[]):[])
+      .filter(object=>["unit","general","token"].includes(object.kind))
+      .filter(object=>Boolean(object.combat&&object.combat.health>0))
+      .filter(object=>!object.stunned&&!assignedBlockerIds.has(object.id))
+      .map(object=>object.id),
+  );
+
+  async function commitAttack(defendingSeat:number){
+    if(!selectedAttackerId||busy)return;
+    const unitId=selectedAttackerId;
+    setSelectedAttackerId(null);
+    await onDeclareAttacker(unitId,defendingSeat);
+  }
+  async function commitBlock(attackerId:string){
+    if(!selectedBlockerId||busy)return;
+    const unitId=selectedBlockerId;
+    setSelectedBlockerId(null);
+    await onDeclareBlocker(unitId,attackerId);
+  }
 
   return <section className="relative mt-5 overflow-x-auto overflow-y-hidden rounded-[2rem] border border-cyan-200/10 bg-[#02060b] p-3 shadow-[inset_0_0_90px_rgba(8,145,178,.06)]" data-commander-battlefield="cinematic-v1">
     <div className="pointer-events-none absolute inset-0 opacity-70" style={{backgroundImage:"radial-gradient(circle at center, rgba(34,211,238,.08), transparent 27%), linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px)",backgroundSize:"auto, 42px 42px, 42px 42px"}}/>
     <div className="pointer-events-none absolute inset-[12%] rounded-[45%] border border-cyan-200/[.06] shadow-[0_0_90px_rgba(34,211,238,.05)]"/>
     <AttackOverlay combat={combat} viewer={viewer}/>
+    {(selectedAttackerId||selectedBlockerId)&&<div className="sticky left-4 top-4 z-40 w-fit rounded-full border border-cyan-200/25 bg-slate-950/95 px-3 py-1.5 text-[9px] font-black uppercase tracking-[.14em] text-cyan-100 shadow-xl">
+      {selectedAttackerId?"Atacante selecionado · escolha um Nexus inimigo":"Bloqueador selecionado · escolha um atacante contra você"}
+      <button type="button" className="ml-3 text-slate-500 underline" onClick={()=>{setSelectedAttackerId(null);setSelectedBlockerId(null);}}>Cancelar</button>
+    </div>}
     <div className="relative z-20 grid min-h-[900px] min-w-[980px] grid-cols-[minmax(260px,1fr)_minmax(360px,1.5fr)_minmax(260px,1fr)] grid-rows-[minmax(240px,1fr)_minmax(260px,.9fr)_minmax(240px,1fr)] items-center gap-4">
       {(["top","left","right","bottom"] as Position[]).map(position=>{
         const runtime=seatByPosition.get(position);
@@ -220,6 +304,17 @@ export default function CommanderBattlefield4P({
             isViewer={runtime.seat===viewer}
             isActive={runtime.seat===combat.activeSeat}
             hasPriority={runtime.seat===combat.prioritySeat}
+            attackableIds={attackableIds}
+            blockableIds={blockableIds}
+            incomingAttackerIds={incomingAttackerIds}
+            selectedAttackerId={selectedAttackerId}
+            selectedBlockerId={selectedBlockerId}
+            canTargetNexus={Boolean(selectedAttackerId&&runtime.seat!==viewer&&!runtime.eliminated)}
+            onTargetNexus={()=>void commitAttack(runtime.seat)}
+            onSelectAttacker={(id)=>{setSelectedAttackerId(current=>current===id?null:id);setSelectedBlockerId(null);}}
+            onSelectBlocker={(id)=>{setSelectedBlockerId(current=>current===id?null:id);setSelectedAttackerId(null);}}
+            onTargetIncomingAttacker={(id)=>void commitBlock(id)}
+            busy={busy}
           />
         </div>;
       })}
