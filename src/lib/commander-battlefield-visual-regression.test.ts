@@ -18,6 +18,15 @@ assert.match(battlefield,/runeforge-card-back\.svg/,"opponent hidden hands and d
 assert.match(battlefield,/combat\.combat\.attackers\.map/,"battlefield must render authoritative attack routes");
 assert.match(battlefield,/markerEnd="url\(#commander-arrow\)"/,"attack routes must retain directional arrows");
 assert.match(battlefield,/data-commander-attack-fx="authoritative"/,"attack FX must be visibly marked as authoritative-state driven");
+assert.match(battlefield,/type CombatMotion="attacking"\|"blocking"\|null/,"battlefield must model visual combat motion without changing gameplay state");
+assert.match(battlefield,/combatMotionTransform/,"declared combatants must move toward the center using a presentation-only transform");
+assert.match(battlefield,/data-commander-combat-motion/,"moving combatants must expose a stable visual motion marker");
+assert.match(battlefield,/declaredAttackerIds=\{assignedAttackerIds\}/,"physical attacker movement must derive from authoritative declared attackers");
+assert.match(battlefield,/declaredBlockerIds=\{assignedBlockerIds\}/,"physical blocker movement must derive from authoritative declared blockers");
+assert.match(battlefield,/blockerByAttacker/,"attack FX must correlate blockers with authoritative attacker ids");
+assert.match(battlefield,/data-commander-attack-blocked/,"blocked attacks must expose a distinct impact state");
+assert.match(battlefield,/data-commander-block-route/,"blocker interception must retain a visible route to the collision point");
+
 assert.match(battlefield,/stroke-dashoffset/,"attack routes must retain animated directional flow");
 assert.match(battlefield,/attributeName="cx"/,"attack FX must retain a projectile moving from controller to defender");
 assert.match(battlefield,/attributeName="r"/,"defending seat must retain an impact pulse driven by an authoritative attacker");
