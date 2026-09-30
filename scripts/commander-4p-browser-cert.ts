@@ -218,8 +218,7 @@ async function sendForgedCommanderCombatCommand(
 
 function validateCiAuthoredCard(raw:Partial<CardDef>):CardDef{
   const result=validateAuthorableCardWithSemanticTypes(raw);
-  assert.equal(result.ok,true,`CI Commander legality fixture must pass Studio authoring validation: ${result.ok?"":result.error}`);
-  if(!result.ok)throw new Error(result.error);
+  if(!result.ok)throw new Error(`CI Commander legality fixture must pass Studio authoring validation: ${result.error}`);
   return result.card;
 }
 
