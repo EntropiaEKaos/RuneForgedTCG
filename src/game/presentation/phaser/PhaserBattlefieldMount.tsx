@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getBattlefieldPresentationDurationMs, layoutBattlefieldEntities, previewBattlefieldTarget, type BattlefieldLabScenario } from "../battlefield-lab-scenario";
 import { buildDeterministicBattlefieldDemoSequence } from "./BattlefieldDemoSequence";
+import { createBattlefieldCombatController } from "./BattlefieldCombatController";
 import { playBattlefieldPresentationEvent } from "./BattlefieldFxExecutor";
 import { playNegateSpellFx } from "./BattlefieldNegateFx";
 import { BattlefieldPresentationEventQueue } from "./BattlefieldPresentationEventQueue";
@@ -44,7 +45,8 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
             let selectedUnit: { id: string; shape: Phaser.GameObjects.Rectangle } | null = null; let targetLine: Phaser.GameObjects.Line | null = null; let combatLine: Phaser.GameObjects.Line | null = null; let demoStarted = false; let reactionStarted = false;
             const presentationQueue = new BattlefieldPresentationEventQueue();
             const presentationScheduler = new BattlefieldPresentationScheduler(presentationQueue, async ({ event }) => { setPresentation(describeBattlefieldPresentationEvent(event, scenario)); playBattlefieldPresentationEvent(this, entityLayout, event, "high"); const presentationDuration = getBattlefieldPresentationDurationMs(event, "high"); if (presentationDuration > 0) await new Promise<void>((resolve) => this.time.delayedCall(presentationDuration, resolve)); });
-            this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => presentationScheduler.clear());
+            const combatController = createBattlefieldCombatController(this, scenario, entityLayout, setPresentation, () => setPresentation(idlePresentation));
+            this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => { presentationScheduler.clear(); combatController.dispose(); });
             const runReactionDemo = () => {
               if (reactionStarted || reactionTimeline.length === 0) return; reactionStarted = true;
               const source = scenario.entities.find((entity) => entity.controllerId === scenario.players[1]?.id) ?? scenario.entities[0];
@@ -80,6 +82,7 @@ export default function PhaserBattlefieldMount({ scenario }: Props) {
             this.add.text(width / 2, height / 2, "STACK", { fontFamily: "system-ui", fontSize: "10px", color: "#94a3b8", backgroundColor: "#020617aa", padding: { x: 8, y: 5 } }).setOrigin(0.5).setDepth(20);
             this.add.text(width - 18, height - 18, "DEMO", { fontFamily: "system-ui", fontSize: "12px", color: "#f8fafc", backgroundColor: "#7c2d12dd", padding: { x: 12, y: 7 } }).setOrigin(1, 1).setDepth(30).setInteractive({ useHandCursor: true }).on("pointerdown", runDeterministicDemo);
             this.add.text(width - 18, height - 58, "REACTION", { fontFamily: "system-ui", fontSize: "11px", color: "#ecfeff", backgroundColor: "#164e63dd", padding: { x: 12, y: 7 } }).setOrigin(1, 1).setDepth(30).setInteractive({ useHandCursor: true }).on("pointerdown", runReactionDemo);
+            this.add.text(width - 18, height - 98, "COMBAT", { fontFamily: "system-ui", fontSize: "11px", color: "#fff7ed", backgroundColor: "#9a3412dd", padding: { x: 12, y: 7 } }).setOrigin(1, 1).setDepth(30).setInteractive({ useHandCursor: true }).on("pointerdown", () => combatController.run());
             setMetrics((current) => ({ ...current, objects: this.children.length }));
           }
         }
