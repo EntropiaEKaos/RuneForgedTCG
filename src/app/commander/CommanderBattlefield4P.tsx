@@ -52,10 +52,21 @@ function nameOf(defId:string|undefined|null,collection:CollectionCard[]){
 function relativePosition(seat:number,viewer:number):Position{
   return positionOrder[(seat-viewer+4)%4];
 }
+type CombatMotion="attacking"|"blocking"|null;
+function combatMotionTransform(position:Position,motion:CombatMotion){
+  if(!motion)return "translate3d(0,0,0) scale(1)";
+  const distance=motion==="attacking"?24:16;
+  if(position==="bottom")return `translate3d(0,-${distance}px,0) scale(${motion==="attacking"?1.06:1.035})`;
+  if(position==="top")return `translate3d(0,${distance}px,0) scale(${motion==="attacking"?1.06:1.035})`;
+  if(position==="left")return `translate3d(${distance}px,0,0) scale(${motion==="attacking"?1.06:1.035})`;
+  return `translate3d(-${distance}px,0,0) scale(${motion==="attacking"?1.06:1.035})`;
+}
+
 function BattlefieldCard({
-  object,collection,selected,targetable,onClick,badge,
+  object,collection,selected,targetable,onClick,badge,position,motion,
 }:{
   object:BattlefieldObject;collection:CollectionCard[];selected?:boolean;targetable?:boolean;onClick?:()=>void;badge?:string;
+  position:Position;motion:CombatMotion;
 }){
   const stat=object.combat
     ? `${object.combat.power}/${object.combat.health}`
@@ -64,7 +75,12 @@ function BattlefieldCard({
       : object.loyalty!==undefined
         ? `L${object.loyalty}`
         : "";
-  return <div className="group relative shrink-0" data-commander-object={object.id}>
+  return <div
+    className="group relative shrink-0"
+    data-commander-object={object.id}
+    data-commander-combat-motion={motion||undefined}
+    style={{transform:combatMotionTransform(position,motion),transition:"transform 420ms cubic-bezier(.2,.85,.2,1), filter 300ms ease",filter:motion==="attacking"?"drop-shadow(0 0 14px rgba(251,113,133,.28))":motion==="blocking"?"drop-shadow(0 0 12px rgba(34,211,238,.24))":undefined}}
+  >
     <CardView defId={object.defId} size="sm" attacking={object.attackedThisTurn} selected={selected} targetable={targetable} onClick={onClick}/>
     {badge&&<span className="pointer-events-none absolute -top-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border border-rose-200/30 bg-rose-950/90 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-rose-100 shadow-lg">{badge}</span>}
     <div className="pointer-events-none absolute -bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/95 px-2 py-0.5 text-[9px] font-black text-white shadow-xl">
@@ -102,11 +118,11 @@ function HiddenHand({count}:{count:number}){
 
 function SeatZone({
   position,seat,runtime,collection,isViewer,isActive,hasPriority,
-  attackableIds,blockableIds,incomingAttackerIds,selectedAttackerId,selectedBlockerId,
+  attackableIds,blockableIds,incomingAttackerIds,declaredAttackerIds,declaredBlockerIds,selectedAttackerId,selectedBlockerId,
   canTargetNexus,onTargetNexus,onSelectAttacker,onSelectBlocker,onTargetIncomingAttacker,busy,
 }:{
   position:Position;seat:Seat|undefined;runtime:CombatSeat;collection:CollectionCard[];isViewer:boolean;isActive:boolean;hasPriority:boolean;
-  attackableIds:Set<string>;blockableIds:Set<string>;incomingAttackerIds:Set<string>;
+  attackableIds:Set<string>;blockableIds:Set<string>;incomingAttackerIds:Set<string>;declaredAttackerIds:Set<string>;declaredBlockerIds:Set<string>;
   selectedAttackerId:string|null;selectedBlockerId:string|null;
   canTargetNexus:boolean;onTargetNexus?:()=>void;
   onSelectAttacker:(id:string)=>void;onSelectBlocker:(id:string)=>void;onTargetIncomingAttacker:(id:string)=>void;busy:boolean;
@@ -157,6 +173,7 @@ function SeatZone({
             const blockable=isViewer&&blockableIds.has(object.id);
             const incoming=incomingAttackerIds.has(object.id);
             const incomingTarget=Boolean(!isViewer&&incoming&&selectedBlockerId);
+            const motion:CombatMotion=declaredBlockerIds.has(object.id)?"blocking":declaredAttackerIds.has(object.id)?"attacking":null;
             const onClick=attackable
               ? ()=>onSelectAttacker(object.id)
               : blockable
@@ -171,7 +188,9 @@ function SeatZone({
               selected={object.id===selectedAttackerId||object.id===selectedBlockerId}
               targetable={incomingTarget}
               onClick={busy?undefined:onClick}
-              badge={incoming?"ATACANDO VOCÊ":attackable?"ATACANTE":blockable?"BLOQUEADOR":undefined}
+              badge={incoming?"ATACANDO VOCÊ":motion==="blocking"?"INTERCEPTANDO":attackable?"ATACANTE":blockable?"BLOQUEADOR":undefined}
+              position={position}
+              motion={motion}
             />;
           }):<span className="mx-auto text-[9px] uppercase tracking-[.18em] text-slate-700">campo vazio</span>}
         </div>
@@ -196,6 +215,7 @@ function SeatZone({
 }
 
 function AttackOverlay({combat,viewer}:{combat:CombatState;viewer:number}){
+  const blockerByAttacker=new Map(combat.combat.blockers.map(block=>[block.attackerId,block] as const));
   return <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" data-commander-attack-fx="authoritative">
     <defs>
       <linearGradient id="commander-attack-beam" x1="0" y1="0" x2="1" y2="0">
@@ -203,37 +223,65 @@ function AttackOverlay({combat,viewer}:{combat:CombatState;viewer:number}){
         <stop offset="45%" stopColor="rgba(251,113,133,.95)"/>
         <stop offset="100%" stopColor="rgba(244,63,94,.7)"/>
       </linearGradient>
+      <linearGradient id="commander-block-beam" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stopColor="rgba(34,211,238,.2)"/>
+        <stop offset="60%" stopColor="rgba(103,232,249,.95)"/>
+        <stop offset="100%" stopColor="rgba(186,230,253,.75)"/>
+      </linearGradient>
       <filter id="commander-attack-glow" x="-50%" y="-50%" width="200%" height="200%">
         <feGaussianBlur stdDeviation=".8" result="blur"/>
         <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>
       <marker id="commander-arrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill="rgba(251,113,133,.95)"/></marker>
+      <marker id="commander-block-arrow" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto"><path d="M0,0 L5,2.5 L0,5 z" fill="rgba(103,232,249,.95)"/></marker>
     </defs>
     {combat.combat.attackers.map((attack,index)=>{
       const from=anchor[relativePosition(attack.controllerSeat,viewer)];
-      const to=anchor[relativePosition(attack.defendingSeat,viewer)];
-      const midX=(from.x+to.x)/2;
-      const midY=(from.y+to.y)/2;
-      return <g key={attack.unitId+":"+index} data-commander-attack-route={attack.unitId}>
-        <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="rgba(244,63,94,.18)" strokeWidth="2.2" filter="url(#commander-attack-glow)"/>
-        <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke="url(#commander-attack-beam)" strokeWidth=".85" strokeDasharray="3 1.8" markerEnd="url(#commander-arrow)">
+      const defender=anchor[relativePosition(attack.defendingSeat,viewer)];
+      const blocker=blockerByAttacker.get(attack.unitId);
+      const impact=blocker
+        ? {x:from.x+(defender.x-from.x)*.66,y:from.y+(defender.y-from.y)*.66}
+        : defender;
+      const midX=(from.x+impact.x)/2;
+      const midY=(from.y+impact.y)/2;
+      return <g key={attack.unitId+":"+index} data-commander-attack-route={attack.unitId} data-commander-attack-blocked={blocker?true:undefined}>
+        <line x1={from.x} y1={from.y} x2={impact.x} y2={impact.y} stroke="rgba(244,63,94,.18)" strokeWidth="2.2" filter="url(#commander-attack-glow)"/>
+        <line x1={from.x} y1={from.y} x2={impact.x} y2={impact.y} stroke="url(#commander-attack-beam)" strokeWidth=".85" strokeDasharray="3 1.8" markerEnd="url(#commander-arrow)">
           <animate attributeName="stroke-dashoffset" from="9" to="0" dur=".85s" repeatCount="indefinite"/>
         </line>
         <circle cx={from.x} cy={from.y} r="1" fill="rgba(251,191,36,.9)" filter="url(#commander-attack-glow)">
-          <animate attributeName="cx" from={String(from.x)} to={String(to.x)} dur="1.15s" repeatCount="indefinite"/>
-          <animate attributeName="cy" from={String(from.y)} to={String(to.y)} dur="1.15s" repeatCount="indefinite"/>
+          <animate attributeName="cx" from={String(from.x)} to={String(impact.x)} dur="1.15s" repeatCount="indefinite"/>
+          <animate attributeName="cy" from={String(from.y)} to={String(impact.y)} dur="1.15s" repeatCount="indefinite"/>
           <animate attributeName="opacity" values="0;1;1;0" dur="1.15s" repeatCount="indefinite"/>
         </circle>
-        <circle cx={to.x} cy={to.y} r="1.5" fill="rgba(251,113,133,.35)" stroke="rgba(254,202,202,.9)" strokeWidth=".3">
+        {blocker&&<>
+          <line
+            x1={defender.x}
+            y1={defender.y}
+            x2={impact.x}
+            y2={impact.y}
+            stroke="url(#commander-block-beam)"
+            strokeWidth=".75"
+            strokeDasharray="2 1.5"
+            markerEnd="url(#commander-block-arrow)"
+            data-commander-block-route={blocker.unitId}
+          >
+            <animate attributeName="stroke-dashoffset" from="7" to="0" dur=".7s" repeatCount="indefinite"/>
+          </line>
+          <circle cx={impact.x} cy={impact.y} r="2" fill="rgba(8,145,178,.55)" stroke="rgba(207,250,254,.95)" strokeWidth=".45">
+            <animate attributeName="r" values="2;5;2" dur="1s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="1;.2;1" dur="1s" repeatCount="indefinite"/>
+          </circle>
+        </>}
+        {!blocker&&<circle cx={impact.x} cy={impact.y} r="1.5" fill="rgba(251,113,133,.35)" stroke="rgba(254,202,202,.9)" strokeWidth=".3">
           <animate attributeName="r" values="1.5;4.5;1.5" dur="1.15s" repeatCount="indefinite"/>
           <animate attributeName="opacity" values=".9;0;.9" dur="1.15s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx={midX} cy={midY} r="1.8" fill="rgba(2,6,23,.9)" stroke="rgba(251,113,133,.75)" strokeWidth=".35"/>
+        </circle>}
+        <circle cx={midX} cy={midY} r="1.8" fill="rgba(2,6,23,.9)" stroke={blocker?"rgba(103,232,249,.8)":"rgba(251,113,133,.75)"} strokeWidth=".35"/>
       </g>;
     })}
   </svg>;
 }
-
 function StackCore({combat,collection}:{combat:CombatState;collection:CollectionCard[]}){
   const items=[...combat.stack].reverse();
   const visible=items.slice(0,4);
@@ -349,6 +397,8 @@ export default function CommanderBattlefield4P({
             attackableIds={attackableIds}
             blockableIds={blockableIds}
             incomingAttackerIds={incomingAttackerIds}
+            declaredAttackerIds={assignedAttackerIds}
+            declaredBlockerIds={assignedBlockerIds}
             selectedAttackerId={selectedAttackerId}
             selectedBlockerId={selectedBlockerId}
             canTargetNexus={Boolean(selectedAttackerId&&runtime.seat!==viewer&&!runtime.eliminated)}
