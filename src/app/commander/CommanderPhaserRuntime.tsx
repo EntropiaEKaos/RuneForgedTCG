@@ -17,8 +17,17 @@ import {
 
 type CombatProjection = {
   revision:number;
+  prioritySeat:number;
+  reactionWindowOpen:boolean;
   attackers:Array<{unitId:string;controllerSeat:number;defendingSeat:number}>;
   blockers:Array<{unitId:string;controllerSeat:number;attackerId:string}>;
+};
+
+export type CommanderPhaserTargetingFx = {
+  selectedKind:"attacker"|"blocker"|null;
+  selectedId:string|null;
+  targetSeats:number[];
+  targetAttackerSeats:number[];
 };
 
 export type CommanderPhaserStackItem = {
@@ -55,6 +64,7 @@ const FRAME_EVENT="runeforged:commander:combat-frame";
 const RESOLUTION_EVENT="runeforged:commander:resolution-fx";
 const STACK_EVENT="runeforged:commander:stack-fx";
 const PRIORITY_EVENT="runeforged:commander:priority-fx";
+const TARGETING_EVENT="runeforged:commander:targeting-fx";
 
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
@@ -90,11 +100,13 @@ export default function CommanderPhaserRuntime({
   combat,
   resolutionFx,
   stack,
+  targetingFx,
   viewerSeat,
 }:{
   combat:CombatProjection;
   resolutionFx:CommanderPhaserResolutionFx|null;
   stack:CommanderPhaserStackItem[];
+  targetingFx:CommanderPhaserTargetingFx;
   viewerSeat:number;
 }){
   const hostRef=useRef<HTMLDivElement|null>(null);
@@ -108,6 +120,8 @@ export default function CommanderPhaserRuntime({
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
   const stackInitializedRef=useRef(false);
   const lastPriorityRevisionRef=useRef<number|null>(null);
+  const queuedPriorityFxRef=useRef<Array<{prioritySeat:number;reactionWindowOpen:boolean}>>([]);
+  const queuedTargetingFxRef=useRef<CommanderPhaserTargetingFx[]>([]);
 
   const projection=useMemo<AuthoritativeCombatProjection>(()=>({
     revision:combat.revision,
@@ -162,6 +176,9 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(RESOLUTION_EVENT,(fx:CommanderPhaserResolutionFx)=>this.renderResolutionFx(fx));
           this.game.events.on(STACK_EVENT,(fx:CommanderPhaserStackFx)=>this.renderStackFx(fx));
           this.game.events.on(PRIORITY_EVENT,(state:{prioritySeat:number;reactionWindowOpen:boolean})=>this.renderPriorityFx(state));
+          this.game.events.on(TARGETING_EVENT,(state:CommanderPhaserTargetingFx)=>this.renderTargetingFx(state));
+          for(const state of queuedPriorityFxRef.current.splice(0))this.renderPriorityFx(state);
+          for(const state of queuedTargetingFxRef.current.splice(0))this.renderTargetingFx(state);
           for(const frame of queuedFramesRef.current.splice(0))this.renderFrame(frame);
           for(const fx of queuedResolutionFxRef.current.splice(0))this.renderResolutionFx(fx);
           for(const fx of queuedStackFxRef.current.splice(0))this.renderStackFx(fx);
@@ -180,6 +197,22 @@ export default function CommanderPhaserRuntime({
             this.tweens.add({targets:arc,alpha:1,duration:120,yoyo:true,hold:360,onComplete:()=>arc.destroy()});
           }
         }
+
+        private renderTargetingFx(state:CommanderPhaserTargetingFx){
+          if(!state.selectedKind||!state.selectedId)return;
+          const color=state.selectedKind==="attacker"?0x22d3ee:0xa78bfa;
+          for(const seat of state.targetSeats){
+            const point=seatPoint(seat,viewerSeat);
+            const ring=this.add.circle(point.x,point.y,58,color,.025).setStrokeStyle(3,color,.8).setDepth(58);
+            this.tweens.add({targets:ring,scale:1.18,alpha:0,duration:900,ease:"Sine.Out",onComplete:()=>ring.destroy()});
+          }
+          for(const seat of state.targetAttackerSeats){
+            const point=seatPoint(seat,viewerSeat);
+            const ring=this.add.circle(point.x,point.y,42,color,.035).setStrokeStyle(2,color,.72).setDepth(58);
+            this.tweens.add({targets:ring,scale:1.22,alpha:0,duration:800,ease:"Sine.Out",onComplete:()=>ring.destroy()});
+          }
+        }
+
 
         private renderStackFx(fx:CommanderPhaserStackFx){
           const center={x:490,y:450};
@@ -315,6 +348,19 @@ export default function CommanderPhaserRuntime({
       host.replaceChildren();
     };
   },[viewerSeat]);
+
+  useEffect(()=>{
+    if(lastPriorityRevisionRef.current===combat.revision)return;
+    lastPriorityRevisionRef.current=combat.revision;
+    const state={prioritySeat:combat.prioritySeat,reactionWindowOpen:combat.reactionWindowOpen};
+    if(gameRef.current)gameRef.current.events.emit(PRIORITY_EVENT,state);
+    else queuedPriorityFxRef.current.push(state);
+  },[combat.prioritySeat,combat.reactionWindowOpen,combat.revision,viewerSeat]);
+
+  useEffect(()=>{
+    if(gameRef.current)gameRef.current.events.emit(TARGETING_EVENT,targetingFx);
+    else queuedTargetingFxRef.current.push(targetingFx);
+  },[targetingFx,viewerSeat]);
 
   useEffect(()=>{
     const previous=previousProjectionRef.current;
