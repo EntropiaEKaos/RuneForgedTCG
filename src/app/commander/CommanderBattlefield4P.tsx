@@ -68,6 +68,7 @@ type ResolutionFx={
   revision:number;
   nexusDamage:Record<number,number>;
   objectDamage:Record<string,number>;
+  objectSeats:Record<string,number>;
   barrierBroken:string[];
   departures:ResolutionDeparture[];
 };
@@ -79,6 +80,7 @@ function deriveAuthoritativeResolutionFx(previous:CombatState,current:CombatStat
   if(current.revision<=previous.revision)return null;
   const nexusDamage:Record<number,number>={};
   const objectDamage:Record<string,number>={};
+  const objectSeats:Record<string,number>={};
   const barrierBroken:string[]=[];
   const departures:ResolutionDeparture[]=[];
   for(const seat of current.seats){
@@ -94,8 +96,14 @@ function deriveAuthoritativeResolutionFx(previous:CombatState,current:CombatStat
     if(after){
       const beforeHealth=before.object.combat?.health;
       const afterHealth=after.object.combat?.health;
-      if(typeof beforeHealth==="number"&&typeof afterHealth==="number"&&afterHealth<beforeHealth)objectDamage[id]=beforeHealth-afterHealth;
-      if(before.object.combat?.barrier===true&&after.object.combat?.barrier===false)barrierBroken.push(id);
+      if(typeof beforeHealth==="number"&&typeof afterHealth==="number"&&afterHealth<beforeHealth){
+        objectDamage[id]=beforeHealth-afterHealth;
+        objectSeats[id]=after.seat;
+      }
+      if(before.object.combat?.barrier===true&&after.object.combat?.barrier===false){
+        barrierBroken.push(id);
+        objectSeats[id]=after.seat;
+      }
       continue;
     }
     const ownerIndex=Number(String(before.object.ownerSeat).replace(/^p/,""))-1;
@@ -109,7 +117,7 @@ function deriveAuthoritativeResolutionFx(previous:CombatState,current:CombatStat
     }
   }
   return Object.keys(nexusDamage).length||Object.keys(objectDamage).length||barrierBroken.length||departures.length
-    ? {revision:current.revision,nexusDamage,objectDamage,barrierBroken,departures}
+    ? {revision:current.revision,nexusDamage,objectDamage,objectSeats,barrierBroken,departures}
     : null;
 }
 
@@ -490,7 +498,7 @@ export default function CommanderBattlefield4P({
         attackers:combat.combat.attackers,
         blockers:combat.combat.blockers,
       }}
-      resolutionRevision={resolutionFx?.revision??null}
+      resolutionFx={resolutionFx}
       viewerSeat={viewer}
     />
     <ResolutionDepartureFx departures={resolutionFx?.departures||[]}/>

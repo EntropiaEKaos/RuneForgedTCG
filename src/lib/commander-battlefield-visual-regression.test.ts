@@ -8,6 +8,7 @@ const read=(file:string)=>fs.readFileSync(path.join(root,file),"utf8");
 const client=read("src/app/commander/CommanderClient.tsx");
 const battlefield=read("src/app/commander/CommanderBattlefield4P.tsx");
 const phaserRuntime=read("src/app/commander/CommanderPhaserRuntime.tsx");
+const phaserCombatFx=read("src/game/presentation/phaser/BattlefieldCombatFx.ts");
 const packageJson=read("package.json");
 const packageLock=read("package-lock.json");
 
@@ -80,6 +81,19 @@ assert.match(battlefield,/CommanderPhaserRuntime/,"Commander battlefield must mo
 assert.match(phaserRuntime,/void import\("phaser"\)/,"Phaser must load client-side behind the React boundary");
 assert.match(phaserRuntime,/new Phaser\.Game/,"presentation overlay must instantiate a real Phaser.Game runtime");
 assert.match(phaserRuntime,/projectAuthoritativeCombatDelta/,"Phaser runtime must consume the certified authoritative combat adapter");
+assert.match(battlefield,/objectSeats:Record<string,number>/,"authoritative resolution FX must retain the seat of damaged or barrier-broken objects");
+assert.match(battlefield,/resolutionFx=\{resolutionFx\}/,"Commander battlefield must pass only its observed authoritative resolution delta to Phaser");
+assert.match(phaserRuntime,/RESOLUTION_EVENT="runeforged:commander:resolution-fx"/,"Phaser runtime must isolate authoritative resolution events from combat command frames");
+assert.match(phaserRuntime,/lastResolutionRevisionRef/,"Phaser resolution FX must deduplicate already-rendered revisions");
+assert.match(phaserRuntime,/playDamageImpactFx\(this,seatPoint\(Number\(seat\),viewerSeat\),damage,"nexus"\)/,"Nexus damage FX must target the authoritative damaged seat");
+assert.match(phaserRuntime,/playDamageImpactFx\(this,seatFxPoint\(seat,viewerSeat,index\),damage,"object"\)/,"object damage FX must use the authoritative object's seat");
+assert.match(phaserRuntime,/playBarrierBreakFx\(this,seatFxPoint\(seat,viewerSeat,index\)\)/,"Barrier FX must use the authoritative object's seat");
+assert.match(phaserRuntime,/playDepartureFx\(this,seatFxPoint\(departure\.seat,viewerSeat,index\),departure\.destination\)/,"departure FX must use the authoritative projected destination");
+assert.match(phaserCombatFx,/export function playDamageImpactFx/,"shared Phaser FX must expose a damage impact primitive");
+assert.match(phaserCombatFx,/export function playBarrierBreakFx/,"shared Phaser FX must expose a Barrier break primitive");
+assert.match(phaserCombatFx,/export function playDepartureFx/,"shared Phaser FX must expose a departure primitive");
+assert.doesNotMatch(phaserRuntime,/seatLife\(|battlefieldMap\(|deriveAuthoritativeResolutionFx|effectivePower|applyFourPlayerBattlefieldDamage|advanceFourPlayerCombatStep/,"Phaser runtime must render authoritative outcomes without recalculating combat");
+
 assert.match(phaserRuntime,/playCombatLaneFx\(this,start,impact,"attackers"\)/,"attacker lanes must use the certified Phaser combat FX helper");
 assert.match(phaserRuntime,/playCombatLaneFx\(this,start,impact,"blockers"\)/,"blocker lanes must use the certified Phaser combat FX helper");
 assert.doesNotMatch(phaserRuntime,/const trail=this\.add\.line/,"Commander Phaser runtime must not duplicate combat lane rendering outside the shared helper");

@@ -6,12 +6,26 @@ import {
   type AuthoritativeCombatProjection,
 } from "@/game/presentation/phaser/BattlefieldAuthoritativeCombatAdapter";
 import type { BattlefieldCombatPresentationFrame } from "@/game/presentation/phaser/BattlefieldCombatPresentation";
-import { playCombatLaneFx } from "@/game/presentation/phaser/BattlefieldCombatFx";
+import {
+  playBarrierBreakFx,
+  playCombatLaneFx,
+  playDamageImpactFx,
+  playDepartureFx,
+} from "@/game/presentation/phaser/BattlefieldCombatFx";
 
 type CombatProjection = {
   revision:number;
   attackers:Array<{unitId:string;controllerSeat:number;defendingSeat:number}>;
   blockers:Array<{unitId:string;controllerSeat:number;attackerId:string}>;
+};
+
+export type CommanderPhaserResolutionFx = {
+  revision:number;
+  nexusDamage:Record<number,number>;
+  objectDamage:Record<string,number>;
+  objectSeats:Record<string,number>;
+  barrierBroken:string[];
+  departures:Array<{id:string;defId:string;seat:number;destination:"graveyard"|"general_zone"}>;
 };
 
 type PhaserGameHandle = {
@@ -21,6 +35,7 @@ type PhaserGameHandle = {
 };
 
 const FRAME_EVENT="runeforged:commander:combat-frame";
+const RESOLUTION_EVENT="runeforged:commander:resolution-fx";
 
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
@@ -40,19 +55,33 @@ function collisionPoint(from:{x:number;y:number},to:{x:number;y:number}){
   };
 }
 
+function seatFxPoint(seat:number,viewerSeat:number,slot:number){
+  const base=seatPoint(seat,viewerSeat);
+  const offsets=[
+    {x:0,y:-34},
+    {x:30,y:0},
+    {x:-30,y:0},
+    {x:0,y:34},
+  ];
+  const offset=offsets[slot%offsets.length];
+  return {x:base.x+offset.x,y:base.y+offset.y};
+}
+
 export default function CommanderPhaserRuntime({
   combat,
-  resolutionRevision,
+  resolutionFx,
   viewerSeat,
 }:{
   combat:CombatProjection;
-  resolutionRevision:number|null;
+  resolutionFx:CommanderPhaserResolutionFx|null;
   viewerSeat:number;
 }){
   const hostRef=useRef<HTMLDivElement|null>(null);
   const gameRef=useRef<PhaserGameHandle|null>(null);
   const previousProjectionRef=useRef<AuthoritativeCombatProjection|null>(null);
   const queuedFramesRef=useRef<BattlefieldCombatPresentationFrame[]>([]);
+  const queuedResolutionFxRef=useRef<CommanderPhaserResolutionFx[]>([]);
+  const lastResolutionRevisionRef=useRef<number|null>(null);
 
   const projection=useMemo<AuthoritativeCombatProjection>(()=>({
     revision:combat.revision,
@@ -66,11 +95,12 @@ export default function CommanderPhaserRuntime({
       controllerSeat:entry.controllerSeat,
       attackerId:entry.attackerId,
     })),
-    resolution:resolutionRevision===combat.revision?{revision:resolutionRevision}:null,
-  }),[combat,resolutionRevision]);
+    resolution:resolutionFx?.revision===combat.revision?{revision:resolutionFx.revision}:null,
+  }),[combat,resolutionFx]);
 
   useEffect(()=>{
     let disposed=false;
+    lastResolutionRevisionRef.current=null;
     const host=hostRef.current;
     if(!host)return;
 
@@ -100,7 +130,41 @@ export default function CommanderPhaserRuntime({
           }).setOrigin(.5).setAlpha(0);
 
           this.game.events.on(FRAME_EVENT,(frame:BattlefieldCombatPresentationFrame)=>this.renderFrame(frame));
+          this.game.events.on(RESOLUTION_EVENT,(fx:CommanderPhaserResolutionFx)=>this.renderResolutionFx(fx));
           for(const frame of queuedFramesRef.current.splice(0))this.renderFrame(frame);
+          for(const fx of queuedResolutionFxRef.current.splice(0))this.renderResolutionFx(fx);
+        }
+
+        private renderResolutionFx(fx:CommanderPhaserResolutionFx){
+          Object.entries(fx.nexusDamage)
+            .sort(([a],[b])=>Number(a)-Number(b))
+            .forEach(([seat,damage])=>{
+              playDamageImpactFx(this,seatPoint(Number(seat),viewerSeat),damage,"nexus");
+            });
+
+          Object.entries(fx.objectDamage)
+            .sort(([a],[b])=>a.localeCompare(b))
+            .forEach(([id,damage],index)=>{
+              const seat=fx.objectSeats[id];
+              if(typeof seat!=="number")return;
+              playDamageImpactFx(this,seatFxPoint(seat,viewerSeat,index),damage,"object");
+            });
+
+          fx.barrierBroken
+            .slice()
+            .sort()
+            .forEach((id,index)=>{
+              const seat=fx.objectSeats[id];
+              if(typeof seat!=="number")return;
+              playBarrierBreakFx(this,seatFxPoint(seat,viewerSeat,index));
+            });
+
+          fx.departures
+            .slice()
+            .sort((a,b)=>a.id.localeCompare(b.id))
+            .forEach((departure,index)=>{
+              playDepartureFx(this,seatFxPoint(departure.seat,viewerSeat,index),departure.destination);
+            });
         }
 
         private renderFrame(frame:BattlefieldCombatPresentationFrame){
@@ -204,6 +268,13 @@ export default function CommanderPhaserRuntime({
       else queuedFramesRef.current.push(frame);
     }
   },[projection]);
+
+  useEffect(()=>{
+    if(!resolutionFx||lastResolutionRevisionRef.current===resolutionFx.revision)return;
+    lastResolutionRevisionRef.current=resolutionFx.revision;
+    if(gameRef.current)gameRef.current.events.emit(RESOLUTION_EVENT,resolutionFx);
+    else queuedResolutionFxRef.current.push(resolutionFx);
+  },[resolutionFx,viewerSeat]);
 
   return <div
     ref={hostRef}
