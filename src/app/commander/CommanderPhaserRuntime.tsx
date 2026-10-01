@@ -54,6 +54,7 @@ type PhaserGameHandle = {
 const FRAME_EVENT="runeforged:commander:combat-frame";
 const RESOLUTION_EVENT="runeforged:commander:resolution-fx";
 const STACK_EVENT="runeforged:commander:stack-fx";
+const PRIORITY_EVENT="runeforged:commander:priority-fx";
 
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
@@ -106,6 +107,7 @@ export default function CommanderPhaserRuntime({
   const lastStackRevisionRef=useRef<number|null>(null);
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
   const stackInitializedRef=useRef(false);
+  const lastPriorityRevisionRef=useRef<number|null>(null);
 
   const projection=useMemo<AuthoritativeCombatProjection>(()=>({
     revision:combat.revision,
@@ -127,6 +129,7 @@ export default function CommanderPhaserRuntime({
     lastResolutionRevisionRef.current=null;
     lastStackRevisionRef.current=null;
     stackInitializedRef.current=false;
+    lastPriorityRevisionRef.current=null;
     const host=hostRef.current;
     if(!host)return;
 
@@ -158,9 +161,24 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(FRAME_EVENT,(frame:BattlefieldCombatPresentationFrame)=>this.renderFrame(frame));
           this.game.events.on(RESOLUTION_EVENT,(fx:CommanderPhaserResolutionFx)=>this.renderResolutionFx(fx));
           this.game.events.on(STACK_EVENT,(fx:CommanderPhaserStackFx)=>this.renderStackFx(fx));
+          this.game.events.on(PRIORITY_EVENT,(state:{prioritySeat:number;reactionWindowOpen:boolean})=>this.renderPriorityFx(state));
           for(const frame of queuedFramesRef.current.splice(0))this.renderFrame(frame);
           for(const fx of queuedResolutionFxRef.current.splice(0))this.renderResolutionFx(fx);
           for(const fx of queuedStackFxRef.current.splice(0))this.renderStackFx(fx);
+        }
+
+        private renderPriorityFx(state:{prioritySeat:number;reactionWindowOpen:boolean}){
+          const point=seatPoint(state.prioritySeat,viewerSeat);
+          const color=state.reactionWindowOpen?0xa78bfa:0x67e8f9;
+          const ring=this.add.circle(point.x,point.y,34,color,.08).setStrokeStyle(state.reactionWindowOpen?5:3,color,.95).setDepth(60);
+          const halo=this.add.circle(point.x,point.y,48,color,.035).setStrokeStyle(2,color,.45).setDepth(59);
+          this.tweens.add({targets:ring,scale:state.reactionWindowOpen?1.8:1.5,alpha:0,duration:700,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
+          this.tweens.add({targets:halo,scale:state.reactionWindowOpen?2.15:1.8,alpha:0,duration:950,ease:"Sine.easeOut",onComplete:()=>halo.destroy()});
+          if(state.reactionWindowOpen){
+            const center={x:490,y:450};
+            const arc=this.add.line(0,0,point.x,point.y,center.x,center.y,color,.45).setOrigin(0,0).setLineWidth(2).setDepth(58).setAlpha(0);
+            this.tweens.add({targets:arc,alpha:1,duration:120,yoyo:true,hold:360,onComplete:()=>arc.destroy()});
+          }
         }
 
         private renderStackFx(fx:CommanderPhaserStackFx){
