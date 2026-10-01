@@ -115,6 +115,12 @@ assert.match(phaserRuntime,/seatPoint\(route\.defendingSeat,viewerSeat\)/,"attac
 assert.match(phaserRuntime,/frame\.attackRoutes\.find\(entry=>entry\.unitId===route\.attackerId\)/,"blocker FX must bind to the exact authoritative attacker id");
 assert.match(phaserRuntime,/collisionPoint\(attackerStart,defender\)/,"blocker FX must terminate at the authoritative attacker route collision point");
 assert.match(battlefield,/viewerSeat=\{viewer\}/,"Commander battlefield must provide the viewer seat to the presentation-only Phaser overlay");
+assert.match(battlefield,/prioritySeat:combat\.prioritySeat/,"Commander battlefield must project the authoritative priority seat into Phaser");
+assert.match(phaserRuntime,/PRIORITY_EVENT="runeforged:commander:priority-fx"/,"priority FX must use an isolated presentation event");
+assert.match(battlefield,/targetingFx=\{\{/,"Commander battlefield must explicitly project targeting presentation state into Phaser");
+assert.match(phaserRuntime,/TARGETING_EVENT="runeforged:commander:targeting-fx"/,"targeting FX must use an isolated presentation event");
+assert.match(phaserRuntime,/selectedKind:"attacker"\|"blocker"\|null/,"targeting projection must distinguish attacker and blocker presentation");
+assert.doesNotMatch(phaserRuntime,/declare_attacker|declare_blocker|pass_priority|combat-command/,"Phaser targeting and priority FX must not own authoritative Commander commands");
 
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
