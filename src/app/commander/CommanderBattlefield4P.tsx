@@ -499,6 +499,7 @@ export default function CommanderBattlefield4P({
         blockers:combat.combat.blockers,
       }}
       resolutionFx={resolutionFx}
+      stack={combat.stack}
       viewerSeat={viewer}
     />
     <ResolutionDepartureFx departures={resolutionFx?.departures||[]}/>
