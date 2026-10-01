@@ -495,11 +495,23 @@ export default function CommanderBattlefield4P({
     <CommanderPhaserRuntime
       combat={{
         revision:combat.revision,
+        prioritySeat:combat.prioritySeat,
+        reactionWindowOpen:combat.stack.length>0,
         attackers:combat.combat.attackers,
         blockers:combat.combat.blockers,
       }}
       resolutionFx={resolutionFx}
       stack={combat.stack}
+      targetingFx={{
+        selectedKind:selectedAttackerId?"attacker":selectedBlockerId?"blocker":null,
+        selectedId:selectedAttackerId||selectedBlockerId,
+        targetSeats:selectedAttackerId
+          ? combat.seats.filter(seat=>seat.seat!==viewer&&!seat.eliminated).map(seat=>seat.seat)
+          : [],
+        targetAttackerSeats:selectedBlockerId
+          ? Array.from(new Set(incomingAttackers.map(attack=>attack.controllerSeat)))
+          : [],
+      }}
       viewerSeat={viewer}
     />
     <ResolutionDepartureFx departures={resolutionFx?.departures||[]}/>
