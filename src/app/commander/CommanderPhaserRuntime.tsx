@@ -127,7 +127,6 @@ export default function CommanderPhaserRuntime({
     lastResolutionRevisionRef.current=null;
     lastStackRevisionRef.current=null;
     stackInitializedRef.current=false;
-    previousStackRef.current=stack;
     const host=hostRef.current;
     if(!host)return;
 
