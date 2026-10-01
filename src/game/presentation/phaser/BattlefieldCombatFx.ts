@@ -164,3 +164,70 @@ export function playDepartureFx(
     onComplete: () => label.destroy(),
   });
 }
+
+
+export function playStackEntryFx(
+  scene: Phaser.Scene,
+  source: BattlefieldCombatFxPoint,
+  target: BattlefieldCombatFxPoint,
+  speed: string | null,
+  uncounterable: boolean,
+) {
+  const normalized=(speed||"").toLowerCase();
+  const color=normalized==="burst" ? 0xf59e0b : normalized==="fast" ? 0x38bdf8 : 0xa78bfa;
+  const duration=normalized==="burst" ? 380 : normalized==="fast" ? 540 : 660;
+  const line=scene.add.line(0,0,source.x,source.y,target.x,target.y,color,.72)
+    .setOrigin(0,0)
+    .setLineWidth(normalized==="burst" ? 5 : 3)
+    .setDepth(61)
+    .setAlpha(0);
+  const orb=scene.add.circle(source.x,source.y,normalized==="burst" ? 8 : 6,color,.95).setDepth(63);
+  const label=scene.add.text(target.x,target.y-34,normalized ? normalized.toUpperCase() : "STACK",{
+    fontFamily:"system-ui, sans-serif",
+    fontSize:normalized==="burst" ? "15px" : "13px",
+    fontStyle:"bold",
+    color:normalized==="burst" ? "#fde68a" : normalized==="fast" ? "#bae6fd" : "#ddd6fe",
+    stroke:"#020617",
+    strokeThickness:4,
+  }).setOrigin(.5).setDepth(64).setAlpha(0);
+
+  scene.tweens.add({targets:line,alpha:1,duration:110,yoyo:true,hold:Math.max(0,duration-220),onComplete:()=>line.destroy()});
+  scene.tweens.add({
+    targets:orb,
+    x:target.x,
+    y:target.y,
+    scale:normalized==="burst" ? 2.2 : 1.7,
+    alpha:0,
+    duration,
+    ease:"Cubic.easeOut",
+    onComplete:()=>orb.destroy(),
+  });
+  scene.tweens.add({targets:label,alpha:1,duration:120,yoyo:true,hold:420,onComplete:()=>label.destroy()});
+
+  const ring=scene.add.circle(target.x,target.y,12,color,.08).setStrokeStyle(3,color,.9).setDepth(62);
+  scene.tweens.add({targets:ring,scale:2.6,alpha:0,duration:620,ease:"Cubic.easeOut",onComplete:()=>ring.destroy()});
+
+  if(uncounterable){
+    const shield=scene.add.circle(target.x,target.y,19,0xfbbf24,.06).setStrokeStyle(4,0xfbbf24,.95).setDepth(65);
+    const badge=scene.add.text(target.x,target.y+31,"NÃO ANULÁVEL",{
+      fontFamily:"system-ui, sans-serif",
+      fontSize:"10px",
+      fontStyle:"bold",
+      color:"#fef3c7",
+      stroke:"#451a03",
+      strokeThickness:4,
+    }).setOrigin(.5).setDepth(66);
+    scene.tweens.add({targets:shield,scale:1.8,alpha:0,duration:760,ease:"Sine.easeOut",onComplete:()=>shield.destroy()});
+    scene.tweens.add({targets:badge,y:badge.y+14,alpha:0,duration:820,ease:"Sine.easeOut",onComplete:()=>badge.destroy()});
+  }
+}
+
+export function playStackDepartureFx(
+  scene: Phaser.Scene,
+  target: BattlefieldCombatFxPoint,
+) {
+  const ring=scene.add.circle(target.x,target.y,18,0xa78bfa,.08).setStrokeStyle(3,0xc4b5fd,.85).setDepth(61);
+  const core=scene.add.circle(target.x,target.y,6,0xddd6fe,.75).setDepth(62);
+  scene.tweens.add({targets:ring,scale:.2,alpha:0,duration:430,ease:"Cubic.easeIn",onComplete:()=>ring.destroy()});
+  scene.tweens.add({targets:core,scale:2.4,alpha:0,duration:430,ease:"Sine.easeOut",onComplete:()=>core.destroy()});
+}

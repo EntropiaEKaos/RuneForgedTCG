@@ -81,6 +81,17 @@ assert.match(battlefield,/CommanderPhaserRuntime/,"Commander battlefield must mo
 assert.match(phaserRuntime,/void import\("phaser"\)/,"Phaser must load client-side behind the React boundary");
 assert.match(phaserRuntime,/new Phaser\.Game/,"presentation overlay must instantiate a real Phaser.Game runtime");
 assert.match(phaserRuntime,/projectAuthoritativeCombatDelta/,"Phaser runtime must consume the certified authoritative combat adapter");
+assert.match(battlefield,/stack=\{combat\.stack\}/,"Commander battlefield must project the authoritative stack into Phaser");
+assert.match(phaserRuntime,/STACK_EVENT="runeforged:commander:stack-fx"/,"Phaser stack FX must use an isolated presentation event");
+assert.match(phaserRuntime,/lastStackRevisionRef/,"stack FX must deduplicate authoritative revisions");
+assert.match(phaserRuntime,/entered=stack\.filter\(item=>!previousIds\.has\(item\.id\)\)/,"stack entry FX must derive only from authoritative item-id additions");
+assert.match(phaserRuntime,/departed=previous\.filter\(item=>!currentIds\.has\(item\.id\)\)/,"stack departure FX must derive only from authoritative item-id removals");
+assert.match(phaserRuntime,/playStackEntryFx\(this,source,target,item\.speed,item\.uncounterable\)/,"stack entry FX must preserve projected speed and uncounterable state");
+assert.match(phaserRuntime,/playStackDepartureFx\(this,/,"stack departure must use a neutral presentation primitive");
+assert.match(phaserCombatFx,/export function playStackEntryFx/,"shared Phaser FX must expose stack-entry presentation");
+assert.match(phaserCombatFx,/export function playStackDepartureFx/,"shared Phaser FX must expose neutral stack-departure presentation");
+assert.doesNotMatch(phaserRuntime,/COUNTERED|ANULADO|RESOLVED|RESOLVIDO/,"Phaser stack departure must not infer why an item left the authoritative stack");
+
 assert.match(battlefield,/objectSeats:Record<string,number>/,"authoritative resolution FX must retain the seat of damaged or barrier-broken objects");
 assert.match(battlefield,/resolutionFx=\{resolutionFx\}/,"Commander battlefield must pass only its observed authoritative resolution delta to Phaser");
 assert.match(phaserRuntime,/RESOLUTION_EVENT="runeforged:commander:resolution-fx"/,"Phaser runtime must isolate authoritative resolution events from combat command frames");
