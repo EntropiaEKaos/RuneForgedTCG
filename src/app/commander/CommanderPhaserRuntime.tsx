@@ -5,6 +5,7 @@ import {
   projectAuthoritativeCombatDelta,
   type AuthoritativeCombatProjection,
 } from "@/game/presentation/phaser/BattlefieldAuthoritativeCombatAdapter";
+import { playCombatLaneFx } from "@/game/presentation/phaser/BattlefieldCombatFx";
 import type { BattlefieldCombatPresentationFrame } from "@/game/presentation/phaser/BattlefieldCombatPresentation";
 
 type CombatProjection = {
@@ -103,9 +104,6 @@ export default function CommanderPhaserRuntime({
         }
 
         private renderFrame(frame:BattlefieldCombatPresentationFrame){
-          const tone=frame.phase==="blockers"?0x67e8f9:frame.phase==="damage"?0xfb7185:frame.phase==="complete"?0xa78bfa:0xfbbf24;
-          const center={x:490,y:450};
-
           this.headline?.setText(frame.headline).setColor(frame.phase==="blockers"?"#a5f3fc":frame.phase==="damage"?"#fecdd3":frame.phase==="complete"?"#ddd6fe":"#fde68a").setAlpha(1);
           this.detail?.setText(frame.detail).setAlpha(1);
           this.tweens.killTweensOf([this.headline,this.detail]);
@@ -114,53 +112,41 @@ export default function CommanderPhaserRuntime({
           if(frame.phase==="attackers"){
             frame.attackRoutes.slice(0,8).forEach((route)=>{
               const start=seatPoint(route.controllerSeat,viewerSeat);
-              const end=seatPoint(route.defendingSeat,viewerSeat);
-              const impact=collisionPoint(start,end);
-              const orb=this.add.circle(start.x,start.y,7,tone,.95);
-              const trail=this.add.line(0,0,start.x,start.y,impact.x,impact.y,tone,.28).setOrigin(0,0);
-              this.tweens.add({
-                targets:orb,
-                x:impact.x,
-                y:impact.y,
-                alpha:0,
-                scale:1.8,
-                duration:850,
-                ease:"Cubic.easeOut",
-                onComplete:()=>{orb.destroy();trail.destroy();},
-              });
+              const defender=seatPoint(route.defendingSeat,viewerSeat);
+              playCombatLaneFx(this,start,collisionPoint(start,defender),"attackers");
             });
-          }else if(frame.phase==="blockers"){
+            return;
+          }
+
+          if(frame.phase==="blockers"){
             frame.blockRoutes.slice(0,8).forEach((route)=>{
               const attack=frame.attackRoutes.find(entry=>entry.unitId===route.attackerId);
               if(!attack)return;
               const attackerStart=seatPoint(attack.controllerSeat,viewerSeat);
               const defender=seatPoint(attack.defendingSeat,viewerSeat);
-              const impact=collisionPoint(attackerStart,defender);
-              const start=seatPoint(route.controllerSeat,viewerSeat);
-              const orb=this.add.circle(start.x,start.y,6,tone,.9);
-              const trail=this.add.line(0,0,start.x,start.y,impact.x,impact.y,tone,.32).setOrigin(0,0);
-              this.tweens.add({
-                targets:orb,
-                x:impact.x,
-                y:impact.y,
-                alpha:0,
-                scale:1.6,
-                duration:720,
-                ease:"Cubic.easeOut",
-                onComplete:()=>{orb.destroy();trail.destroy();},
-              });
+              const blockerStart=seatPoint(route.controllerSeat,viewerSeat);
+              playCombatLaneFx(this,blockerStart,collisionPoint(attackerStart,defender),"blockers");
             });
-          }else{
-            const ring=this.add.circle(center.x,center.y,28,tone,.08).setStrokeStyle(3,tone,.8);
-            this.tweens.add({
-              targets:ring,
-              scale:frame.phase==="damage"?3.2:2.4,
-              alpha:0,
-              duration:700,
-              ease:"Sine.easeOut",
-              onComplete:()=>ring.destroy(),
-            });
+            return;
           }
+
+          if(frame.phase==="damage"){
+            const routes=frame.attackRoutes.slice(0,8);
+            if(routes.length===0){
+              const center={x:490,y:450};
+              playCombatLaneFx(this,center,center,"damage");
+              return;
+            }
+            routes.forEach((route)=>{
+              const start=seatPoint(route.controllerSeat,viewerSeat);
+              const defender=seatPoint(route.defendingSeat,viewerSeat);
+              playCombatLaneFx(this,start,collisionPoint(start,defender),"damage");
+            });
+            return;
+          }
+
+          const ring=this.add.circle(490,450,28,0xa78bfa,.08).setStrokeStyle(3,0xa78bfa,.8);
+          this.tweens.add({targets:ring,scale:2.4,alpha:0,duration:700,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
         }
       }
 
