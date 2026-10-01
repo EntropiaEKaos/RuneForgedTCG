@@ -13,10 +13,16 @@ import {
   playDepartureFx,
   playStackDepartureFx,
   playStackEntryFx,
+  playPriorityTransferFx,
+  playTurnAnchorFx,
 } from "@/game/presentation/phaser/BattlefieldCombatFx";
 
 type CombatProjection = {
   revision:number;
+  activeSeat:number;
+  prioritySeat:number;
+  phase:string;
+  turn:number;
   attackers:Array<{unitId:string;controllerSeat:number;defendingSeat:number}>;
   blockers:Array<{unitId:string;controllerSeat:number;attackerId:string}>;
 };
@@ -34,6 +40,17 @@ type CommanderPhaserStackFx = {
   revision:number;
   entered:CommanderPhaserStackItem[];
   departed:CommanderPhaserStackItem[];
+};
+
+type CommanderPhaserPriorityFx = {
+  revision:number;
+  fromPrioritySeat:number|null;
+  toPrioritySeat:number;
+  activeSeat:number;
+  turn:number;
+  phase:string;
+  priorityChanged:boolean;
+  turnChanged:boolean;
 };
 
 export type CommanderPhaserResolutionFx = {
@@ -54,6 +71,7 @@ type PhaserGameHandle = {
 const FRAME_EVENT="runeforged:commander:combat-frame";
 const RESOLUTION_EVENT="runeforged:commander:resolution-fx";
 const STACK_EVENT="runeforged:commander:stack-fx";
+const PRIORITY_EVENT="runeforged:commander:priority-fx";
 
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
@@ -102,10 +120,19 @@ export default function CommanderPhaserRuntime({
   const queuedFramesRef=useRef<BattlefieldCombatPresentationFrame[]>([]);
   const queuedResolutionFxRef=useRef<CommanderPhaserResolutionFx[]>([]);
   const queuedStackFxRef=useRef<CommanderPhaserStackFx[]>([]);
+  const queuedPriorityFxRef=useRef<CommanderPhaserPriorityFx[]>([]);
   const lastResolutionRevisionRef=useRef<number|null>(null);
   const lastStackRevisionRef=useRef<number|null>(null);
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
   const stackInitializedRef=useRef(false);
+  const authorityInitializedRef=useRef(false);
+  const previousAuthorityRef=useRef<{
+    revision:number;
+    prioritySeat:number;
+    activeSeat:number;
+    turn:number;
+    phase:string;
+  }|null>(null);
 
   const projection=useMemo<AuthoritativeCombatProjection>(()=>({
     revision:combat.revision,
@@ -127,6 +154,8 @@ export default function CommanderPhaserRuntime({
     lastResolutionRevisionRef.current=null;
     lastStackRevisionRef.current=null;
     stackInitializedRef.current=false;
+    authorityInitializedRef.current=false;
+    previousAuthorityRef.current=null;
     const host=hostRef.current;
     if(!host)return;
 
@@ -158,9 +187,21 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(FRAME_EVENT,(frame:BattlefieldCombatPresentationFrame)=>this.renderFrame(frame));
           this.game.events.on(RESOLUTION_EVENT,(fx:CommanderPhaserResolutionFx)=>this.renderResolutionFx(fx));
           this.game.events.on(STACK_EVENT,(fx:CommanderPhaserStackFx)=>this.renderStackFx(fx));
+          this.game.events.on(PRIORITY_EVENT,(fx:CommanderPhaserPriorityFx)=>this.renderPriorityFx(fx));
           for(const frame of queuedFramesRef.current.splice(0))this.renderFrame(frame);
           for(const fx of queuedResolutionFxRef.current.splice(0))this.renderResolutionFx(fx);
           for(const fx of queuedStackFxRef.current.splice(0))this.renderStackFx(fx);
+          for(const fx of queuedPriorityFxRef.current.splice(0))this.renderPriorityFx(fx);
+        }
+
+        private renderPriorityFx(fx:CommanderPhaserPriorityFx){
+          const target=seatPoint(fx.toPrioritySeat,viewerSeat);
+          if(fx.priorityChanged&&fx.fromPrioritySeat!==null){
+            playPriorityTransferFx(this,seatPoint(fx.fromPrioritySeat,viewerSeat),target);
+          }
+          if(fx.turnChanged){
+            playTurnAnchorFx(this,seatPoint(fx.activeSeat,viewerSeat),fx.turn,fx.phase);
+          }
         }
 
         private renderStackFx(fx:CommanderPhaserStackFx){
@@ -336,6 +377,39 @@ export default function CommanderPhaserRuntime({
     if(gameRef.current)gameRef.current.events.emit(STACK_EVENT,fx);
     else queuedStackFxRef.current.push(fx);
   },[combat.revision,stack,viewerSeat]);
+
+  useEffect(()=>{
+    const current={
+      revision:combat.revision,
+      prioritySeat:combat.prioritySeat,
+      activeSeat:combat.activeSeat,
+      turn:combat.turn,
+      phase:combat.phase,
+    };
+    if(!authorityInitializedRef.current){
+      authorityInitializedRef.current=true;
+      previousAuthorityRef.current=current;
+      return;
+    }
+    const previous=previousAuthorityRef.current;
+    previousAuthorityRef.current=current;
+    if(!previous||previous.revision===current.revision)return;
+    const priorityChanged=previous.prioritySeat!==current.prioritySeat;
+    const turnChanged=previous.turn!==current.turn||previous.activeSeat!==current.activeSeat;
+    if(!priorityChanged&&!turnChanged)return;
+    const fx:CommanderPhaserPriorityFx={
+      revision:current.revision,
+      fromPrioritySeat:priorityChanged?previous.prioritySeat:null,
+      toPrioritySeat:current.prioritySeat,
+      activeSeat:current.activeSeat,
+      turn:current.turn,
+      phase:current.phase,
+      priorityChanged,
+      turnChanged,
+    };
+    if(gameRef.current)gameRef.current.events.emit(PRIORITY_EVENT,fx);
+    else queuedPriorityFxRef.current.push(fx);
+  },[combat.activeSeat,combat.phase,combat.prioritySeat,combat.revision,combat.turn,viewerSeat]);
 
   return <div
     ref={hostRef}

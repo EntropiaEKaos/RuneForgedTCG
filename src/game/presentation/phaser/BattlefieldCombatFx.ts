@@ -231,3 +231,86 @@ export function playStackDepartureFx(
   scene.tweens.add({targets:ring,scale:.2,alpha:0,duration:430,ease:"Cubic.easeIn",onComplete:()=>ring.destroy()});
   scene.tweens.add({targets:core,scale:2.4,alpha:0,duration:430,ease:"Sine.easeOut",onComplete:()=>core.destroy()});
 }
+
+
+export function playPriorityTransferFx(
+  scene: Phaser.Scene,
+  source: BattlefieldCombatFxPoint,
+  target: BattlefieldCombatFxPoint,
+) {
+  const color=0x22d3ee;
+  const line=scene.add.line(0,0,source.x,source.y,target.x,target.y,color,.46)
+    .setOrigin(0,0)
+    .setLineWidth(3)
+    .setDepth(67)
+    .setAlpha(0);
+  const orb=scene.add.circle(source.x,source.y,6,color,.95).setDepth(69);
+  const targetRing=scene.add.circle(target.x,target.y,15,color,.08).setStrokeStyle(3,color,.95).setDepth(68);
+  const label=scene.add.text(target.x,target.y-30,"PRIORIDADE",{
+    fontFamily:"system-ui, sans-serif",
+    fontSize:"11px",
+    fontStyle:"bold",
+    color:"#cffafe",
+    stroke:"#083344",
+    strokeThickness:4,
+  }).setOrigin(.5).setDepth(70).setAlpha(0);
+
+  scene.tweens.add({targets:line,alpha:1,duration:90,yoyo:true,hold:360,onComplete:()=>line.destroy()});
+  scene.tweens.add({
+    targets:orb,
+    x:target.x,
+    y:target.y,
+    scale:1.9,
+    alpha:0,
+    duration:520,
+    ease:"Cubic.easeOut",
+    onComplete:()=>orb.destroy(),
+  });
+  scene.tweens.add({targets:targetRing,scale:2.4,alpha:0,duration:620,ease:"Sine.easeOut",onComplete:()=>targetRing.destroy()});
+  scene.tweens.add({targets:label,alpha:1,duration:110,yoyo:true,hold:430,onComplete:()=>label.destroy()});
+}
+
+export function playTurnAnchorFx(
+  scene: Phaser.Scene,
+  target: BattlefieldCombatFxPoint,
+  turn: number,
+  phase: string,
+) {
+  const color=0xfbbf24;
+  const outer=scene.add.circle(target.x,target.y,24,color,.06).setStrokeStyle(4,color,.95).setDepth(66);
+  const inner=scene.add.circle(target.x,target.y,12,0xfde68a,.08).setStrokeStyle(2,0xfde68a,.8).setDepth(67);
+  const title=scene.add.text(target.x,target.y-40,`TURNO ${turn}`,{
+    fontFamily:"system-ui, sans-serif",
+    fontSize:"15px",
+    fontStyle:"bold",
+    color:"#fef3c7",
+    stroke:"#451a03",
+    strokeThickness:5,
+  }).setOrigin(.5).setDepth(69);
+  const detail=scene.add.text(target.x,target.y-22,String(phase||"").toUpperCase(),{
+    fontFamily:"system-ui, sans-serif",
+    fontSize:"9px",
+    fontStyle:"bold",
+    color:"#fde68a",
+    stroke:"#451a03",
+    strokeThickness:4,
+  }).setOrigin(.5).setDepth(69);
+
+  scene.tweens.add({
+    targets:[outer,inner],
+    scale:2.6,
+    alpha:0,
+    duration:760,
+    ease:"Cubic.easeOut",
+    onComplete:()=>{outer.destroy();inner.destroy();},
+  });
+  scene.tweens.add({
+    targets:[title,detail],
+    y:"-=14",
+    alpha:0,
+    delay:350,
+    duration:520,
+    ease:"Sine.easeOut",
+    onComplete:()=>{title.destroy();detail.destroy();},
+  });
+}

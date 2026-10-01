@@ -495,6 +495,10 @@ export default function CommanderBattlefield4P({
     <CommanderPhaserRuntime
       combat={{
         revision:combat.revision,
+        activeSeat:combat.activeSeat,
+        prioritySeat:combat.prioritySeat,
+        phase:combat.phase,
+        turn:combat.turn,
         attackers:combat.combat.attackers,
         blockers:combat.combat.blockers,
       }}
