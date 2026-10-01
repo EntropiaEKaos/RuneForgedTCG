@@ -1,22 +1,33 @@
 export type BattlefieldCombatFxPoint = { x: number; y: number };
 
-type CombatFxDisplayObject = {
-  setOrigin(x: number, y: number): CombatFxDisplayObject;
-  setLineWidth(width: number): CombatFxDisplayObject;
-  setDepth(depth: number): CombatFxDisplayObject;
-  setAlpha(alpha: number): CombatFxDisplayObject;
-  setStrokeStyle(width: number, color: number, alpha?: number): CombatFxDisplayObject;
+type CombatFxObject = {
+  setDepth(depth: number): CombatFxObject;
+  setAlpha(alpha: number): CombatFxObject;
   destroy(): void;
 };
 
+type CombatFxLine = CombatFxObject & {
+  setOrigin(x: number, y: number): CombatFxLine;
+  setLineWidth(width: number): CombatFxLine;
+  setDepth(depth: number): CombatFxLine;
+  setAlpha(alpha: number): CombatFxLine;
+};
+
+type CombatFxCircle = CombatFxObject & {
+  setStrokeStyle(width: number, color: number, alpha?: number): CombatFxCircle;
+  setDepth(depth: number): CombatFxCircle;
+};
+
+type CombatFxTweenTarget = CombatFxLine | CombatFxCircle;
+
 type CombatFxScene = {
   add: {
-    line(x: number, y: number, x1: number, y1: number, x2: number, y2: number, color: number, alpha?: number): CombatFxDisplayObject;
-    circle(x: number, y: number, radius: number, color: number, alpha?: number): CombatFxDisplayObject;
+    line(x: number, y: number, x1: number, y1: number, x2: number, y2: number, color: number, alpha?: number): CombatFxLine;
+    circle(x: number, y: number, radius: number, color: number, alpha?: number): CombatFxCircle;
   };
   tweens: {
     add(config: {
-      targets: CombatFxDisplayObject | CombatFxDisplayObject[];
+      targets: CombatFxTweenTarget | CombatFxTweenTarget[];
       alpha?: number;
       scale?: number;
       duration: number;
