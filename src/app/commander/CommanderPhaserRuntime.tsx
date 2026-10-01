@@ -11,12 +11,29 @@ import {
   playCombatLaneFx,
   playDamageImpactFx,
   playDepartureFx,
+  playStackDepartureFx,
+  playStackEntryFx,
 } from "@/game/presentation/phaser/BattlefieldCombatFx";
 
 type CombatProjection = {
   revision:number;
   attackers:Array<{unitId:string;controllerSeat:number;defendingSeat:number}>;
   blockers:Array<{unitId:string;controllerSeat:number;attackerId:string}>;
+};
+
+export type CommanderPhaserStackItem = {
+  id:string;
+  controllerSeat:number;
+  defId:string|null;
+  speed:string|null;
+  actionKind:string|null;
+  uncounterable:boolean;
+};
+
+type CommanderPhaserStackFx = {
+  revision:number;
+  entered:CommanderPhaserStackItem[];
+  departed:CommanderPhaserStackItem[];
 };
 
 export type CommanderPhaserResolutionFx = {
@@ -36,6 +53,7 @@ type PhaserGameHandle = {
 
 const FRAME_EVENT="runeforged:commander:combat-frame";
 const RESOLUTION_EVENT="runeforged:commander:resolution-fx";
+const STACK_EVENT="runeforged:commander:stack-fx";
 
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
@@ -70,10 +88,12 @@ function seatFxPoint(seat:number,viewerSeat:number,slot:number){
 export default function CommanderPhaserRuntime({
   combat,
   resolutionFx,
+  stack,
   viewerSeat,
 }:{
   combat:CombatProjection;
   resolutionFx:CommanderPhaserResolutionFx|null;
+  stack:CommanderPhaserStackItem[];
   viewerSeat:number;
 }){
   const hostRef=useRef<HTMLDivElement|null>(null);
@@ -81,7 +101,11 @@ export default function CommanderPhaserRuntime({
   const previousProjectionRef=useRef<AuthoritativeCombatProjection|null>(null);
   const queuedFramesRef=useRef<BattlefieldCombatPresentationFrame[]>([]);
   const queuedResolutionFxRef=useRef<CommanderPhaserResolutionFx[]>([]);
+  const queuedStackFxRef=useRef<CommanderPhaserStackFx[]>([]);
   const lastResolutionRevisionRef=useRef<number|null>(null);
+  const lastStackRevisionRef=useRef<number|null>(null);
+  const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
+  const stackInitializedRef=useRef(false);
 
   const projection=useMemo<AuthoritativeCombatProjection>(()=>({
     revision:combat.revision,
@@ -101,6 +125,9 @@ export default function CommanderPhaserRuntime({
   useEffect(()=>{
     let disposed=false;
     lastResolutionRevisionRef.current=null;
+    lastStackRevisionRef.current=null;
+    stackInitializedRef.current=false;
+    previousStackRef.current=stack;
     const host=hostRef.current;
     if(!host)return;
 
@@ -131,8 +158,22 @@ export default function CommanderPhaserRuntime({
 
           this.game.events.on(FRAME_EVENT,(frame:BattlefieldCombatPresentationFrame)=>this.renderFrame(frame));
           this.game.events.on(RESOLUTION_EVENT,(fx:CommanderPhaserResolutionFx)=>this.renderResolutionFx(fx));
+          this.game.events.on(STACK_EVENT,(fx:CommanderPhaserStackFx)=>this.renderStackFx(fx));
           for(const frame of queuedFramesRef.current.splice(0))this.renderFrame(frame);
           for(const fx of queuedResolutionFxRef.current.splice(0))this.renderResolutionFx(fx);
+          for(const fx of queuedStackFxRef.current.splice(0))this.renderStackFx(fx);
+        }
+
+        private renderStackFx(fx:CommanderPhaserStackFx){
+          const center={x:490,y:450};
+          fx.entered.forEach((item,index)=>{
+            const source=seatPoint(item.controllerSeat,viewerSeat);
+            const target={x:center.x+(index%2===0?-12:12),y:center.y+(index%3-1)*10};
+            playStackEntryFx(this,source,target,item.speed,item.uncounterable);
+          });
+          fx.departed.forEach((_,index)=>{
+            playStackDepartureFx(this,{x:center.x+(index%2===0?-10:10),y:center.y+(index%3-1)*8});
+          });
         }
 
         private renderResolutionFx(fx:CommanderPhaserResolutionFx){
@@ -275,6 +316,27 @@ export default function CommanderPhaserRuntime({
     if(gameRef.current)gameRef.current.events.emit(RESOLUTION_EVENT,resolutionFx);
     else queuedResolutionFxRef.current.push(resolutionFx);
   },[resolutionFx,viewerSeat]);
+
+  useEffect(()=>{
+    if(!stackInitializedRef.current){
+      stackInitializedRef.current=true;
+      previousStackRef.current=stack;
+      lastStackRevisionRef.current=combat.revision;
+      return;
+    }
+    if(lastStackRevisionRef.current===combat.revision)return;
+    const previous=previousStackRef.current;
+    const currentIds=new Set(stack.map(item=>item.id));
+    const previousIds=new Set(previous.map(item=>item.id));
+    const entered=stack.filter(item=>!previousIds.has(item.id));
+    const departed=previous.filter(item=>!currentIds.has(item.id));
+    previousStackRef.current=stack;
+    lastStackRevisionRef.current=combat.revision;
+    if(!entered.length&&!departed.length)return;
+    const fx:CommanderPhaserStackFx={revision:combat.revision,entered,departed};
+    if(gameRef.current)gameRef.current.events.emit(STACK_EVENT,fx);
+    else queuedStackFxRef.current.push(fx);
+  },[combat.revision,stack,viewerSeat]);
 
   return <div
     ref={hostRef}
