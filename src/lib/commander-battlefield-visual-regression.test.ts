@@ -81,6 +81,19 @@ assert.match(battlefield,/CommanderPhaserRuntime/,"Commander battlefield must mo
 assert.match(phaserRuntime,/void import\("phaser"\)/,"Phaser must load client-side behind the React boundary");
 assert.match(phaserRuntime,/new Phaser\.Game/,"presentation overlay must instantiate a real Phaser.Game runtime");
 assert.match(phaserRuntime,/projectAuthoritativeCombatDelta/,"Phaser runtime must consume the certified authoritative combat adapter");
+assert.match(battlefield,/activeSeat:combat\.activeSeat/,"Commander battlefield must project the authoritative active seat into Phaser");
+assert.match(battlefield,/prioritySeat:combat\.prioritySeat/,"Commander battlefield must project the authoritative priority seat into Phaser");
+assert.match(battlefield,/phase:combat\.phase/,"Commander battlefield must project the authoritative phase into Phaser");
+assert.match(battlefield,/turn:combat\.turn/,"Commander battlefield must project the authoritative turn into Phaser");
+assert.match(phaserRuntime,/PRIORITY_EVENT="runeforged:commander:priority-fx"/,"Phaser priority FX must use an isolated presentation event");
+assert.match(phaserRuntime,/previous\.prioritySeat!==current\.prioritySeat/,"priority FX must derive only from observed authoritative priority-seat changes");
+assert.match(phaserRuntime,/previous\.turn!==current\.turn\|\|previous\.activeSeat!==current\.activeSeat/,"turn FX must derive only from observed authoritative turn changes");
+assert.match(phaserRuntime,/playPriorityTransferFx\(this,seatPoint\(fx\.fromPrioritySeat,viewerSeat\),target\)/,"priority transfer must animate between authoritative seats");
+assert.match(phaserRuntime,/playTurnAnchorFx\(this,seatPoint\(fx\.activeSeat,viewerSeat\),fx\.turn,fx\.phase\)/,"turn anchor must target the authoritative active seat");
+assert.match(phaserCombatFx,/export function playPriorityTransferFx/,"shared Phaser FX must expose priority transfer presentation");
+assert.match(phaserCombatFx,/export function playTurnAnchorFx/,"shared Phaser FX must expose turn-anchor presentation");
+assert.doesNotMatch(phaserRuntime,/setTimeout\(|setInterval\(|combatCommand|passPriority|endTurn/,"Phaser priority presentation must not own timers or gameplay commands");
+
 assert.match(battlefield,/stack=\{combat\.stack\}/,"Commander battlefield must project the authoritative stack into Phaser");
 assert.match(phaserRuntime,/STACK_EVENT="runeforged:commander:stack-fx"/,"Phaser stack FX must use an isolated presentation event");
 assert.match(phaserRuntime,/lastStackRevisionRef/,"stack FX must deduplicate authoritative revisions");
