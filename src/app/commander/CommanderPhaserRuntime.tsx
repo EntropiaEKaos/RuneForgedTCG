@@ -53,7 +53,8 @@ type PhaserGameHandle = {
 
 const FRAME_EVENT="runeforged:commander:combat-frame";
 const RESOLUTION_EVENT="runeforged:commander:resolution-fx";
-const STACK_EVENT="runeforged:commander:stack-fx";\nconst PRIORITY_EVENT="runeforged:commander:priority-fx";
+const STACK_EVENT="runeforged:commander:stack-fx";
+const PRIORITY_EVENT="runeforged:commander:priority-fx";
 
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
@@ -105,7 +106,8 @@ export default function CommanderPhaserRuntime({
   const lastResolutionRevisionRef=useRef<number|null>(null);
   const lastStackRevisionRef=useRef<number|null>(null);
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
-  const stackInitializedRef=useRef(false);\n  const lastPriorityRevisionRef=useRef<number|null>(null);
+  const stackInitializedRef=useRef(false);
+  const lastPriorityRevisionRef=useRef<number|null>(null);
 
   const projection=useMemo<AuthoritativeCombatProjection>(()=>({
     revision:combat.revision,
@@ -126,7 +128,8 @@ export default function CommanderPhaserRuntime({
     let disposed=false;
     lastResolutionRevisionRef.current=null;
     lastStackRevisionRef.current=null;
-    stackInitializedRef.current=false;\n    lastPriorityRevisionRef.current=null;
+    stackInitializedRef.current=false;
+    lastPriorityRevisionRef.current=null;
     const host=hostRef.current;
     if(!host)return;
 
@@ -157,7 +160,8 @@ export default function CommanderPhaserRuntime({
 
           this.game.events.on(FRAME_EVENT,(frame:BattlefieldCombatPresentationFrame)=>this.renderFrame(frame));
           this.game.events.on(RESOLUTION_EVENT,(fx:CommanderPhaserResolutionFx)=>this.renderResolutionFx(fx));
-          this.game.events.on(STACK_EVENT,(fx:CommanderPhaserStackFx)=>this.renderStackFx(fx));\n          this.game.events.on(PRIORITY_EVENT,(state:{prioritySeat:number;reactionWindowOpen:boolean})=>this.renderPriorityFx(state));
+          this.game.events.on(STACK_EVENT,(fx:CommanderPhaserStackFx)=>this.renderStackFx(fx));
+          this.game.events.on(PRIORITY_EVENT,(state:{prioritySeat:number;reactionWindowOpen:boolean})=>this.renderPriorityFx(state));
           for(const frame of queuedFramesRef.current.splice(0))this.renderFrame(frame);
           for(const fx of queuedResolutionFxRef.current.splice(0))this.renderResolutionFx(fx);
           for(const fx of queuedStackFxRef.current.splice(0))this.renderStackFx(fx);
