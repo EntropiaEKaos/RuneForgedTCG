@@ -149,4 +149,15 @@ assert.match(phaserRuntime,/React battlefield remains active/,"Phaser runtime fa
 assert.doesNotMatch(battlefield,/fetch\(/,"cinematic battlefield must remain a pure projection layer with no network authority");
 assert.doesNotMatch(battlefield,/combatCommand|mutate\(/,"cinematic battlefield must not create a second command authority");
 
+const commanderClient=read("src/app/commander/CommanderClient.tsx");
+assert.match(commanderClient,/fetch\(\`\/api\/commander\/\$\{code\}\`,\{cache:"no-store",credentials:"include"\}\)/,"Commander recovery must reload the authoritative room snapshot with a no-store GET");
+assert.match(commanderClient,/commanderSnapshotMayReplace\(currentRevision,incomingRevision\)/,"Commander recovery must reject stale authoritative snapshots");
+assert.match(commanderClient,/clearPendingCombatIntent\(\);[\s\S]*await loadRoom\(code\)/,"Commander resync must clear transient local targeting before restoring the authoritative snapshot");
+assert.match(commanderClient,/commanderResumeNeedsResync\("network_reconnect",navigator\.onLine\)/,"Commander must resync after network reconnect");
+assert.match(commanderClient,/commanderResumeNeedsResync\("window_focus",navigator\.onLine\)/,"Commander must resync after window focus recovery");
+assert.match(commanderClient,/commanderResumeNeedsResync\("visibility_resume",navigator\.onLine\)/,"Commander must resync after visible-tab recovery");
+const resyncBody=commanderClient.slice(commanderClient.indexOf("const resyncRoom="),commanderClient.indexOf("useEffect(()=>{const id=window.setTimeout",commanderClient.indexOf("const resyncRoom=")));
+assert.doesNotMatch(resyncBody,/combatCommand|method:"POST"|commandId|combat-command/,"Commander resync must never replay a gameplay command");
+assert.match(commanderClient,/<CommanderBattlefield4P[\s\S]*combat=\{combat\}/,"Recovered authoritative combat snapshot must feed the Commander battlefield");
+
 console.log("COMMANDER 4P CINEMATIC BATTLEFIELD SOURCE CONTRACT: PASS — relative four-seat table, certified CardView surfaces, hidden-hand projection, stack core and attack routes");
