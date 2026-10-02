@@ -23,6 +23,8 @@ type CombatProjection = {
   blockers:Array<{unitId:string;controllerSeat:number;attackerId:string}>;
 };
 
+export type CommanderPhaserHandCard = {instanceId:string;defId:string;name:string;artUrl:string|null};
+
 export type CommanderPhaserPermanentSnapshot = {
   revision:number;
   seats:Array<{
@@ -83,6 +85,7 @@ const STACK_EVENT="runeforged:commander:stack-fx";
 const PRIORITY_EVENT="runeforged:commander:priority-fx";
 const TARGETING_EVENT="runeforged:commander:targeting-fx";
 const PERMANENTS_EVENT="runeforged:commander:permanents";
+const HAND_EVENT="runeforged:commander:hand";
 
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
@@ -120,6 +123,7 @@ export default function CommanderPhaserRuntime({
   stack,
   targetingFx,
   permanents,
+  hand,
   viewerSeat,
 }:{
   combat:CombatProjection;
@@ -127,6 +131,7 @@ export default function CommanderPhaserRuntime({
   stack:CommanderPhaserStackItem[];
   targetingFx:CommanderPhaserTargetingFx;
   permanents:CommanderPhaserPermanentSnapshot;
+  hand:CommanderPhaserHandCard[];
   viewerSeat:number;
 }){
   const hostRef=useRef<HTMLDivElement|null>(null);
@@ -143,6 +148,7 @@ export default function CommanderPhaserRuntime({
   const queuedPriorityFxRef=useRef<Array<{prioritySeat:number;reactionWindowOpen:boolean}>>([]);
   const queuedTargetingFxRef=useRef<CommanderPhaserTargetingFx[]>([]);
   const queuedPermanentsRef=useRef<CommanderPhaserPermanentSnapshot[]>([]);
+  const queuedHandRef=useRef<CommanderPhaserHandCard[][]>([]);
 
   const projection=useMemo<AuthoritativeCombatProjection>(()=>({
     revision:combat.revision,
@@ -199,9 +205,11 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(PRIORITY_EVENT,(state:{prioritySeat:number;reactionWindowOpen:boolean})=>this.renderPriorityFx(state));
           this.game.events.on(TARGETING_EVENT,(state:CommanderPhaserTargetingFx)=>this.renderTargetingFx(state));
           this.game.events.on(PERMANENTS_EVENT,(state:CommanderPhaserPermanentSnapshot)=>this.renderPermanents(state));
+          this.game.events.on(HAND_EVENT,(cards:CommanderPhaserHandCard[])=>this.renderHand(cards));
           for(const state of queuedPriorityFxRef.current.splice(0))this.renderPriorityFx(state);
           for(const state of queuedTargetingFxRef.current.splice(0))this.renderTargetingFx(state);
           for(const state of queuedPermanentsRef.current.splice(0))this.renderPermanents(state);
+          for(const cards of queuedHandRef.current.splice(0))this.renderHand(cards);
           for(const frame of queuedFramesRef.current.splice(0))this.renderFrame(frame);
           for(const fx of queuedResolutionFxRef.current.splice(0))this.renderResolutionFx(fx);
           for(const fx of queuedStackFxRef.current.splice(0))this.renderStackFx(fx);
@@ -219,6 +227,28 @@ export default function CommanderPhaserRuntime({
             const arc=this.add.line(0,0,point.x,point.y,center.x,center.y,color,.45).setOrigin(0,0).setLineWidth(2).setDepth(58).setAlpha(0);
             this.tweens.add({targets:arc,alpha:1,duration:120,yoyo:true,hold:360,onComplete:()=>arc.destroy()});
           }
+        }
+
+        private renderHand(cards:CommanderPhaserHandCard[]){
+          this.children.getAll().filter(child=>child.name.startsWith("hand:")).forEach(child=>child.destroy());
+          const visible=cards.slice(-10);
+          const startX=490-((visible.length-1)*34)/2;
+          visible.forEach((card,index)=>{
+            const x=startX+index*34;
+            const y=835-Math.abs(index-(visible.length-1)/2)*2;
+            const frame=this.add.rectangle(x,y,32,44,0x0f172a,.92).setStrokeStyle(1,0x94a3b8,.55).setDepth(72).setName(`hand:card:${card.instanceId}`);
+            if(card.artUrl){
+              const textureKey=`card-art:${card.defId}`;
+              if(!this.textures.exists(textureKey)){
+                this.load.image(textureKey,card.artUrl);
+                this.load.once(`filecomplete-image-${textureKey}`,()=>{
+                  if(frame.active)this.add.image(x,y-2,textureKey).setDisplaySize(28,34).setDepth(72.1).setName(`hand:art:${card.instanceId}`);
+                });
+                this.load.start();
+              }else this.add.image(x,y-2,textureKey).setDisplaySize(28,34).setDepth(72.1).setName(`hand:art:${card.instanceId}`);
+            }
+            this.add.text(x,y+17,card.name.length>10?card.name.slice(0,9)+"…":card.name,{fontFamily:"system-ui, sans-serif",fontSize:"5px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(73).setName(`hand:name:${card.instanceId}`);
+          });
         }
 
         private renderPermanents(state:CommanderPhaserPermanentSnapshot){
@@ -426,6 +456,11 @@ export default function CommanderPhaserRuntime({
     if(gameRef.current)gameRef.current.events.emit(PRIORITY_EVENT,state);
     else queuedPriorityFxRef.current.push(state);
   },[combat.prioritySeat,combat.reactionWindowOpen,combat.revision,viewerSeat]);
+
+  useEffect(()=>{
+    if(gameRef.current)gameRef.current.events.emit(HAND_EVENT,hand);
+    else queuedHandRef.current.push(hand);
+  },[hand,viewerSeat]);
 
   useEffect(()=>{
     if(gameRef.current)gameRef.current.events.emit(PERMANENTS_EVENT,permanents);

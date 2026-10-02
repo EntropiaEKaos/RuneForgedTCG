@@ -510,6 +510,11 @@ export default function CommanderBattlefield4P({
       }}
       resolutionFx={resolutionFx}
       stack={combat.stack}
+      hand={(combat.seats.find(seat=>seat.seat===viewer)?.hand||[]).map(card=>({
+        instanceId:card.instanceId,
+        defId:card.defId,
+        ...phaserCardIdentity(card.defId),
+      }))}
       permanents={{
         revision:combat.revision,
         seats:combat.seats.map(seat=>({
