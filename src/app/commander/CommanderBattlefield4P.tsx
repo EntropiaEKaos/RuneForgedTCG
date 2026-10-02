@@ -506,6 +506,10 @@ export default function CommanderBattlefield4P({
       combat={{
         revision:combat.revision,
         prioritySeat:combat.prioritySeat,
+        activeSeat:combat.activeSeat,
+        turn:combat.turn,
+        round:combat.round,
+        phase:combat.phase,
         reactionWindowOpen:combat.stack.length>0,
         attackers:combat.combat.attackers,
         blockers:combat.combat.blockers,
