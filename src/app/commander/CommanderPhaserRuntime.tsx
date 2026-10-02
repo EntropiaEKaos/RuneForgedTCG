@@ -62,6 +62,7 @@ type CommanderPhaserStackFx = {
   revision:number;
   entered:CommanderPhaserStackItem[];
   departed:CommanderPhaserStackItem[];
+  viewerHandDepartures:Record<string,CommanderPhaserHandCard>;
 };
 
 export type CommanderPhaserResolutionFx = {
@@ -143,6 +144,7 @@ export default function CommanderPhaserRuntime({
   const lastResolutionRevisionRef=useRef<number|null>(null);
   const lastStackRevisionRef=useRef<number|null>(null);
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
+  const previousHandRef=useRef<CommanderPhaserHandCard[]>(hand);
   const stackInitializedRef=useRef(false);
   const lastPriorityRevisionRef=useRef<number|null>(null);
   const queuedPriorityFxRef=useRef<Array<{prioritySeat:number;reactionWindowOpen:boolean}>>([]);
@@ -317,9 +319,17 @@ export default function CommanderPhaserRuntime({
         private renderStackFx(fx:CommanderPhaserStackFx){
           const center={x:490,y:450};
           fx.entered.forEach((item,index)=>{
-            const source=seatPoint(item.controllerSeat,viewerSeat);
+            const handCard=fx.viewerHandDepartures[item.id];
+            const source=handCard?{x:490,y:830}:seatPoint(item.controllerSeat,viewerSeat);
             const target={x:center.x+(index%2===0?-12:12),y:center.y+(index%3-1)*10};
             playStackEntryFx(this,source,target,item.speed,item.uncounterable);
+            if(handCard){
+              const textureKey=`card-art:${handCard.defId}`;
+              if(this.textures.exists(textureKey)){
+                const card=this.add.image(source.x,source.y,textureKey).setDisplaySize(36,50).setDepth(86).setName(`stack:hand-departure:${handCard.instanceId}`);
+                this.tweens.add({targets:card,x:target.x,y:target.y,scaleX:1.3,scaleY:1.3,alpha:0,duration:520,ease:"Cubic.Out",onComplete:()=>card.destroy()});
+              }
+            }
           });
           fx.departed.forEach((_,index)=>{
             playStackDepartureFx(this,{x:center.x+(index%2===0?-10:10),y:center.y+(index%3-1)*8});
@@ -506,10 +516,26 @@ export default function CommanderPhaserRuntime({
     previousStackRef.current=stack;
     lastStackRevisionRef.current=combat.revision;
     if(!entered.length&&!departed.length)return;
-    const fx:CommanderPhaserStackFx={revision:combat.revision,entered,departed};
+    const previousHand=previousHandRef.current;
+    const currentHandIds=new Set(hand.map(card=>card.instanceId));
+    const handDepartures=previousHand.filter(card=>!currentHandIds.has(card.instanceId));
+    const availableDepartures=[...handDepartures];
+    const viewerHandDepartures:Record<string,CommanderPhaserHandCard>={};
+    for(const item of entered){
+      if(item.controllerSeat!==viewerSeat||!item.defId)continue;
+      const index=availableDepartures.findIndex(card=>card.defId===item.defId);
+      if(index<0)continue;
+      viewerHandDepartures[item.id]=availableDepartures.splice(index,1)[0];
+    }
+    previousHandRef.current=hand;
+    const fx:CommanderPhaserStackFx={revision:combat.revision,entered,departed,viewerHandDepartures};
     if(gameRef.current)gameRef.current.events.emit(STACK_EVENT,fx);
     else queuedStackFxRef.current.push(fx);
-  },[combat.revision,stack,viewerSeat]);
+  },[combat.revision,stack,hand,viewerSeat]);
+
+  useEffect(()=>{
+    previousHandRef.current=hand;
+  },[hand]);
 
   return <div
     ref={hostRef}
