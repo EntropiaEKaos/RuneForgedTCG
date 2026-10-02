@@ -1116,20 +1116,19 @@ async function main(){
     await navigate(recoveryBrowser.cdp,"/commander");
     await waitForText(recoveryBrowser.cdp,"Commander 4P Alpha",20_000);
     const recoveryRoomLabel=JSON.stringify(`Sala ${roomCode}`);
-    await waitUntil(()=>evaluate(recoveryBrowser.cdp,`(()=>{
-      const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
-      const article=[...document.querySelectorAll('article')].find((node)=>normalize(node.textContent).includes(${recoveryRoomLabel}));
-      const button=article?.querySelector('button');
-      return Boolean(button&&!button.disabled&&['Abrir','Entrar'].includes(normalize(button.textContent)));
-    })()`),`${recoveryBrowser.label} recovered Commander room card`,20_000);
-    await evaluate(recoveryBrowser.cdp,`(()=>{
-      const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
-      const article=[...document.querySelectorAll('article')].find((node)=>normalize(node.textContent).includes(${recoveryRoomLabel}));
-      const button=article?.querySelector('button');
-      if(!button||button.disabled)return false;
-      button.click();
-      return true;
-    })()`);
+    await waitUntil(async()=>{
+      const direct=await evaluate<boolean>(recoveryBrowser.cdp,`document.body?.innerText?.includes(${recoveryRoomLabel})===true&&document.body?.innerText?.includes('PRIORIDADE')===true`);
+      if(direct)return "direct";
+      const opened=await evaluate<boolean>(recoveryBrowser.cdp,`(()=>{
+        const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+        const article=[...document.querySelectorAll('article')].find((node)=>normalize(node.textContent).includes(${recoveryRoomLabel}));
+        const button=article?.querySelector('button');
+        if(!button||button.disabled||!['Abrir','Entrar'].includes(normalize(button.textContent)))return false;
+        button.click();
+        return true;
+      })()`);
+      return opened?"opened":false;
+    },`${recoveryBrowser.label} Commander recovery path`,20_000);
     await waitForText(recoveryBrowser.cdp,`Sala ${roomCode}`,20_000);
     await waitForCommanderUiAuthority(recoveryBrowser,endTurnRevision,"yours",20_000);
     const recovered=await fetchCommander(recoveryBrowser,roomCode);
