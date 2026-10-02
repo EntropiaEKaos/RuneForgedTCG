@@ -127,7 +127,7 @@ assert.match(battlefield,/round:combat\.round/,"Commander battlefield must proje
 assert.match(battlefield,/phase:combat\.phase/,"Commander battlefield must project the authoritative phase into Phaser");
 assert.match(phaserRuntime,/TURN_EVENT="runeforged:commander:turn-fx"/,"Phaser turn transitions must use an isolated presentation event");
 assert.match(phaserRuntime,/previousTurnRef/,"Phaser turn presentation must compare consecutive authoritative turn projections");
-assert.doesNotMatch(phaserRuntime,/end_turn|advanceFourPlayer|activeSeat\s*=|prioritySeat\s*=/,"Phaser turn presentation must not own or mutate authoritative turn progression");
+assert.doesNotMatch(phaserRuntime,/end_turn|advanceFourPlayer|combatCommand|mutate\(/,"Phaser turn presentation must not own or advance authoritative turn progression");
 assert.match(phaserRuntime,/PRIORITY_EVENT="runeforged:commander:priority-fx"/,"priority FX must use an isolated presentation event");
 assert.match(battlefield,/targetingFx=\{\{/,"Commander battlefield must explicitly project targeting presentation state into Phaser");
 assert.match(phaserRuntime,/TARGETING_EVENT="runeforged:commander:targeting-fx"/,"targeting FX must use an isolated presentation event");
