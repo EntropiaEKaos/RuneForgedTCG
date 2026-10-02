@@ -22,6 +22,9 @@ type CombatProjection = {
   turn:number;
   round:number;
   phase:string;
+  status:string;
+  winnerSeat:number|null;
+  eliminatedSeats:number[];
   reactionWindowOpen:boolean;
   attackers:Array<{unitId:string;controllerSeat:number;defendingSeat:number}>;
   blockers:Array<{unitId:string;controllerSeat:number;attackerId:string}>;
@@ -93,6 +96,7 @@ const RESOLUTION_EVENT="runeforged:commander:resolution-fx";
 const STACK_EVENT="runeforged:commander:stack-fx";
 const PRIORITY_EVENT="runeforged:commander:priority-fx";
 const TURN_EVENT="runeforged:commander:turn-fx";
+const OUTCOME_EVENT="runeforged:commander:outcome-fx";
 const TARGETING_EVENT="runeforged:commander:targeting-fx";
 const PERMANENTS_EVENT="runeforged:commander:permanents";
 const HAND_EVENT="runeforged:commander:hand";
@@ -152,6 +156,7 @@ export default function CommanderPhaserRuntime({
   const queuedStackFxRef=useRef<CommanderPhaserStackFx[]>([]);
   const lastResolutionRevisionRef=useRef<number|null>(null);
   const previousTurnRef=useRef<{activeSeat:number;turn:number;round:number;phase:string}|null>(null);
+  const previousOutcomeRef=useRef<{status:string;winnerSeat:number|null;eliminatedSeats:number[]}|null>(null);
   const lastStackRevisionRef=useRef<number|null>(null);
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
   const previousHandRef=useRef<CommanderPhaserHandCard[]>(hand);
@@ -216,6 +221,7 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(RESOLUTION_EVENT,(fx:CommanderPhaserResolutionFx)=>this.renderResolutionFx(fx));
           this.game.events.on(STACK_EVENT,(fx:CommanderPhaserStackFx)=>this.renderStackFx(fx));
           this.game.events.on(TURN_EVENT,(state:{activeSeat:number;turn:number;round:number;phase:string})=>this.renderTurnFx(state));
+          this.game.events.on(OUTCOME_EVENT,(state:{status:string;winnerSeat:number|null;eliminatedSeats:number[];newlyEliminated:number[]})=>this.renderOutcomeFx(state));
           this.game.events.on(PRIORITY_EVENT,(state:{prioritySeat:number;reactionWindowOpen:boolean})=>this.renderPriorityFx(state));
           this.game.events.on(TARGETING_EVENT,(state:CommanderPhaserTargetingFx)=>this.renderTargetingFx(state));
           this.game.events.on(PERMANENTS_EVENT,(state:CommanderPhaserPermanentSnapshot)=>this.renderPermanents(state));
@@ -353,6 +359,19 @@ export default function CommanderPhaserRuntime({
               this.tweens.add({targets:marker,x:target.x,y:target.y,scale:1.8,alpha:0,duration:560,ease:"Cubic.Out",onComplete:()=>marker.destroy()});
             }
           });
+        }
+
+        private renderOutcomeFx(state:{status:string;winnerSeat:number|null;eliminatedSeats:number[];newlyEliminated:number[]}){
+          for(const seat of state.newlyEliminated){
+            const point=seatPoint(seat,viewerSeat);
+            const ring=this.add.circle(point.x,point.y,46,0xef4444,.08).setStrokeStyle(5,0xef4444,.95).setDepth(92).setName(`outcome:eliminated:${seat}`);
+            this.tweens.add({targets:ring,scale:2.4,alpha:0,duration:1000,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
+          }
+          if(state.winnerSeat!==null){
+            const point=seatPoint(state.winnerSeat,viewerSeat);
+            const crown=this.add.text(point.x,point.y-72,"VITÓRIA",{fontFamily:"system-ui, sans-serif",fontSize:"22px",fontStyle:"bold",color:"#fde68a",stroke:"#020617",strokeThickness:6}).setOrigin(.5).setDepth(95).setName(`outcome:winner:${state.winnerSeat}`);
+            this.tweens.add({targets:crown,scale:1.12,duration:550,yoyo:true,repeat:2,ease:"Sine.easeInOut"});
+          }
         }
 
         private renderTurnFx(state:{activeSeat:number;turn:number;round:number;phase:string}){
@@ -531,6 +550,16 @@ export default function CommanderPhaserRuntime({
       else queuedFramesRef.current.push(frame);
     }
   },[projection]);
+
+  useEffect(()=>{
+    const next={status:combat.status,winnerSeat:combat.winnerSeat,eliminatedSeats:[...combat.eliminatedSeats].sort((a,b)=>a-b)};
+    const previous=previousOutcomeRef.current;
+    previousOutcomeRef.current=next;
+    if(!previous)return;
+    const newlyEliminated=next.eliminatedSeats.filter(seat=>!previous.eliminatedSeats.includes(seat));
+    if(newlyEliminated.length===0&&previous.status===next.status&&previous.winnerSeat===next.winnerSeat)return;
+    if(gameRef.current)gameRef.current.events.emit(OUTCOME_EVENT,{...next,newlyEliminated});
+  },[combat.status,combat.winnerSeat,combat.eliminatedSeats]);
 
   useEffect(()=>{
     const next={activeSeat:combat.activeSeat,turn:combat.turn,round:combat.round,phase:combat.phase};
