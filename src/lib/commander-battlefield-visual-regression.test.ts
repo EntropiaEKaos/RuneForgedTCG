@@ -121,6 +121,13 @@ assert.match(phaserRuntime,/frame\.attackRoutes\.find\(entry=>entry\.unitId===ro
 assert.match(phaserRuntime,/collisionPoint\(attackerStart,defender\)/,"blocker FX must terminate at the authoritative attacker route collision point");
 assert.match(battlefield,/viewerSeat=\{viewer\}/,"Commander battlefield must provide the viewer seat to the presentation-only Phaser overlay");
 assert.match(battlefield,/prioritySeat:combat\.prioritySeat/,"Commander battlefield must project the authoritative priority seat into Phaser");
+assert.match(battlefield,/activeSeat:combat\.activeSeat/,"Commander battlefield must project the authoritative active seat into Phaser");
+assert.match(battlefield,/turn:combat\.turn/,"Commander battlefield must project the authoritative turn into Phaser");
+assert.match(battlefield,/round:combat\.round/,"Commander battlefield must project the authoritative round into Phaser");
+assert.match(battlefield,/phase:combat\.phase/,"Commander battlefield must project the authoritative phase into Phaser");
+assert.match(phaserRuntime,/TURN_EVENT="runeforged:commander:turn-fx"/,"Phaser turn transitions must use an isolated presentation event");
+assert.match(phaserRuntime,/previousTurnRef/,"Phaser turn presentation must compare consecutive authoritative turn projections");
+assert.doesNotMatch(phaserRuntime,/end_turn|advanceFourPlayer|activeSeat\s*=|prioritySeat\s*=/,"Phaser turn presentation must not own or mutate authoritative turn progression");
 assert.match(phaserRuntime,/PRIORITY_EVENT="runeforged:commander:priority-fx"/,"priority FX must use an isolated presentation event");
 assert.match(battlefield,/targetingFx=\{\{/,"Commander battlefield must explicitly project targeting presentation state into Phaser");
 assert.match(phaserRuntime,/TARGETING_EVENT="runeforged:commander:targeting-fx"/,"targeting FX must use an isolated presentation event");
