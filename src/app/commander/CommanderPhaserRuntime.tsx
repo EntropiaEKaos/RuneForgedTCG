@@ -55,6 +55,7 @@ export type CommanderPhaserStackItem = {
   defId:string|null;
   speed:string|null;
   actionKind:string|null;
+  sourceId:string|null;
   uncounterable:boolean;
 };
 
@@ -63,6 +64,7 @@ type CommanderPhaserStackFx = {
   entered:CommanderPhaserStackItem[];
   departed:CommanderPhaserStackItem[];
   viewerHandDepartures:Record<string,CommanderPhaserHandCard>;
+  battlefieldArrivals:Record<string,{id:string;seat:number;defId:string}>;
 };
 
 export type CommanderPhaserResolutionFx = {
@@ -145,6 +147,7 @@ export default function CommanderPhaserRuntime({
   const lastStackRevisionRef=useRef<number|null>(null);
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
   const previousHandRef=useRef<CommanderPhaserHandCard[]>(hand);
+  const previousPermanentsRef=useRef<CommanderPhaserPermanentSnapshot>(permanents);
   const stackInitializedRef=useRef(false);
   const lastPriorityRevisionRef=useRef<number|null>(null);
   const queuedPriorityFxRef=useRef<Array<{prioritySeat:number;reactionWindowOpen:boolean}>>([]);
@@ -331,8 +334,15 @@ export default function CommanderPhaserRuntime({
               }
             }
           });
-          fx.departed.forEach((_,index)=>{
-            playStackDepartureFx(this,{x:center.x+(index%2===0?-10:10),y:center.y+(index%3-1)*8});
+          fx.departed.forEach((item,index)=>{
+            const start={x:center.x+(index%2===0?-10:10),y:center.y+(index%3-1)*8};
+            const arrival=fx.battlefieldArrivals[item.id];
+            playStackDepartureFx(this,start);
+            if(arrival){
+              const target=seatFxPoint(arrival.seat,viewerSeat,index);
+              const marker=this.add.circle(start.x,start.y,8,0x67e8f9,.82).setDepth(84).setName(`stack:arrival:${arrival.id}`);
+              this.tweens.add({targets:marker,x:target.x,y:target.y,scale:1.8,alpha:0,duration:560,ease:"Cubic.Out",onComplete:()=>marker.destroy()});
+            }
           });
         }
 
@@ -528,14 +538,28 @@ export default function CommanderPhaserRuntime({
       viewerHandDepartures[item.id]=availableDepartures.splice(index,1)[0];
     }
     previousHandRef.current=hand;
-    const fx:CommanderPhaserStackFx={revision:combat.revision,entered,departed,viewerHandDepartures};
+    const previousPermanentIds=new Set(previousPermanentsRef.current.seats.flatMap(seat=>seat.battlefield.map(object=>object.id)));
+    const arrivals=permanents.seats.flatMap(seat=>seat.battlefield.filter(object=>!previousPermanentIds.has(object.id)).map(object=>({id:object.id,defId:object.defId,seat:seat.seat})));
+    const availableArrivals=[...arrivals];
+    const battlefieldArrivals:Record<string,{id:string;seat:number;defId:string}>={};
+    for(const item of departed){
+      const index=availableArrivals.findIndex(object=>(item.sourceId&&object.id===item.sourceId)||Boolean(item.defId&&object.defId===item.defId));
+      if(index<0)continue;
+      battlefieldArrivals[item.id]=availableArrivals.splice(index,1)[0];
+    }
+    previousPermanentsRef.current=permanents;
+    const fx:CommanderPhaserStackFx={revision:combat.revision,entered,departed,viewerHandDepartures,battlefieldArrivals};
     if(gameRef.current)gameRef.current.events.emit(STACK_EVENT,fx);
     else queuedStackFxRef.current.push(fx);
-  },[combat.revision,stack,hand,viewerSeat]);
+  },[combat.revision,stack,hand,permanents,viewerSeat]);
 
   useEffect(()=>{
     previousHandRef.current=hand;
   },[hand]);
+
+  useEffect(()=>{
+    previousPermanentsRef.current=permanents;
+  },[permanents]);
 
   return <div
     ref={hostRef}
