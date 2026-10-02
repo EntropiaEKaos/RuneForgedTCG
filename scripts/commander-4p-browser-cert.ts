@@ -1102,9 +1102,12 @@ async function main(){
     await waitForEnabledButton(activeBrowser.cdp,"Encerrar turno",15_000);
     await clickText(activeBrowser.cdp,"Encerrar turno",true);
     responses=await waitForAllRoomVersion(browsers,roomCode,preEndTurnRevision+1,20_000);
-    rooms=validateFourClientProjection(responses,"after authoritative Commander end turn",preEndTurnHandCounts);
+    const endTurnRooms=responses.map((response)=>response.body.room);
+    const activeSeatAfterEnd=endTurnRooms[0].combat.activeSeat;
+    const postEndTurnHandCounts=[...preEndTurnHandCounts] as [number,number,number,number];
+    postEndTurnHandCounts[activeSeatAfterEnd]+=1;
+    rooms=validateFourClientProjection(responses,"after authoritative Commander end turn",postEndTurnHandCounts);
     const endTurnRevision=rooms[0].combat.revision;
-    const activeSeatAfterEnd=rooms[0].combat.activeSeat;
     assert.notEqual(activeSeatAfterEnd,activeSeatBeforeEnd,"end_turn must advance the authoritative active seat");
     assert.equal(rooms[0].combat.prioritySeat,activeSeatAfterEnd,"new active seat must receive authoritative priority after end_turn");
     await capture(browsers[activeSeatAfterEnd],"76-commander-4p-end-turn.png","Commander authoritative end-turn transition",manifest);
