@@ -235,8 +235,15 @@ export default function CommanderPhaserRuntime({
               const radius=74+(index%2)*24;
               const x=base.x+Math.cos(angle)*radius;
               const y=base.y+Math.sin(angle)*radius;
-              const color=object.stunned?0x64748b:object.barrier?0x38bdf8:object.kind.toLowerCase().includes("structure")?0xf59e0b:0x22c55e;
+              const damaged=object.health!=null&&object.maxHealth!=null&&object.health<object.maxHealth;
+              const durabilityDamaged=object.durability!=null&&object.maxDurability!=null&&object.durability<object.maxDurability;
+              const color=object.stunned?0x64748b:object.barrier?0x38bdf8:damaged||durabilityDamaged?0xfb7185:0x22c55e;
               const frame=this.add.rectangle(x,y,42,58,color,.14).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
+              if(object.barrier)this.add.circle(x,y,30,0x38bdf8,.025).setStrokeStyle(2,0x67e8f9,.7).setDepth(18.8).setName(`permanent:barrier:${object.id}`);
+              if(object.frostbitten)this.add.text(x-16,y-19,"❄",{fontFamily:"system-ui, sans-serif",fontSize:"10px",color:"#bae6fd"}).setDepth(19).setName(`permanent:frostbite:${object.id}`);
+              if(object.stunned)this.add.text(x-16,y+17,"STUN",{fontFamily:"system-ui, sans-serif",fontSize:"6px",fontStyle:"bold",color:"#cbd5e1",stroke:"#020617",strokeThickness:2}).setDepth(19).setName(`permanent:stunned:${object.id}`);
+              if(object.attackedThisTurn)this.add.text(x+11,y+17,"⚔",{fontFamily:"system-ui, sans-serif",fontSize:"9px",color:"#fda4af"}).setDepth(19).setName(`permanent:attacked:${object.id}`);
+              if(object.loyalty!=null)this.add.text(x-16,y+17,`L${object.loyalty}`,{fontFamily:"system-ui, sans-serif",fontSize:"7px",fontStyle:"bold",color:"#e9d5ff",stroke:"#020617",strokeThickness:2}).setDepth(19).setName(`permanent:loyalty:${object.id}`);
               if(object.artUrl){
                 const textureKey=`card-art:${object.defId}`;
                 if(!this.textures.exists(textureKey)){
@@ -256,7 +263,7 @@ export default function CommanderPhaserRuntime({
               this.add.text(x,y-25,object.name.length>14?object.name.slice(0,13)+"…":object.name,{fontFamily:"system-ui, sans-serif",fontSize:"7px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(19).setName(`permanent:name:${object.id}`);
               const stat=object.power!=null&&object.health!=null?`${object.power}/${object.health}`:object.durability!=null?`D${object.durability}`:"";
               if(stat)this.add.text(x,y+15,stat,{fontFamily:"system-ui, sans-serif",fontSize:"9px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:3}).setOrigin(.5).setDepth(19).setName(`permanent:stat:${object.id}`);
-              if(object.equipmentCount>0)this.add.text(x+14,y-19,`+${object.equipmentCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"8px",color:"#fde68a"}).setOrigin(.5).setDepth(19).setName(`permanent:equipment:${object.id}`);
+              if(object.equipmentCount>0)this.add.text(x+14,y-19,`⚙${object.equipmentCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"8px",color:"#fde68a"}).setOrigin(.5).setDepth(19).setName(`permanent:equipment:${object.id}`);
             });
           }
         }
