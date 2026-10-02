@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import CardView from "@/components/CardView";
 import CommanderPhaserRuntime from "./CommanderPhaserRuntime";
+import { getCard } from "@/game/cards";
+import { getCardArt } from "@/game/card-art";
 
 type ProjectedCard = { instanceId:string; defId:string };
 type BattlefieldObject = {
@@ -45,6 +47,12 @@ const anchor:Record<Position,{x:number;y:number}>={
   right:{x:83,y:50},
   bottom:{x:50,y:83},
 };
+
+function phaserCardIdentity(defId:string){
+  const card=getCard(defId);
+  const art=getCardArt(defId);
+  return {name:card.name,artUrl:art?.url||card.art||null};
+}
 
 function nameOf(defId:string|undefined|null,collection:CollectionCard[]){
   if(!defId)return "—";
@@ -508,8 +516,9 @@ export default function CommanderBattlefield4P({
           seat:seat.seat,
           nexusHealth:seatLife(seat),
           eliminated:seat.eliminated,
-          general:seat.general,
+          general:{...seat.general,...phaserCardIdentity(seat.general.defId)},
           battlefield:(seat.battlefield||[]).map(object=>({
+            ...phaserCardIdentity(object.defId),
             id:object.id,
             defId:object.defId,
             kind:object.kind,
