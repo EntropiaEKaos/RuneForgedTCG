@@ -69,6 +69,8 @@ type CommanderPhaserStackFx = {
 
 export type CommanderPhaserResolutionFx = {
   revision:number;
+  attackerIds:string[];
+  blockerPairs:Array<{attackerId:string;blockerId:string}>;
   nexusDamage:Record<number,number>;
   objectDamage:Record<string,number>;
   objectSeats:Record<string,number>;
@@ -347,6 +349,18 @@ export default function CommanderPhaserRuntime({
         }
 
         private renderResolutionFx(fx:CommanderPhaserResolutionFx){
+          const blockedAttackers=new Set(fx.blockerPairs.map(pair=>pair.attackerId));
+          fx.attackerIds.slice().sort().forEach((attackerId,index)=>{
+            const seat=fx.objectSeats[attackerId];
+            if(typeof seat!=="number")return;
+            const impact=seatFxPoint(seat,viewerSeat,index);
+            const ring=this.add.circle(impact.x,impact.y,blockedAttackers.has(attackerId)?18:14,blockedAttackers.has(attackerId)?0x67e8f9:0xfb7185,.12)
+              .setStrokeStyle(3,blockedAttackers.has(attackerId)?0x67e8f9:0xfb7185,.9)
+              .setDepth(86)
+              .setName(`combat:resolution:attacker:${attackerId}`);
+            this.tweens.add({targets:ring,scale:2.1,alpha:0,duration:620,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
+          });
+
           Object.entries(fx.nexusDamage)
             .sort(([a],[b])=>Number(a)-Number(b))
             .forEach(([seat,damage])=>{
