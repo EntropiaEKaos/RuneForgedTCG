@@ -74,6 +74,8 @@ function combatMotionTransform(position:Position,motion:CombatMotion){
 type ResolutionDeparture={id:string;defId:string;seat:number;destination:"graveyard"|"general_zone"};
 type ResolutionFx={
   revision:number;
+  attackerIds:string[];
+  blockerPairs:Array<{attackerId:string;blockerId:string}>;
   nexusDamage:Record<number,number>;
   objectDamage:Record<string,number>;
   objectSeats:Record<string,number>;
@@ -125,7 +127,7 @@ function deriveAuthoritativeResolutionFx(previous:CombatState,current:CombatStat
     }
   }
   return Object.keys(nexusDamage).length||Object.keys(objectDamage).length||barrierBroken.length||departures.length
-    ? {revision:current.revision,nexusDamage,objectDamage,objectSeats,barrierBroken,departures}
+    ? {revision:current.revision,attackerIds:previous.combat.attackers.map(entry=>entry.unitId),blockerPairs:previous.combat.blockers.map(entry=>({attackerId:entry.attackerId,blockerId:entry.unitId})),nexusDamage,objectDamage,objectSeats,barrierBroken,departures}
     : null;
 }
 
