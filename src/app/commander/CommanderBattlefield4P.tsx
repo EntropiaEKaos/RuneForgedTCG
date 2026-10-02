@@ -25,7 +25,7 @@ type StackItem = {
   sourceId?:string|null; abilityDescription?:string|null; uncounterable:boolean;
 };
 type CombatState = {
-  revision:number; activeSeat:number; prioritySeat:number; phase:string; turn:number; round:number;
+  revision:number; activeSeat:number; prioritySeat:number; phase:string; turn:number; round:number; status:string; winnerSeat:number|null;
   seats:CombatSeat[]; stack:StackItem[];
   combat:{attackers:{unitId:string;controllerSeat:number;defendingSeat:number}[];blockers:{unitId:string;controllerSeat:number;attackerId:string}[]};
 };
@@ -510,6 +510,9 @@ export default function CommanderBattlefield4P({
         turn:combat.turn,
         round:combat.round,
         phase:combat.phase,
+        status:combat.status,
+        winnerSeat:combat.winnerSeat,
+        eliminatedSeats:combat.seats.filter(seat=>seat.eliminated).map(seat=>seat.seat),
         reactionWindowOpen:combat.stack.length>0,
         attackers:combat.combat.attackers,
         blockers:combat.combat.blockers,

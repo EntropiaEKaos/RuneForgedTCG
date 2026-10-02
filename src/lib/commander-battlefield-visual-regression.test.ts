@@ -128,6 +128,12 @@ assert.match(battlefield,/phase:combat\.phase/,"Commander battlefield must proje
 assert.match(phaserRuntime,/TURN_EVENT="runeforged:commander:turn-fx"/,"Phaser turn transitions must use an isolated presentation event");
 assert.match(phaserRuntime,/previousTurnRef/,"Phaser turn presentation must compare consecutive authoritative turn projections");
 assert.doesNotMatch(phaserRuntime,/end_turn|advanceFourPlayer|combatCommand|mutate\(/,"Phaser turn presentation must not own or advance authoritative turn progression");
+assert.match(battlefield,/status:combat\.status/,"Commander battlefield must project authoritative match status into Phaser");
+assert.match(battlefield,/winnerSeat:combat\.winnerSeat/,"Commander battlefield must project authoritative winner identity into Phaser");
+assert.match(battlefield,/eliminatedSeats:combat\.seats\.filter\(seat=>seat\.eliminated\)/,"Commander battlefield must derive Phaser elimination presentation only from authoritative seat elimination flags");
+assert.match(phaserRuntime,/OUTCOME_EVENT="runeforged:commander:outcome-fx"/,"match outcome FX must use an isolated presentation event");
+assert.match(phaserRuntime,/previousOutcomeRef/,"Phaser outcome presentation must compare consecutive authoritative outcome projections");
+assert.doesNotMatch(phaserRuntime,/\bconcede\b|advanceFourPlayer|combatCommand|mutate\(/,"Phaser outcome presentation must not own concede or advance authoritative match outcome");
 assert.match(phaserRuntime,/PRIORITY_EVENT="runeforged:commander:priority-fx"/,"priority FX must use an isolated presentation event");
 assert.match(battlefield,/targetingFx=\{\{/,"Commander battlefield must explicitly project targeting presentation state into Phaser");
 assert.match(phaserRuntime,/TARGETING_EVENT="runeforged:commander:targeting-fx"/,"targeting FX must use an isolated presentation event");
