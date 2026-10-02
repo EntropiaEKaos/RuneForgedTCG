@@ -25,7 +25,7 @@ type StackItem = {
   sourceId?:string|null; abilityDescription?:string|null; uncounterable:boolean;
 };
 type CombatState = {
-  revision:number; activeSeat:number; prioritySeat:number; phase:string; turn:number;
+  revision:number; activeSeat:number; prioritySeat:number; phase:string; turn:number; round:number;
   seats:CombatSeat[]; stack:StackItem[];
   combat:{attackers:{unitId:string;controllerSeat:number;defendingSeat:number}[];blockers:{unitId:string;controllerSeat:number;attackerId:string}[]};
 };
