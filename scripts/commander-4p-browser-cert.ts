@@ -1092,6 +1092,66 @@ async function main(){
     assert.equal(new Set(uncounterableSettled.map((room)=>room.combat.revision)).size,1,"all four clients must converge after uncounterable source resolution");
     await capture(host,"75-commander-4p-uncounterable-source-resolved.png","Commander uncounterable source resolves after rejected Deny",manifest);
 
+    // Playable Lab v1 closure: authoritative end-turn, hard refresh recovery, then UI concede to terminal winner.
+    rooms=responses.map((response)=>response.body.room);
+    const preEndTurnRevision=rooms[0].combat.revision;
+    const activeSeatBeforeEnd=rooms[0].combat.activeSeat;
+    const activeBrowser=browsers[activeSeatBeforeEnd];
+    await waitForCommanderUiAuthority(activeBrowser,preEndTurnRevision,"yours",20_000);
+    await waitForEnabledButton(activeBrowser.cdp,"Encerrar turno",15_000);
+    await clickText(activeBrowser.cdp,"Encerrar turno",true);
+    responses=await waitForAllRoomVersion(browsers,roomCode,preEndTurnRevision+1,20_000);
+    rooms=validateFourClientProjection(responses,"after authoritative Commander end turn");
+    const endTurnRevision=rooms[0].combat.revision;
+    const activeSeatAfterEnd=rooms[0].combat.activeSeat;
+    assert.notEqual(activeSeatAfterEnd,activeSeatBeforeEnd,"end_turn must advance the authoritative active seat");
+    assert.equal(rooms[0].combat.prioritySeat,activeSeatAfterEnd,"new active seat must receive authoritative priority after end_turn");
+    await capture(browsers[activeSeatAfterEnd],"76-commander-4p-end-turn.png","Commander authoritative end-turn transition",manifest);
+
+    const recoveryBrowser=browsers[activeSeatAfterEnd];
+    await navigate(recoveryBrowser.cdp,"/commander");
+    await waitForText(recoveryBrowser.cdp,"Commander 4P Alpha",20_000);
+    const recoveryRoomLabel=JSON.stringify(`Sala ${roomCode}`);
+    await waitUntil(()=>evaluate(recoveryBrowser.cdp,`(()=>{
+      const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+      const article=[...document.querySelectorAll('article')].find((node)=>normalize(node.textContent).includes(${recoveryRoomLabel}));
+      const button=article?.querySelector('button');
+      return Boolean(button&&!button.disabled&&['Abrir','Entrar'].includes(normalize(button.textContent)));
+    })()`),`${recoveryBrowser.label} recovered Commander room card`,20_000);
+    await evaluate(recoveryBrowser.cdp,`(()=>{
+      const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+      const article=[...document.querySelectorAll('article')].find((node)=>normalize(node.textContent).includes(${recoveryRoomLabel}));
+      const button=article?.querySelector('button');
+      if(!button||button.disabled)return false;
+      button.click();
+      return true;
+    })()`);
+    await waitForText(recoveryBrowser.cdp,`Sala ${roomCode}`,20_000);
+    await waitForCommanderUiAuthority(recoveryBrowser,endTurnRevision,"yours",20_000);
+    const recovered=await fetchCommander(recoveryBrowser,roomCode);
+    assert.equal(recovered.status,200,"hard-refresh recovery must reload the Commander room");
+    assert.equal(recovered.body.room.combat.revision,endTurnRevision,"hard-refresh recovery must preserve the exact authoritative revision without replay");
+    assert.equal(recovered.body.room.combat.activeSeat,activeSeatAfterEnd,"hard-refresh recovery must preserve the authoritative active seat");
+    await capture(recoveryBrowser,"77-commander-4p-refresh-recovered.png","Commander hard-refresh authoritative recovery",manifest);
+
+    const concedeSeats=[0,1,2,3].filter((seat)=>seat!==activeSeatAfterEnd).slice(0,3);
+    let terminalRevision=endTurnRevision;
+    for(let index=0;index<concedeSeats.length;index++){
+      const seat=concedeSeats[index];
+      await waitForEnabledButton(browsers[seat].cdp,"Conceder partida",15_000);
+      await clickText(browsers[seat].cdp,"Conceder partida",true);
+      terminalRevision+=1;
+      responses=await waitForAllRoomVersion(browsers,roomCode,terminalRevision,20_000);
+      rooms=responses.map((response)=>response.body.room);
+      assert.equal(rooms[0].combat.seats[seat].eliminated,true,`P${seat+1} concede must project authoritative elimination`);
+    }
+    rooms=responses.map((response)=>response.body.room);
+    assert.equal(rooms[0].combat.status,"completed","three UI concedes must complete the four-player match");
+    assert.equal(rooms[0].combat.winnerSeat,activeSeatAfterEnd,"the sole surviving seat must be the authoritative winner");
+    assert.equal(new Set(rooms.map((room)=>room.combat.winnerSeat)).size,1,"all four clients must converge on the same authoritative winner");
+    await waitForText(browsers[activeSeatAfterEnd].cdp,"VITÓRIA",20_000);
+    await capture(browsers[activeSeatAfterEnd],"78-commander-4p-authoritative-winner.png","Commander terminal winner after real UI concedes",manifest);
+
     for(const browser of browsers){
       const runtimeExceptions=browser.cdp.notifications.filter((message)=>message.method==="Runtime.exceptionThrown");
       assert.equal(runtimeExceptions.length,0,`${browser.label} browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0,3))}`);
