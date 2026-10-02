@@ -29,9 +29,9 @@ export type CommanderPhaserPermanentSnapshot = {
     seat:number;
     nexusHealth:number;
     eliminated:boolean;
-    general:{defId:string;zone:string;castCount:number};
+    general:{defId:string;zone:string;castCount:number;name:string;artUrl:string|null};
     battlefield:Array<{
-      id:string;defId:string;kind:string;controllerSeat:string;
+      id:string;defId:string;kind:string;controllerSeat:string;name:string;artUrl:string|null;
       power:number|null;health:number|null;maxHealth:number|null;
       durability:number|null;maxDurability:number|null;
       barrier:boolean;frostbitten:boolean;stunned:boolean;attackedThisTurn:boolean;
@@ -229,13 +229,31 @@ export default function CommanderPhaserRuntime({
             this.add.text(base.x,base.y,`N ${seat.nexusHealth}`,{fontFamily:"system-ui, sans-serif",fontSize:"11px",fontStyle:"bold",color:"#cffafe"}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-label:${seat.seat}`);
             const generalColor=seat.general.zone==="battlefield"?0xf59e0b:0x7c3aed;
             this.add.circle(base.x+42,base.y,12,generalColor,.16).setStrokeStyle(2,generalColor,.8).setDepth(20).setName(`permanent:general:${seat.seat}`);
+            this.add.text(base.x+42,base.y+21,seat.general.name,{fontFamily:"system-ui, sans-serif",fontSize:"7px",color:"#fde68a",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:general-name:${seat.seat}`);
             seat.battlefield.slice(0,12).forEach((object,index)=>{
               const angle=(Math.PI*2*index)/Math.max(1,Math.min(12,seat.battlefield.length));
               const radius=74+(index%2)*24;
               const x=base.x+Math.cos(angle)*radius;
               const y=base.y+Math.sin(angle)*radius;
               const color=object.stunned?0x64748b:object.barrier?0x38bdf8:object.kind.toLowerCase().includes("structure")?0xf59e0b:0x22c55e;
-              this.add.rectangle(x,y,34,46,color,.14).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
+              const frame=this.add.rectangle(x,y,42,58,color,.14).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
+              if(object.artUrl){
+                const textureKey=`card-art:${object.defId}`;
+                if(!this.textures.exists(textureKey)){
+                  this.load.image(textureKey,object.artUrl);
+                  this.load.once(`filecomplete-image-${textureKey}`,()=>{
+                    if(!frame.active)return;
+                    const art=this.add.image(x,y-3,textureKey).setDisplaySize(36,42).setDepth(18.2).setName(`permanent:art:${object.id}`);
+                    frame.setDepth(18.3);
+                    art.setCrop(0,0,art.width,Math.max(1,art.height));
+                  });
+                  this.load.start();
+                }else{
+                  this.add.image(x,y-3,textureKey).setDisplaySize(36,42).setDepth(18.2).setName(`permanent:art:${object.id}`);
+                  frame.setDepth(18.3);
+                }
+              }
+              this.add.text(x,y-25,object.name.length>14?object.name.slice(0,13)+"…":object.name,{fontFamily:"system-ui, sans-serif",fontSize:"7px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(19).setName(`permanent:name:${object.id}`);
               const stat=object.power!=null&&object.health!=null?`${object.power}/${object.health}`:object.durability!=null?`D${object.durability}`:"";
               if(stat)this.add.text(x,y+15,stat,{fontFamily:"system-ui, sans-serif",fontSize:"9px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:3}).setOrigin(.5).setDepth(19).setName(`permanent:stat:${object.id}`);
               if(object.equipmentCount>0)this.add.text(x+14,y-19,`+${object.equipmentCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"8px",color:"#fde68a"}).setOrigin(.5).setDepth(19).setName(`permanent:equipment:${object.id}`);
