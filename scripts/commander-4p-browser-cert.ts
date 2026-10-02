@@ -1094,6 +1094,7 @@ async function main(){
 
     // Playable Lab v1 closure: authoritative end-turn, hard refresh recovery, then UI concede to terminal winner.
     rooms=responses.map((response)=>response.body.room);
+    const preEndTurnHandCounts=rooms[0].combat.seats.map((seat:any)=>seat.handCount) as [number,number,number,number];
     const preEndTurnRevision=rooms[0].combat.revision;
     const activeSeatBeforeEnd=rooms[0].combat.activeSeat;
     const activeBrowser=browsers[activeSeatBeforeEnd];
@@ -1101,7 +1102,7 @@ async function main(){
     await waitForEnabledButton(activeBrowser.cdp,"Encerrar turno",15_000);
     await clickText(activeBrowser.cdp,"Encerrar turno",true);
     responses=await waitForAllRoomVersion(browsers,roomCode,preEndTurnRevision+1,20_000);
-    rooms=validateFourClientProjection(responses,"after authoritative Commander end turn");
+    rooms=validateFourClientProjection(responses,"after authoritative Commander end turn",preEndTurnHandCounts);
     const endTurnRevision=rooms[0].combat.revision;
     const activeSeatAfterEnd=rooms[0].combat.activeSeat;
     assert.notEqual(activeSeatAfterEnd,activeSeatBeforeEnd,"end_turn must advance the authoritative active seat");
