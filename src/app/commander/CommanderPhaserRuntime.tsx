@@ -55,7 +55,7 @@ export type CommanderPhaserStackItem = {
   defId:string|null;
   speed:string|null;
   actionKind:string|null;
-  sourceId:string|null;
+  sourceId?:string|null;
   uncounterable:boolean;
 };
 
