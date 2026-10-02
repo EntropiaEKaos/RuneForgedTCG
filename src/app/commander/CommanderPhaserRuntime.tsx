@@ -18,6 +18,10 @@ import {
 type CombatProjection = {
   revision:number;
   prioritySeat:number;
+  activeSeat:number;
+  turn:number;
+  round:number;
+  phase:string;
   reactionWindowOpen:boolean;
   attackers:Array<{unitId:string;controllerSeat:number;defendingSeat:number}>;
   blockers:Array<{unitId:string;controllerSeat:number;attackerId:string}>;
@@ -88,6 +92,7 @@ const FRAME_EVENT="runeforged:commander:combat-frame";
 const RESOLUTION_EVENT="runeforged:commander:resolution-fx";
 const STACK_EVENT="runeforged:commander:stack-fx";
 const PRIORITY_EVENT="runeforged:commander:priority-fx";
+const TURN_EVENT="runeforged:commander:turn-fx";
 const TARGETING_EVENT="runeforged:commander:targeting-fx";
 const PERMANENTS_EVENT="runeforged:commander:permanents";
 const HAND_EVENT="runeforged:commander:hand";
@@ -146,6 +151,7 @@ export default function CommanderPhaserRuntime({
   const queuedResolutionFxRef=useRef<CommanderPhaserResolutionFx[]>([]);
   const queuedStackFxRef=useRef<CommanderPhaserStackFx[]>([]);
   const lastResolutionRevisionRef=useRef<number|null>(null);
+  const previousTurnRef=useRef<{activeSeat:number;turn:number;round:number;phase:string}|null>(null);
   const lastStackRevisionRef=useRef<number|null>(null);
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
   const previousHandRef=useRef<CommanderPhaserHandCard[]>(hand);
@@ -209,6 +215,7 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(FRAME_EVENT,(frame:BattlefieldCombatPresentationFrame)=>this.renderFrame(frame));
           this.game.events.on(RESOLUTION_EVENT,(fx:CommanderPhaserResolutionFx)=>this.renderResolutionFx(fx));
           this.game.events.on(STACK_EVENT,(fx:CommanderPhaserStackFx)=>this.renderStackFx(fx));
+          this.game.events.on(TURN_EVENT,(state:{activeSeat:number;turn:number;round:number;phase:string})=>this.renderTurnFx(state));
           this.game.events.on(PRIORITY_EVENT,(state:{prioritySeat:number;reactionWindowOpen:boolean})=>this.renderPriorityFx(state));
           this.game.events.on(TARGETING_EVENT,(state:CommanderPhaserTargetingFx)=>this.renderTargetingFx(state));
           this.game.events.on(PERMANENTS_EVENT,(state:CommanderPhaserPermanentSnapshot)=>this.renderPermanents(state));
@@ -346,6 +353,14 @@ export default function CommanderPhaserRuntime({
               this.tweens.add({targets:marker,x:target.x,y:target.y,scale:1.8,alpha:0,duration:560,ease:"Cubic.Out",onComplete:()=>marker.destroy()});
             }
           });
+        }
+
+        private renderTurnFx(state:{activeSeat:number;turn:number;round:number;phase:string}){
+          const point=seatPoint(state.activeSeat,viewerSeat);
+          const ring=this.add.circle(point.x,point.y,34,0xfbbf24,.08).setStrokeStyle(4,0xfbbf24,.9).setDepth(88).setName(`turn:active:${state.activeSeat}`);
+          const label=this.add.text(490,410,`TURNO ${state.turn} · RODADA ${state.round} · ${state.phase.toUpperCase()}`,{fontFamily:"system-ui, sans-serif",fontSize:"18px",fontStyle:"bold",color:"#fde68a"}).setOrigin(.5).setDepth(89).setName("turn:transition");
+          this.tweens.add({targets:ring,scale:2.3,alpha:0,duration:850,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
+          this.tweens.add({targets:label,y:390,alpha:0,duration:900,delay:450,ease:"Sine.easeIn",onComplete:()=>label.destroy()});
         }
 
         private renderResolutionFx(fx:CommanderPhaserResolutionFx){
@@ -516,6 +531,15 @@ export default function CommanderPhaserRuntime({
       else queuedFramesRef.current.push(frame);
     }
   },[projection]);
+
+  useEffect(()=>{
+    const next={activeSeat:combat.activeSeat,turn:combat.turn,round:combat.round,phase:combat.phase};
+    const previous=previousTurnRef.current;
+    previousTurnRef.current=next;
+    if(!previous)return;
+    if(previous.activeSeat===next.activeSeat&&previous.turn===next.turn&&previous.round===next.round&&previous.phase===next.phase)return;
+    if(gameRef.current)gameRef.current.events.emit(TURN_EVENT,next);
+  },[combat.activeSeat,combat.turn,combat.round,combat.phase]);
 
   useEffect(()=>{
     if(!resolutionFx||lastResolutionRevisionRef.current===resolutionFx.revision)return;
