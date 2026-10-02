@@ -23,6 +23,23 @@ type CombatProjection = {
   blockers:Array<{unitId:string;controllerSeat:number;attackerId:string}>;
 };
 
+export type CommanderPhaserPermanentSnapshot = {
+  revision:number;
+  seats:Array<{
+    seat:number;
+    nexusHealth:number;
+    eliminated:boolean;
+    general:{defId:string;zone:string;castCount:number};
+    battlefield:Array<{
+      id:string;defId:string;kind:string;controllerSeat:string;
+      power:number|null;health:number|null;maxHealth:number|null;
+      durability:number|null;maxDurability:number|null;
+      barrier:boolean;frostbitten:boolean;stunned:boolean;attackedThisTurn:boolean;
+      loyalty:number|null;equipmentCount:number;
+    }>;
+  }>;
+};
+
 export type CommanderPhaserTargetingFx = {
   selectedKind:"attacker"|"blocker"|null;
   selectedId:string|null;
@@ -65,6 +82,7 @@ const RESOLUTION_EVENT="runeforged:commander:resolution-fx";
 const STACK_EVENT="runeforged:commander:stack-fx";
 const PRIORITY_EVENT="runeforged:commander:priority-fx";
 const TARGETING_EVENT="runeforged:commander:targeting-fx";
+const PERMANENTS_EVENT="runeforged:commander:permanents";
 
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
@@ -101,12 +119,14 @@ export default function CommanderPhaserRuntime({
   resolutionFx,
   stack,
   targetingFx,
+  permanents,
   viewerSeat,
 }:{
   combat:CombatProjection;
   resolutionFx:CommanderPhaserResolutionFx|null;
   stack:CommanderPhaserStackItem[];
   targetingFx:CommanderPhaserTargetingFx;
+  permanents:CommanderPhaserPermanentSnapshot;
   viewerSeat:number;
 }){
   const hostRef=useRef<HTMLDivElement|null>(null);
@@ -122,6 +142,7 @@ export default function CommanderPhaserRuntime({
   const lastPriorityRevisionRef=useRef<number|null>(null);
   const queuedPriorityFxRef=useRef<Array<{prioritySeat:number;reactionWindowOpen:boolean}>>([]);
   const queuedTargetingFxRef=useRef<CommanderPhaserTargetingFx[]>([]);
+  const queuedPermanentsRef=useRef<CommanderPhaserPermanentSnapshot[]>([]);
 
   const projection=useMemo<AuthoritativeCombatProjection>(()=>({
     revision:combat.revision,
@@ -177,8 +198,10 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(STACK_EVENT,(fx:CommanderPhaserStackFx)=>this.renderStackFx(fx));
           this.game.events.on(PRIORITY_EVENT,(state:{prioritySeat:number;reactionWindowOpen:boolean})=>this.renderPriorityFx(state));
           this.game.events.on(TARGETING_EVENT,(state:CommanderPhaserTargetingFx)=>this.renderTargetingFx(state));
+          this.game.events.on(PERMANENTS_EVENT,(state:CommanderPhaserPermanentSnapshot)=>this.renderPermanents(state));
           for(const state of queuedPriorityFxRef.current.splice(0))this.renderPriorityFx(state);
           for(const state of queuedTargetingFxRef.current.splice(0))this.renderTargetingFx(state);
+          for(const state of queuedPermanentsRef.current.splice(0))this.renderPermanents(state);
           for(const frame of queuedFramesRef.current.splice(0))this.renderFrame(frame);
           for(const fx of queuedResolutionFxRef.current.splice(0))this.renderResolutionFx(fx);
           for(const fx of queuedStackFxRef.current.splice(0))this.renderStackFx(fx);
@@ -195,6 +218,28 @@ export default function CommanderPhaserRuntime({
             const center={x:490,y:450};
             const arc=this.add.line(0,0,point.x,point.y,center.x,center.y,color,.45).setOrigin(0,0).setLineWidth(2).setDepth(58).setAlpha(0);
             this.tweens.add({targets:arc,alpha:1,duration:120,yoyo:true,hold:360,onComplete:()=>arc.destroy()});
+          }
+        }
+
+        private renderPermanents(state:CommanderPhaserPermanentSnapshot){
+          this.children.getAll().filter(child=>child.name.startsWith("permanent:")).forEach(child=>child.destroy());
+          for(const seat of state.seats){
+            const base=seatPoint(seat.seat,viewerSeat);
+            const nexus=this.add.circle(base.x,base.y,26,seat.eliminated?0x334155:0x0e7490,.18).setStrokeStyle(2,seat.eliminated?0x64748b:0x67e8f9,.7).setDepth(20).setName(`permanent:nexus:${seat.seat}`);
+            this.add.text(base.x,base.y,`N ${seat.nexusHealth}`,{fontFamily:"system-ui, sans-serif",fontSize:"11px",fontStyle:"bold",color:"#cffafe"}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-label:${seat.seat}`);
+            const generalColor=seat.general.zone==="battlefield"?0xf59e0b:0x7c3aed;
+            this.add.circle(base.x+42,base.y,12,generalColor,.16).setStrokeStyle(2,generalColor,.8).setDepth(20).setName(`permanent:general:${seat.seat}`);
+            seat.battlefield.slice(0,12).forEach((object,index)=>{
+              const angle=(Math.PI*2*index)/Math.max(1,Math.min(12,seat.battlefield.length));
+              const radius=74+(index%2)*24;
+              const x=base.x+Math.cos(angle)*radius;
+              const y=base.y+Math.sin(angle)*radius;
+              const color=object.stunned?0x64748b:object.barrier?0x38bdf8:object.kind.toLowerCase().includes("structure")?0xf59e0b:0x22c55e;
+              this.add.rectangle(x,y,34,46,color,.14).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
+              const stat=object.power!=null&&object.health!=null?`${object.power}/${object.health}`:object.durability!=null?`D${object.durability}`:"";
+              if(stat)this.add.text(x,y+15,stat,{fontFamily:"system-ui, sans-serif",fontSize:"9px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:3}).setOrigin(.5).setDepth(19).setName(`permanent:stat:${object.id}`);
+              if(object.equipmentCount>0)this.add.text(x+14,y-19,`+${object.equipmentCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"8px",color:"#fde68a"}).setOrigin(.5).setDepth(19).setName(`permanent:equipment:${object.id}`);
+            });
           }
         }
 
@@ -356,6 +401,11 @@ export default function CommanderPhaserRuntime({
     if(gameRef.current)gameRef.current.events.emit(PRIORITY_EVENT,state);
     else queuedPriorityFxRef.current.push(state);
   },[combat.prioritySeat,combat.reactionWindowOpen,combat.revision,viewerSeat]);
+
+  useEffect(()=>{
+    if(gameRef.current)gameRef.current.events.emit(PERMANENTS_EVENT,permanents);
+    else queuedPermanentsRef.current.push(permanents);
+  },[permanents,viewerSeat]);
 
   useEffect(()=>{
     if(gameRef.current)gameRef.current.events.emit(TARGETING_EVENT,targetingFx);
