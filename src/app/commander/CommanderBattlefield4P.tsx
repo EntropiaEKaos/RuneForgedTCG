@@ -22,7 +22,7 @@ type CombatSeat = {
 };
 type StackItem = {
   id:string; controllerSeat:number; defId:string|null; speed:string|null; actionKind:string|null;
-  sourceId:string|null; abilityDescription?:string|null; uncounterable:boolean;
+  sourceId?:string|null; abilityDescription?:string|null; uncounterable:boolean;
 };
 type CombatState = {
   revision:number; activeSeat:number; prioritySeat:number; phase:string; turn:number;
