@@ -509,7 +509,7 @@ export default function CommanderBattlefield4P({
         blockers:combat.combat.blockers,
       }}
       resolutionFx={resolutionFx}
-      stack={combat.stack}
+      stack={combat.stack.map(item=>({...item,sourceId:item.sourceId??null}))}
       hand={(combat.seats.find(seat=>seat.seat===viewer)?.hand||[]).map(card=>({
         instanceId:card.instanceId,
         defId:card.defId,
