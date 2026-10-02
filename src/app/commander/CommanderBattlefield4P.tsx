@@ -502,6 +502,32 @@ export default function CommanderBattlefield4P({
       }}
       resolutionFx={resolutionFx}
       stack={combat.stack}
+      permanents={{
+        revision:combat.revision,
+        seats:combat.seats.map(seat=>({
+          seat:seat.seat,
+          nexusHealth:seatLife(seat),
+          eliminated:seat.eliminated,
+          general:seat.general,
+          battlefield:(seat.battlefield||[]).map(object=>({
+            id:object.id,
+            defId:object.defId,
+            kind:object.kind,
+            controllerSeat:object.controllerSeat,
+            power:object.combat?.power??null,
+            health:object.combat?.health??null,
+            maxHealth:object.combat?.maxHealth??null,
+            durability:object.durability?.health??null,
+            maxDurability:object.durability?.maxHealth??null,
+            barrier:object.combat?.barrier??false,
+            frostbitten:object.combat?.frostbitten??false,
+            stunned:object.stunned,
+            attackedThisTurn:object.attackedThisTurn,
+            loyalty:object.loyalty??null,
+            equipmentCount:object.equipment.length,
+          })),
+        })),
+      }}
       targetingFx={{
         selectedKind:selectedAttackerId?"attacker":selectedBlockerId?"blocker":null,
         selectedId:selectedAttackerId||selectedBlockerId,
