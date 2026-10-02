@@ -104,6 +104,11 @@ assert.match(phaserCombatFx,/export function playDamageImpactFx/,"shared Phaser 
 assert.match(phaserCombatFx,/export function playBarrierBreakFx/,"shared Phaser FX must expose a Barrier break primitive");
 assert.match(phaserCombatFx,/export function playDepartureFx/,"shared Phaser FX must expose a departure primitive");
 assert.doesNotMatch(phaserRuntime,/seatLife\(|battlefieldMap\(|deriveAuthoritativeResolutionFx|effectivePower|applyFourPlayerBattlefieldDamage|advanceFourPlayerCombatStep/,"Phaser runtime must render authoritative outcomes without recalculating combat");
+assert.match(battlefield,/attackerIds:previous\.combat\.attackers\.map\(entry=>entry\.unitId\)/,"resolution presentation must carry authoritative attacker identities from the prior combat snapshot");
+assert.match(battlefield,/blockerPairs:previous\.combat\.blockers\.map/,"resolution presentation must carry authoritative blocker pairings from the prior combat snapshot");
+assert.match(phaserRuntime,/new Set\(fx\.blockerPairs\.map\(pair=>pair\.attackerId\)\)/,"Phaser may distinguish blocked impacts only from projected authoritative blocker pairs");
+assert.match(phaserRuntime,/combat:resolution:attacker:/,"Phaser combat resolution must expose stable attacker-scoped presentation markers");
+assert.doesNotMatch(phaserRuntime,/damage\s*[+\-*/]?=|health\s*[+\-*/]?=/,"Phaser combat presentation must not mutate or calculate gameplay damage or health");
 
 assert.match(phaserRuntime,/playCombatLaneFx\(this,start,impact,"attackers"\)/,"attacker lanes must use the certified Phaser combat FX helper");
 assert.match(phaserRuntime,/playCombatLaneFx\(this,start,impact,"blockers"\)/,"blocker lanes must use the certified Phaser combat FX helper");
