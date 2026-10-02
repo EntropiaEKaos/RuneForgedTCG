@@ -22,7 +22,7 @@ type CombatSeat = {
 };
 type StackItem = {
   id:string; controllerSeat:number; defId:string|null; speed:string|null; actionKind:string|null;
-  sourceId?:string|null; abilityDescription?:string|null; uncounterable:boolean;
+  sourceId:string|null; abilityDescription?:string|null; uncounterable:boolean;
 };
 type CombatState = {
   revision:number; activeSeat:number; prioritySeat:number; phase:string; turn:number;
@@ -509,7 +509,7 @@ export default function CommanderBattlefield4P({
         blockers:combat.combat.blockers,
       }}
       resolutionFx={resolutionFx}
-      stack={combat.stack.map(item=>({...item,sourceId:item.sourceId??null}))}
+      stack={combat.stack}
       hand={(combat.seats.find(seat=>seat.seat===viewer)?.hand||[]).map(card=>({
         instanceId:card.instanceId,
         defId:card.defId,
