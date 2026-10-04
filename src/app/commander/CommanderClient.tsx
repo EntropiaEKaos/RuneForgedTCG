@@ -347,9 +347,9 @@ export default function CommanderClient(){
     });
   }
 
-  return <main className="min-h-screen bg-[#06090e] text-slate-100">
-    <div className="mx-auto max-w-[1500px] px-5 py-8">
-      <header className="border-b border-white/10 pb-6">
+  const matchPresented=Boolean(room&&(room.state==="playing"||combat?.status==="completed"));\n\n  return <main className={`min-h-screen bg-[#06090e] text-slate-100 ${matchPresented?"overflow-hidden":""}`} data-commander-surface={matchPresented?"table":"lobby"}>
+    <div className={matchPresented?"h-screen w-screen overflow-hidden":"mx-auto max-w-[1500px] px-5 py-8"}>
+      <header className={matchPresented?"hidden":"border-b border-white/10 pb-6"}>
         <p className="text-[10px] font-black uppercase tracking-[.3em] text-amber-200/55">FORGED · EXPERIMENTAL MULTIPLAYER</p>
         <h1 className="mt-2 text-4xl font-black text-[#f1dfb5]">Commander 4P Alpha</h1>
         <p className="mt-3 max-w-4xl text-sm text-slate-400">Modo separado do 1v1: quatro jogadores reais, 60 cartas + 1 General, Nexus 30, combate dividido, prioridade circular e stack LIFO com reações Fast/Burst. Ranked e o motor 1v1 permanecem isolados.</p>
@@ -357,7 +357,7 @@ export default function CommanderClient(){
       {error&&<div className="mt-5 border border-red-400/25 bg-red-950/20 p-3 text-sm text-red-200">{error}</div>}
       {resyncing&&<div className="mt-5 border border-cyan-300/20 bg-cyan-950/20 p-3 text-sm text-cyan-100">Reconectando ao estado autoritativo da partida…</div>}
 
-      {room ? <section className="mt-7 grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
+      {room ? <section className={matchPresented?"h-full w-full":"mt-7 grid gap-6 xl:grid-cols-[1.2fr_.8fr]"}>
         <div className="border border-white/10 bg-white/[.025] p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div><p className="text-xs uppercase tracking-[.2em] text-slate-500">Sala {room.code}</p><h2 className="mt-1 text-2xl font-black">{room.state==="playing"?"Partida 4P iniciada":"Lobby 4P"}</h2></div>
