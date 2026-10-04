@@ -360,12 +360,12 @@ export default function CommanderClient(){
       {resyncing&&<div className="mt-5 border border-cyan-300/20 bg-cyan-950/20 p-3 text-sm text-cyan-100">Reconectando ao estado autoritativo da partida…</div>}
 
       {room ? <section className={matchPresented?"h-full w-full":"mt-7 grid gap-6 xl:grid-cols-[1.2fr_.8fr]"}>
-        <div className="border border-white/10 bg-white/[.025] p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className={matchPresented?"relative h-full w-full overflow-hidden":"border border-white/10 bg-white/[.025] p-6"}>
+          <div className={matchPresented?"hidden":"flex flex-wrap items-center justify-between gap-3"}>
             <div><p className="text-xs uppercase tracking-[.2em] text-slate-500">Sala {room.code}</p><h2 className="mt-1 text-2xl font-black">{room.state==="playing"?"Partida 4P iniciada":"Lobby 4P"}</h2></div>
             <span className="border border-amber-200/20 px-3 py-2 text-xs font-black uppercase text-amber-100">{room.state} · v{room.version}</span>
           </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className={matchPresented?"hidden":"mt-6 grid gap-4 md:grid-cols-2"}>
             {[0,1,2,3].map(seatIndex=>{
               const seat=room.seats.find(item=>item.seat===seatIndex);
               const runtime=combat?.seats.find(item=>item.seat===seatIndex);
