@@ -271,6 +271,17 @@ async function driveMatchToResult(cdp, timeoutMs = 240_000) {
       await sleep(220);
       continue;
     }
+    if (snapshot.phase === "block") {
+      const fresh = await readDriveState();
+      if (fresh.result || fresh.phase === "gameover") return { rounds, lastPhase: fresh.phase || lastPhase };
+      if (fresh.phase !== snapshot.phase) {
+        await sleep(80);
+        continue;
+      }
+      await clickText(cdp, "Confirmar bloqueios");
+      await sleep(220);
+      continue;
+    }
     await sleep(280);
   }
   throw new Error(`Alpha browser match did not reach gameover within ${timeoutMs}ms (last phase=${lastPhase}, rounds=${rounds})`);
