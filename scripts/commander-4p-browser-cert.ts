@@ -1110,11 +1110,12 @@ async function main(){
     const endTurnRevision=rooms[0].combat.revision;
     assert.notEqual(activeSeatAfterEnd,activeSeatBeforeEnd,"end_turn must advance the authoritative active seat");
     assert.equal(rooms[0].combat.prioritySeat,activeSeatAfterEnd,"new active seat must receive authoritative priority after end_turn");
-    await capture(browsers[activeSeatAfterEnd],"76-commander-4p-end-turn.png","Commander authoritative end-turn transition",manifest);
+    await waitUntil(async()=>await evaluate<boolean>(browsers[activeSeatAfterEnd].cdp,`document.querySelector('[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]')!==null`),"Commander fullscreen four-seat table",20_000);
+    await capture(browsers[activeSeatAfterEnd],"76-commander-4p-fullscreen-table.png","Commander fullscreen four-seat battlefield after authoritative end-turn",manifest);
 
     const recoveryBrowser=browsers[activeSeatAfterEnd];
     await navigate(recoveryBrowser.cdp,"/commander");
-    await waitForText(recoveryBrowser.cdp,"Commander 4P Alpha",20_000);
+    await waitUntil(async()=>await evaluate<boolean>(recoveryBrowser.cdp,`document.querySelector('[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]')!==null`),"Commander recovery restores fullscreen table",20_000);
     const recoveryRoomLabel=JSON.stringify(`Sala ${roomCode}`);
     await waitUntil(async()=>{
       const direct=await evaluate<boolean>(recoveryBrowser.cdp,`document.body?.innerText?.includes(${recoveryRoomLabel})===true&&document.body?.innerText?.includes('PRIORIDADE')===true`);
@@ -1135,7 +1136,7 @@ async function main(){
     assert.equal(recovered.status,200,"hard-refresh recovery must reload the Commander room");
     assert.equal(recovered.body.room.combat.revision,endTurnRevision,"hard-refresh recovery must preserve the exact authoritative revision without replay");
     assert.equal(recovered.body.room.combat.activeSeat,activeSeatAfterEnd,"hard-refresh recovery must preserve the authoritative active seat");
-    await capture(recoveryBrowser,"77-commander-4p-refresh-recovered.png","Commander hard-refresh authoritative recovery",manifest);
+    await capture(recoveryBrowser,"77-commander-4p-refresh-recovered-table.png","Commander hard-refresh authoritative fullscreen table recovery",manifest);
 
     const concedeSeats=[0,1,2,3].filter((seat)=>seat!==activeSeatAfterEnd).slice(0,3);
     let terminalRevision=endTurnRevision;
