@@ -1141,7 +1141,7 @@ async function main(){
     let terminalRevision=endTurnRevision;
     for(let index=0;index<concedeSeats.length;index++){
       const seat=concedeSeats[index];
-      await waitForCommanderUiAuthority(browsers[seat],terminalRevision,rooms[0].combat.prioritySeat===seat?"yours":"other",20_000);
+      await waitForCommanderUiAuthority(browsers[seat],terminalRevision,rooms[0].combat.prioritySeat===seat?"yours":"waiting",20_000);
       await waitForEnabledButton(browsers[seat].cdp,"Conceder partida",15_000);
       await clickText(browsers[seat].cdp,"Conceder partida",true);
       terminalRevision+=1;
