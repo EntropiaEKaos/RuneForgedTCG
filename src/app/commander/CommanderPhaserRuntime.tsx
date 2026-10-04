@@ -641,5 +641,7 @@ export default function CommanderPhaserRuntime({
     className="pointer-events-none absolute inset-0 z-[15] overflow-hidden rounded-[2rem]"
     aria-hidden="true"
     data-commander-phaser-runtime="presentation-only"
+    data-match-status={combat.status}
+    data-winner-seat={combat.winnerSeat??""}
   />;
 }
