@@ -19,10 +19,18 @@ function code() {
 }
 
 async function summaries(viewerId?: number) {
-  const rooms = await db.select().from(commanderRooms)
+  const waitingRooms = await db.select().from(commanderRooms)
     .where(eq(commanderRooms.state, "waiting"))
     .orderBy(desc(commanderRooms.createdAt))
     .limit(20);
+  const activeViewerRooms = viewerId == null ? [] : await db.select({ room:commanderRooms }).from(commanderRooms)
+    .innerJoin(commanderSeats, eq(commanderSeats.roomId, commanderRooms.id))
+    .where(and(eq(commanderSeats.playerId, viewerId), eq(commanderRooms.state, "playing")))
+    .orderBy(desc(commanderRooms.createdAt))
+    .limit(1);
+  const rooms = [...activeViewerRooms.map((row) => row.room), ...waitingRooms]
+    .filter((room, index, all) => all.findIndex((candidate) => candidate.id === room.id) === index)
+    .slice(0, 20);
   const ids = rooms.map((room) => room.id);
   const seats = ids.length ? await db.select().from(commanderSeats).where(inArray(commanderSeats.roomId, ids)) : [];
   return rooms.map((room) => ({
