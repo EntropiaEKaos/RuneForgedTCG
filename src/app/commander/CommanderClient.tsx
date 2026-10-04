@@ -347,7 +347,9 @@ export default function CommanderClient(){
     });
   }
 
-  const matchPresented=Boolean(room&&(room.state==="playing"||combat?.status==="completed"));\n\n  return <main className={`min-h-screen bg-[#06090e] text-slate-100 ${matchPresented?"overflow-hidden":""}`} data-commander-surface={matchPresented?"table":"lobby"}>
+  const matchPresented=Boolean(room&&(room.state==="playing"||combat?.status==="completed"));
+
+  return <main className={`min-h-screen bg-[#06090e] text-slate-100 ${matchPresented?"overflow-hidden":""}`} data-commander-surface={matchPresented?"table":"lobby"}>
     <div className={matchPresented?"h-screen w-screen overflow-hidden":"mx-auto max-w-[1500px] px-5 py-8"}>
       <header className={matchPresented?"hidden":"border-b border-white/10 pb-6"}>
         <p className="text-[10px] font-black uppercase tracking-[.3em] text-amber-200/55">FORGED · EXPERIMENTAL MULTIPLAYER</p>
