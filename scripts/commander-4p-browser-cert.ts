@@ -1141,11 +1141,20 @@ async function main(){
     let terminalRevision=endTurnRevision;
     for(let index=0;index<concedeSeats.length;index++){
       const seat=concedeSeats[index];
+      await waitForCommanderUiAuthority(browsers[seat],terminalRevision,rooms[0].combat.prioritySeat===seat?"yours":"other",20_000);
       await waitForEnabledButton(browsers[seat].cdp,"Conceder partida",15_000);
       await clickText(browsers[seat].cdp,"Conceder partida",true);
       terminalRevision+=1;
-      responses=await waitForAllRoomVersion(browsers,roomCode,terminalRevision,20_000);
+      responses=await waitUntil(async()=>{
+        const projected=await Promise.all(browsers.map((browser)=>fetchCommander(browser,roomCode)));
+        if(projected.some((response)=>response.status!==200||!response.body?.room?.combat))return false;
+        const revisions=projected.map((response)=>Number(response.body.room.combat.revision));
+        if(revisions.some((revision)=>revision<terminalRevision)||new Set(revisions).size!==1)return false;
+        if(projected.some((response)=>response.body.room.combat.seats[seat].eliminated!==true))return false;
+        return projected;
+      },`P${seat+1} authoritative concede at revision >= ${terminalRevision}`,20_000);
       rooms=responses.map((response)=>response.body.room);
+      terminalRevision=rooms[0].combat.revision;
       assert.equal(rooms[0].combat.seats[seat].eliminated,true,`P${seat+1} concede must project authoritative elimination`);
     }
     rooms=responses.map((response)=>response.body.room);
