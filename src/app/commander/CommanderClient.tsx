@@ -375,7 +375,7 @@ export default function CommanderClient(){
               </article>
             })}
           </div>
-          {(room.state==="playing"||combat?.status==="completed")&&<div className="mt-5 border border-white/10 p-4">
+          {(room.state==="playing"||combat?.status==="completed")&&<div className={matchPresented?"h-full w-full":"mt-5 border border-white/10 p-4"}>
             {combat?<><CommanderBattlefield4P
               room={room}
               combat={combat}
@@ -521,7 +521,7 @@ export default function CommanderClient(){
             <p className="mt-3 text-xs text-slate-500">Comandos enviados com revisionamento autoritativo; ações fora de prioridade, turno ou timing são recusadas pelo servidor.</p></>:<><p className="text-sm">Rodada <b>{room.round}</b> · compatibilidade de sala anterior.</p>{room.viewerSeat===room.activeSeat&&<button className="btn-primary mt-3" disabled={busy} onClick={()=>void mutate(`/api/commander/${room.code}`,{action:"pass-turn"})}>Passar turno</button>}</>}
           </div>}
         </div>
-        <aside className="border border-white/10 bg-black/20 p-5">
+        <aside className={matchPresented?"hidden":"border border-white/10 bg-black/20 p-5"}>
           <h3 className="font-black">Controles do lobby</h3>
           {room.state==="waiting"&&<>
             <button className="btn-primary mt-4 w-full" disabled={busy||room.viewerSeat==null} onClick={()=>void mutate(`/api/commander/${room.code}`,{action:"ready",ready:!room.seats.find(s=>s.seat===room.viewerSeat)?.ready})}>{room.seats.find(s=>s.seat===room.viewerSeat)?.ready?"Retirar ready":"Estou pronto"}</button>
