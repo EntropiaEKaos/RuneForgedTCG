@@ -1161,7 +1161,10 @@ async function main(){
     assert.equal(rooms[0].combat.status,"completed","three UI concedes must complete the four-player match");
     assert.equal(rooms[0].combat.winnerSeat,activeSeatAfterEnd,"the sole surviving seat must be the authoritative winner");
     assert.equal(new Set(rooms.map((room)=>room.combat.winnerSeat)).size,1,"all four clients must converge on the same authoritative winner");
-    await waitForText(browsers[activeSeatAfterEnd].cdp,"VITÓRIA",20_000);
+    await waitUntil(async()=>{
+      const terminal=await evaluate(browsers[activeSeatAfterEnd].cdp,`(()=>{const node=document.querySelector('[data-commander-phaser-runtime="presentation-only"]');return node?{status:node.getAttribute("data-match-status"),winnerSeat:node.getAttribute("data-winner-seat")}:null})()`);
+      return terminal?.status==="completed"&&terminal?.winnerSeat===String(activeSeatAfterEnd);
+    },"authoritative terminal outcome projected into Commander Phaser runtime",20_000);
     await capture(browsers[activeSeatAfterEnd],"78-commander-4p-authoritative-winner.png","Commander terminal winner after real UI concedes",manifest);
 
     for(const browser of browsers){
