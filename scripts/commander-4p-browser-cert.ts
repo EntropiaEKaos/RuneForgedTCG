@@ -977,7 +977,7 @@ async function main(){
 
     await waitForCommanderUiAuthority(browsers[1],chainSourceRevision,"yours",20_000);
     await waitForEnabledButton(browsers[1].cdp,loadout.reaction.counter.name,15_000);
-    await clickText(browsers[1].cdp,loadout.reaction.counter.name);
+    await clickArenaHandCard(browsers[1].cdp,loadout.reaction.counter.name);
     await waitForEnabledButton(browsers[1].cdp,loadout.reaction.source.name,15_000);
     await clickArenaStackCard(browsers[1].cdp,loadout.reaction.source.name);
 
@@ -997,7 +997,7 @@ async function main(){
 
     await waitForCommanderUiAuthority(browsers[2],chainCounterRevision,"yours",20_000);
     await waitForEnabledButton(browsers[2].cdp,loadout.reaction.counter.name,15_000);
-    await clickText(browsers[2].cdp,loadout.reaction.counter.name);
+    await clickArenaHandCard(browsers[2].cdp,loadout.reaction.counter.name);
     await waitForEnabledButton(browsers[2].cdp,"TOPO · "+loadout.reaction.counter.name,15_000);
     await clickArenaStackCard(browsers[2].cdp,loadout.reaction.counter.name);
 
