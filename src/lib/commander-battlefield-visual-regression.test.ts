@@ -56,7 +56,7 @@ assert.match(battlefield,/stroke-dashoffset/,"attack routes must retain animated
 assert.match(battlefield,/attributeName="cx"/,"attack FX must retain a projectile moving from controller to defender");
 assert.match(battlefield,/attributeName="r"/,"defending seat must retain an impact pulse driven by an authoritative attacker");
 
-assert.match(battlefield,/NEXUS DA STACK/,"battlefield must retain a central authoritative stack surface");
+assert.match(battlefield,/NEXUS DA STACK/,"compact stack must retain an expandable authoritative physical surface");
 assert.match(battlefield,/combat\.stack/,"stack presentation must be derived from projected server state");
 assert.match(battlefield,/data-commander-stack-cards="physical"/,"stack must retain a physical layered-card presentation");
 assert.match(battlefield,/data-commander-stack-top/,"stack must expose its visual top object");
@@ -72,12 +72,18 @@ assert.match(client,/matchPresented\?"h-screen w-screen overflow-hidden"/,"activ
 assert.match(client,/matchPresented\?"hidden":"mt-6 grid gap-4 md:grid-cols-2"/,"legacy lobby seat cards must be hidden while the match table is presented");
 assert.match(client,/matchPresented\?"hidden":"border border-white\/10 bg-black\/20 p-5"/,"lobby controls must be hidden while the match table is presented");
 assert.match(battlefield,/className="relative h-full w-full overflow-hidden bg-\[#02060b\]/,"four-seat arena must fill its match shell without laboratory horizontal scrolling");
-assert.match(battlefield,/grid h-full w-full origin-center/,"four-seat table geometry must fill the available viewport");
+assert.match(battlefield,/grid h-full w-full origin-center/,"unified four-seat arena geometry must fill the available viewport");
 assert.match(battlefield,/selectedAttackerId/,"cinematic battlefield must support local attacker selection");
 assert.match(battlefield,/selectedBlockerId/,"cinematic battlefield must support local blocker selection");
 assert.match(battlefield,/onDeclareAttacker/,"cinematic battlefield must delegate attack commitment to its parent authority");
 assert.match(battlefield,/onDeclareBlocker/,"cinematic battlefield must delegate block commitment to its parent authority");
 assert.match(battlefield,/data-commander-nexus-target/,"opponent Nexus surfaces must become explicit attack targets");
+assert.match(battlefield,/data-commander-seat-zone="integrated"/,"players must occupy integrated arena zones instead of four boxed mini-tables");
+assert.match(battlefield,/data-commander-graveyard="pile"/,"graveyards must render as physical clickable piles");
+assert.match(battlefield,/data-commander-graveyard-overlay/,"graveyard inspection must expand into a dedicated overlay");
+assert.match(battlefield,/useState<80\|90\|100>\(100\)/,"unified arena must default to full-scale viewport usage");
+assert.doesNotMatch(battlefield,/w-\[min\(38vw,460px\)\]/,"legacy four-mini-table seat cards must not return");
+
 assert.match(client,/onDeclareAttacker=\{\(unitId,defendingSeat\)=>combatCommand\("declare_attacker"/,"Commander client must keep authoritative attack command ownership");
 assert.match(client,/onDeclareBlocker=\{\(unitId,attackerId\)=>combatCommand\("declare_blocker"/,"Commander client must keep authoritative block command ownership");
 
