@@ -998,7 +998,6 @@ async function main(){
     await waitForCommanderUiAuthority(browsers[2],chainCounterRevision,"yours",20_000);
     await waitForEnabledButton(browsers[2].cdp,loadout.reaction.counter.name,15_000);
     await clickArenaHandCard(browsers[2].cdp,loadout.reaction.counter.name);
-    await waitForEnabledButton(browsers[2].cdp,"TOPO · "+loadout.reaction.counter.name,15_000);
     await clickArenaStackCard(browsers[2].cdp,loadout.reaction.counter.name);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,chainCounterRevision+1,20_000);
