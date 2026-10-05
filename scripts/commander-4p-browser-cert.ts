@@ -755,7 +755,7 @@ async function main(){
     await clickText(host.cdp,"Iniciar com 4 jogadores",true);
 
     await Promise.all(browsers.map(async(browser)=>{
-      await waitForText(browser.cdp,"Partida 4P iniciada",30_000);
+      await waitForSelector(browser.cdp,'[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]',30_000);
       await waitForText(browser.cdp,"PRIORIDADE",30_000);
     }));
 
