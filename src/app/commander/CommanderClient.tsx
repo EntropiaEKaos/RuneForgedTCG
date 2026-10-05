@@ -545,7 +545,7 @@ export default function CommanderClient(){
             <div className="absolute bottom-3 right-3 z-30 flex items-center gap-2">
               <button className="btn-ghost" disabled={busy||!canCastGeneral} onClick={()=>void combatCommand("cast_general")}>Conjurar General</button>
               <button className="btn-primary" disabled={busy||!viewerIsActive||!viewerHasPriority||stackItems.length>0} onClick={()=>void combatCommand("end_turn")}>Encerrar turno</button>
-              <button className="border border-rose-400/25 px-3 py-2 text-xs font-black uppercase text-rose-200 disabled:opacity-30" disabled={busy||!viewerAlive} onClick={()=>void combatCommand("concede")}>Conceder</button>
+              <button className="border border-rose-400/25 px-3 py-2 text-xs font-black uppercase text-rose-200 disabled:opacity-30" disabled={busy||!viewerAlive} onClick={()=>void combatCommand("concede")}>Conceder partida</button>
             </div></>:<><p className="text-sm">Rodada <b>{room.round}</b> · compatibilidade de sala anterior.</p>{room.viewerSeat===room.activeSeat&&<button className="btn-primary mt-3" disabled={busy} onClick={()=>void mutate(`/api/commander/${room.code}`,{action:"pass-turn"})}>Passar turno</button>}</>}
           </div>}
         </div>
