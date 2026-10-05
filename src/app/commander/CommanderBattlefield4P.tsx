@@ -222,7 +222,7 @@ function SeatZone({
         className={`relative rounded-full border px-2 py-1 text-[9px] font-black backdrop-blur ${canTargetNexus?"border-rose-200/60 bg-rose-950/80 text-rose-50 shadow-[0_0_18px_rgba(251,113,133,.2)]":"border-rose-200/15 bg-black/55 text-rose-100"}`}
         aria-label={`Nexus P${runtime.seat+1}`}
         data-commander-nexus-target={canTargetNexus?runtime.seat:undefined}>
-        <span className="sr-only">Nexus P{runtime.seat+1}</span>♥ {runtime.life??runtime.nexusHealth}
+        <span className="mr-1 text-[7px] uppercase tracking-[.08em] text-rose-200/70">Nexus P{runtime.seat+1}</span>♥ {runtime.life??runtime.nexusHealth}
         {nexusDamage>0&&<span className="absolute -right-2 -top-2 animate-ping rounded-full bg-rose-500 px-1 text-[8px] text-white" data-commander-nexus-damage={nexusDamage}>-{nexusDamage}</span>}
       </button>
       <span className="rounded-full border border-cyan-200/15 bg-black/55 px-2 py-1 text-[8px] font-black text-cyan-100">◆ {runtime.mana??0}/{runtime.maxMana??0}</span>
