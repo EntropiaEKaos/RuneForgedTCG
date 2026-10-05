@@ -13,7 +13,8 @@ assert.match(client,/Stack aberta — aguardando a janela autoritativa chegar at
 assert.match(client,/prioritySeconds<=7/,"Commander must mark the final priority seconds as urgent presentation");
 assert.match(client,/Pilha de respostas/,"Commander reaction window must expose the response stack");
 assert.match(client,/Resolve primeiro/,"Commander reaction stack must identify the LIFO top frame");
-assert.match(client,/Passar reação/,"Commander must distinguish reaction pass copy from ordinary priority pass");\nassert.match(client,/item\.controllerSeat\+1/,"Commander reaction frames must identify P1/P2/P3/P4 ownership");
+assert.match(client,/Passar reação/,"Commander must distinguish reaction pass copy from ordinary priority pass"); 
+assert.match(client,/item\.controllerSeat\+1/,"Commander reaction frames must identify P1/P2/P3/P4 ownership");
 assert.match(client,/disabled={busy\|\|!viewerHasPriority}/,"presentation changes must preserve server-authoritative priority gating");
 
 const priorityBlock=client.indexOf("const prioritySeconds=");
