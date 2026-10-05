@@ -146,14 +146,6 @@ export default function CommanderClient(){
       document.removeEventListener("visibilitychange",onVisibility);
     };
   },[room?.code,resyncRoom]);
-  const pendingCardStillInHand=!pendingSpellInstanceId||Boolean(viewerRuntime?.hand?.some(card=>card.instanceId===pendingSpellInstanceId));
-  const stillOwnPriority=room?.combat?.prioritySeat===room?.viewerSeat;
-  useEffect(()=>{
-    if(!pendingSpellInstanceId&&!pendingAbility)return;
-    if(pendingCardStillInHand&&stillOwnPriority)return;
-    const id=window.setTimeout(clearPendingCombatIntent,0);
-    return()=>window.clearTimeout(id);
-  },[room?.combat?.revision,pendingSpellInstanceId,pendingAbility,pendingCardStillInHand,stillOwnPriority,clearPendingCombatIntent]);
   useEffect(()=>{
     if(!room?.combat?.priorityDeadlineAt)return;
     const tick=()=>setNowMs(Date.now());
@@ -210,6 +202,14 @@ export default function CommanderClient(){
   const canSubmit=deck.length===COUNT&&Boolean(general)&&!busy;
   const combat=room?.combat??null;
   const viewerRuntime=combat?.seats.find(seat=>seat.seat===room?.viewerSeat);
+  const pendingCardStillInHand=!pendingSpellInstanceId||Boolean(viewerRuntime?.hand?.some(card=>card.instanceId===pendingSpellInstanceId));
+  const stillOwnPriority=combat?.prioritySeat===room?.viewerSeat;
+  useEffect(()=>{
+    if(!pendingSpellInstanceId&&!pendingAbility)return;
+    if(pendingCardStillInHand&&stillOwnPriority)return;
+    const id=window.setTimeout(clearPendingCombatIntent,0);
+    return()=>window.clearTimeout(id);
+  },[combat?.revision,pendingSpellInstanceId,pendingAbility,pendingCardStillInHand,stillOwnPriority,clearPendingCombatIntent]);
   const viewerHasPriority=Boolean(combat&&room?.viewerSeat!=null&&combat.prioritySeat===room.viewerSeat&&combat.status==="active");
   const viewerIsActive=Boolean(combat&&room?.viewerSeat!=null&&combat.activeSeat===room.viewerSeat&&combat.status==="active");
   const viewerAlive=Boolean(viewerRuntime&&!viewerRuntime.eliminated&&combat?.status==="active");
