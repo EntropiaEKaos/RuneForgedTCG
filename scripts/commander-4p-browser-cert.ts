@@ -866,7 +866,23 @@ async function main(){
     await waitForCommanderUiAuthority(browsers[0],counterChainFixture.revision,"yours",20_000);
     await waitForEnabledButton(browsers[0].cdp,loadout.reaction.source.name,15_000);
     await clickText(browsers[0].cdp,loadout.reaction.source.name);
-    await waitForEnabledButton(browsers[0].cdp,"Nexus P2",15_000);
+    try{
+      await waitForEnabledButton(browsers[0].cdp,"Nexus P2",15_000);
+    }catch(error){
+      const arenaTargetDebug=await evaluate<any>(browsers[0].cdp,`(()=>{
+        const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+        return {
+          buttons:[...document.querySelectorAll('button')].map((button)=>({
+            text:normalize(button.textContent),
+            disabled:Boolean(button.disabled),
+            aria:button.getAttribute('aria-label'),
+          })).filter((button)=>button.text.includes('Nexus')||button.text.includes('Tidal Erosion')),
+          arena:document.querySelector('[data-commander-arena]')?.getAttribute('data-commander-arena')||null,
+          stackTop:normalize(document.querySelector('[data-commander-stack-top]')?.textContent),
+        };
+      })()`);
+      throw new Error(`${error instanceof Error?error.message:String(error)} | arena-target-debug=${JSON.stringify(arenaTargetDebug)}`);
+    }
     await clickText(browsers[0].cdp,"Nexus P2",true);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,counterChainFixture.revision+1,20_000);
