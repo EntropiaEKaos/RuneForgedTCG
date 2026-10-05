@@ -147,9 +147,13 @@ export default function CommanderClient(){
     };
   },[room?.code,resyncRoom]);
   useEffect(()=>{
+    if(!pendingSpellInstanceId&&!pendingAbility)return;
+    const pendingCardStillInHand=!pendingSpellInstanceId||Boolean(room?.combat?.seats?.[room.viewerSeat??-1]?.hand?.some(card=>card.instanceId===pendingSpellInstanceId));
+    const stillOwnPriority=room?.combat?.prioritySeat===room?.viewerSeat;
+    if(pendingCardStillInHand&&stillOwnPriority)return;
     const id=window.setTimeout(clearPendingCombatIntent,0);
     return()=>window.clearTimeout(id);
-  },[room?.combat?.revision,clearPendingCombatIntent]);
+  },[room?.combat?.revision,room?.combat?.prioritySeat,room?.viewerSeat,pendingSpellInstanceId,pendingAbility,clearPendingCombatIntent]);
   useEffect(()=>{
     if(!room?.combat?.priorityDeadlineAt)return;
     const tick=()=>setNowMs(Date.now());
