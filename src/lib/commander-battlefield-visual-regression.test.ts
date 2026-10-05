@@ -159,6 +159,11 @@ assert.doesNotMatch(phaserRuntime,/fetch\(|combatCommand|onDeclareAttacker|onDec
 assert.match(phaserRuntime,/React battlefield remains active/,"Phaser runtime failure must preserve the React battlefield fallback");
 assert.doesNotMatch(battlefield,/fetch\(/,"cinematic battlefield must remain a pure projection layer with no network authority");
 assert.doesNotMatch(battlefield,/combatCommand|mutate\(/,"cinematic battlefield must not create a second command authority");
+assert.match(battlefield,/groupEquivalentBattlefieldObjects/,"Commander battlefield must visually group equivalent repeated objects for dense boards");
+assert.match(battlefield,/battlefieldVisualStateKey/,"visual stacking must split copies when authoritative state differs");
+assert.match(battlefield,/data-commander-visual-stack=/,"visual piles must expose their copy count");
+assert.match(battlefield,/data-commander-stack-instance-ids=/,"visual piles must preserve every authoritative instance id");
+assert.match(battlefield,/×\{group\.length\}/,"visual piles must show a visible copy count");
 
 const commanderClient=read("src/app/commander/CommanderClient.tsx");
 assert.match(commanderClient,/fetch\(\`\/api\/commander\/\$\{code\}\`,\{cache:"no-store",credentials:"include"\}\)/,"Commander recovery must reload the authoritative room snapshot with a no-store GET");
