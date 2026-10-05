@@ -165,6 +165,24 @@ function BattlefieldCard({
   </div>;
 }
 
+function battlefieldVisualStateKey(object:BattlefieldObject,declaredAttackerIds:Set<string>,declaredBlockerIds:Set<string>,incomingAttackerIds:Set<string>){
+  return JSON.stringify({
+    defId:object.defId,kind:object.kind,controllerSeat:object.controllerSeat,keywords:[...object.keywords].sort(),
+    combat:object.combat?{power:object.combat.power,health:object.combat.health,maxHealth:object.combat.maxHealth,barrier:object.combat.barrier,frostbitten:object.combat.frostbitten}:null,
+    durability:object.durability||null,loyalty:object.loyalty??null,stunned:object.stunned,attackedThisTurn:object.attackedThisTurn,
+    equipment:object.equipment.map(item=>({defId:item.defId,buffPower:item.buffPower,buffHealth:item.buffHealth,keywords:[...item.keywords].sort()})),
+    attacking:declaredAttackerIds.has(object.id),blocking:declaredBlockerIds.has(object.id),incoming:incomingAttackerIds.has(object.id),
+  });
+}
+function groupEquivalentBattlefieldObjects(objects:BattlefieldObject[],declaredAttackerIds:Set<string>,declaredBlockerIds:Set<string>,incomingAttackerIds:Set<string>){
+  const groups=new Map<string,BattlefieldObject[]>();
+  for(const object of objects){
+    const key=battlefieldVisualStateKey(object,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds);
+    const group=groups.get(key); if(group)group.push(object); else groups.set(key,[object]);
+  }
+  return [...groups.values()];
+}
+
 function VisibleHand({cards,playableIds,onPlay}:{cards:ProjectedCard[];playableIds:Set<string>;onPlay?:(card:ProjectedCard)=>void}){
   const shown=cards.slice(0,7);
   return <div className="flex min-h-16 items-end justify-center overflow-x-auto px-2" aria-label={`${cards.length} cartas na sua mão`}>
@@ -247,18 +265,27 @@ function SeatZone({
 
     <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-12 py-6":"px-24 py-8"}`} data-commander-zone="battlefield">
       <div className={`flex max-h-full max-w-full items-center justify-center gap-1.5 ${vertical?"flex-wrap content-center":"flex-wrap"}`}>
-        {battlefield.length?battlefield.map(object=>{
+        {battlefield.length?groupEquivalentBattlefieldObjects(battlefield,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds).map(group=>{
+          const object=group[0];
           const attackable=isViewer&&attackableIds.has(object.id);
           const blockable=isViewer&&blockableIds.has(object.id);
           const incoming=incomingAttackerIds.has(object.id);
           const incomingTarget=Boolean(!isViewer&&incoming&&selectedBlockerId);
           const motion:CombatMotion=declaredBlockerIds.has(object.id)?"blocking":declaredAttackerIds.has(object.id)?"attacking":null;
           const onClick=attackable?()=>onSelectAttacker(object.id):blockable?()=>onSelectBlocker(object.id):incomingTarget?()=>onTargetIncomingAttacker(object.id):undefined;
-          return <BattlefieldCard key={object.id} object={object} collection={collection}
-            selected={object.id===selectedAttackerId||object.id===selectedBlockerId} targetable={incomingTarget}
-            onClick={busy?undefined:onClick}
-            badge={incoming?"ATACANDO VOCÊ":motion==="blocking"?"INTERCEPTANDO":attackable?"ATACANTE":blockable?"BLOQUEADOR":undefined}
-            position={position} motion={motion} damage={objectDamage[object.id]} barrierBroken={barrierBrokenIds.has(object.id)}/>;
+          return <div key={group.map(item=>item.id).join(":")} className="group/stack relative shrink-0" data-commander-visual-stack={group.length} data-commander-stack-instance-ids={group.map(item=>item.id).join(",")}>
+            {group.length>1&&<>
+              {group.slice(1,Math.min(group.length,4)).map((copy,index)=><div key={copy.id} className="pointer-events-none absolute inset-0 transition-transform duration-200 group-hover/stack:translate-x-[var(--stack-hover-x)]" style={{transform:`translate(${(index+1)*5}px,${-(index+1)*4}px)`,zIndex:index,["--stack-hover-x" as string]:`${(index+1)*7}px`}} aria-hidden="true"><CardView defId={copy.defId} size="sm" dimmed/></div>)}
+              <span className="absolute -right-3 -top-3 z-30 rounded-full border border-cyan-100/30 bg-slate-950/95 px-2 py-0.5 text-[9px] font-black text-cyan-50 shadow-xl" title={`${group.length} cópias equivalentes`}>×{group.length}</span>
+            </>}
+            <div className="relative z-20">
+              <BattlefieldCard object={object} collection={collection}
+                selected={group.some(item=>item.id===selectedAttackerId||item.id===selectedBlockerId)} targetable={incomingTarget}
+                onClick={busy?undefined:onClick}
+                badge={incoming?"ATACANDO VOCÊ":motion==="blocking"?"INTERCEPTANDO":attackable?"ATACANTE":blockable?"BLOQUEADOR":undefined}
+                position={position} motion={motion} damage={objectDamage[object.id]} barrierBroken={barrierBrokenIds.has(object.id)}/>
+            </div>
+          </div>;
         }):<span className="text-[8px] uppercase tracking-[.28em] text-white/10">zona de batalha</span>}
       </div>
     </div>
