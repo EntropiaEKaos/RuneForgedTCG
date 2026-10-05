@@ -36,10 +36,10 @@ type CollectionCard = {defId:string;name:string};
 type Position="bottom"|"left"|"top"|"right";
 const positionOrder:Position[]=["bottom","left","top","right"];
 const gridClass:Record<Position,string>={
-  top:"col-start-2 row-start-1 self-start",
-  left:"col-start-1 row-start-2 self-center justify-self-start",
-  right:"col-start-3 row-start-2 self-center justify-self-end",
-  bottom:"col-start-2 row-start-3 self-end",
+  top:"col-start-2 row-start-1 self-stretch",
+  left:"col-start-1 row-start-2 self-stretch",
+  right:"col-start-3 row-start-2 self-stretch",
+  bottom:"col-start-2 row-start-3 self-stretch",
 };
 const anchor:Record<Position,{x:number;y:number}>={
   top:{x:50,y:17},
@@ -202,92 +202,77 @@ function SeatZone({
   const battlefield=runtime.battlefield||[];
   const playerName=seat?.playerName||`P${runtime.seat+1}`;
   const graveTop=runtime.graveyard.at(-1);
+  const [graveOpen,setGraveOpen]=useState(false);
+  const vertical=position==="left"||position==="right";
   return <section
-    className={`w-[min(38vw,460px)] min-w-0 rounded-[1.4rem] border bg-slate-950/82 p-3 shadow-2xl backdrop-blur-sm transition ${hasPriority?"border-cyan-200/65 shadow-cyan-900/20":isActive?"border-amber-200/45 shadow-amber-900/20":"border-white/10"} ${runtime.eliminated?"opacity-45 grayscale":""}`}
+    className={`relative min-h-0 min-w-0 transition ${hasPriority?"drop-shadow-[0_0_18px_rgba(34,211,238,.22)]":isActive?"drop-shadow-[0_0_14px_rgba(251,191,36,.16)]":""} ${runtime.eliminated?"opacity-45 grayscale":""}`}
     data-commander-seat={runtime.seat}
     data-commander-position={position}
+    data-commander-seat-zone="integrated"
   >
-    <div className="flex items-center justify-between gap-2">
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <b className="truncate text-xs text-white">P{runtime.seat+1} · {playerName}</b>
-          {isViewer&&<span className="rounded-full border border-cyan-200/25 px-1.5 py-0.5 text-[8px] font-black uppercase text-cyan-100">VOCÊ</span>}
-        </div>
-        <div className="mt-1 flex flex-wrap gap-2 text-[9px] uppercase tracking-wide text-slate-500">
-          {isActive&&<span className="text-amber-200">TURNO</span>}
-          {hasPriority&&<span className="text-cyan-200">PRIORIDADE</span>}
-          {runtime.eliminated&&<span className="text-rose-300">ELIMINADO</span>}
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-1 text-center text-[9px]">
-        <button
-          type="button"
-          className={`relative rounded border px-2 py-1 transition ${canTargetNexus?"border-rose-200/55 bg-rose-900/35 text-rose-50 shadow-[0_0_18px_rgba(251,113,133,.14)]":"border-rose-300/15 bg-rose-950/25"}`}
-          disabled={!canTargetNexus||busy}
-          onClick={onTargetNexus}
-          data-commander-nexus-target={canTargetNexus?runtime.seat:undefined}
-        ><b className="block text-sm text-rose-100">{runtime.life??runtime.nexusHealth}</b>{canTargetNexus?"ATACAR":"NEXUS"}{nexusDamage>0&&<span className="absolute -right-2 -top-2 z-30 animate-ping rounded-full bg-rose-500 px-1.5 py-0.5 text-[9px] font-black text-white shadow-[0_0_20px_rgba(244,63,94,.65)]" data-commander-nexus-damage={nexusDamage}>-{nexusDamage}</span>}</button>
-        <span className="rounded border border-cyan-300/15 bg-cyan-950/20 px-2 py-1"><b className="block text-sm text-cyan-100">{runtime.mana??0}/{runtime.maxMana??0}</b>MANA</span>
-        <span className="rounded border border-violet-300/15 bg-violet-950/20 px-2 py-1"><b className="block text-sm text-violet-100">{runtime.spellMana??0}</b>✦</span>
-      </div>
+    <div className={`absolute z-30 flex items-center gap-2 rounded-full border px-2.5 py-1 backdrop-blur-md ${hasPriority?"border-cyan-200/55 bg-cyan-950/75 shadow-[0_0_20px_rgba(34,211,238,.18)]":isActive?"border-amber-200/35 bg-slate-950/75":"border-white/10 bg-slate-950/65"} ${position==="top"?"left-1/2 top-0 -translate-x-1/2":position==="bottom"?"bottom-0 left-1/2 -translate-x-1/2":position==="left"?"left-0 top-1/2 -translate-y-1/2": "right-0 top-1/2 -translate-y-1/2"}`}>
+      <b className="max-w-32 truncate text-[10px] text-white">P{runtime.seat+1} · {playerName}</b>
+      {isViewer&&<span className="text-[7px] font-black uppercase text-cyan-100">VOCÊ</span>}
+      {isActive&&<span className="text-[7px] font-black uppercase text-amber-200">TURNO</span>}
+      {hasPriority&&<span className="text-[7px] font-black uppercase text-cyan-200">PRIORIDADE</span>}
     </div>
 
-    <div className="mt-3 grid grid-cols-[72px_minmax(0,1fr)_64px] items-center gap-2">
-      <div className="relative">
+    <div className={`absolute z-30 flex items-center gap-1.5 ${position==="top"?"right-1 top-1":position==="bottom"?"bottom-1 right-1":position==="left"?"bottom-1 left-1": "bottom-1 right-1"}`}>
+      <button type="button" disabled={!canTargetNexus||busy} onClick={onTargetNexus}
+        className={`relative rounded-full border px-2 py-1 text-[9px] font-black backdrop-blur ${canTargetNexus?"border-rose-200/60 bg-rose-950/80 text-rose-50 shadow-[0_0_18px_rgba(251,113,133,.2)]":"border-rose-200/15 bg-black/55 text-rose-100"}`}
+        data-commander-nexus-target={canTargetNexus?runtime.seat:undefined}>
+        ♥ {runtime.life??runtime.nexusHealth}
+        {nexusDamage>0&&<span className="absolute -right-2 -top-2 animate-ping rounded-full bg-rose-500 px-1 text-[8px] text-white" data-commander-nexus-damage={nexusDamage}>-{nexusDamage}</span>}
+      </button>
+      <span className="rounded-full border border-cyan-200/15 bg-black/55 px-2 py-1 text-[8px] font-black text-cyan-100">◆ {runtime.mana??0}/{runtime.maxMana??0}</span>
+      <span className="rounded-full border border-violet-200/15 bg-black/55 px-2 py-1 text-[8px] font-black text-violet-100">✦ {runtime.spellMana??0}</span>
+    </div>
+
+    <div className={`absolute z-20 ${position==="top"?"left-2 top-2":position==="bottom"?"bottom-2 left-2":position==="left"?"left-2 top-2": "right-2 top-2"}`}>
+      <div className="relative scale-[.72] origin-top-left">
         <CardView defId={runtime.general.defId} size="sm" dimmed={runtime.general.zone!=="battlefield"}/>
-        <span className="absolute -bottom-1 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-200/20 bg-black/90 px-1.5 py-0.5 text-[8px] font-black text-amber-100">{runtime.general.zone} · {runtime.general.castCount}x</span>
-      </div>
-
-      <div className="min-w-0">
-        <div className="flex min-h-32 items-center gap-2 overflow-x-auto overflow-y-hidden rounded-xl border border-white/8 bg-black/25 px-2 py-3">
-          {battlefield.length?battlefield.map(object=>{
-            const attackable=isViewer&&attackableIds.has(object.id);
-            const blockable=isViewer&&blockableIds.has(object.id);
-            const incoming=incomingAttackerIds.has(object.id);
-            const incomingTarget=Boolean(!isViewer&&incoming&&selectedBlockerId);
-            const motion:CombatMotion=declaredBlockerIds.has(object.id)?"blocking":declaredAttackerIds.has(object.id)?"attacking":null;
-            const onClick=attackable
-              ? ()=>onSelectAttacker(object.id)
-              : blockable
-                ? ()=>onSelectBlocker(object.id)
-                : incomingTarget
-                  ? ()=>onTargetIncomingAttacker(object.id)
-                  : undefined;
-            return <BattlefieldCard
-              key={object.id}
-              object={object}
-              collection={collection}
-              selected={object.id===selectedAttackerId||object.id===selectedBlockerId}
-              targetable={incomingTarget}
-              onClick={busy?undefined:onClick}
-              badge={incoming?"ATACANDO VOCÊ":motion==="blocking"?"INTERCEPTANDO":attackable?"ATACANTE":blockable?"BLOQUEADOR":undefined}
-              position={position}
-              motion={motion}
-              damage={objectDamage[object.id]}
-              barrierBroken={barrierBrokenIds.has(object.id)}
-            />;
-          }):<span className="mx-auto text-[9px] uppercase tracking-[.18em] text-slate-700">campo vazio</span>}
-        </div>
-      </div>
-
-      <div className="space-y-2 text-center text-[9px] text-slate-500">
-        <div className="rounded-lg border border-white/10 bg-black/25 p-2">
-          <div className="mx-auto h-9 w-6 rounded border border-white/15 bg-cover bg-center" style={{backgroundImage:"url('/art/ui/runeforge-card-back.svg')"}}/>
-          <b className="mt-1 block text-slate-200">{runtime.deckCount}</b>DECK
-        </div>
-        <div className="rounded-lg border border-white/10 bg-black/25 p-2" title={graveTop?nameOf(graveTop.defId,collection):"Cemitério vazio"}>
-          <span className="text-lg">☠</span><b className="block text-slate-200">{runtime.graveyard.length}</b>CEM.
-        </div>
+        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/85 px-1.5 py-0.5 text-[7px] font-black text-amber-100">GENERAL · {runtime.general.castCount}x</span>
       </div>
     </div>
 
-    <div className="mt-2 flex items-end justify-between gap-2">
-      <div className="min-w-0 flex-1">{isViewer&&runtime.hand?<VisibleHand cards={runtime.hand}/>:<HiddenHand count={runtime.handCount}/>}</div>
-      <span className="max-w-32 truncate text-right text-[9px] text-slate-600">{graveTop?`Topo do cemitério: ${nameOf(graveTop.defId,collection)}`:"Cemitério vazio"}</span>
+    <div className={`absolute z-20 flex gap-1 ${position==="top"?"left-24 top-2":position==="bottom"?"bottom-2 left-24":position==="left"?"bottom-2 left-2": "right-2 top-24"}`}>
+      <div className="grid h-12 w-9 place-items-center rounded-md border border-white/10 bg-cover bg-center text-[8px] font-black text-white shadow-lg" style={{backgroundImage:"url('/art/ui/runeforge-card-back.svg')"}} title="Deck">{runtime.deckCount}</div>
+      <button type="button" onClick={()=>setGraveOpen(true)} className="relative grid h-12 w-9 place-items-center overflow-hidden rounded-md border border-white/10 bg-slate-950/85 text-[8px] font-black text-slate-100 shadow-lg" title={graveTop?nameOf(graveTop.defId,collection):"Cemitério vazio"} data-commander-graveyard="pile">
+        {graveTop?<div className="pointer-events-none scale-[.42]"><CardView defId={graveTop.defId} size="sm" dimmed/></div>:<span className="text-base">☠</span>}
+        <span className="absolute bottom-0 right-0 rounded-tl bg-black/90 px-1">☠ {runtime.graveyard.length}</span>
+      </button>
     </div>
+
+    <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-12 py-6":"px-24 py-8"}`} data-commander-zone="battlefield">
+      <div className={`flex max-h-full max-w-full items-center justify-center gap-1.5 ${vertical?"flex-wrap content-center":"flex-wrap"}`}>
+        {battlefield.length?battlefield.map(object=>{
+          const attackable=isViewer&&attackableIds.has(object.id);
+          const blockable=isViewer&&blockableIds.has(object.id);
+          const incoming=incomingAttackerIds.has(object.id);
+          const incomingTarget=Boolean(!isViewer&&incoming&&selectedBlockerId);
+          const motion:CombatMotion=declaredBlockerIds.has(object.id)?"blocking":declaredAttackerIds.has(object.id)?"attacking":null;
+          const onClick=attackable?()=>onSelectAttacker(object.id):blockable?()=>onSelectBlocker(object.id):incomingTarget?()=>onTargetIncomingAttacker(object.id):undefined;
+          return <BattlefieldCard key={object.id} object={object} collection={collection}
+            selected={object.id===selectedAttackerId||object.id===selectedBlockerId} targetable={incomingTarget}
+            onClick={busy?undefined:onClick}
+            badge={incoming?"ATACANDO VOCÊ":motion==="blocking"?"INTERCEPTANDO":attackable?"ATACANTE":blockable?"BLOQUEADOR":undefined}
+            position={position} motion={motion} damage={objectDamage[object.id]} barrierBroken={barrierBrokenIds.has(object.id)}/>;
+        }):<span className="text-[8px] uppercase tracking-[.28em] text-white/10">zona de batalha</span>}
+      </div>
+    </div>
+
+    <div className={`absolute z-20 ${position==="top"?"left-1/2 top-8 -translate-x-1/2":position==="bottom"?"bottom-8 left-1/2 -translate-x-1/2":position==="left"?"left-8 top-1/2 -translate-y-1/2": "right-8 top-1/2 -translate-y-1/2"}`}>
+      {isViewer&&runtime.hand?<VisibleHand cards={runtime.hand}/>:<HiddenHand count={runtime.handCount}/>}
+    </div>
+
+    {graveOpen&&<div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 p-8 backdrop-blur-sm" onClick={()=>setGraveOpen(false)} data-commander-graveyard-overlay={runtime.seat}>
+      <div className="max-h-[72vh] w-[min(860px,90vw)] overflow-auto rounded-2xl border border-white/15 bg-slate-950/95 p-5 shadow-2xl" onClick={event=>event.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between"><div><b className="text-white">Cemitério · P{runtime.seat+1}</b><p className="text-xs text-slate-500">{runtime.graveyard.length} carta(s)</p></div><button type="button" className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300" onClick={()=>setGraveOpen(false)}>Fechar</button></div>
+        <div className="flex flex-wrap gap-3">{runtime.graveyard.length?runtime.graveyard.map(card=><CardView key={card.instanceId} defId={card.defId} size="sm"/>):<span className="text-sm text-slate-600">Cemitério vazio.</span>}</div>
+      </div>
+    </div>}
   </section>;
 }
-
 function AttackOverlay({combat,viewer}:{combat:CombatState;viewer:number}){
   const blockerByAttacker=new Map(combat.combat.blockers.map(block=>[block.attackerId,block] as const));
   return <svg className="pointer-events-none absolute inset-0 z-10 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true" data-commander-attack-fx="authoritative">
@@ -371,43 +356,27 @@ function ResolutionDepartureFx({departures}:{departures:ResolutionDeparture[]}){
 function StackCore({combat,collection}:{combat:CombatState;collection:CollectionCard[]}){
   const items=[...combat.stack].reverse();
   const visible=items.slice(0,4);
-  return <div className="relative z-20 w-[min(32vw,300px)] rounded-[1.6rem] border border-violet-200/20 bg-[radial-gradient(circle_at_top,rgba(139,92,246,.25),rgba(2,6,23,.94)_70%)] p-4 text-center shadow-[0_0_70px_rgba(124,58,237,.18)]" data-commander-stack-depth={visible.length}>
-    <div className="absolute inset-2 rounded-[1.2rem] border border-white/[.04]"/>
-    <p className="relative text-[9px] font-black uppercase tracking-[.24em] text-violet-200/70">NEXUS DA STACK</p>
-    <div className="relative mt-2 grid grid-cols-3 gap-1 text-[9px]">
-      <span className="rounded border border-white/8 p-1"><b className="block text-amber-100">{combat.phase.toUpperCase()}</b>FASE</span>
-      <span className="rounded border border-white/8 p-1"><b className="block text-cyan-100">P{combat.prioritySeat+1}</b>PRIO.</span>
-      <span className="rounded border border-white/8 p-1"><b className="block text-slate-100">#{combat.turn}</b>TURNO</span>
+  const top=visible[0];
+  return <div className="group relative z-30 flex min-w-28 items-center justify-center" data-commander-stack-depth={visible.length}>
+    <div className={`relative flex items-center gap-2 rounded-full border px-3 py-2 backdrop-blur-md transition-all ${items.length?"border-violet-200/35 bg-violet-950/75 shadow-[0_0_34px_rgba(124,58,237,.2)]":"border-white/8 bg-black/45 opacity-60"}`}>
+      <span className="text-[8px] font-black uppercase tracking-[.2em] text-violet-200/70">STACK</span>
+      <b className="grid h-6 min-w-6 place-items-center rounded-full bg-violet-300/10 px-1.5 text-xs text-violet-50">{items.length}</b>
+      {top&&<span className="max-w-36 truncate text-[9px] text-slate-200">{top.abilityDescription||nameOf(top.defId,collection)||top.actionKind}</span>}
     </div>
-    <div className="relative mx-auto mt-4 h-40 w-40" data-commander-stack-cards="physical">
-      {visible.length?visible.map((item,index)=>{
-        const hasCard=Boolean(item.defId&&collection.some(card=>card.defId===item.defId));
-        const rotation=[0,-8,7,-4][index]??0;
-        const offset=index*8;
-        return <div
-          key={item.id}
-          className={`absolute left-1/2 top-0 transition-all duration-300 ${index===0?"z-40 animate-pulse":"z-20 opacity-75"}`}
-          style={{transform:`translate(calc(-50% + ${offset}px), ${offset}px) rotate(${rotation}deg) scale(${1-index*.055})`,transformOrigin:"50% 50%"}}
-          data-commander-stack-item={item.id}
-          data-commander-stack-top={index===0||undefined}
-        >
-          {hasCard&&item.defId
-            ? <CardView defId={item.defId} size="sm" dimmed={index>0}/>
-            : <div className="grid h-28 w-20 place-items-center rounded-xl border border-violet-200/25 bg-violet-950/90 p-2 text-[8px] font-black text-violet-50 shadow-xl">{item.abilityDescription||item.actionKind||"AÇÃO"}</div>}
-          {index===0&&<span className="absolute -top-2 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full border border-violet-200/35 bg-violet-950/95 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-violet-100 shadow-lg">TOPO · P{item.controllerSeat+1}</span>}
-          {item.uncounterable&&<span className="absolute -bottom-2 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-200/30 bg-amber-950/95 px-2 py-0.5 text-[7px] font-black uppercase text-amber-100">NÃO ANULÁVEL</span>}
-        </div>;
-      }):<div className="grid h-full place-items-center text-[9px] uppercase tracking-[.18em] text-slate-700">stack vazia</div>}
+    <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden -translate-x-1/2 group-hover:block" data-commander-stack-cards="physical">
+      <div className="relative h-40 w-40 rounded-2xl border border-violet-200/15 bg-slate-950/95 p-3 shadow-2xl backdrop-blur-xl">
+        <p className="text-center text-[7px] font-black uppercase tracking-[.22em] text-violet-300/60">NEXUS DA STACK · {combat.phase} · P{combat.prioritySeat+1}</p>
+        {visible.length?visible.map((item,index)=>{
+          const hasCard=Boolean(item.defId&&collection.some(card=>card.defId===item.defId));
+          return <div key={item.id} className="absolute left-1/2 top-8" style={{transform:`translate(calc(-50% + ${index*7}px), ${index*7}px) rotate(${[0,-7,6,-3][index]??0}deg) scale(${.72-index*.05})`,zIndex:40-index}} data-commander-stack-item={item.id} data-commander-stack-top={index===0||undefined}>
+            {hasCard&&item.defId?<CardView defId={item.defId} size="sm" dimmed={index>0}/>:<div className="grid h-28 w-20 place-items-center rounded-xl border border-violet-200/25 bg-violet-950/90 p-2 text-[8px] font-black text-violet-50">{item.abilityDescription||item.actionKind||"AÇÃO"}</div>}
+            {item.uncounterable&&<span className="absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-amber-950/95 px-2 py-0.5 text-[7px] font-black text-amber-100">NÃO ANULÁVEL</span>}
+          </div>;
+        }):<div className="grid h-full place-items-center text-[8px] uppercase tracking-widest text-slate-700">stack vazia</div>}
+      </div>
     </div>
-    {visible[0]&&<div className="relative mt-1 rounded-lg border border-violet-200/10 bg-black/25 px-2 py-1.5 text-left text-[9px]">
-      <b className="block truncate text-violet-50">{visible[0].abilityDescription||nameOf(visible[0].defId,collection)||visible[0].actionKind}</b>
-      <span className="text-slate-500">P{visible[0].controllerSeat+1} · {visible[0].speed||visible[0].actionKind}</span>
-    </div>}
-    {items.length>4&&<span className="relative mt-1 block text-[9px] text-violet-300/60">+{items.length-4} objeto(s)</span>}
-    <div className="relative mt-2 text-[8px] uppercase tracking-[.2em] text-slate-600">rev {combat.revision}</div>
   </div>;
 }
-
 export default function CommanderBattlefield4P({
   room,combat,collection,busy,onDeclareAttacker,onDeclareBlocker,
 }:{
@@ -420,7 +389,7 @@ export default function CommanderBattlefield4P({
   const [selectedBlockerId,setSelectedBlockerId]=useState<string|null>(null);
   const previousCombatRef=useRef<CombatState|null>(null);
   const battlefieldScrollRef=useRef<HTMLElement|null>(null);
-  const [cameraZoom,setCameraZoom]=useState<80|90|100>(90);
+  const [cameraZoom,setCameraZoom]=useState<80|90|100>(100);
   const [resolutionFx,setResolutionFx]=useState<ResolutionFx|null>(null);
   useEffect(()=>{
     const previous=previousCombatRef.current;
@@ -485,7 +454,7 @@ export default function CommanderBattlefield4P({
     await onDeclareBlocker(unitId,attackerId);
   }
 
-  return <section ref={battlefieldScrollRef} className="relative h-full w-full overflow-hidden bg-[#02060b] shadow-[inset_0_0_120px_rgba(8,145,178,.08)]" data-commander-battlefield="cinematic-v1" data-commander-camera-zoom={cameraZoom}>
+  return <section ref={battlefieldScrollRef} className="relative h-full w-full overflow-hidden bg-[#02060b] shadow-[inset_0_0_120px_rgba(8,145,178,.08)]" data-commander-arena="unified-v2" data-commander-battlefield="cinematic-v1" data-commander-camera-zoom={cameraZoom}>
     <div className="pointer-events-none absolute inset-0 opacity-70" style={{backgroundImage:"radial-gradient(circle at center, rgba(34,211,238,.08), transparent 27%), linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px)",backgroundSize:"auto, 42px 42px, 42px 42px"}}/>
     <div className="pointer-events-none absolute inset-[12%] rounded-[45%] border border-cyan-200/[.06] shadow-[0_0_90px_rgba(34,211,238,.05)]"/>
     <div className="absolute left-3 top-3 z-50 flex w-fit flex-wrap items-center gap-1 rounded-full border border-cyan-100/15 bg-slate-950/95 p-1 shadow-xl backdrop-blur-md" data-commander-camera-controls="local">
@@ -569,7 +538,7 @@ export default function CommanderBattlefield4P({
       <button type="button" className="ml-3 text-slate-500 underline" onClick={()=>{setSelectedAttackerId(null);setSelectedBlockerId(null);}}>Cancelar</button>
     </div>}
     <div
-      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(220px,1fr)_minmax(320px,1.55fr)_minmax(220px,1fr)] grid-rows-[minmax(180px,1fr)_minmax(220px,.9fr)_minmax(220px,1.15fr)] items-center gap-2 px-5 pb-3 pt-10 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
+      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(190px,.72fr)_minmax(520px,2.2fr)_minmax(190px,.72fr)] grid-rows-[minmax(150px,.72fr)_minmax(260px,1.65fr)_minmax(210px,1fr)] gap-0 px-2 pb-2 pt-9 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
       data-commander-camera-surface="table"
     >
       {(["top","left","right","bottom"] as Position[]).map(position=>{
@@ -604,7 +573,7 @@ export default function CommanderBattlefield4P({
           />
         </div>;
       })}
-      <div className="col-start-2 row-start-2 place-self-center"><StackCore combat={combat} collection={collection}/></div>
+      <div className="pointer-events-auto col-start-2 row-start-2 place-self-center"><StackCore combat={combat} collection={collection}/></div>
     </div>
   </section>;
 }
