@@ -26,7 +26,7 @@ assert.match(script,/Janela de reação aberta/,"Commander browser cert must obs
 assert.match(script,/Passar reação/,"Commander browser cert must drive the visible reaction-priority control");
 assert.match(script,/burstNegateSpellViaUi:true/,"Commander browser manifest must certify the Burst counter through UI");
 assert.match(script,/counterPreventedSourceResolution:true/,"Commander browser manifest must prove the counter prevented source resolution");
-assert.match(script,/TOPO · /,"Commander counter-chain cert must target the visible top stack object");
+assert.match(script,/clickArenaStackCard/,"Commander counter-chain cert must target the authoritative physical Arena stack object");\nassert.match(script,/data-commander-stack-item/,"Commander counter-chain cert must bind targeting to structural Arena stack identity");
 assert.match(script,/counterOfCounterViaUi:true/,"Commander browser manifest must certify counter-of-counter through visible UI");
 assert.match(script,/threeObjectLifoStackViaUi:true/,"Commander browser manifest must certify a three-object LIFO stack");
 assert.match(script,/counteredCounterLeftSourcePending:true/,"Commander browser manifest must prove the original source survives its counter being countered");
