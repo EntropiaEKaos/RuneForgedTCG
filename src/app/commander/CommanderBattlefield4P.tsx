@@ -165,11 +165,11 @@ function BattlefieldCard({
   </div>;
 }
 
-function VisibleHand({cards}:{cards:ProjectedCard[]}){
+function VisibleHand({cards,playableIds,onPlay}:{cards:ProjectedCard[];playableIds:Set<string>;onPlay?:(card:ProjectedCard)=>void}){
   const shown=cards.slice(0,7);
   return <div className="flex min-h-16 items-end justify-center overflow-x-auto px-2" aria-label={`${cards.length} cartas na sua mão`}>
     {shown.map((card,index)=><div key={card.instanceId} className="-ml-5 first:ml-0 origin-bottom transition-transform hover:z-30 hover:-translate-y-3" style={{transform:`rotate(${(index-(shown.length-1)/2)*3.5}deg)`}}>
-      <CardView defId={card.defId} size="sm"/>
+      <CardView defId={card.defId} size="sm" onClick={playableIds.has(card.instanceId)&&onPlay?()=>onPlay(card):undefined}/>
     </div>)}
     {cards.length>shown.length&&<span className="ml-2 self-center text-[9px] font-black text-cyan-100">+{cards.length-shown.length}</span>}
   </div>;
@@ -191,13 +191,13 @@ function SeatZone({
   position,seat,runtime,collection,isViewer,isActive,hasPriority,
   attackableIds,blockableIds,incomingAttackerIds,declaredAttackerIds,declaredBlockerIds,selectedAttackerId,selectedBlockerId,
   nexusDamage,objectDamage,barrierBrokenIds,
-  canTargetNexus,onTargetNexus,onSelectAttacker,onSelectBlocker,onTargetIncomingAttacker,busy,
+  canTargetNexus,onTargetNexus,onSelectAttacker,onSelectBlocker,onTargetIncomingAttacker,playableHandIds,onPlayHandCard,busy,
 }:{
   position:Position;seat:Seat|undefined;runtime:CombatSeat;collection:CollectionCard[];isViewer:boolean;isActive:boolean;hasPriority:boolean;
   attackableIds:Set<string>;blockableIds:Set<string>;incomingAttackerIds:Set<string>;declaredAttackerIds:Set<string>;declaredBlockerIds:Set<string>;
   selectedAttackerId:string|null;selectedBlockerId:string|null;nexusDamage:number;objectDamage:Record<string,number>;barrierBrokenIds:Set<string>;
   canTargetNexus:boolean;onTargetNexus?:()=>void;
-  onSelectAttacker:(id:string)=>void;onSelectBlocker:(id:string)=>void;onTargetIncomingAttacker:(id:string)=>void;busy:boolean;
+  onSelectAttacker:(id:string)=>void;onSelectBlocker:(id:string)=>void;onTargetIncomingAttacker:(id:string)=>void;playableHandIds:Set<string>;onPlayHandCard?:(card:ProjectedCard)=>void;busy:boolean;
 }){
   const battlefield=runtime.battlefield||[];
   const playerName=seat?.playerName||`P${runtime.seat+1}`;
@@ -263,7 +263,7 @@ function SeatZone({
     </div>
 
     <div className={`absolute z-20 ${position==="top"?"left-1/2 top-8 -translate-x-1/2":position==="bottom"?"bottom-8 left-1/2 -translate-x-1/2":position==="left"?"left-8 top-1/2 -translate-y-1/2": "right-8 top-1/2 -translate-y-1/2"}`}>
-      {isViewer&&runtime.hand?<VisibleHand cards={runtime.hand}/>:<HiddenHand count={runtime.handCount}/>}
+      {isViewer&&runtime.hand?<VisibleHand cards={runtime.hand} playableIds={playableHandIds} onPlay={onPlayHandCard}/>:<HiddenHand count={runtime.handCount}/>}
     </div>
 
     {graveOpen&&<div className="fixed inset-0 z-[80] grid place-items-center bg-black/70 p-8 backdrop-blur-sm" onClick={()=>setGraveOpen(false)} data-commander-graveyard-overlay={runtime.seat}>
@@ -379,13 +379,15 @@ function StackCore({combat,collection}:{combat:CombatState;collection:Collection
   </div>;
 }
 export default function CommanderBattlefield4P({
-  room,combat,collection,busy,onDeclareAttacker,onDeclareBlocker,nexusTargetSeats=[],onTargetNexusSeat,
+  room,combat,collection,busy,onDeclareAttacker,onDeclareBlocker,nexusTargetSeats=[],onTargetNexusSeat,playableHandInstanceIds=[],onPlayHandCard,
 }:{
   room:Room;combat:CombatState;collection:CollectionCard[];busy:boolean;
   onDeclareAttacker:(unitId:string,defendingSeat:number)=>void|Promise<void>;
   onDeclareBlocker:(unitId:string,attackerId:string)=>void|Promise<void>;
   nexusTargetSeats?:number[];
   onTargetNexusSeat?:(seat:number)=>void|Promise<void>;
+  playableHandInstanceIds?:string[];
+  onPlayHandCard?:(card:ProjectedCard)=>void;
 }){
   const viewer=room.viewerSeat??0;
   const [selectedAttackerId,setSelectedAttackerId]=useState<string|null>(null);
@@ -572,6 +574,8 @@ export default function CommanderBattlefield4P({
             onSelectAttacker={(id)=>{setSelectedAttackerId(current=>current===id?null:id);setSelectedBlockerId(null);}}
             onSelectBlocker={(id)=>{setSelectedBlockerId(current=>current===id?null:id);setSelectedAttackerId(null);}}
             onTargetIncomingAttacker={(id)=>void commitBlock(id)}
+            playableHandIds={new Set(playableHandInstanceIds)}
+            onPlayHandCard={onPlayHandCard}
             busy={busy}
           />
         </div>;
