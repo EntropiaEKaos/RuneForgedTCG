@@ -1120,7 +1120,6 @@ async function main(){
 
     const recoveryBrowser=browsers[activeSeatAfterEnd];
     await navigate(recoveryBrowser.cdp,"/commander");
-    await waitUntil(async()=>await evaluate<boolean>(recoveryBrowser.cdp,`document.querySelector('[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]')!==null`),"Commander recovery restores fullscreen table",20_000);
     const recoveryRoomLabel=JSON.stringify(`Sala ${roomCode}`);
     await waitUntil(async()=>{
       const direct=await evaluate<boolean>(recoveryBrowser.cdp,`document.body?.innerText?.includes(${recoveryRoomLabel})===true&&document.body?.innerText?.includes('PRIORIDADE')===true`);
@@ -1136,6 +1135,7 @@ async function main(){
       return opened?"opened":false;
     },`${recoveryBrowser.label} Commander recovery path`,20_000);
     await waitForText(recoveryBrowser.cdp,`Sala ${roomCode}`,20_000);
+    await waitUntil(async()=>await evaluate<boolean>(recoveryBrowser.cdp,`document.querySelector('[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]')!==null`),"Commander recovery restores fullscreen table",20_000);
     await waitForCommanderUiAuthority(recoveryBrowser,endTurnRevision,"yours",20_000);
     const recovered=await fetchCommander(recoveryBrowser,roomCode);
     assert.equal(recovered.status,200,"hard-refresh recovery must reload the Commander room");
