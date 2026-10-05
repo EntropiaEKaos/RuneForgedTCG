@@ -146,14 +146,14 @@ export default function CommanderClient(){
       document.removeEventListener("visibilitychange",onVisibility);
     };
   },[room?.code,resyncRoom]);
+  const pendingCardStillInHand=!pendingSpellInstanceId||Boolean(viewerRuntime?.hand?.some(card=>card.instanceId===pendingSpellInstanceId));
+  const stillOwnPriority=room?.combat?.prioritySeat===room?.viewerSeat;
   useEffect(()=>{
     if(!pendingSpellInstanceId&&!pendingAbility)return;
-    const pendingCardStillInHand=!pendingSpellInstanceId||Boolean(room?.combat?.seats?.[room.viewerSeat??-1]?.hand?.some(card=>card.instanceId===pendingSpellInstanceId));
-    const stillOwnPriority=room?.combat?.prioritySeat===room?.viewerSeat;
     if(pendingCardStillInHand&&stillOwnPriority)return;
     const id=window.setTimeout(clearPendingCombatIntent,0);
     return()=>window.clearTimeout(id);
-  },[room?.combat?.revision,room?.combat?.prioritySeat,room?.viewerSeat,pendingSpellInstanceId,pendingAbility,clearPendingCombatIntent]);
+  },[room?.combat?.revision,pendingSpellInstanceId,pendingAbility,pendingCardStillInHand,stillOwnPriority,clearPendingCombatIntent]);
   useEffect(()=>{
     if(!room?.combat?.priorityDeadlineAt)return;
     const tick=()=>setNowMs(Date.now());
