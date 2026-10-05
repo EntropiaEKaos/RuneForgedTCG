@@ -464,7 +464,7 @@ export default function CommanderClient(){
                 </button>
               })}</div>
             </div>}
-            {viewerRuntime?.hand&&viewerRuntime.hand.length>0&&<div className="mt-4 border border-white/10 bg-black/20 p-3">
+            {!matchPresented&&viewerRuntime?.hand&&viewerRuntime.hand.length>0&&<div className="mt-4 border border-white/10 bg-black/20 p-3">
               <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-slate-400">Sua mão</b><span className="text-[10px] text-slate-600">instâncias autoritativas</span></div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {viewerRuntime.hand.map(card=>{
