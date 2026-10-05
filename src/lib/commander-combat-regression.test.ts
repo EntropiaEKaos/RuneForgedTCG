@@ -94,7 +94,7 @@ assert.match(client,/type==="Equipment"/,"Commander UI must route physical Equip
 assert.match(client,/archetypeKey!=="trap"/,"Commander UI must not offer semantic Traps proactively");
 assert.match(client,/mill/,"Commander UI must request an explicit opponent for 4P mill");
 assert.match(client,/negateSpell/,"Commander UI must expose the certified negateSpell subset");
-assert.match(client,/Stack 4P/,"Commander UI must render the authoritative circular stack");
+assert.match(client,/Pilha de respostas/,"Commander UI must render the authoritative circular stack in the contextual reaction window");\nassert.match(client,/data-commander-reaction-window=/,"Commander UI must expose the authoritative reaction-window state");\nassert.match(client,/targetableStackIds=/,"Commander UI must route counter targeting into the physical Arena stack");
 assert.match(client,/Responder/,"Commander UI must expose legal Fast\/Burst reaction affordances");
 assert.match(client,/stackTargetId/,"Commander UI must send explicit stack targets for counters");
 assert.match(client,/Selecionar alvo/);
