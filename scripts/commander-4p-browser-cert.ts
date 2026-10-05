@@ -696,6 +696,32 @@ async function waitForAllRoomVersion(browsers:Browser[],code:string,minimumRevis
   },`all four Commander clients at revision >= ${minimumRevision}`,timeoutMs);
 }
 
+async function waitForFourClientState(
+  browsers:Browser[],
+  code:string,
+  minimumRevision:number,
+  expectedHandCounts:[number,number,number,number],
+  minimumStackSize:number,
+  timeoutMs=20_000,
+){
+  return waitUntil(async()=>{
+    const responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,code)));
+    if(responses.some((response)=>response.status!==200||!response.body?.room?.combat))return false;
+    const rooms=responses.map((response)=>response.body.room);
+    const revisions=rooms.map((room)=>Number(room.combat.revision));
+    if(revisions.some((revision)=>revision<minimumRevision)||new Set(revisions).size!==1)return false;
+    for(const room of rooms){
+      if((room.combat.stack?.length??0)<minimumStackSize)return false;
+      for(const seat of room.combat.seats){
+        const expected=expectedHandCounts[seat.seat];
+        if(seat.handCount!==expected)return false;
+        if(seat.seat===room.viewerSeat&&Array.isArray(seat.hand)&&seat.hand.length!==expected)return false;
+      }
+    }
+    return responses;
+  },`all four Commander clients converged at revision >= ${minimumRevision}, stack >= ${minimumStackSize}, hands ${expectedHandCounts.join("/")}`,timeoutMs);
+}
+
 function validateFourClientProjection(
   responses:any[],
   label:string,
@@ -912,7 +938,7 @@ async function main(){
     await waitForEnabledButton(browsers[1].cdp,loadout.reaction.source.name,15_000);
     await clickText(browsers[1].cdp,loadout.reaction.source.name);
 
-    responses=await waitForAllRoomVersion(browsers,roomCode,chainSourceRevision+1,20_000);
+    responses=await waitForFourClientState(browsers,roomCode,chainSourceRevision+1,[3,3,5,5],2,20_000);
     rooms=validateFourClientProjection(responses,"counter-chain first counter",[3,3,5,5]);
     const chainCounterRevision=rooms[0].combat.revision;
     const chainCounterStackId=rooms[0].combat.stack.at(-1)?.id;
