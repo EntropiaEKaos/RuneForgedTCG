@@ -355,7 +355,7 @@ function ResolutionDepartureFx({departures}:{departures:ResolutionDeparture[]}){
   </div>;
 }
 
-function StackCore({combat,collection}:{combat:CombatState;collection:CollectionCard[]}){
+function StackCore({combat,collection,targetableStackIds,onTargetStackItem}:{combat:CombatState;collection:CollectionCard[];targetableStackIds:Set<string>;onTargetStackItem?:(id:string)=>void}){
   const items=[...combat.stack].reverse();
   const visible=items.slice(0,4);
   const top=visible[0];
@@ -363,7 +363,7 @@ function StackCore({combat,collection}:{combat:CombatState;collection:Collection
     <div className={`relative flex items-center gap-2 rounded-full border px-3 py-2 backdrop-blur-md transition-all ${items.length?"border-violet-200/35 bg-violet-950/75 shadow-[0_0_34px_rgba(124,58,237,.2)]":"border-white/8 bg-black/45 opacity-60"}`}>
       <span className="text-[8px] font-black uppercase tracking-[.2em] text-violet-200/70">STACK</span>
       <b className="grid h-6 min-w-6 place-items-center rounded-full bg-violet-300/10 px-1.5 text-xs text-violet-50">{items.length}</b>
-      {top&&<span className="max-w-36 truncate text-[9px] text-slate-200">{top.abilityDescription||nameOf(top.defId,collection)||top.actionKind}</span>}
+      {top&&(targetableStackIds.has(top.id)&&onTargetStackItem?<button type="button" className="max-w-36 truncate text-[9px] font-black text-violet-50 underline decoration-violet-300/40 underline-offset-2" onClick={()=>onTargetStackItem(top.id)}>{top.abilityDescription||nameOf(top.defId,collection)||top.actionKind}</button>:<span className="max-w-36 truncate text-[9px] text-slate-200">{top.abilityDescription||nameOf(top.defId,collection)||top.actionKind}</span>)}
     </div>
     <div className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden -translate-x-1/2 group-hover:block" data-commander-stack-cards="physical">
       <div className="relative h-40 w-40 rounded-2xl border border-violet-200/15 bg-slate-950/95 p-3 shadow-2xl backdrop-blur-xl">
@@ -380,7 +380,7 @@ function StackCore({combat,collection}:{combat:CombatState;collection:Collection
   </div>;
 }
 export default function CommanderBattlefield4P({
-  room,combat,collection,busy,onDeclareAttacker,onDeclareBlocker,nexusTargetSeats=[],onTargetNexusSeat,playableHandInstanceIds=[],onPlayHandCard,
+  room,combat,collection,busy,onDeclareAttacker,onDeclareBlocker,nexusTargetSeats=[],onTargetNexusSeat,playableHandInstanceIds=[],onPlayHandCard,targetableStackIds=[],onTargetStackItem,
 }:{
   room:Room;combat:CombatState;collection:CollectionCard[];busy:boolean;
   onDeclareAttacker:(unitId:string,defendingSeat:number)=>void|Promise<void>;
@@ -389,6 +389,8 @@ export default function CommanderBattlefield4P({
   onTargetNexusSeat?:(seat:number)=>void|Promise<void>;
   playableHandInstanceIds?:string[];
   onPlayHandCard?:(card:ProjectedCard)=>void;
+  targetableStackIds?:string[];
+  onTargetStackItem?:(id:string)=>void;
 }){
   const viewer=room.viewerSeat??0;
   const [selectedAttackerId,setSelectedAttackerId]=useState<string|null>(null);
@@ -581,7 +583,7 @@ export default function CommanderBattlefield4P({
           />
         </div>;
       })}
-      <div className="pointer-events-auto col-start-2 row-start-2 place-self-center"><StackCore combat={combat} collection={collection}/></div>
+      <div className="pointer-events-auto col-start-2 row-start-2 place-self-center"><StackCore combat={combat} collection={collection} targetableStackIds={new Set(targetableStackIds)} onTargetStackItem={onTargetStackItem}/></div>
     </div>
   </section>;
 }
