@@ -409,6 +409,8 @@ export default function CommanderClient(){
                 : playPendingSpell({kind:"player",seat:`p${seat+1}`})}
               playableHandInstanceIds={(viewerRuntime?.hand||[]).filter(canStageHandCard).map(card=>card.instanceId)}
               onPlayHandCard={(card)=>void playHandCard(card,collection.find(item=>item.defId===card.defId))}
+              targetableStackIds={pendingSpellDef?.spell?.target==="spellOnStack"?pendingCounterTargets.map(item=>item.id):[]}
+              onTargetStackItem={(id)=>void playPendingSpell(undefined,id)}
             /><div className={`mb-4 mt-5 border p-3 ${priorityTone}`} data-commander-priority-state={viewerHasPriority?(priorityUrgent?"urgent":"yours"):"waiting"}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
