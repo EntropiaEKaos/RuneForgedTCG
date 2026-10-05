@@ -385,6 +385,14 @@ export default function CommanderClient(){
               busy={busy}
               onDeclareAttacker={(unitId,defendingSeat)=>combatCommand("declare_attacker",{unitId,defendingSeat})}
               onDeclareBlocker={(unitId,attackerId)=>combatCommand("declare_blocker",{unitId,attackerId})}
+              nexusTargetSeats={pendingAbility?.targetKind==="opponentPlayer"&&abilityDiscardIds.length===pendingAbility.discardCount
+                ? livingOpponents.map(target=>target.seat)
+                : pendingSpellDef&&(pendingSpellDef.spell?.kind==="damageNexus"||pendingSpellDef.spell?.kind==="poison"||pendingSpellDef.spell?.kind==="mill")
+                  ? livingOpponents.map(target=>target.seat)
+                  : []}
+              onTargetNexusSeat={(seat)=>pendingAbility?.targetKind==="opponentPlayer"
+                ? activateAbility(pendingAbility,{kind:"player",seat:`p${seat+1}`})
+                : playPendingSpell({kind:"player",seat:`p${seat+1}`})}
             /><div className={`mb-4 mt-5 border p-3 ${priorityTone}`} data-commander-priority-state={viewerHasPriority?(priorityUrgent?"urgent":"yours"):"waiting"}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
