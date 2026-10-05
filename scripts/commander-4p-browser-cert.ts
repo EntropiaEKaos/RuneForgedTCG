@@ -710,22 +710,39 @@ async function waitForFourClientState(
   minimumStackSize:number,
   timeoutMs=20_000,
 ){
-  return waitUntil(async()=>{
-    const responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,code)));
-    if(responses.some((response)=>response.status!==200||!response.body?.room?.combat))return false;
-    const rooms=responses.map((response)=>response.body.room);
-    const revisions=rooms.map((room)=>Number(room.combat.revision));
-    if(revisions.some((revision)=>revision<minimumRevision)||new Set(revisions).size!==1)return false;
-    for(const room of rooms){
-      if((room.combat.stack?.length??0)<minimumStackSize)return false;
-      for(const seat of room.combat.seats){
-        const expected=expectedHandCounts[seat.seat];
-        if(seat.handCount!==expected)return false;
-        if(seat.seat===room.viewerSeat&&Array.isArray(seat.hand)&&seat.hand.length!==expected)return false;
+  let lastSnapshot:any[]=[];
+  try{
+    return await waitUntil(async()=>{
+      const responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,code)));
+      if(responses.some((response)=>response.status!==200||!response.body?.room?.combat))return false;
+      const rooms=responses.map((response)=>response.body.room);
+      lastSnapshot=rooms.map((room)=>({
+        viewerSeat:room.viewerSeat,
+        version:room.version,
+        revision:room.combat.revision,
+        prioritySeat:room.combat.prioritySeat,
+        stack:(room.combat.stack??[]).map((item:any)=>({id:item.id,defId:item.defId,controller:item.controller})),
+        seats:room.combat.seats.map((seat:any)=>({
+          seat:seat.seat,
+          handCount:seat.handCount,
+          privateHandLength:Array.isArray(seat.hand)?seat.hand.length:null,
+        })),
+      }));
+      const revisions=rooms.map((room)=>Number(room.combat.revision));
+      if(revisions.some((revision)=>revision<minimumRevision)||new Set(revisions).size!==1)return false;
+      for(const room of rooms){
+        if((room.combat.stack?.length??0)<minimumStackSize)return false;
+        for(const seat of room.combat.seats){
+          const expected=expectedHandCounts[seat.seat];
+          if(seat.handCount!==expected)return false;
+          if(seat.seat===room.viewerSeat&&Array.isArray(seat.hand)&&seat.hand.length!==expected)return false;
+        }
       }
-    }
-    return responses;
-  },`all four Commander clients converged at revision >= ${minimumRevision}, stack >= ${minimumStackSize}, hands ${expectedHandCounts.join("/")}`,timeoutMs);
+      return responses;
+    },`all four Commander clients converged at revision >= ${minimumRevision}, stack >= ${minimumStackSize}, hands ${expectedHandCounts.join("/")}`,timeoutMs);
+  }catch(error){
+    throw new Error(`${error instanceof Error?error.message:String(error)} | four-client-state=${JSON.stringify(lastSnapshot)}`);
+  }
 }
 
 function validateFourClientProjection(
