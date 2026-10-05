@@ -576,6 +576,12 @@ async function seedCommanderReactionFixture(roomCode:string,loadout:ReturnType<t
     counterInstanceId:counterSwap.card.instanceId,
     counterOfCounterInstanceId:counterOfCounterSwap.card.instanceId,
     targetDeckCount:next.zones.p2.deck.length,
+    handCounts:[
+      next.zones.p1.hand.length,
+      next.zones.p2.hand.length,
+      next.zones.p3.hand.length,
+      next.zones.p4.hand.length,
+    ] as [number,number,number,number],
   };
 }
 
@@ -900,7 +906,7 @@ async function main(){
 
     const counterChainFixture=await seedCommanderReactionFixture(roomCode,loadout);
     responses=await waitForAllRoomVersion(browsers,roomCode,counterChainFixture.revision,20_000);
-    rooms=validateFourClientProjection(responses,"Commander counter-chain fixture",[4,4,5,5]);
+    rooms=validateFourClientProjection(responses,"Commander counter-chain fixture",counterChainFixture.handCounts);
     assert.equal(rooms[0].combat.prioritySeat,0,"counter-chain fixture must reopen P1 priority");
 
     await waitForCommanderUiAuthority(browsers[0],counterChainFixture.revision,"yours",20_000);
@@ -926,7 +932,13 @@ async function main(){
     await clickText(browsers[0].cdp,"Nexus P2",true);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,counterChainFixture.revision+1,20_000);
-    rooms=validateFourClientProjection(responses,"counter-chain source cast",[3,4,5,5]);
+    const chainSourceHands:[number,number,number,number]=[
+      counterChainFixture.handCounts[0]-1,
+      counterChainFixture.handCounts[1],
+      counterChainFixture.handCounts[2],
+      counterChainFixture.handCounts[3],
+    ];
+    rooms=validateFourClientProjection(responses,"counter-chain source cast",chainSourceHands);
     const chainSourceRevision=rooms[0].combat.revision;
     const chainSourceStackId=rooms[0].combat.stack[0]?.id;
     assert.ok(chainSourceStackId,"counter-chain source spell must expose a public stack id");
@@ -938,8 +950,14 @@ async function main(){
     await waitForEnabledButton(browsers[1].cdp,loadout.reaction.source.name,15_000);
     await clickText(browsers[1].cdp,loadout.reaction.source.name);
 
-    responses=await waitForFourClientState(browsers,roomCode,chainSourceRevision+1,[3,3,5,5],2,20_000);
-    rooms=validateFourClientProjection(responses,"counter-chain first counter",[3,3,5,5]);
+    const chainCounterHands:[number,number,number,number]=[
+      chainSourceHands[0],
+      chainSourceHands[1]-1,
+      chainSourceHands[2],
+      chainSourceHands[3],
+    ];
+    responses=await waitForFourClientState(browsers,roomCode,chainSourceRevision+1,chainCounterHands,2,20_000);
+    rooms=validateFourClientProjection(responses,"counter-chain first counter",chainCounterHands);
     const chainCounterRevision=rooms[0].combat.revision;
     const chainCounterStackId=rooms[0].combat.stack.at(-1)?.id;
     assert.ok(chainCounterStackId,"P2 counter must expose a public stack id");
@@ -953,7 +971,13 @@ async function main(){
     await clickText(browsers[2].cdp,"TOPO · "+loadout.reaction.counter.name);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,chainCounterRevision+1,20_000);
-    rooms=validateFourClientProjection(responses,"counter-chain P3 counter-of-counter",[3,3,4,5]);
+    const chainCounterOfCounterHands:[number,number,number,number]=[
+      chainCounterHands[0],
+      chainCounterHands[1],
+      chainCounterHands[2]-1,
+      chainCounterHands[3],
+    ];
+    rooms=validateFourClientProjection(responses,"counter-chain P3 counter-of-counter",chainCounterOfCounterHands);
     const counterOfCounterRevision=rooms[0].combat.revision;
     assert.equal(rooms[0].combat.stack.length,3,"counter-of-counter proof requires three simultaneous stack objects");
     assert.equal(rooms[0].combat.stack[0].id,chainSourceStackId,"original source must remain at stack base");
