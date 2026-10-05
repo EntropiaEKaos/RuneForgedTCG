@@ -379,11 +379,13 @@ function StackCore({combat,collection}:{combat:CombatState;collection:Collection
   </div>;
 }
 export default function CommanderBattlefield4P({
-  room,combat,collection,busy,onDeclareAttacker,onDeclareBlocker,
+  room,combat,collection,busy,onDeclareAttacker,onDeclareBlocker,nexusTargetSeats=[],onTargetNexusSeat,
 }:{
   room:Room;combat:CombatState;collection:CollectionCard[];busy:boolean;
   onDeclareAttacker:(unitId:string,defendingSeat:number)=>void|Promise<void>;
   onDeclareBlocker:(unitId:string,attackerId:string)=>void|Promise<void>;
+  nexusTargetSeats?:number[];
+  onTargetNexusSeat?:(seat:number)=>void|Promise<void>;
 }){
   const viewer=room.viewerSeat??0;
   const [selectedAttackerId,setSelectedAttackerId]=useState<string|null>(null);
@@ -565,8 +567,8 @@ export default function CommanderBattlefield4P({
             nexusDamage={resolutionFx?.nexusDamage[runtime.seat]||0}
             objectDamage={resolutionFx?.objectDamage||{}}
             barrierBrokenIds={new Set(resolutionFx?.barrierBroken||[])}
-            canTargetNexus={Boolean(selectedAttackerId&&runtime.seat!==viewer&&!runtime.eliminated)}
-            onTargetNexus={()=>void commitAttack(runtime.seat)}
+            canTargetNexus={Boolean((selectedAttackerId&&runtime.seat!==viewer&&!runtime.eliminated)||nexusTargetSeats.includes(runtime.seat))}
+            onTargetNexus={()=>void (selectedAttackerId?commitAttack(runtime.seat):onTargetNexusSeat?.(runtime.seat))}
             onSelectAttacker={(id)=>{setSelectedAttackerId(current=>current===id?null:id);setSelectedBlockerId(null);}}
             onSelectBlocker={(id)=>{setSelectedBlockerId(current=>current===id?null:id);setSelectedAttackerId(null);}}
             onTargetIncomingAttacker={(id)=>void commitBlock(id)}
