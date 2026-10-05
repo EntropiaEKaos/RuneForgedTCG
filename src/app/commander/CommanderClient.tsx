@@ -347,6 +347,20 @@ export default function CommanderClient(){
     });
   }
 
+  function canStageHandCard(card:ProjectedCard){
+    const definition=collection.find(item=>item.defId===card.defId);
+    const physical=["Unit","Enchantment","Artifact","Equipment","Sentinela"].includes(definition?.type||"");
+    const spell=definition?.type==="Spell"&&isFourPlayerSpellChainSupported(definition.spell);
+    const availableMana=(viewerRuntime?.mana??0)+(cardCanUseSpellMana(definition)?(viewerRuntime?.spellMana??0):0);
+    const counterTargets=definition?legalCounterTargets(definition,stackItems):[];
+    const proactive=definition?.archetypeKey!=="trap";
+    const reactive=Boolean(spell&&definition?.speed&&stackTop&&stackTop.actionKind&&(stackTop.actionKind!=="spell"||definition.speed==="Burst")&&(definition.spell?.kind!=="negateSpell"||counterTargets.length>0));
+    const hasEquipmentTarget=definition?.type!=="Equipment"||(viewerRuntime?.battlefield||[]).some(object=>
+      ["unit","general","token"].includes(object.kind)&&Boolean(object.combat&&object.combat.health>0)&&object.equipment.length<2
+    );
+    return Boolean((physical||spell)&&(definition?.cost??0)<=availableMana&&hasEquipmentTarget&&((canPlayPhysicalCard&&proactive)||(viewerHasPriority&&viewerAlive&&reactive)));
+  }
+
   const matchPresented=Boolean(room&&(room.state==="playing"||combat?.status==="completed"));
 
   return <main className={`min-h-screen bg-[#06090e] text-slate-100 ${matchPresented?"overflow-hidden":""}`} data-commander-surface={matchPresented?"table":"lobby"}>
@@ -393,6 +407,8 @@ export default function CommanderClient(){
               onTargetNexusSeat={(seat)=>pendingAbility?.targetKind==="opponentPlayer"
                 ? activateAbility(pendingAbility,{kind:"player",seat:`p${seat+1}`})
                 : playPendingSpell({kind:"player",seat:`p${seat+1}`})}
+              playableHandInstanceIds={(viewerRuntime?.hand||[]).filter(canStageHandCard).map(card=>card.instanceId)}
+              onPlayHandCard={(card)=>void playHandCard(card,collection.find(item=>item.defId===card.defId))}
             /><div className={`mb-4 mt-5 border p-3 ${priorityTone}`} data-commander-priority-state={viewerHasPriority?(priorityUrgent?"urgent":"yours"):"waiting"}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
