@@ -196,6 +196,20 @@ async function clickArenaHandCard(cdp:CdpClient,text:string){
   assert.equal(clicked,true,`Could not click enabled Arena hand card containing text: ${text}`);
 }
 
+async function clickArenaStackCard(cdp:CdpClient,text:string){
+  const encoded=JSON.stringify(text);
+  const clicked=await evaluate<boolean>(cdp,`(()=>{
+    const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+    const target=[...document.querySelectorAll('[data-commander-stack-item]')]
+      .find((item)=>normalize(item.textContent).includes(${encoded}));
+    if(!target)return false;
+    target.scrollIntoView({block:'center',inline:'center'});
+    target.click();
+    return true;
+  })()`);
+  assert.equal(clicked,true,`Could not click Arena stack card containing text: ${text}`);
+}
+
 async function waitForEnabledButton(cdp:CdpClient,text:string,timeoutMs=25_000){
   const encoded=JSON.stringify(text);
   return waitUntil(()=>evaluate(cdp,`(()=>{
@@ -965,7 +979,7 @@ async function main(){
     await waitForEnabledButton(browsers[1].cdp,loadout.reaction.counter.name,15_000);
     await clickText(browsers[1].cdp,loadout.reaction.counter.name);
     await waitForEnabledButton(browsers[1].cdp,loadout.reaction.source.name,15_000);
-    await clickText(browsers[1].cdp,loadout.reaction.source.name);
+    await clickArenaStackCard(browsers[1].cdp,loadout.reaction.source.name);
 
     const chainCounterHands:[number,number,number,number]=[
       chainSourceHands[0],
@@ -985,7 +999,7 @@ async function main(){
     await waitForEnabledButton(browsers[2].cdp,loadout.reaction.counter.name,15_000);
     await clickText(browsers[2].cdp,loadout.reaction.counter.name);
     await waitForEnabledButton(browsers[2].cdp,"TOPO · "+loadout.reaction.counter.name,15_000);
-    await clickText(browsers[2].cdp,"TOPO · "+loadout.reaction.counter.name);
+    await clickArenaStackCard(browsers[2].cdp,loadout.reaction.counter.name);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,chainCounterRevision+1,20_000);
     const chainCounterOfCounterHands:[number,number,number,number]=[
