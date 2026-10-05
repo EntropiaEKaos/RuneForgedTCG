@@ -182,6 +182,20 @@ async function clickText(cdp:CdpClient,text:string,exact=false){
   assert.equal(clicked,true,`Could not click control ${exact?"equal to":"containing"} text: ${text}`);
 }
 
+async function clickArenaHandCard(cdp:CdpClient,text:string){
+  const encoded=JSON.stringify(text);
+  const clicked=await evaluate<boolean>(cdp,`(()=>{
+    const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+    const target=[...document.querySelectorAll('[data-commander-hand-card] button')]
+      .find((button)=>!button.disabled&&normalize(button.textContent).includes(${encoded}));
+    if(!target)return false;
+    target.scrollIntoView({block:'center',inline:'center'});
+    target.click();
+    return true;
+  })()`);
+  assert.equal(clicked,true,`Could not click enabled Arena hand card containing text: ${text}`);
+}
+
 async function waitForEnabledButton(cdp:CdpClient,text:string,timeoutMs=25_000){
   const encoded=JSON.stringify(text);
   return waitUntil(()=>evaluate(cdp,`(()=>{
@@ -865,7 +879,7 @@ async function main(){
 
     await waitForCommanderUiAuthority(browsers[0],counterChainFixture.revision,"yours",20_000);
     await waitForEnabledButton(browsers[0].cdp,loadout.reaction.source.name,15_000);
-    await clickText(browsers[0].cdp,loadout.reaction.source.name);
+    await clickArenaHandCard(browsers[0].cdp,loadout.reaction.source.name);
     try{
       await waitForEnabledButton(browsers[0].cdp,"Nexus P2",15_000);
     }catch(error){
