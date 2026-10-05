@@ -415,7 +415,7 @@ export default function CommanderClient(){
               onPlayHandCard={(card)=>void playHandCard(card,collection.find(item=>item.defId===card.defId))}
               targetableStackIds={pendingSpellDef?.spell?.target==="spellOnStack"?pendingCounterTargets.map(item=>item.id):[]}
               onTargetStackItem={(id)=>void playPendingSpell(undefined,id)}
-            /><div className="pointer-events-none absolute left-1/2 top-12 z-40 w-[min(92vw,420px)] -translate-x-1/2" data-commander-reaction-window={reactionWindowOpen?(viewerReactionWindow?"actionable":"waiting"):"priority"} aria-live="assertive">
+            /><div className="pointer-events-none absolute left-1/2 top-12 z-40 w-[min(92vw,420px)] -translate-x-1/2" data-commander-reaction-window={reactionWindowOpen?(viewerReactionWindow?"actionable":"waiting"):"priority"} data-commander-priority-state={viewerHasPriority?"yours":"waiting"} aria-live="assertive">
               <div className={`pointer-events-auto border backdrop-blur-md ${viewerReactionWindow?"border-violet-200/45 bg-[#100b1b]/95 shadow-[0_18px_60px_rgba(0,0,0,.55)]":viewerHasPriority?"border-cyan-300/30 bg-[#07151b]/92":"border-white/10 bg-black/72"}`}>
                 <div className="flex items-center justify-between gap-3 px-3 py-2">
                   <div className="min-w-0">
