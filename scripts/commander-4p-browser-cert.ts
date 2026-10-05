@@ -147,6 +147,11 @@ async function waitForText(cdp:CdpClient,text:string,timeoutMs=25_000){
   return waitUntil(()=>evaluate(cdp,`document.body?.innerText?.includes(${encoded})===true`),`text ${encoded}`,timeoutMs);
 }
 
+async function waitForSelector(cdp:CdpClient,selector:string,timeoutMs=25_000){
+  const encoded=JSON.stringify(selector);
+  return waitUntil(()=>evaluate(cdp,`Boolean(document.querySelector(${encoded}))`),`selector ${encoded}`,timeoutMs);
+}
+
 async function waitForCommanderUiAuthority(
   browser:Browser,
   revision:number,
