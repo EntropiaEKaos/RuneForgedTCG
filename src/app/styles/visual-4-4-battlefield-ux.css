@@ -289,3 +289,15 @@
 .tcg-arena[data-fx="reduced"] .targeting-hud {
   box-shadow: none;
 }
+
+/* Reaction overlay lives outside clipped board layers; controls must remain reachable. */
+.tcg-arena.reaction-portal[data-reaction-portal="true"] { position: fixed !important; inset: 0 !important; z-index: 220 !important; pointer-events: none; width: 100vw; height: 100dvh; overflow: visible !important; background: transparent !important; border: 0 !important; transform: none !important; }
+.tcg-arena.reaction-portal .reaction-stack[data-reaction-window="true"] { position: fixed !important; top: 50% !important; left: 50% !important; right: auto !important; bottom: auto !important; transform: translate(-50%, -50%) !important; z-index: 221 !important; pointer-events: auto; box-sizing: border-box; width: min(560px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: none !important; overflow: visible !important; padding: 12px 16px; background: linear-gradient(160deg, rgba(18,25,43,.84), rgba(7,12,25,.8)); backdrop-filter: blur(10px); }
+.tcg-arena.reaction-portal .reaction-stack-heading { margin-bottom: 4px; }
+.tcg-arena.reaction-portal .reaction-stack .reaction-guidance { margin-top: 3px; max-width: none; }
+.tcg-arena.reaction-portal .reaction-card-preview { margin-top: 6px; padding: 7px; }
+.tcg-arena.reaction-portal .reaction-frames { margin-top: 6px; }
+.tcg-arena.reaction-portal .reaction-stack > .btn-primary { margin-top: 7px; min-height: 38px; }
+.tcg-arena.reaction-portal .reaction-card-details[open] .reaction-card-tooltip { position: absolute; left: calc(100% + 10px); top: 0; width: min(360px, calc(100vw - 24px)); max-height: 80dvh; overflow-y: auto; box-shadow: 0 18px 48px rgba(0,0,0,.65); }
+@media (max-width: 1100px) { .tcg-arena.reaction-portal .reaction-card-details[open] .reaction-card-tooltip { left: auto; right: 0; top: calc(100% + 8px); } }
+@media (max-height: 650px) { .tcg-arena.reaction-portal .reaction-stack[data-reaction-window="true"] { padding: 8px 12px; } .tcg-arena.reaction-portal .reaction-stack .reaction-guidance { display: none; } .tcg-arena.reaction-portal .reaction-card-art { width: 42px; height: 58px; flex-basis: 42px; } }
