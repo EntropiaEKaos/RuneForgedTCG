@@ -266,6 +266,13 @@ async function main() {
     await cdp.call("Emulation.setDeviceMetricsOverride", viewport);
     try {
       await enterTrainingBattle(cdp);
+      // The AI may still be taking its opening turn. During that legitimate
+      // opponent-only window every primary action is disabled by design.
+      // Stress-test action hit targets only after the player has priority.
+      await waitUntil(() => evaluate(cdp, `(() => {
+        const phase = document.querySelector('.tcg-arena')?.dataset.matchPhase;
+        return phase === 'main' && Boolean(document.querySelector('.tcg-actions button:not(:disabled)'));
+      })()`), "player main phase with an enabled action", 30_000);
       const fixture = await installDensityStressFixture(cdp);
       assert.equal(fixture.ok, true, `could not install notebook density stress fixture: ${JSON.stringify(fixture)}`);
       await settle(cdp);
