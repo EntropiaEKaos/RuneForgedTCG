@@ -494,6 +494,9 @@ export default function CommanderPhaserRuntime({
               const end=seatPoint(route.defendingSeat,viewerSeat);
               const impact=collisionPoint(start,end);
               playCombatLaneFx(this,start,impact,"attackers");
+              const destination=this.add.line(0,0,impact.x,impact.y,end.x,end.y,RF_BATTLEFIELD_THEME.combat,.18).setOrigin(0,0).setLineWidth(2).setDepth(45).setName(`combat:destination:${route.unitId}`);
+              const targetRing=this.add.circle(end.x,end.y,34,RF_BATTLEFIELD_THEME.combat,.018).setStrokeStyle(2,RF_BATTLEFIELD_THEME.combat,.34).setDepth(46).setName(`combat:nexus-target:${route.unitId}`);
+              this.tweens.add({targets:[destination,targetRing],alpha:0,duration:1250,delay:180,ease:"Sine.easeOut",onComplete:()=>{destination.destroy();targetRing.destroy();}});
               const orb=this.add.circle(start.x,start.y,7,tone,.95);
               this.tweens.add({
                 targets:orb,
@@ -515,6 +518,9 @@ export default function CommanderPhaserRuntime({
               const impact=collisionPoint(attackerStart,defender);
               const start=seatPoint(route.controllerSeat,viewerSeat);
               playCombatLaneFx(this,start,impact,"blockers");
+              const collision=this.add.circle(impact.x,impact.y,12,RF_BATTLEFIELD_THEME.block,.08).setStrokeStyle(3,RF_BATTLEFIELD_THEME.block,.86).setDepth(55).setName(`combat:block-collision:${route.attackerId}`);
+              const shield=this.add.text(impact.x,impact.y,"◆",{fontFamily:"system-ui, sans-serif",fontSize:"18px",fontStyle:"bold",color:"#bfdbfe",stroke:"#172554",strokeThickness:4}).setOrigin(.5).setDepth(56).setName(`combat:block-shield:${route.attackerId}`);
+              this.tweens.add({targets:[collision,shield],scale:2.2,alpha:0,duration:620,ease:"Cubic.easeOut",onComplete:()=>{collision.destroy();shield.destroy();}});
               const orb=this.add.circle(start.x,start.y,6,tone,.9);
               this.tweens.add({
                 targets:orb,
