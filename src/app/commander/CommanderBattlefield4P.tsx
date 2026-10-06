@@ -158,14 +158,14 @@ function BattlefieldCard({
     {Boolean(damage)&&<span className="pointer-events-none absolute left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border border-rose-100/80 bg-rose-500/45 px-2 py-1 text-sm font-black text-white shadow-[0_0_24px_rgba(244,63,94,.6)]" data-commander-damage-fx={damage}>-{damage}</span>}
     {barrierBroken&&<span className="pointer-events-none absolute inset-1 z-30 grid place-items-center rounded-xl border-2 border-cyan-100/80 bg-cyan-300/10 text-[8px] font-black uppercase tracking-wider text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,.42)]" data-commander-barrier-break="true">BARREIRA QUEBROU</span>}
     {badge&&<span className="pointer-events-none absolute -top-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border border-rose-200/30 bg-rose-950/90 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-rose-100 shadow-lg">{badge}</span>}
-    <div className="pointer-events-none absolute -bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-full border border-white/15 bg-slate-950/95 px-2 py-0.5 text-[9px] font-black text-white shadow-xl">
+    <div className="pointer-events-none absolute -bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded-md border border-amber-200/25 bg-[#1b130e]/95 px-2 py-0.5 text-[10px] font-black text-amber-50 shadow-xl">
       {stat&&<span>{stat}</span>}
       {object.stunned&&<span title="Atordoado">✦</span>}
       {object.combat?.barrier&&<span title="Barreira">🛡</span>}
       {object.combat?.frostbitten&&<span title="Congelado">❄</span>}
       {object.equipment.length>0&&<span title="Equipamentos">⚙{object.equipment.length}</span>}
     </div>
-    <span className="pointer-events-none absolute left-1 top-1 z-20 rounded bg-black/75 px-1 text-[8px] uppercase tracking-wider text-white/70">{object.kind}</span>
+    <span className="pointer-events-none absolute left-1 top-1 z-20 rounded bg-[#1b130e]/90 px-1 text-[8px] uppercase tracking-wider text-amber-100/80">{object.kind}</span>
   </div>;
 }
 
@@ -229,19 +229,19 @@ function SeatZone({
   const [graveOpen,setGraveOpen]=useState(false);
   const vertical=position==="left"||position==="right";
   return <section
-    className={`relative min-h-0 min-w-0 transition ${hasPriority?"drop-shadow-[0_0_14px_rgba(217,170,91,.26)]":isActive?"drop-shadow-[0_0_14px_rgba(251,191,36,.16)]":""} ${runtime.eliminated?"opacity-45 grayscale":""}`}
+    className={`relative min-h-0 min-w-0 isolate transition ${hasPriority?"drop-shadow-[0_0_14px_rgba(217,170,91,.26)]":isActive?"drop-shadow-[0_0_14px_rgba(251,191,36,.16)]":""} ${runtime.eliminated?"opacity-45 grayscale":""}`}
     data-commander-seat={runtime.seat}
     data-commander-position={position}
     data-commander-seat-zone="integrated"
   >
-    <div className={`absolute z-30 flex items-center gap-2 rounded-full border px-2.5 py-1 backdrop-blur-md ${hasPriority?"border-amber-200/55 bg-stone-950/90 shadow-[0_0_16px_rgba(217,170,91,.18)]":isActive?"border-amber-200/35 bg-slate-950/75":"border-white/10 bg-slate-950/65"} ${position==="top"?"left-1/2 top-0 -translate-x-1/2":position==="bottom"?"bottom-0 left-1/2 -translate-x-1/2":position==="left"?"left-1 top-1/2 -translate-y-1/2": "right-1 top-1/2 -translate-y-1/2"}`}>
-      <b className="max-w-32 truncate text-[10px] text-white">P{runtime.seat+1} · {playerName}</b>
+    <div className={`absolute z-30 flex max-w-[92%] items-center gap-1.5 rounded-xl border px-3 py-1.5 shadow-lg backdrop-blur-md ${hasPriority?"border-amber-200/55 bg-stone-950/90 shadow-[0_0_16px_rgba(217,170,91,.18)]":isActive?"border-amber-200/35 bg-slate-950/75":"border-white/10 bg-slate-950/65"} ${position==="top"?"left-1/2 top-0 -translate-x-1/2":position==="bottom"?"bottom-0 left-1/2 -translate-x-1/2":position==="left"?"left-1 top-1": "right-1 top-1"}`}>
+      <b className="max-w-32 truncate text-[11px] font-extrabold text-amber-50">P{runtime.seat+1} · {playerName}</b>
       {isViewer&&<span className="text-[7px] font-black uppercase text-amber-100">VOCÊ</span>}
       {isActive&&<span className="text-[7px] font-black uppercase text-amber-200">TURNO</span>}
       {hasPriority&&<span className="text-[7px] font-black uppercase text-amber-200">PRIORIDADE</span>}
     </div>
 
-    <div className={`absolute z-30 flex items-center gap-1.5 ${position==="top"?"right-1 top-1":position==="bottom"?"bottom-1 right-1":position==="left"?"bottom-1 left-1": "bottom-1 right-1"}`}>
+    <div className={`absolute z-30 flex items-center gap-1 rounded-lg border border-amber-200/10 bg-[#1b130e]/85 p-1 shadow-lg backdrop-blur-md ${position==="top"?"right-1 top-1":position==="bottom"?"bottom-1 right-1":position==="left"?"bottom-1 left-1": "bottom-1 right-1"}`}>
       <button type="button" disabled={!canTargetNexus||busy} onClick={onTargetNexus}
         className={`relative rounded-full border px-2 py-1 text-[9px] font-black backdrop-blur ${canTargetNexus?"border-rose-200/60 bg-rose-950/80 text-rose-50 shadow-[0_0_18px_rgba(251,113,133,.2)]":"border-rose-200/15 bg-black/55 text-rose-100"}`}
         aria-label={`Nexus P${runtime.seat+1}`}
@@ -271,8 +271,8 @@ function SeatZone({
       </button>
     </div>
 
-    <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-3 py-10":"px-24 py-7"}`} data-commander-zone="battlefield">
-      <div className={`flex h-full w-full max-h-full max-w-full items-center justify-center gap-1 ${vertical?"flex-wrap content-center":"flex-wrap content-center"}`}>
+    <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-3 pb-12 pt-14":"px-24 pb-12 pt-12"}`} data-commander-zone="battlefield">
+      <div className="flex h-full w-full max-h-full max-w-full flex-wrap content-center items-center justify-center gap-x-2 gap-y-4">
         {battlefield.length?groupEquivalentBattlefieldObjects(battlefield,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds,attackableIds,blockableIds).map(group=>{
           const object=group[0];
           const attackable=isViewer&&attackableIds.has(object.id);
@@ -281,7 +281,7 @@ function SeatZone({
           const incomingTarget=Boolean(!isViewer&&incoming&&selectedBlockerId);
           const motion:CombatMotion=declaredBlockerIds.has(object.id)?"blocking":declaredAttackerIds.has(object.id)?"attacking":null;
           const onClick=attackable?()=>onSelectAttacker(object.id):blockable?()=>onSelectBlocker(object.id):incomingTarget?()=>onTargetIncomingAttacker(object.id):undefined;
-          return <div key={group.map(item=>item.id).join(":")} className="group/stack relative shrink-0" data-commander-visual-stack={group.length} data-commander-stack-instance-ids={group.map(item=>item.id).join(",")}>
+          return <div key={group.map(item=>item.id).join(":")} className="group/stack relative shrink-0 isolate" data-commander-visual-stack={group.length} data-commander-stack-instance-ids={group.map(item=>item.id).join(",")}>
             {group.length>1&&<>
               {group.slice(1,Math.min(group.length,5)).map((copy,index)=>{
                 const copyAttackable=isViewer&&attackableIds.has(copy.id);
@@ -300,7 +300,7 @@ function SeatZone({
                   </div>
                 </div>;
               })}
-              <span className="pointer-events-none absolute -right-3 -top-3 z-30 rounded-full border border-cyan-100/30 bg-slate-950/95 px-2 py-0.5 text-[9px] font-black text-cyan-50 shadow-xl" title={`${group.length} cópias equivalentes`}>×{group.length}</span>
+              <span className="pointer-events-none absolute -right-2 -top-2 z-30 rounded-full border border-amber-200/45 bg-stone-950/95 px-2 py-0.5 text-[9px] font-black text-amber-50 shadow-xl" title={`${group.length} cópias equivalentes`}>×{group.length}</span>
             </>}
             <div className="relative z-20">
               <BattlefieldCard object={object} collection={collection}
@@ -598,7 +598,7 @@ export default function CommanderBattlefield4P({
       <button type="button" className="ml-3 text-slate-500 underline" onClick={()=>{setSelectedAttackerId(null);setSelectedBlockerId(null);}}>Cancelar</button>
     </div>}
     <div
-      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(190px,.72fr)_minmax(480px,2.6fr)_minmax(190px,.72fr)] grid-rows-[minmax(150px,.64fr)_minmax(260px,1.8fr)_minmax(205px,.88fr)] gap-0 px-1 pb-1 pt-8 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
+      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(190px,.72fr)_minmax(480px,2.6fr)_minmax(190px,.72fr)] grid-rows-[minmax(165px,.7fr)_minmax(260px,1.65fr)_minmax(220px,.95fr)] gap-0 px-1 pb-1 pt-8 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
       data-commander-camera-surface="table"
     >
       {(["top","left","right","bottom"] as Position[]).map(position=>{
