@@ -514,10 +514,10 @@ export default function CommanderBattlefield4P({
     await onDeclareBlocker(unitId,attackerId);
   }
 
-  return <section ref={battlefieldScrollRef} className="relative h-full w-full overflow-hidden bg-[#02060b] shadow-[inset_0_0_120px_rgba(8,145,178,.08)]" data-commander-arena="unified-v2" data-commander-battlefield="cinematic-v1" data-commander-camera-zoom={cameraZoom}>
-    <div className="pointer-events-none absolute inset-0 opacity-70" style={{backgroundImage:"radial-gradient(circle at center, rgba(34,211,238,.08), transparent 27%), linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.018) 1px, transparent 1px)",backgroundSize:"auto, 42px 42px, 42px 42px"}}/>
-    <div className="pointer-events-none absolute inset-[12%] rounded-[45%] border border-cyan-200/[.06] shadow-[0_0_90px_rgba(34,211,238,.05)]"/>
-    <div className="absolute left-3 top-3 z-50 flex w-fit flex-wrap items-center gap-1 rounded-full border border-cyan-100/15 bg-slate-950/95 p-1 shadow-xl backdrop-blur-md" data-commander-camera-controls="local">
+  return <section ref={battlefieldScrollRef} className="relative h-full w-full overflow-hidden bg-[#17110d] shadow-[inset_0_0_150px_rgba(0,0,0,.75)]" data-commander-arena="unified-v2" data-commander-battlefield="cinematic-v1" data-commander-camera-zoom={cameraZoom}>
+    <div className="pointer-events-none absolute inset-0 opacity-70" style={{backgroundImage:"radial-gradient(ellipse at 50% 45%, rgba(161,113,59,.24), transparent 57%), repeating-linear-gradient(0deg, transparent 0px, transparent 90px, rgba(0,0,0,.19) 91px, rgba(222,178,107,.045) 93px), repeating-linear-gradient(90deg, rgba(0,0,0,.06) 0px, rgba(0,0,0,.06) 3px, transparent 5px, transparent 115px)",backgroundSize:"auto, auto, auto"}}/>
+    <div className="pointer-events-none absolute inset-[9%] rounded-[22%] border-2 border-amber-200/[.12] shadow-[inset_0_0_75px_rgba(0,0,0,.45),0_0_40px_rgba(116,68,29,.10)]"/>
+    <div className="absolute left-3 top-3 z-50 flex w-fit flex-wrap items-center gap-1 rounded-full border border-amber-200/20 bg-[#211811]/95 p-1 shadow-xl backdrop-blur-md" data-commander-camera-controls="local">
       <button type="button" className="rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wide text-cyan-100 hover:bg-cyan-200/10" onClick={()=>focusCamera("table")}>Mesa</button>
       <button type="button" className="rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wide text-violet-100 hover:bg-violet-200/10" onClick={()=>focusCamera("stack")}>Stack</button>
       <button type="button" className="rounded-full px-2 py-1 text-[8px] font-black uppercase tracking-wide text-amber-100 hover:bg-amber-200/10" onClick={()=>focusCamera("self")}>Meu campo</button>
