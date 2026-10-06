@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import CardInfo from "@/components/CardInfo";
 import { getCardArt } from "@/game/card-art";
 import { getCard } from "@/game/cards";
@@ -197,7 +198,7 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve }: {
   const respondingTo = frames[frames.length - 1];
   const respondingCard = getCard(respondingTo.defId);
   const respondingArt = getCardArt(respondingTo.defId)?.url ?? respondingCard.art;
-  return (
+  const panel = (
     <section className="reaction-stack" aria-label="Pilha de respostas" aria-live="polite" data-reaction-window="true">
       <div className="reaction-stack-heading">
         <div><span>⚡ JANELA DE REAÇÃO</span><h3>Pilha de respostas</h3><p className="reaction-guidance">Responda com uma carta da mão, ative uma habilidade do campo ou passe a prioridade.</p></div>
@@ -235,5 +236,9 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve }: {
       <ReactionActivatedPicker reaction={reaction} />
       <button type="button" onClick={onResolve} className="btn-primary" aria-keyshortcuts="Space">✓ Passar prioridade e resolver</button>
     </section>
+  );
+  return typeof document === "undefined" ? null : createPortal(
+    <div className="tcg-arena reaction-portal" data-match-phase="response" data-reaction-portal="true">{panel}</div>,
+    document.body,
   );
 }
