@@ -253,6 +253,19 @@ export default function CommanderPhaserRuntime({
               .setName(`arena:core-rune:${index}`);
           });
 
+          // Persistent Forge Presence: a low-noise ritual engine that reads in still captures,
+          // while remaining strictly presentation-only and driven by the certified legacy palette.
+          const forgePlate=this.add.circle(490,450,72,RF_BATTLEFIELD_THEME.surface,.24)
+            .setStrokeStyle(2,RF_BATTLEFIELD_THEME.response,.24).setDepth(2.4).setName("arena:forge-plate");
+          const forgeCrown=this.add.circle(490,450,58,RF_BATTLEFIELD_THEME.response,.025)
+            .setStrokeStyle(3,RF_BATTLEFIELD_THEME.main,.32).setDepth(2.6).setName("arena:forge-crown");
+          const forgeSigil=this.add.text(490,450,"◆",{fontFamily:"system-ui, sans-serif",fontSize:"28px",fontStyle:"bold",color:"#a78bfa",stroke:"#020617",strokeThickness:6})
+            .setOrigin(.5).setAlpha(.48).setDepth(3.2).setName("arena:forge-sigil");
+          this.add.text(490,510,"RUNE FORGE",{fontFamily:"system-ui, sans-serif",fontSize:"8px",fontStyle:"bold",color:"#94a3b8",stroke:"#020617",strokeThickness:3})
+            .setOrigin(.5).setAlpha(.62).setDepth(3.2).setName("arena:forge-label");
+          this.tweens.add({targets:forgeCrown,angle:360,duration:18000,repeat:-1,ease:"Linear"});
+          this.tweens.add({targets:[forgePlate,forgeSigil],scale:1.06,alpha:.62,duration:2600,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
+
           this.seatAnchors=[0,1,2,3].map(seat=>{
             const point=seatPoint(seat,viewerSeat);
             return this.add.circle(point.x,point.y,62,RF_BATTLEFIELD_THEME.opponent,.012).setStrokeStyle(1,RF_BATTLEFIELD_THEME.opponent,.14).setDepth(2).setName(`arena:seat-anchor:${seat}`);
@@ -351,24 +364,28 @@ export default function CommanderPhaserRuntime({
             const base=seatPoint(seat.seat,viewerSeat);
             const critical=!seat.eliminated&&seat.nexusHealth<=10;
             const nexusColor=seat.eliminated?0x475569:critical?RF_BATTLEFIELD_THEME.danger:RF_BATTLEFIELD_THEME.main;
-            const nexusHalo=this.add.circle(base.x,base.y,36,nexusColor,.025).setStrokeStyle(1,nexusColor,seat.eliminated?.12:critical?.5:.22).setDepth(19).setName(`permanent:nexus-halo:${seat.seat}`);
-            const nexus=this.add.circle(base.x,base.y,27,nexusColor,seat.eliminated?.06:.16).setStrokeStyle(3,nexusColor,seat.eliminated?.28:.82).setDepth(20).setName(`permanent:nexus:${seat.seat}`);
+            const nexusPlate=this.add.circle(base.x,base.y,43,RF_BATTLEFIELD_THEME.surface,.34).setStrokeStyle(1,nexusColor,seat.eliminated?.10:.18).setDepth(18.6).setName(`permanent:nexus-plate:${seat.seat}`);
+            const nexusHalo=this.add.circle(base.x,base.y,37,nexusColor,.025).setStrokeStyle(2,nexusColor,seat.eliminated?.12:critical?.5:.28).setDepth(19).setName(`permanent:nexus-halo:${seat.seat}`);
+            const nexus=this.add.circle(base.x,base.y,28,nexusColor,seat.eliminated?.06:.18).setStrokeStyle(3,nexusColor,seat.eliminated?.28:.88).setDepth(20).setName(`permanent:nexus:${seat.seat}`);
+            this.add.text(base.x,base.y-38,"◇",{fontFamily:"system-ui, sans-serif",fontSize:"11px",fontStyle:"bold",color:seat.eliminated?"#475569":critical?"#fb7185":"#6ae8be",stroke:"#020617",strokeThickness:3}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-sigil:${seat.seat}`);
             if(critical)this.tweens.add({targets:[nexus,nexusHalo],scale:1.1,alpha:.55,duration:720,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
             this.add.text(base.x,base.y-3,`${seat.nexusHealth}`,{fontFamily:"system-ui, sans-serif",fontSize:"16px",fontStyle:"bold",color:seat.eliminated?"#64748b":critical?"#fecdd3":"#d1fae5",stroke:"#020617",strokeThickness:4}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-label:${seat.seat}`);
             this.add.text(base.x,base.y+15,seat.eliminated?"ELIMINADO":"NEXUS",{fontFamily:"system-ui, sans-serif",fontSize:"6px",fontStyle:"bold",color:seat.eliminated?"#64748b":"#94a3b8",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-state:${seat.seat}`);
             const generalColor=seat.general.zone==="battlefield"?RF_BATTLEFIELD_THEME.targeting:RF_BATTLEFIELD_THEME.response;
-            const general=this.add.circle(base.x+48,base.y,13,generalColor,.13).setStrokeStyle(2,generalColor,.78).setDepth(20).setName(`permanent:general:${seat.seat}`);
+            const generalPlate=this.add.circle(base.x+50,base.y,19,RF_BATTLEFIELD_THEME.surface,.42).setStrokeStyle(1,generalColor,.26).setDepth(19.2).setName(`permanent:general-plate:${seat.seat}`);
+            const general=this.add.circle(base.x+50,base.y,14,generalColor,.16).setStrokeStyle(2,generalColor,.86).setDepth(20).setName(`permanent:general:${seat.seat}`);
+            this.add.text(base.x+50,base.y,"✦",{fontFamily:"system-ui, sans-serif",fontSize:"9px",fontStyle:"bold",color:seat.general.zone==="battlefield"?"#fde68a":"#ddd6fe",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:general-sigil:${seat.seat}`);
             if(seat.general.zone==="battlefield")this.add.circle(base.x+48,base.y,19,generalColor,.02).setStrokeStyle(1,generalColor,.32).setDepth(19).setName(`permanent:general-presence:${seat.seat}`);
             this.add.text(base.x+48,base.y+22,`${seat.general.name} · ${seat.general.castCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"7px",color:seat.general.zone==="battlefield"?"#fde68a":"#ddd6fe",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:general-name:${seat.seat}`);
             seat.battlefield.slice(0,12).forEach((object,index)=>{
               const angle=(Math.PI*2*index)/Math.max(1,Math.min(12,seat.battlefield.length));
-              const radius=74+(index%2)*24;
+              const radius=82+(index%2)*27;
               const x=base.x+Math.cos(angle)*radius;
               const y=base.y+Math.sin(angle)*radius;
               const damaged=object.health!=null&&object.maxHealth!=null&&object.health<object.maxHealth;
               const durabilityDamaged=object.durability!=null&&object.maxDurability!=null&&object.durability<object.maxDurability;
               const color=object.stunned?RF_BATTLEFIELD_THEME.opponent:object.barrier?RF_BATTLEFIELD_THEME.block:damaged||durabilityDamaged?RF_BATTLEFIELD_THEME.danger:RF_BATTLEFIELD_THEME.main;
-              const frame=this.add.rectangle(x,y,42,58,color,.14).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
+              const frame=this.add.rectangle(x,y,48,66,color,.16).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
               if(object.barrier)this.add.circle(x,y,30,0x38bdf8,.025).setStrokeStyle(2,0x67e8f9,.7).setDepth(18.8).setName(`permanent:barrier:${object.id}`);
               if(object.frostbitten)this.add.text(x-16,y-19,"❄",{fontFamily:"system-ui, sans-serif",fontSize:"10px",color:"#bae6fd"}).setDepth(19).setName(`permanent:frostbite:${object.id}`);
               if(object.stunned)this.add.text(x-16,y+17,"STUN",{fontFamily:"system-ui, sans-serif",fontSize:"6px",fontStyle:"bold",color:"#cbd5e1",stroke:"#020617",strokeThickness:2}).setDepth(19).setName(`permanent:stunned:${object.id}`);
@@ -380,7 +397,7 @@ export default function CommanderPhaserRuntime({
                   this.load.image(textureKey,object.artUrl);
                   this.load.once(`filecomplete-image-${textureKey}`,()=>{
                     if(!frame.active)return;
-                    const art=this.add.image(x,y-3,textureKey).setDisplaySize(36,42).setDepth(18.2).setName(`permanent:art:${object.id}`);
+                    const art=this.add.image(x,y-3,textureKey).setDisplaySize(41,48).setDepth(18.2).setName(`permanent:art:${object.id}`);
                     frame.setDepth(18.3);
                     art.setCrop(0,0,art.width,Math.max(1,art.height));
                   });
