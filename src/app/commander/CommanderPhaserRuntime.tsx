@@ -100,6 +100,7 @@ const OUTCOME_EVENT="runeforged:commander:outcome-fx";
 const TARGETING_EVENT="runeforged:commander:targeting-fx";
 const PERMANENTS_EVENT="runeforged:commander:permanents";
 const HAND_EVENT="runeforged:commander:hand";
+const GENERAL_EVENT="runeforged:commander:general-transition";
 
 const RF_BATTLEFIELD_THEME={
   main:0x6ae8be,
@@ -174,6 +175,7 @@ export default function CommanderPhaserRuntime({
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
   const previousHandRef=useRef<CommanderPhaserHandCard[]>(hand);
   const previousPermanentsRef=useRef<CommanderPhaserPermanentSnapshot>(permanents);
+  const previousGeneralsRef=useRef<CommanderPhaserPermanentSnapshot>(permanents);
   const stackInitializedRef=useRef(false);
   const lastPriorityRevisionRef=useRef<number|null>(null);
   const queuedPriorityFxRef=useRef<Array<{prioritySeat:number;reactionWindowOpen:boolean}>>([]);
@@ -252,6 +254,7 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(TARGETING_EVENT,(state:CommanderPhaserTargetingFx)=>this.renderTargetingFx(state));
           this.game.events.on(PERMANENTS_EVENT,(state:CommanderPhaserPermanentSnapshot)=>this.renderPermanents(state));
           this.game.events.on(HAND_EVENT,(cards:CommanderPhaserHandCard[])=>this.renderHand(cards));
+          this.game.events.on(GENERAL_EVENT,(state:{seat:number;from:string;to:string;name:string})=>this.renderGeneralTransition(state));
           for(const state of queuedPriorityFxRef.current.splice(0))this.renderPriorityFx(state);
           for(const state of queuedOutcomeFxRef.current.splice(0))this.renderOutcomeFx(state);
           for(const state of queuedTargetingFxRef.current.splice(0))this.renderTargetingFx(state);
@@ -260,6 +263,18 @@ export default function CommanderPhaserRuntime({
           for(const frame of queuedFramesRef.current.splice(0))this.renderFrame(frame);
           for(const fx of queuedResolutionFxRef.current.splice(0))this.renderResolutionFx(fx);
           for(const fx of queuedStackFxRef.current.splice(0))this.renderStackFx(fx);
+        }
+
+        private renderGeneralTransition(state:{seat:number;from:string;to:string;name:string}){
+          const point=seatPoint(state.seat,viewerSeat);
+          const entering=state.to==="battlefield";
+          const color=entering?RF_BATTLEFIELD_THEME.targeting:RF_BATTLEFIELD_THEME.response;
+          const start=entering?{x:point.x+48,y:point.y}:{x:point.x,y:point.y-18};
+          const end=entering?{x:point.x,y:point.y-18}:{x:point.x+48,y:point.y};
+          const sigil=this.add.circle(start.x,start.y,15,color,.12).setStrokeStyle(3,color,.92).setDepth(90).setName(`general:transition:${state.seat}`);
+          const label=this.add.text(start.x,start.y-28,entering?"GENERAL EM CAMPO":"GENERAL ZONE",{fontFamily:"system-ui, sans-serif",fontSize:"10px",fontStyle:"bold",color:entering?"#fde68a":"#ddd6fe",stroke:"#020617",strokeThickness:4}).setOrigin(.5).setDepth(91);
+          this.tweens.add({targets:sigil,x:end.x,y:end.y,scale:entering?2.2:.55,alpha:0,duration:760,ease:entering?"Cubic.easeOut":"Cubic.easeIn",onComplete:()=>sigil.destroy()});
+          this.tweens.add({targets:label,y:label.y-18,alpha:0,duration:820,ease:"Sine.easeOut",onComplete:()=>label.destroy()});
         }
 
         private renderPriorityFx(state:{prioritySeat:number;reactionWindowOpen:boolean}){
@@ -592,6 +607,16 @@ export default function CommanderPhaserRuntime({
   useEffect(()=>{
     if(gameRef.current)gameRef.current.events.emit(PERMANENTS_EVENT,permanents);
     else queuedPermanentsRef.current.push(permanents);
+  },[permanents,viewerSeat]);
+
+  useEffect(()=>{
+    const previous=previousGeneralsRef.current;
+    for(const seat of permanents.seats){
+      const before=previous.seats.find(entry=>entry.seat===seat.seat)?.general;
+      if(!before||before.zone===seat.general.zone)continue;
+      gameRef.current?.events.emit(GENERAL_EVENT,{seat:seat.seat,from:before.zone,to:seat.general.zone,name:seat.general.name});
+    }
+    previousGeneralsRef.current=permanents;
   },[permanents,viewerSeat]);
 
   useEffect(()=>{
