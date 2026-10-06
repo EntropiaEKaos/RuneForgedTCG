@@ -137,6 +137,16 @@
     overscroll-behavior-inline: contain;
   }
 
+  /* Activated-ability controls are part of the card's in-row layout, not the
+     floating Tooltip. Reserve a separate lane for them instead of clipping
+     the card and its controls inside the fixed notebook board height. */
+  .tcg-arena .tcg-row[data-bench-side="player"]:has([data-activated-ability-tray]) {
+    height: calc(var(--rf-v4-board-card-h) + 62px);
+    flex-basis: calc(var(--rf-v4-board-card-h) + 62px);
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+
   .tcg-arena .tcg-row .card-shell {
     width: var(--rf-v4-board-card-w);
     height: var(--rf-v4-board-card-h);
@@ -498,6 +508,16 @@
 
   .tcg-arena .tcg-row > * {
     scroll-snap-align: center;
+  }
+
+  /* Keep activated-ability buttons reachable in compact touch layouts.
+     This changes only the board row; the existing Tooltip is untouched. */
+  .tcg-arena .tcg-row[data-bench-side="player"]:has([data-activated-ability-tray]) {
+    height: calc(var(--rf-v43-board-card-h) + 62px);
+    flex-basis: calc(var(--rf-v43-board-card-h) + 62px);
+    align-items: flex-start;
+    overflow-y: auto;
+    touch-action: pan-x pan-y;
   }
 
   .tcg-arena .tcg-row .card-shell {
