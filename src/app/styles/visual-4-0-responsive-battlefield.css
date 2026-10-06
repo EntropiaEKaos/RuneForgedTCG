@@ -808,9 +808,10 @@
   }
 
   .tcg-arena .player-hand-shell.expanded {
+    top: auto;
     bottom: calc(44px + env(safe-area-inset-bottom));
-    height: min(52dvh, 220px);
-    max-height: min(52dvh, 220px);
+    height: min(46dvh, 200px);
+    max-height: min(46dvh, 200px);
   }
 
   .tcg-arena .player-hand-shell.expanded .tcg-hand {
