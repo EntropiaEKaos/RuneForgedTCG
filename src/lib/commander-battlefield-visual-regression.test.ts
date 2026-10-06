@@ -160,6 +160,11 @@ assert.match(phaserRuntime,/arena:legacy-halo/,"Commander Phaser must render amb
 assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
 assert.match(phaserRuntime,/turn:lane:/,"active-turn presentation must visually connect the authoritative seat to the arena core");
 assert.match(phaserRuntime,/stack:arena-core-pulse/,"authoritative stack entry and resolution must energize the shared arena core");
+assert.match(phaserRuntime,/permanent:nexus-halo:/,"each authoritative Commander seat must project a persistent Nexus halo");
+assert.match(phaserRuntime,/seat\.nexusHealth<=10/,"Nexus presentation must derive critical state from authoritative health");
+assert.match(phaserRuntime,/ELIMINADO/,"eliminated Commander seats must project a clear visual Nexus state");
+assert.match(phaserRuntime,/permanent:general-presence:/,"a General on the battlefield must project distinct arena presence");
+assert.match(phaserRuntime,/seat\.general\.castCount/,"General presentation must expose authoritative recast history");
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
 assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
