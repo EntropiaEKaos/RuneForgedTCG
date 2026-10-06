@@ -464,12 +464,12 @@ export default function GameClient() {
   }, [state, isPlayerMain, recordAction, isPvp, sendPvpAction, cancelActivatedDiscard]);
 
   useEffect(() => {
-    if (!state || screen !== "battle" || state.phase === "gameover") return;
+    if (!state || screen !== "game" || state.phase === "gameover") return;
     setTurnSeconds(60);
   }, [state?.round, state?.activePlayer, screen]);
 
   useEffect(() => {
-    if (!state || screen !== "battle" || state.phase === "gameover") return;
+    if (!state || screen !== "game" || state.phase === "gameover") return;
     const timer = window.setInterval(() => setTurnSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
     return () => window.clearInterval(timer);
   }, [state?.round, state?.activePlayer, state?.phase, screen]);
