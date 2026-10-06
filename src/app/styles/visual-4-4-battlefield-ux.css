@@ -303,7 +303,7 @@
 @media (max-height: 650px) { .tcg-arena.reaction-portal .reaction-stack[data-reaction-window="true"] { padding: 8px 12px; } .tcg-arena.reaction-portal .reaction-stack .reaction-guidance { display: none; } .tcg-arena.reaction-portal .reaction-card-art { width: 42px; height: 58px; flex-basis: 42px; } }
 
 /* Combat containment: attackers and assigned blockers stay inside the neutral lane. */
-.tcg-arena .combat-center-zone[data-combat-center="true"] {
+.tcg-arena div:has(> .combat-lanes) {
   min-height: 0;
   isolation: isolate;
   overflow: hidden;
