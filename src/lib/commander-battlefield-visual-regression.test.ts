@@ -154,7 +154,7 @@ assert.match(phaserRuntime,/selectedKind:"attacker"\|"blocker"\|null/,"targeting
 assert.doesNotMatch(phaserRuntime,/declare_attacker|declare_blocker|pass_priority|combat-command/,"Phaser targeting and priority FX must not own authoritative Commander commands");
 
 assert.match(phaserRuntime,/RF_BATTLEFIELD_THEME/,"Commander Phaser must inherit the certified RuneForged battlefield color language");
-assert.match(phaserRuntime,/main:0x6ae8be/,"Commander main-phase presentation must preserve the certified 1v1 green token");
+assert.match(phaserRuntime,/main:0xc69a58/,"Commander four-seat fantasy arena must use the approved brass presentation token without modifying 1v1");
 assert.match(phaserRuntime,/combat:0xfb923c/,"Commander combat presentation must preserve the certified 1v1 orange token");
 assert.match(phaserRuntime,/response:0xa78bfa/,"Commander response presentation must preserve the certified 1v1 violet token");
 assert.match(phaserRuntime,/arena:legacy-core/,"Commander Phaser must render a persistent RuneForged arena core");
