@@ -212,8 +212,20 @@ export default function CommanderPhaserRuntime({
       class CommanderPresentationScene extends Phaser.Scene {
         private headline?:InstanceType<typeof Phaser.GameObjects.Text>;
         private detail?:InstanceType<typeof Phaser.GameObjects.Text>;
+        private arenaCore?:InstanceType<typeof Phaser.GameObjects.Arc>;
+        private arenaHalo?:InstanceType<typeof Phaser.GameObjects.Arc>;
+        private seatAnchors:InstanceType<typeof Phaser.GameObjects.Arc>[]=[];
 
         create(){
+          this.arenaHalo=this.add.circle(490,450,118,RF_BATTLEFIELD_THEME.main,.018).setStrokeStyle(2,RF_BATTLEFIELD_THEME.main,.12).setDepth(2).setName("arena:legacy-halo");
+          this.arenaCore=this.add.circle(490,450,48,RF_BATTLEFIELD_THEME.main,.035).setStrokeStyle(2,RF_BATTLEFIELD_THEME.main,.28).setDepth(3).setName("arena:legacy-core");
+          this.seatAnchors=[0,1,2,3].map(seat=>{
+            const point=seatPoint(seat,viewerSeat);
+            return this.add.circle(point.x,point.y,62,RF_BATTLEFIELD_THEME.opponent,.012).setStrokeStyle(1,RF_BATTLEFIELD_THEME.opponent,.14).setDepth(2).setName(`arena:seat-anchor:${seat}`);
+          });
+          this.tweens.add({targets:this.arenaCore,scale:1.12,alpha:.72,duration:2200,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
+          this.tweens.add({targets:this.arenaHalo,scale:1.06,alpha:.5,duration:3200,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
+
           this.headline=this.add.text(490,410,"",{
             fontFamily:"system-ui, sans-serif",
             fontSize:"24px",
@@ -396,9 +408,15 @@ export default function CommanderPhaserRuntime({
 
         private renderTurnFx(state:{activeSeat:number;turn:number;round:number;phase:string}){
           const point=seatPoint(state.activeSeat,viewerSeat);
-          const ring=this.add.circle(point.x,point.y,34,0xfbbf24,.08).setStrokeStyle(4,0xfbbf24,.9).setDepth(88).setName(`turn:active:${state.activeSeat}`);
+          const phaseColor=state.phase==="combat"?RF_BATTLEFIELD_THEME.combat:state.phase==="response"?RF_BATTLEFIELD_THEME.response:RF_BATTLEFIELD_THEME.main;
+          this.arenaCore?.setFillStyle(phaseColor,.04).setStrokeStyle(2,phaseColor,.34);
+          this.arenaHalo?.setFillStyle(phaseColor,.015).setStrokeStyle(2,phaseColor,.13);
+          this.seatAnchors.forEach((anchor,index)=>anchor.setStrokeStyle(index===state.activeSeat?3:1,index===state.activeSeat?phaseColor:RF_BATTLEFIELD_THEME.opponent,index===state.activeSeat?.62:.12));
+          const lane=this.add.line(0,0,point.x,point.y,490,450,phaseColor,.22).setOrigin(0,0).setLineWidth(2).setDepth(4).setName(`turn:lane:${state.activeSeat}`);
+          const ring=this.add.circle(point.x,point.y,34,phaseColor,.08).setStrokeStyle(4,phaseColor,.9).setDepth(88).setName(`turn:active:${state.activeSeat}`);
           const label=this.add.text(490,410,`TURNO ${state.turn} · RODADA ${state.round} · ${state.phase.toUpperCase()}`,{fontFamily:"system-ui, sans-serif",fontSize:"18px",fontStyle:"bold",color:"#fde68a"}).setOrigin(.5).setDepth(89).setName("turn:transition");
           this.tweens.add({targets:ring,scale:2.3,alpha:0,duration:850,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
+          this.tweens.add({targets:lane,alpha:0,duration:1200,delay:500,ease:"Sine.easeOut",onComplete:()=>lane.destroy()});
           this.tweens.add({targets:label,y:390,alpha:0,duration:900,delay:450,ease:"Sine.easeIn",onComplete:()=>label.destroy()});
         }
 
@@ -447,7 +465,7 @@ export default function CommanderPhaserRuntime({
         }
 
         private renderFrame(frame:BattlefieldCombatPresentationFrame){
-          const tone=frame.phase==="blockers"?0x67e8f9:frame.phase==="damage"?0xfb7185:frame.phase==="complete"?0xa78bfa:0xfbbf24;
+          const tone=frame.phase==="blockers"?RF_BATTLEFIELD_THEME.block:frame.phase==="damage"?RF_BATTLEFIELD_THEME.danger:frame.phase==="complete"?RF_BATTLEFIELD_THEME.response:RF_BATTLEFIELD_THEME.combat;
           const center={x:490,y:450};
 
           this.headline?.setText(frame.headline).setColor(frame.phase==="blockers"?"#a5f3fc":frame.phase==="damage"?"#fecdd3":frame.phase==="complete"?"#ddd6fe":"#fde68a").setAlpha(1);
