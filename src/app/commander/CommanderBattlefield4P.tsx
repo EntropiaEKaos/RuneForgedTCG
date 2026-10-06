@@ -468,6 +468,14 @@ export default function CommanderBattlefield4P({
   const assignedAttackerIds=new Set(combat.combat.attackers.map(attack=>attack.unitId));
   const assignedBlockerIds=new Set(combat.combat.blockers.map(block=>block.unitId));
   const blockedAttackerIds=new Set(combat.combat.blockers.map(block=>block.attackerId));
+  const combatPairs=combat.combat.attackers.map(attack=>{
+    const attacker=combat.seats.flatMap(seat=>seat.battlefield||[]).find(unit=>unit.id===attack.unitId);
+    const blockers=combat.combat.blockers.filter(block=>block.attackerId===attack.unitId).map(block=>{
+      const unit=combat.seats.flatMap(seat=>seat.battlefield||[]).find(card=>card.id===block.unitId);
+      return {id:block.unitId,defId:unit?.defId,name:nameOf(unit?.defId,collection),stats:unit?.combat?`${unit.combat.power}/${unit.combat.health}`:""};
+    });
+    return {id:attack.unitId,defId:attacker?.defId,name:nameOf(attacker?.defId,collection),stats:attacker?.combat?`${attacker.combat.power}/${attacker.combat.health}`:"",from:attack.controllerSeat,to:attack.defendingSeat,blockers};
+  });
   const canCombatInteract=combat.phase==="combat"&&combat.prioritySeat===viewer&&!viewerRuntime?.eliminated;
   const viewerIsActive=combat.activeSeat===viewer;
   const attackableIds=new Set(
@@ -531,6 +539,27 @@ export default function CommanderBattlefield4P({
       >{level}%</button>)}
     </div>
     <AttackOverlay combat={combat} viewer={viewer}/>
+    {combat.phase==="combat"&&<div className="pointer-events-none absolute left-1/2 top-[34%] z-40 w-[min(42vw,420px)] -translate-x-1/2" data-commander-combat-pairs={combatPairs.length}>
+      <div className="pointer-events-auto rounded-xl border border-amber-200/30 bg-[#1b120c]/90 p-2 shadow-[0_16px_55px_rgba(0,0,0,.55)] backdrop-blur-lg">
+        <div className="flex items-center justify-between gap-2 border-b border-amber-200/15 pb-1.5">
+          <b className="text-[10px] font-black uppercase tracking-[.12em] text-amber-100">⚔ Fase de combate · turno {combat.turn}</b>
+          <span className="text-[9px] text-amber-200/75">{combatPairs.length} ataque(s) · {combat.combat.blockers.length} bloqueio(s)</span>
+        </div>
+        {combatPairs.length===0?<p className="py-2 text-center text-[10px] text-stone-300">Aguardando declaração de atacantes</p>:<div className="mt-2 max-h-44 space-y-1.5 overflow-y-auto">
+          {combatPairs.map(pair=><div key={pair.id} className="rounded-md border border-amber-200/15 bg-black/25 px-2 py-1.5" data-commander-combat-lane={pair.id}>
+            <div className="flex items-center gap-2 text-[10px]">
+              <span className="shrink-0 rounded bg-rose-900/45 px-1.5 py-0.5 font-black text-rose-100">P{pair.from+1} → P{pair.to+1}</span>
+              <b className="min-w-0 flex-1 truncate text-amber-50" title={pair.name}>{pair.name}</b>
+              <span className="font-black text-amber-100">{pair.stats}</span>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-1 pl-2 text-[9px] text-stone-200">
+              <span className="text-amber-300">↳</span>
+              {pair.blockers.length?pair.blockers.map(blocker=><span key={blocker.id} className="rounded border border-sky-300/25 bg-sky-950/35 px-1.5 py-0.5" title={blocker.name}>🛡 {blocker.name} {blocker.stats}</span>):<span className="italic text-stone-400">Sem bloqueador</span>}
+            </div>
+          </div>)}
+        </div>}
+      </div>
+    </div>
     <CommanderPhaserRuntime
       combat={{
         revision:combat.revision,
