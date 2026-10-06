@@ -212,7 +212,7 @@ export function BattleView(props: BattleViewProps) {
           })}
         </Row>
 
-        <div className="relative flex-1 border-y border-white/10 bg-black/20 px-3 py-2">
+        <div className="combat-center-zone relative flex-1 border-y border-white/10 bg-black/20 px-3 py-2" data-combat-center="true">
           <div className="arena-center-glow" aria-hidden="true" />
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">Rodada {state.round}</span>
