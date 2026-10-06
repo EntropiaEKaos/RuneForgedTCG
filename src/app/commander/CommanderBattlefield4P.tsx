@@ -165,19 +165,19 @@ function BattlefieldCard({
   </div>;
 }
 
-function battlefieldVisualStateKey(object:BattlefieldObject,declaredAttackerIds:Set<string>,declaredBlockerIds:Set<string>,incomingAttackerIds:Set<string>){
+function battlefieldVisualStateKey(object:BattlefieldObject,declaredAttackerIds:Set<string>,declaredBlockerIds:Set<string>,incomingAttackerIds:Set<string>,attackableIds:Set<string>,blockableIds:Set<string>){
   return JSON.stringify({
-    defId:object.defId,kind:object.kind,controllerSeat:object.controllerSeat,keywords:[...object.keywords].sort(),
+    defId:object.defId,kind:object.kind,controllerSeat:object.controllerSeat,enteredTurn:object.enteredTurn,keywords:[...object.keywords].sort(),
     combat:object.combat?{power:object.combat.power,health:object.combat.health,maxHealth:object.combat.maxHealth,barrier:object.combat.barrier,frostbitten:object.combat.frostbitten}:null,
     durability:object.durability||null,loyalty:object.loyalty??null,stunned:object.stunned,attackedThisTurn:object.attackedThisTurn,
     equipment:object.equipment.map(item=>({defId:item.defId,buffPower:item.buffPower,buffHealth:item.buffHealth,keywords:[...item.keywords].sort()})),
-    attacking:declaredAttackerIds.has(object.id),blocking:declaredBlockerIds.has(object.id),incoming:incomingAttackerIds.has(object.id),
+    attacking:declaredAttackerIds.has(object.id),blocking:declaredBlockerIds.has(object.id),incoming:incomingAttackerIds.has(object.id),attackable:attackableIds.has(object.id),blockable:blockableIds.has(object.id),
   });
 }
-function groupEquivalentBattlefieldObjects(objects:BattlefieldObject[],declaredAttackerIds:Set<string>,declaredBlockerIds:Set<string>,incomingAttackerIds:Set<string>){
+function groupEquivalentBattlefieldObjects(objects:BattlefieldObject[],declaredAttackerIds:Set<string>,declaredBlockerIds:Set<string>,incomingAttackerIds:Set<string>,attackableIds:Set<string>,blockableIds:Set<string>){
   const groups=new Map<string,BattlefieldObject[]>();
   for(const object of objects){
-    const key=battlefieldVisualStateKey(object,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds);
+    const key=battlefieldVisualStateKey(object,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds,attackableIds,blockableIds);
     const group=groups.get(key); if(group)group.push(object); else groups.set(key,[object]);
   }
   return [...groups.values()];
@@ -265,7 +265,7 @@ function SeatZone({
 
     <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-12 py-6":"px-24 py-8"}`} data-commander-zone="battlefield">
       <div className={`flex max-h-full max-w-full items-center justify-center gap-1.5 ${vertical?"flex-wrap content-center":"flex-wrap"}`}>
-        {battlefield.length?groupEquivalentBattlefieldObjects(battlefield,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds).map(group=>{
+        {battlefield.length?groupEquivalentBattlefieldObjects(battlefield,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds,attackableIds,blockableIds).map(group=>{
           const object=group[0];
           const attackable=isViewer&&attackableIds.has(object.id);
           const blockable=isViewer&&blockableIds.has(object.id);
