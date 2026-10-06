@@ -155,6 +155,10 @@ assert.match(phaserRuntime,/RF_BATTLEFIELD_THEME/,"Commander Phaser must inherit
 assert.match(phaserRuntime,/main:0x6ae8be/,"Commander main-phase presentation must preserve the certified 1v1 green token");
 assert.match(phaserRuntime,/combat:0xfb923c/,"Commander combat presentation must preserve the certified 1v1 orange token");
 assert.match(phaserRuntime,/response:0xa78bfa/,"Commander response presentation must preserve the certified 1v1 violet token");
+assert.match(phaserRuntime,/arena:legacy-core/,"Commander Phaser must render a persistent RuneForged arena core");
+assert.match(phaserRuntime,/arena:legacy-halo/,"Commander Phaser must render ambient arena energy");
+assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
+assert.match(phaserRuntime,/turn:lane:/,"active-turn presentation must visually connect the authoritative seat to the arena core");
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
 assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
