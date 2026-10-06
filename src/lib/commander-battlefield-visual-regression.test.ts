@@ -171,6 +171,9 @@ assert.match(phaserRuntime,/combat:block-collision:/,"block declarations must pr
 assert.match(phaserRuntime,/GENERAL_EVENT="runeforged:commander:general-transition"/,"General transitions must consume a dedicated presentation event");
 assert.match(phaserRuntime,/before\.zone===seat\.general\.zone/,"General FX must only fire after an authoritative zone transition");
 assert.match(phaserRuntime,/general:transition:/,"General battlefield and General Zone movement must have a distinct cinematic projection");
+assert.match(phaserRuntime,/nexus:impact:/,"authoritative Nexus damage must produce a seat-localized arena impact");
+assert.match(phaserRuntime,/nexus:recoil:/,"authoritative Nexus damage must visually propagate between the damaged seat and shared arena core");
+assert.match(phaserRuntime,/fx\.nexusDamage/,"Nexus impact presentation must remain sourced from authoritative resolution data");
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
 assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
