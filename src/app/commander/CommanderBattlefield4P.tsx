@@ -36,10 +36,10 @@ type CollectionCard = {defId:string;name:string};
 type Position="bottom"|"left"|"top"|"right";
 const positionOrder:Position[]=["bottom","left","top","right"];
 const gridClass:Record<Position,string>={
-  top:"col-start-2 row-start-1 self-stretch",
-  left:"col-start-1 row-start-2 self-stretch",
-  right:"col-start-3 row-start-2 self-stretch",
-  bottom:"col-start-2 row-start-3 self-stretch",
+  top:"col-start-2 row-start-1 self-stretch overflow-visible",
+  left:"col-start-1 row-start-2 self-stretch overflow-visible",
+  right:"col-start-3 row-start-2 self-stretch overflow-visible",
+  bottom:"col-start-2 row-start-3 self-stretch overflow-visible",
 };
 const anchor:Record<Position,{x:number;y:number}>={
   top:{x:50,y:17},
@@ -263,8 +263,8 @@ function SeatZone({
       </button>
     </div>
 
-    <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-12 py-6":"px-24 py-8"}`} data-commander-zone="battlefield">
-      <div className={`flex max-h-full max-w-full items-center justify-center gap-1.5 ${vertical?"flex-wrap content-center":"flex-wrap"}`}>
+    <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-7 py-4":"px-14 py-5"}`} data-commander-zone="battlefield">
+      <div className={`flex h-full w-full max-h-full max-w-full items-center justify-center gap-1 ${vertical?"flex-wrap content-center":"flex-wrap content-center"}`}>
         {battlefield.length?groupEquivalentBattlefieldObjects(battlefield,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds,attackableIds,blockableIds).map(group=>{
           const object=group[0];
           const attackable=isViewer&&attackableIds.has(object.id);
@@ -574,7 +574,7 @@ export default function CommanderBattlefield4P({
       <button type="button" className="ml-3 text-slate-500 underline" onClick={()=>{setSelectedAttackerId(null);setSelectedBlockerId(null);}}>Cancelar</button>
     </div>}
     <div
-      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(190px,.72fr)_minmax(520px,2.2fr)_minmax(190px,.72fr)] grid-rows-[minmax(150px,.72fr)_minmax(260px,1.65fr)_minmax(210px,1fr)] gap-0 px-2 pb-2 pt-9 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
+      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(150px,.48fr)_minmax(600px,3fr)_minmax(150px,.48fr)] grid-rows-[minmax(128px,.52fr)_minmax(330px,2.3fr)_minmax(190px,.82fr)] gap-0 px-1 pb-1 pt-8 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
       data-commander-camera-surface="table"
     >
       {(["top","left","right","bottom"] as Position[]).map(position=>{
