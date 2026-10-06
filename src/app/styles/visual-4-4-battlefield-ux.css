@@ -123,6 +123,43 @@
   animation: rf-v44-priority-pulse 1.8s ease-in-out infinite;
 }
 
+/* Keep reaction decisions readable without changing the stack mechanics. */
+.tcg-arena .reaction-stack[data-reaction-window="true"] {
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 24px));
+  max-height: min(66dvh, 540px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(12px, 2vw, 20px);
+  border-radius: 18px;
+  background: linear-gradient(160deg, rgba(18, 25, 43, .98), rgba(7, 12, 25, .98));
+}
+.tcg-arena .reaction-stack .reaction-guidance {
+  margin-top: 6px;
+  max-width: 38ch;
+  color: #cbd5e1;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.tcg-arena .reaction-stack .reaction-frames {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.tcg-arena .reaction-stack > .btn-primary {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 12px;
+  white-space: normal;
+}
+@media (max-height: 650px) {
+  .tcg-arena .reaction-stack[data-reaction-window="true"] {
+    max-height: 52dvh;
+  }
+}
+
 /* Target selection -------------------------------------------------------- */
 .tcg-arena .targeting-hud {
   --rf-v44-target: 244, 199, 91;
