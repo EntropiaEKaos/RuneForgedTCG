@@ -415,7 +415,7 @@ export default function CommanderClient(){
               onPlayHandCard={(card)=>void playHandCard(card,collection.find(item=>item.defId===card.defId))}
               targetableStackIds={pendingSpellDef?.spell?.target==="spellOnStack"?pendingCounterTargets.map(item=>item.id):[]}
               onTargetStackItem={(id)=>void playPendingSpell(undefined,id)}
-            /><div className="pointer-events-none absolute left-1/2 top-10 z-40 w-[min(88vw,360px)] -translate-x-1/2" data-commander-reaction-window={reactionWindowOpen?(viewerReactionWindow?"actionable":"waiting"):"priority"} data-commander-priority-state={viewerHasPriority?"yours":"waiting"} aria-live="assertive"><span className="sr-only" data-commander-revision={combat.revision}>rev {combat.revision}</span>{reactionWindowOpen&&<span className="sr-only">Janela de reação aberta</span>}
+            /><div className={`pointer-events-none absolute z-40 ${viewerHasPriority||reactionWindowOpen?"left-1/2 top-10 w-[min(88vw,360px)] -translate-x-1/2":"bottom-24 right-3 w-[min(72vw,230px)]"}`} data-commander-reaction-window={reactionWindowOpen?(viewerReactionWindow?"actionable":"waiting"):"priority"} data-commander-priority-state={viewerHasPriority?"yours":"waiting"} aria-live="assertive"><span className="sr-only" data-commander-revision={combat.revision}>rev {combat.revision}</span>{reactionWindowOpen&&<span className="sr-only">Janela de reação aberta</span>}
               <div className={`pointer-events-auto overflow-hidden rounded-xl border backdrop-blur-md ${viewerReactionWindow?"border-violet-200/45 bg-[#100b1b]/95 shadow-[0_18px_60px_rgba(0,0,0,.55)]":viewerHasPriority?"border-cyan-300/30 bg-[#07151b]/92":"border-white/10 bg-black/72"}`}>
                 <div className="flex items-center justify-between gap-3 px-3 py-2">
                   <div className="min-w-0">
@@ -437,7 +437,7 @@ export default function CommanderClient(){
                     </div>;
                   })}</div>
                 </div>}
-                <div className="flex items-center gap-2 border-t border-white/8 px-3 py-2">
+                <div className={`flex items-center gap-2 border-t border-white/8 px-3 py-2 ${!viewerHasPriority&&!reactionWindowOpen?"hidden":""}`}> 
                   <p className="min-w-0 flex-1 truncate text-[9px] text-slate-500">{viewerReactionWindow?"Responda, contra-ataque ou passe.":reactionWindowOpen?"Stack aberta — aguardando a janela autoritativa chegar até você.":viewerHasPriority?"Você pode agir agora dentro das regras da fase atual.":"Aguardando a prioridade circular autoritativa."}</p>
                   <button className={viewerHasPriority?"border border-cyan-300/35 bg-cyan-950/25 px-3 py-1.5 text-[10px] font-black text-cyan-100":"hidden"} disabled={busy||!viewerHasPriority} onClick={()=>void combatCommand("pass_priority")}>{viewerReactionWindow?"Passar reação":"Passar prioridade"}</button>
                 </div>
