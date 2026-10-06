@@ -103,16 +103,16 @@ const HAND_EVENT="runeforged:commander:hand";
 const GENERAL_EVENT="runeforged:commander:general-transition";
 
 const RF_BATTLEFIELD_THEME={
-  main:0x6ae8be,
+  main:0xc69a58,
   combat:0xfb923c,
   response:0xa78bfa,
-  opponent:0x94a3b8,
+  opponent:0x967b5c,
   danger:0xfb7185,
   targeting:0xf4c75b,
   block:0x60a5fa,
   sentinela:0x67e8f9,
-  surface:0x03070c,
-  ink:0xf1f5f9,
+  surface:0x21160e,
+  ink:0xf3e5ca,
 } as const;
 
 function seatPoint(seat:number,viewerSeat:number){
@@ -222,8 +222,8 @@ export default function CommanderPhaserRuntime({
           this.arenaHalo=this.add.circle(490,450,118,RF_BATTLEFIELD_THEME.main,.018).setStrokeStyle(2,RF_BATTLEFIELD_THEME.main,.12).setDepth(2).setName("arena:legacy-halo");
           this.arenaCore=this.add.circle(490,450,48,RF_BATTLEFIELD_THEME.main,.035).setStrokeStyle(2,RF_BATTLEFIELD_THEME.main,.28).setDepth(3).setName("arena:legacy-core");
 
-          // Presentation-only arena architecture: inherit the certified 1v1 color language
-          // while giving Commander four readable territories and one shared ritual core.
+          // Presentation-only four-seat fantasy tabletop: restrained brass inlays and warm stone,
+          // with the actual card art and combat states remaining the visual focus.
           [174,232,292].forEach((radius,index)=>{
             this.add.circle(490,450,radius,RF_BATTLEFIELD_THEME.surface,.012)
               .setStrokeStyle(index===1?2:1,index===1?RF_BATTLEFIELD_THEME.main:RF_BATTLEFIELD_THEME.opponent,index===1?.10:.065)
@@ -248,7 +248,7 @@ export default function CommanderPhaserRuntime({
               .setStrokeStyle(local?3:2,laneColor,local?.32:.20)
               .setDepth(1.5)
               .setName(`arena:seat-sanctum:${relativeSeat}`);
-            this.add.text(point.x,point.y+(local?67:59),local?"YOUR FORGE":`P${((viewerSeat+relativeSeat)%4)+1} FORGE`,{fontFamily:"system-ui, sans-serif",fontSize:local?"9px":"8px",fontStyle:"bold",color:local?"#6ae8be":"#94a3b8",stroke:"#020617",strokeThickness:3})
+            this.add.text(point.x,point.y+(local?67:59),local?"SEU CAMPO":`CAMPO P${((viewerSeat+relativeSeat)%4)+1}`,{fontFamily:"system-ui, sans-serif",fontSize:local?"9px":"8px",fontStyle:"bold",color:local?"#e5bf78":"#b49a78",stroke:"#170f0b",strokeThickness:3})
               .setOrigin(.5).setAlpha(local?.58:.38).setDepth(2.1).setName(`arena:territory-label:${relativeSeat}`);
           });
           const runeAngles=[0,Math.PI/4,Math.PI/2,Math.PI*3/4];
