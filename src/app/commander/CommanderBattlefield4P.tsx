@@ -229,16 +229,16 @@ function SeatZone({
   const [graveOpen,setGraveOpen]=useState(false);
   const vertical=position==="left"||position==="right";
   return <section
-    className={`relative min-h-0 min-w-0 transition ${hasPriority?"drop-shadow-[0_0_18px_rgba(34,211,238,.22)]":isActive?"drop-shadow-[0_0_14px_rgba(251,191,36,.16)]":""} ${runtime.eliminated?"opacity-45 grayscale":""}`}
+    className={`relative min-h-0 min-w-0 transition ${hasPriority?"drop-shadow-[0_0_14px_rgba(217,170,91,.26)]":isActive?"drop-shadow-[0_0_14px_rgba(251,191,36,.16)]":""} ${runtime.eliminated?"opacity-45 grayscale":""}`}
     data-commander-seat={runtime.seat}
     data-commander-position={position}
     data-commander-seat-zone="integrated"
   >
-    <div className={`absolute z-30 flex items-center gap-2 rounded-full border px-2.5 py-1 backdrop-blur-md ${hasPriority?"border-cyan-200/55 bg-cyan-950/75 shadow-[0_0_20px_rgba(34,211,238,.18)]":isActive?"border-amber-200/35 bg-slate-950/75":"border-white/10 bg-slate-950/65"} ${position==="top"?"left-1/2 top-0 -translate-x-1/2":position==="bottom"?"bottom-0 left-1/2 -translate-x-1/2":position==="left"?"left-1 top-1/2 -translate-y-1/2": "right-1 top-1/2 -translate-y-1/2"}`}>
+    <div className={`absolute z-30 flex items-center gap-2 rounded-full border px-2.5 py-1 backdrop-blur-md ${hasPriority?"border-amber-200/55 bg-stone-950/90 shadow-[0_0_16px_rgba(217,170,91,.18)]":isActive?"border-amber-200/35 bg-slate-950/75":"border-white/10 bg-slate-950/65"} ${position==="top"?"left-1/2 top-0 -translate-x-1/2":position==="bottom"?"bottom-0 left-1/2 -translate-x-1/2":position==="left"?"left-1 top-1/2 -translate-y-1/2": "right-1 top-1/2 -translate-y-1/2"}`}>
       <b className="max-w-32 truncate text-[10px] text-white">P{runtime.seat+1} · {playerName}</b>
-      {isViewer&&<span className="text-[7px] font-black uppercase text-cyan-100">VOCÊ</span>}
+      {isViewer&&<span className="text-[7px] font-black uppercase text-amber-100">VOCÊ</span>}
       {isActive&&<span className="text-[7px] font-black uppercase text-amber-200">TURNO</span>}
-      {hasPriority&&<span className="text-[7px] font-black uppercase text-cyan-200">PRIORIDADE</span>}
+      {hasPriority&&<span className="text-[7px] font-black uppercase text-amber-200">PRIORIDADE</span>}
     </div>
 
     <div className={`absolute z-30 flex items-center gap-1.5 ${position==="top"?"right-1 top-1":position==="bottom"?"bottom-1 right-1":position==="left"?"bottom-1 left-1": "bottom-1 right-1"}`}>
@@ -250,8 +250,8 @@ function SeatZone({
         {nexusDamage>0&&<span className="absolute -right-2 -top-2 animate-ping rounded-full bg-rose-500 px-1 text-[8px] text-white" data-commander-nexus-damage={nexusDamage}>-{nexusDamage}</span>}
       </button>
       <span className="rounded-full border border-rose-200/15 bg-black/55 px-2 py-1 text-[8px] font-black text-rose-100">♥ {runtime.life??runtime.nexusHealth}</span>
-      <span className="rounded-full border border-cyan-200/15 bg-black/55 px-2 py-1 text-[8px] font-black text-cyan-100">◆ {runtime.mana??0}/{runtime.maxMana??0}</span>
-      <span className="rounded-full border border-violet-200/15 bg-black/55 px-2 py-1 text-[8px] font-black text-violet-100">✦ {runtime.spellMana??0}</span>
+      <span className="rounded-full border border-amber-200/20 bg-black/70 px-2 py-1 text-[8px] font-black text-amber-100">◆ {runtime.mana??0}/{runtime.maxMana??0}</span>
+      <span className="rounded-full border border-stone-200/15 bg-black/70 px-2 py-1 text-[8px] font-black text-stone-200">✦ {runtime.spellMana??0}</span>
     </div>
 
     <div className={`absolute z-20 ${position==="top"?"left-2 top-2":position==="bottom"?"bottom-2 left-2":position==="left"?"left-2 top-2": "right-2 top-2"}`}>
