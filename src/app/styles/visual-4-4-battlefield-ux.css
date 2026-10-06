@@ -301,3 +301,52 @@
 .tcg-arena.reaction-portal .reaction-card-details[open] .reaction-card-tooltip { position: absolute; left: calc(100% + 10px); top: 0; width: min(360px, calc(100vw - 24px)); max-height: 80dvh; overflow-y: auto; box-shadow: 0 18px 48px rgba(0,0,0,.65); }
 @media (max-width: 1100px) { .tcg-arena.reaction-portal .reaction-card-details[open] .reaction-card-tooltip { left: auto; right: 0; top: calc(100% + 8px); } }
 @media (max-height: 650px) { .tcg-arena.reaction-portal .reaction-stack[data-reaction-window="true"] { padding: 8px 12px; } .tcg-arena.reaction-portal .reaction-stack .reaction-guidance { display: none; } .tcg-arena.reaction-portal .reaction-card-art { width: 42px; height: 58px; flex-basis: 42px; } }
+
+/* Combat containment: attackers and assigned blockers stay inside the neutral lane. */
+.tcg-arena .combat-center-zone[data-combat-center="true"] {
+  min-height: 0;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.tcg-arena .combat-center-zone .combat-lanes {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+  width: 100%;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 5px 8px;
+  z-index: 2;
+}
+.tcg-arena .combat-center-zone .combat-lane {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  flex: 0 0 auto;
+  max-height: 100%;
+  box-sizing: border-box;
+}
+.tcg-arena .combat-center-zone .targeting-hud[data-targeting-mode="block"] {
+  position: relative !important;
+  inset: auto !important;
+  transform: none !important;
+  flex: 0 0 auto;
+  z-index: 3;
+  max-width: min(100%, 600px);
+  margin: 4px auto 6px;
+}
+@media (max-height: 800px) {
+  .tcg-arena .combat-center-zone .combat-lanes { justify-content: flex-start; }
+  .tcg-arena .combat-center-zone .combat-lane { max-height: 100%; }
+}
