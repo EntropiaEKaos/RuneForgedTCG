@@ -47,7 +47,7 @@ export default function CardTip({ onActivateAbility, artViewer, ...cardProps }: 
           cardDefId={defId}
           unitId={unit?.instanceId}
           rarity={def.rarity}
-          className={`inline-flex flex-col items-stretch gap-1 align-top ${restoreCollectionPointerEvents ? "pointer-events-auto" : ""}`}
+          className={`relative inline-flex flex-col items-stretch gap-1 align-top ${restoreCollectionPointerEvents ? "pointer-events-auto" : ""}`}
         >
           <CardView {...cardProps} />
           {abilities.length > 0 && unit && state && <button
