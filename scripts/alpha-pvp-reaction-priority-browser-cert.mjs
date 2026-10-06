@@ -345,7 +345,7 @@ async function assertOpenPriority(host, guest, code, version, label) {
   await waitUntil(() => evaluate(host.cdp, "document.querySelector('.tcg-arena')?.dataset?.pvpReactionPriority === 'ai'"), `${label}: host remote-priority UI`);
   await waitUntil(() => evaluate(guest.cdp, "document.querySelector('.tcg-arena')?.dataset?.pvpReactionPriority === 'player'"), `${label}: guest local-priority UI`);
   await waitUntil(() => evaluate(host.cdp, "document.body?.innerText?.includes('Aguardando a resposta do adversário') === true"), `${label}: host waiting banner`);
-  await waitUntil(() => evaluate(guest.cdp, "Boolean(document.querySelector('.reaction-stack')) && document.body?.innerText?.includes('PRIORIDADE ABERTA') === true"), `${label}: guest reaction UI`);
+  await waitUntil(() => evaluate(guest.cdp, "Boolean(document.querySelector('.reaction-stack')) && document.querySelector('.reaction-stack-heading')?.textContent?.includes('JANELA DE REAÇÃO') === true"), `${label}: guest reaction UI`);
   return { hostRoom, guestRoom };
 }
 
