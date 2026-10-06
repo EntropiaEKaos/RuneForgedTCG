@@ -466,7 +466,15 @@ export default function CommanderPhaserRuntime({
           Object.entries(fx.nexusDamage)
             .sort(([a],[b])=>Number(a)-Number(b))
             .forEach(([seat,damage])=>{
-              playDamageImpactFx(this,seatPoint(Number(seat),viewerSeat),damage,"nexus");
+              const seatNumber=Number(seat);
+              const point=seatPoint(seatNumber,viewerSeat);
+              playDamageImpactFx(this,point,damage,"nexus");
+              const shock=this.add.circle(point.x,point.y,31,RF_BATTLEFIELD_THEME.danger,.04).setStrokeStyle(4,RF_BATTLEFIELD_THEME.danger,.88).setDepth(87).setName(`nexus:impact:${seatNumber}`);
+              const recoil=this.add.line(0,0,point.x,point.y,490,450,RF_BATTLEFIELD_THEME.danger,.26).setOrigin(0,0).setLineWidth(3).setDepth(52).setName(`nexus:recoil:${seatNumber}`);
+              const anchor=this.seatAnchors[(seatNumber-viewerSeat+4)%4];
+              if(anchor)this.tweens.add({targets:anchor,scale:.86,duration:90,yoyo:true,repeat:1,ease:"Quad.easeOut"});
+              this.tweens.add({targets:shock,scale:3.4,alpha:0,duration:680,ease:"Cubic.easeOut",onComplete:()=>shock.destroy()});
+              this.tweens.add({targets:recoil,alpha:0,duration:520,ease:"Sine.easeOut",onComplete:()=>recoil.destroy()});
             });
 
           Object.entries(fx.objectDamage)
