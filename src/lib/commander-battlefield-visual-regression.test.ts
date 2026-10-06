@@ -161,6 +161,9 @@ assert.match(phaserRuntime,/arena:legacy-halo/,"Commander Phaser must render amb
 
 assert.match(phaserRuntime,/arena:rune-ring:/,"Commander Phaser must retain persistent low-noise rune rings around the shared arena core");
 assert.match(phaserRuntime,/arena:territory-spoke:/,"Commander Phaser must visually connect all four authoritative seats to the shared arena core");
+assert.match(phaserRuntime,/arena:territory-lane:/,"Commander Phaser must retain readable presentation-only lanes between every seat and the shared Forge");
+assert.match(phaserRuntime,/arena:territory-label:/,"Commander Phaser must keep compact seat-territory identity readable in still-frame showcase evidence");
+assert.match(phaserRuntime,/local\?194:166/,"Commander Phaser must reserve enlarged sanctums for four-player showcase readability");
 assert.match(phaserRuntime,/arena:seat-sanctum:/,"Commander Phaser must give each relative seat a persistent presentation-only territory");
 assert.match(phaserRuntime,/arena:core-rune:/,"Commander Phaser must retain the legacy response color language in the shared ritual core");
 assert.match(phaserRuntime,/arena:forge-plate/,"Commander Phaser must retain a persistent presentation-only Forge plate in the shared arena core");
