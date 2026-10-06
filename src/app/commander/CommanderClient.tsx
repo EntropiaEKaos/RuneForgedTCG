@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isFourPlayerSpellChainSupported } from "@/game/four-player-spell-contract";
 import CommanderBattlefield4P from "./CommanderBattlefield4P";
+import CardInfo from "@/components/CardInfo";
+import Tooltip from "@/components/Tooltip";
 import {
   commanderMutationNeedsResync,
   commanderResumeNeedsResync,
@@ -415,31 +417,31 @@ export default function CommanderClient(){
               onPlayHandCard={(card)=>void playHandCard(card,collection.find(item=>item.defId===card.defId))}
               targetableStackIds={pendingSpellDef?.spell?.target==="spellOnStack"?pendingCounterTargets.map(item=>item.id):[]}
               onTargetStackItem={(id)=>void playPendingSpell(undefined,id)}
-            /><div className={`pointer-events-none absolute z-40 ${viewerHasPriority||reactionWindowOpen?"left-1/2 top-10 w-[min(88vw,360px)] -translate-x-1/2":"bottom-24 right-3 w-[min(72vw,230px)]"}`} data-commander-reaction-window={reactionWindowOpen?(viewerReactionWindow?"actionable":"waiting"):"priority"} data-commander-priority-state={viewerHasPriority?"yours":"waiting"} aria-live="assertive"><span className="sr-only" data-commander-revision={combat.revision}>rev {combat.revision}</span>{reactionWindowOpen&&<span className="sr-only">Janela de reação aberta</span>}
-              <div className={`pointer-events-auto overflow-hidden rounded-xl border backdrop-blur-md ${viewerReactionWindow?"border-violet-200/45 bg-[#100b1b]/95 shadow-[0_18px_60px_rgba(0,0,0,.55)]":viewerHasPriority?"border-cyan-300/30 bg-[#07151b]/92":"border-white/10 bg-black/72"}`}>
+            /><div className={`pointer-events-none absolute z-40 ${viewerHasPriority||reactionWindowOpen?"right-4 top-16 w-[min(86vw,330px)]":"bottom-24 right-3 w-[min(72vw,230px)]"}`} data-commander-reaction-window={reactionWindowOpen?(viewerReactionWindow?"actionable":"waiting"):"priority"} data-commander-priority-state={viewerHasPriority?"yours":"waiting"} aria-live="assertive"><span className="sr-only" data-commander-revision={combat.revision}>rev {combat.revision}</span>{reactionWindowOpen&&<span className="sr-only">Janela de reação aberta</span>}
+              <div className={`pointer-events-auto overflow-hidden rounded-xl border backdrop-blur-md ${viewerReactionWindow?"border-amber-200/40 bg-[#1b130e]/85 shadow-[0_18px_45px_rgba(0,0,0,.35)]":viewerHasPriority?"border-amber-300/35 bg-[#21170f]/85":"border-amber-200/10 bg-[#1b130e]/70"}`}>
                 <div className="flex items-center justify-between gap-3 px-3 py-2">
                   <div className="min-w-0">
-                    <span className="text-[9px] font-black uppercase tracking-[.22em] text-violet-200/70">{reactionWindowOpen?"PRIORIDADE ABERTA":"PRIORIDADE"}</span>
+                    <span className="text-[9px] font-black uppercase tracking-[.22em] text-amber-200/80">{reactionWindowOpen?"PRIORIDADE ABERTA":"PRIORIDADE"}</span>
                     <b className="block truncate text-xs text-slate-100">{viewerHasPriority?"Sua janela":`Aguardando ${priorityHolderName}`}</b>
                   </div>
-                  {prioritySeconds!=null&&<strong className={`text-sm ${priorityUrgent?"text-rose-200":"text-cyan-100"}`}>{prioritySeconds}s</strong>}
+                  {prioritySeconds!=null&&<strong className={`text-sm ${priorityUrgent?"text-rose-200":"text-amber-100"}`}>{prioritySeconds}s</strong>}
                 </div>
-                {prioritySeconds!=null&&<div className="h-0.5 bg-white/5"><i className="block h-full bg-cyan-200/70 transition-[width] duration-300" style={{width:`${Math.max(0,Math.min(100,(prioritySeconds/30)*100))}%`}} /></div>}
+                {prioritySeconds!=null&&<div className="h-0.5 bg-white/5"><i className="block h-full bg-amber-200/70 transition-[width] duration-300" style={{width:`${Math.max(0,Math.min(100,(prioritySeconds/30)*100))}%`}} /></div>}
                 {reactionWindowOpen&&<div className="border-t border-white/8 px-3 py-2">
-                  <div className="flex items-center justify-between"><b className="text-[10px] uppercase tracking-[.16em] text-violet-100">Pilha de respostas</b><span className="text-[9px] text-slate-500">{stackItems.length} item(ns)</span></div>
+                  <div className="flex items-center justify-between"><b className="text-[10px] uppercase tracking-[.16em] text-amber-100">Pilha de respostas</b><span className="text-[9px] text-slate-500">{stackItems.length} item(ns)</span></div>
                   <div className="mt-2 flex flex-col-reverse gap-1 overflow-hidden">{[...stackItems].slice(-4).map((item,index,visible)=>{
                     const top=index===visible.length-1;
                     const name=item.abilityDescription||collection.find(card=>card.defId===item.defId)?.name||item.defId||item.kind;
-                    return <div key={item.id} className={`relative min-w-0 border px-2 py-1 ${top?"border-violet-200/40 bg-violet-100/10":"border-white/8 bg-black/25"}`} title={name}>
+                    return <div key={item.id} className={`relative min-w-0 border px-2 py-1 ${top?"border-amber-200/40 bg-amber-100/10":"border-white/8 bg-black/25"}`} title={name}>
                       <span className="absolute right-2 top-1 text-[8px] font-black text-slate-500">P{item.controllerSeat+1}</span>
-                      <b className="block truncate pr-8 text-[9px] text-slate-200">{name}</b>
-                      {top&&<em className="mt-0.5 block text-[7px] not-italic font-black uppercase tracking-[.1em] text-violet-200">Resolve primeiro</em>}
+                      {item.defId?<Tooltip content={<CardInfo defId={item.defId}/>} panelWidth={420} panelHeightEstimate={900}><b className="block truncate pr-8 text-[9px] text-amber-50 underline decoration-amber-300/30 underline-offset-2">{name}</b></Tooltip>:<b className="block truncate pr-8 text-[9px] text-slate-200">{name}</b>}
+                      {top&&<em className="mt-0.5 block text-[7px] not-italic font-black uppercase tracking-[.1em] text-amber-200">Resolve primeiro</em>}
                     </div>;
                   })}</div>
                 </div>}
                 <div className={`flex items-center gap-2 border-t border-white/8 px-3 py-2 ${!viewerHasPriority&&!reactionWindowOpen?"hidden":""}`}> 
                   <p className="min-w-0 flex-1 truncate text-[9px] text-slate-500">{viewerReactionWindow?"Responda, contra-ataque ou passe.":reactionWindowOpen?"Stack aberta — aguardando a janela autoritativa chegar até você.":viewerHasPriority?"Você pode agir agora dentro das regras da fase atual.":"Aguardando a prioridade circular autoritativa."}</p>
-                  <button className={viewerHasPriority?"border border-cyan-300/35 bg-cyan-950/25 px-3 py-1.5 text-[10px] font-black text-cyan-100":"hidden"} disabled={busy||!viewerHasPriority} onClick={()=>void combatCommand("pass_priority")}>{viewerReactionWindow?"Passar reação":"Passar prioridade"}</button>
+                  <button className={viewerHasPriority?"rounded-md border border-amber-300/40 bg-amber-900/40 px-3 py-1.5 text-[10px] font-black text-amber-100":"hidden"} disabled={busy||!viewerHasPriority} onClick={()=>void combatCommand("pass_priority")}>{viewerReactionWindow?"Passar reação":"Passar prioridade"}</button>
                 </div>
               </div>
             </div>
