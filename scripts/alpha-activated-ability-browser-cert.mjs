@@ -514,7 +514,8 @@ async function driveUntilSourcePlayed(cdp, defId, timeoutMs = 150_000) {
       }
 
       actions.push({ round: snapshot.round, action: "hold-mana-and-end-main" });
-      await pressKey(cdp, " ", "Space");
+      await pressKey(cdp, "Escape", "Escape");
+    await pressKey(cdp, " ", "Space");
       await sleep(260);
       continue;
     }
@@ -542,7 +543,7 @@ async function driveUntilSourcePlayed(cdp, defId, timeoutMs = 150_000) {
 async function abilityEvidence(cdp, defId) {
   return evaluate(cdp, `(() => {
     const source = document.querySelector('[data-bench-side="player"] [data-card-tip-def-id="${defId}"][data-unit-id]');
-    const button = source?.querySelector('button[data-activated-ability-index="0"]');
+    const button = source ? document.querySelector('[data-activated-ability-tray="' + source.dataset.unitId + '"] button[data-activated-ability-index="0"]') : null;
     if (!source || !button) return null;
     return {
       unitId: source.dataset.unitId,
@@ -721,6 +722,8 @@ async function main() {
     );
 
     const initialAbilityState = await abilityEvidence(cdp, chosen.sourceDefId);
+    const sourceTrigger = `[data-bench-side="player"] [data-activated-ability-trigger]`;
+    assert.equal(await clickSelector(cdp, sourceTrigger), true, "battlefield ability icon must open the floating controls");
     const blocked = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Mana insuficiente/i);
     assert.equal(blocked.disabled, true, "played 6-mana source must immediately expose a disabled ability after spending all 6 mana");
     assert.match(blocked.text, /BLOQUEADA/i, "blocked state must be visible on the battlefield control");
@@ -732,11 +735,13 @@ async function main() {
     assert.equal(refreshed.playerTurn, true, `round-${sourceRefreshRound} refresh must visibly belong to the player: ${JSON.stringify(refreshed)}`);
     assert.ok((refreshed.playerMana ?? 0) >= 2, `round-${sourceRefreshRound} refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`);
 
+    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must reopen after turn refresh");
     const ready = await waitForAbilityState(cdp, chosen.sourceDefId, "ready", null);
     assert.equal(ready.disabled, false, "activated ability must become usable after mana refresh");
     assert.match(ready.text, /PRONTA/i, "ready state must be visible on the battlefield control");
 
     const sourceSelector = `[data-bench-side="player"] [data-card-tip-def-id="${chosen.sourceDefId}"][data-unit-id="${ready.unitId}"]`;
+    await pressKey(cdp, "Escape", "Escape");
     await hoverSelector(cdp, sourceSelector);
     await waitForSelector(cdp, `[data-activated-ability-intelligence="${chosen.sourceDefId}"]`, 10_000);
     const tooltip = await evaluate(cdp, `(() => {
@@ -768,9 +773,11 @@ async function main() {
       };
     })()`);
 
-    const abilitySelector = `${sourceSelector} button[data-activated-ability-index="0"][data-activated-ability-status="ready"]`;
+    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must open for activation");
+    const abilitySelector = `[data-activated-ability-tray="${ready.unitId}"] button[data-activated-ability-index="0"][data-activated-ability-status="ready"]`;
     assert.equal(await clickSelector(cdp, abilitySelector), true, "real battlefield activated ability button must be clickable when ready");
 
+    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must reopen to inspect post-activation state");
     const used = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Já usada nesta rodada/i);
     assert.equal(used.disabled, true, "once-per-round ability must become disabled after activation");
     assert.match(used.text, /BLOQUEADA/i);
