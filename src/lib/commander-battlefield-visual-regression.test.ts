@@ -158,7 +158,11 @@ assert.match(phaserRuntime,/combat:0xfb923c/,"Commander combat presentation must
 assert.match(phaserRuntime,/response:0xa78bfa/,"Commander response presentation must preserve the certified 1v1 violet token");
 assert.match(phaserRuntime,/arena:legacy-core/,"Commander Phaser must render a persistent RuneForged arena core");
 assert.match(phaserRuntime,/arena:legacy-halo/,"Commander Phaser must render ambient arena energy");
-assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
+
+assert.match(phaserRuntime,/arena:rune-ring:/,"Commander Phaser must retain persistent low-noise rune rings around the shared arena core");
+assert.match(phaserRuntime,/arena:territory-spoke:/,"Commander Phaser must visually connect all four authoritative seats to the shared arena core");
+assert.match(phaserRuntime,/arena:seat-sanctum:/,"Commander Phaser must give each relative seat a persistent presentation-only territory");
+assert.match(phaserRuntime,/arena:core-rune:/,"Commander Phaser must retain the legacy response color language in the shared ritual core");assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
 assert.match(phaserRuntime,/turn:lane:/,"active-turn presentation must visually connect the authoritative seat to the arena core");
 assert.match(phaserRuntime,/stack:arena-core-pulse/,"authoritative stack entry and resolution must energize the shared arena core");
 assert.match(phaserRuntime,/permanent:nexus-halo:/,"each authoritative Commander seat must project a persistent Nexus halo");
