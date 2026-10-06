@@ -71,7 +71,8 @@ assert.match(client,/data-commander-surface=\{matchPresented\?"table":"lobby"\}/
 assert.match(client,/matchPresented\?"h-screen w-screen overflow-hidden"/,"active Commander matches must claim the full viewport");
 assert.match(client,/matchPresented\?"hidden":"mt-6 grid gap-4 md:grid-cols-2"/,"legacy lobby seat cards must be hidden while the match table is presented");
 assert.match(client,/matchPresented\?"hidden":"border border-white\/10 bg-black\/20 p-5"/,"lobby controls must be hidden while the match table is presented");
-assert.match(battlefield,/className="relative h-full w-full overflow-hidden bg-\[#02060b\]/,"four-seat arena must fill its match shell without laboratory horizontal scrolling");
+assert.match(battlefield,/className="relative h-full w-full overflow-hidden bg-\[#17110d\]/,"four-seat arena must fill its match shell without laboratory horizontal scrolling");
+assert.match(battlefield,/rgba\(161,113,59,\.24\)/,"Commander fantasy tabletop must retain its warm wood-and-bronze arena treatment");
 assert.match(battlefield,/grid h-full w-full origin-center/,"unified four-seat arena geometry must fill the available viewport");
 assert.match(battlefield,/selectedAttackerId/,"cinematic battlefield must support local attacker selection");
 assert.match(battlefield,/selectedBlockerId/,"cinematic battlefield must support local blocker selection");
