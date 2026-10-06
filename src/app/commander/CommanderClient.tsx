@@ -415,8 +415,8 @@ export default function CommanderClient(){
               onPlayHandCard={(card)=>void playHandCard(card,collection.find(item=>item.defId===card.defId))}
               targetableStackIds={pendingSpellDef?.spell?.target==="spellOnStack"?pendingCounterTargets.map(item=>item.id):[]}
               onTargetStackItem={(id)=>void playPendingSpell(undefined,id)}
-            /><div className="pointer-events-none absolute left-1/2 top-12 z-40 w-[min(92vw,420px)] -translate-x-1/2" data-commander-reaction-window={reactionWindowOpen?(viewerReactionWindow?"actionable":"waiting"):"priority"} data-commander-priority-state={viewerHasPriority?"yours":"waiting"} aria-live="assertive"><span className="sr-only" data-commander-revision={combat.revision}>rev {combat.revision}</span>{reactionWindowOpen&&<span className="sr-only">Janela de reação aberta</span>}
-              <div className={`pointer-events-auto border backdrop-blur-md ${viewerReactionWindow?"border-violet-200/45 bg-[#100b1b]/95 shadow-[0_18px_60px_rgba(0,0,0,.55)]":viewerHasPriority?"border-cyan-300/30 bg-[#07151b]/92":"border-white/10 bg-black/72"}`}>
+            /><div className="pointer-events-none absolute left-1/2 top-10 z-40 w-[min(88vw,360px)] -translate-x-1/2" data-commander-reaction-window={reactionWindowOpen?(viewerReactionWindow?"actionable":"waiting"):"priority"} data-commander-priority-state={viewerHasPriority?"yours":"waiting"} aria-live="assertive"><span className="sr-only" data-commander-revision={combat.revision}>rev {combat.revision}</span>{reactionWindowOpen&&<span className="sr-only">Janela de reação aberta</span>}
+              <div className={`pointer-events-auto overflow-hidden rounded-xl border backdrop-blur-md ${viewerReactionWindow?"border-violet-200/45 bg-[#100b1b]/95 shadow-[0_18px_60px_rgba(0,0,0,.55)]":viewerHasPriority?"border-cyan-300/30 bg-[#07151b]/92":"border-white/10 bg-black/72"}`}>
                 <div className="flex items-center justify-between gap-3 px-3 py-2">
                   <div className="min-w-0">
                     <span className="text-[9px] font-black uppercase tracking-[.22em] text-violet-200/70">{reactionWindowOpen?"PRIORIDADE ABERTA":"PRIORIDADE"}</span>
@@ -427,12 +427,12 @@ export default function CommanderClient(){
                 {prioritySeconds!=null&&<div className="h-0.5 bg-white/5"><i className="block h-full bg-cyan-200/70 transition-[width] duration-300" style={{width:`${Math.max(0,Math.min(100,(prioritySeconds/30)*100))}%`}} /></div>}
                 {reactionWindowOpen&&<div className="border-t border-white/8 px-3 py-2">
                   <div className="flex items-center justify-between"><b className="text-[10px] uppercase tracking-[.16em] text-violet-100">Pilha de respostas</b><span className="text-[9px] text-slate-500">{stackItems.length} item(ns)</span></div>
-                  <div className="mt-2 flex items-end gap-1 overflow-hidden">{[...stackItems].slice(-4).map((item,index,visible)=>{
+                  <div className="mt-2 flex flex-col-reverse gap-1 overflow-hidden">{[...stackItems].slice(-4).map((item,index,visible)=>{
                     const top=index===visible.length-1;
                     const name=item.abilityDescription||collection.find(card=>card.defId===item.defId)?.name||item.defId||item.kind;
-                    return <div key={item.id} className={`min-w-0 flex-1 border px-2 py-1.5 ${top?"border-violet-200/40 bg-violet-100/10":"border-white/8 bg-black/25"}`} title={name}>
-                      <span className="block text-[8px] font-black text-slate-500">P{item.controllerSeat+1}</span>
-                      <b className="block truncate text-[9px] text-slate-200">{name}</b>
+                    return <div key={item.id} className={`relative min-w-0 border px-2 py-1 ${top?"border-violet-200/40 bg-violet-100/10":"border-white/8 bg-black/25"}`} title={name}>
+                      <span className="absolute right-2 top-1 text-[8px] font-black text-slate-500">P{item.controllerSeat+1}</span>
+                      <b className="block truncate pr-8 text-[9px] text-slate-200">{name}</b>
                       {top&&<em className="mt-0.5 block text-[7px] not-italic font-black uppercase tracking-[.1em] text-violet-200">Resolve primeiro</em>}
                     </div>;
                   })}</div>
