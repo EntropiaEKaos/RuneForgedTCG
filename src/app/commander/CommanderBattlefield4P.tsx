@@ -275,8 +275,24 @@ function SeatZone({
           const onClick=attackable?()=>onSelectAttacker(object.id):blockable?()=>onSelectBlocker(object.id):incomingTarget?()=>onTargetIncomingAttacker(object.id):undefined;
           return <div key={group.map(item=>item.id).join(":")} className="group/stack relative shrink-0" data-commander-visual-stack={group.length} data-commander-stack-instance-ids={group.map(item=>item.id).join(",")}>
             {group.length>1&&<>
-              {group.slice(1,Math.min(group.length,4)).map((copy,index)=><div key={copy.id} className="pointer-events-none absolute inset-0 transition-transform duration-200 group-hover/stack:translate-x-[var(--stack-hover-x)]" style={{transform:`translate(${(index+1)*5}px,${-(index+1)*4}px)`,zIndex:index,["--stack-hover-x" as string]:`${(index+1)*7}px`}} aria-hidden="true"><CardView defId={copy.defId} size="sm" dimmed/></div>)}
-              <span className="absolute -right-3 -top-3 z-30 rounded-full border border-cyan-100/30 bg-slate-950/95 px-2 py-0.5 text-[9px] font-black text-cyan-50 shadow-xl" title={`${group.length} cópias equivalentes`}>×{group.length}</span>
+              {group.slice(1,Math.min(group.length,5)).map((copy,index)=>{
+                const copyAttackable=isViewer&&attackableIds.has(copy.id);
+                const copyBlockable=isViewer&&blockableIds.has(copy.id);
+                const copyIncoming=incomingAttackerIds.has(copy.id);
+                const copyIncomingTarget=Boolean(!isViewer&&copyIncoming&&selectedBlockerId);
+                const copyMotion:CombatMotion=declaredBlockerIds.has(copy.id)?"blocking":declaredAttackerIds.has(copy.id)?"attacking":null;
+                const copyClick=copyAttackable?()=>onSelectAttacker(copy.id):copyBlockable?()=>onSelectBlocker(copy.id):copyIncomingTarget?()=>onTargetIncomingAttacker(copy.id):undefined;
+                return <div key={copy.id} className="pointer-events-none absolute inset-0 z-10 opacity-70 transition-all duration-200 group-hover/stack:pointer-events-auto group-hover/stack:opacity-100 group-focus-within/stack:pointer-events-auto group-focus-within/stack:opacity-100" style={{transform:`translate(${(index+1)*6}px,${-(index+1)*5}px)`}} data-commander-stack-copy={copy.id}>
+                  <div className="transition-transform duration-200 group-hover/stack:translate-x-[var(--stack-fan-x)] group-focus-within/stack:translate-x-[var(--stack-fan-x)]" style={{["--stack-fan-x" as string]:`${(index+1)*34}px`}}>
+                    <BattlefieldCard object={copy} collection={collection}
+                      selected={copy.id===selectedAttackerId||copy.id===selectedBlockerId} targetable={copyIncomingTarget}
+                      onClick={busy?undefined:copyClick}
+                      badge={copyIncoming?"ATACANDO VOCÊ":copyMotion==="blocking"?"INTERCEPTANDO":copyAttackable?"ATACANTE":copyBlockable?"BLOQUEADOR":undefined}
+                      position={position} motion={copyMotion} damage={objectDamage[copy.id]} barrierBroken={barrierBrokenIds.has(copy.id)}/>
+                  </div>
+                </div>;
+              })}
+              <span className="pointer-events-none absolute -right-3 -top-3 z-30 rounded-full border border-cyan-100/30 bg-slate-950/95 px-2 py-0.5 text-[9px] font-black text-cyan-50 shadow-xl" title={`${group.length} cópias equivalentes`}>×{group.length}</span>
             </>}
             <div className="relative z-20">
               <BattlefieldCard object={object} collection={collection}
