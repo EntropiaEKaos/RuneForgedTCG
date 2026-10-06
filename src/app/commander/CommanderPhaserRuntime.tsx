@@ -363,6 +363,15 @@ export default function CommanderPhaserRuntime({
 
         private renderStackFx(fx:CommanderPhaserStackFx){
           const center={x:490,y:450};
+          const stackPulse=()=>{
+            const pulse=this.add.circle(center.x,center.y,42,RF_BATTLEFIELD_THEME.response,.035).setStrokeStyle(3,RF_BATTLEFIELD_THEME.response,.72).setDepth(57).setName("stack:arena-core-pulse");
+            this.tweens.add({targets:pulse,scale:2.25,alpha:0,duration:720,ease:"Sine.easeOut",onComplete:()=>pulse.destroy()});
+          };
+          if(fx.entered.length||fx.departed.length){
+            stackPulse();
+            this.arenaCore?.setFillStyle(RF_BATTLEFIELD_THEME.response,.07).setStrokeStyle(3,RF_BATTLEFIELD_THEME.response,.58);
+            this.tweens.add({targets:this.arenaCore,scale:1.28,duration:180,yoyo:true,ease:"Quad.easeOut"});
+          }
           fx.entered.forEach((item,index)=>{
             const handCard=fx.viewerHandDepartures[item.id];
             const source=handCard?{x:490,y:830}:seatPoint(item.controllerSeat,viewerSeat);
@@ -382,7 +391,7 @@ export default function CommanderPhaserRuntime({
             playStackDepartureFx(this,start);
             if(arrival){
               const target=seatFxPoint(arrival.seat,viewerSeat,index);
-              const marker=this.add.circle(start.x,start.y,8,0x67e8f9,.82).setDepth(84).setName(`stack:arrival:${arrival.id}`);
+              const marker=this.add.circle(start.x,start.y,8,RF_BATTLEFIELD_THEME.main,.82).setDepth(84).setName(`stack:arrival:${arrival.id}`);
               this.tweens.add({targets:marker,x:target.x,y:target.y,scale:1.8,alpha:0,duration:560,ease:"Cubic.Out",onComplete:()=>marker.destroy()});
             }
           });
