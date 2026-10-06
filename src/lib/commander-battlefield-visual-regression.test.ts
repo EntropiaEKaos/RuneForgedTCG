@@ -161,6 +161,9 @@ assert.doesNotMatch(battlefield,/fetch\(/,"cinematic battlefield must remain a p
 assert.doesNotMatch(battlefield,/combatCommand|mutate\(/,"cinematic battlefield must not create a second command authority");
 assert.match(battlefield,/groupEquivalentBattlefieldObjects/,"Commander battlefield must visually group equivalent repeated objects for dense boards");
 assert.match(battlefield,/battlefieldVisualStateKey/,"visual stacking must split copies when authoritative state differs");
+assert.match(battlefield,/enteredTurn:object\.enteredTurn/,"visual stacking must split summoning-sick copies from otherwise equivalent ready copies");
+assert.match(battlefield,/attackable:attackableIds\.has\(object\.id\)/,"visual stacking must preserve per-instance attack readiness");
+assert.match(battlefield,/blockable:blockableIds\.has\(object\.id\)/,"visual stacking must preserve per-instance block readiness");
 assert.match(battlefield,/data-commander-visual-stack=/,"visual piles must expose their copy count");
 assert.match(battlefield,/data-commander-stack-instance-ids=/,"visual piles must preserve every authoritative instance id");
 assert.match(battlefield,/×\{group\.length\}/,"visual piles must show a visible copy count");
