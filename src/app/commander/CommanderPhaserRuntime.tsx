@@ -232,15 +232,24 @@ export default function CommanderPhaserRuntime({
           });
           [0,1,2,3].forEach(relativeSeat=>{
             const point=seatPoint((viewerSeat+relativeSeat)%4,viewerSeat);
-            this.add.line(0,0,490,450,point.x,point.y,RF_BATTLEFIELD_THEME.main,.055)
+            const local=relativeSeat===0;
+            const laneColor=local?RF_BATTLEFIELD_THEME.main:RF_BATTLEFIELD_THEME.opponent;
+            const laneMid={x:490+(point.x-490)*.56,y:450+(point.y-450)*.56};
+            this.add.line(0,0,490,450,point.x,point.y,laneColor,local?.12:.085)
               .setOrigin(0,0)
-              .setLineWidth(relativeSeat===0?2:1)
+              .setLineWidth(local?3:2)
               .setDepth(1)
               .setName(`arena:territory-spoke:${relativeSeat}`);
-            this.add.ellipse(point.x,point.y,relativeSeat===0?176:148,relativeSeat===0?104:92,RF_BATTLEFIELD_THEME.surface,.035)
-              .setStrokeStyle(relativeSeat===0?2:1,relativeSeat===0?RF_BATTLEFIELD_THEME.main:RF_BATTLEFIELD_THEME.opponent,relativeSeat===0?.20:.11)
+            this.add.ellipse(laneMid.x,laneMid.y,local?214:188,local?128:112,laneColor,local?.028:.016)
+              .setStrokeStyle(local?2:1,laneColor,local?.16:.10)
+              .setDepth(1.25)
+              .setName(`arena:territory-lane:${relativeSeat}`);
+            this.add.ellipse(point.x,point.y,local?194:166,local?116:104,RF_BATTLEFIELD_THEME.surface,local?.09:.065)
+              .setStrokeStyle(local?3:2,laneColor,local?.32:.20)
               .setDepth(1.5)
               .setName(`arena:seat-sanctum:${relativeSeat}`);
+            this.add.text(point.x,point.y+(local?67:59),local?"YOUR FORGE":`P${((viewerSeat+relativeSeat)%4)+1} FORGE`,{fontFamily:"system-ui, sans-serif",fontSize:local?"9px":"8px",fontStyle:"bold",color:local?"#6ae8be":"#94a3b8",stroke:"#020617",strokeThickness:3})
+              .setOrigin(.5).setAlpha(local?.58:.38).setDepth(2.1).setName(`arena:territory-label:${relativeSeat}`);
           });
           const runeAngles=[0,Math.PI/4,Math.PI/2,Math.PI*3/4];
           runeAngles.forEach((angle,index)=>{
@@ -255,14 +264,14 @@ export default function CommanderPhaserRuntime({
 
           // Persistent Forge Presence: a low-noise ritual engine that reads in still captures,
           // while remaining strictly presentation-only and driven by the certified legacy palette.
-          const forgePlate=this.add.circle(490,450,72,RF_BATTLEFIELD_THEME.surface,.24)
-            .setStrokeStyle(2,RF_BATTLEFIELD_THEME.response,.24).setDepth(2.4).setName("arena:forge-plate");
-          const forgeCrown=this.add.circle(490,450,58,RF_BATTLEFIELD_THEME.response,.025)
-            .setStrokeStyle(3,RF_BATTLEFIELD_THEME.main,.32).setDepth(2.6).setName("arena:forge-crown");
+          const forgePlate=this.add.circle(490,450,82,RF_BATTLEFIELD_THEME.surface,.42)
+            .setStrokeStyle(2,RF_BATTLEFIELD_THEME.response,.34).setDepth(2.4).setName("arena:forge-plate");
+          const forgeCrown=this.add.circle(490,450,64,RF_BATTLEFIELD_THEME.response,.045)
+            .setStrokeStyle(3,RF_BATTLEFIELD_THEME.main,.48).setDepth(2.6).setName("arena:forge-crown");
           const forgeSigil=this.add.text(490,450,"◆",{fontFamily:"system-ui, sans-serif",fontSize:"28px",fontStyle:"bold",color:"#a78bfa",stroke:"#020617",strokeThickness:6})
-            .setOrigin(.5).setAlpha(.48).setDepth(3.2).setName("arena:forge-sigil");
+            .setOrigin(.5).setAlpha(.68).setDepth(3.2).setName("arena:forge-sigil");
           this.add.text(490,510,"RUNE FORGE",{fontFamily:"system-ui, sans-serif",fontSize:"8px",fontStyle:"bold",color:"#94a3b8",stroke:"#020617",strokeThickness:3})
-            .setOrigin(.5).setAlpha(.62).setDepth(3.2).setName("arena:forge-label");
+            .setOrigin(.5).setAlpha(.82).setDepth(3.2).setName("arena:forge-label");
           this.tweens.add({targets:forgeCrown,angle:360,duration:18000,repeat:-1,ease:"Linear"});
           this.tweens.add({targets:[forgePlate,forgeSigil],scale:1.06,alpha:.62,duration:2600,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
 
