@@ -28,6 +28,13 @@ import { readFileSync } from "node:fs";
  * frozen. Full CI, notebook/mobile browser certificates and the complete Alpha
  * Visual Journey are mandatory before this client-shell candidate is promoted.
  *
+ * Battlefield HUD Safety + Turn Timer break-glass 2026-10-06: BattleView.tsx is
+ * intentionally recertified to expose the 60-second turn countdown in the
+ * battlefield header. Tooltip collision avoidance, hand/graveyard stacking and
+ * timer state live outside the frozen structural presentation contract. Full CI,
+ * notebook/mobile browser certificates and Alpha Visual Journey remain mandatory
+ * before promotion.
+ *
  * Frames & Rarity Runtime break-glass 2026-09-18: CardView.tsx is intentionally\n * recertified to consume the already-certified cardRarityPresentationContract.\n * This exposes rarity id/rank/FX semantics and shared ornament classes on the\n * live card while leaving CardDef rarity, gameplay stats/rules, ownership, pack\n * probability and economy authority unchanged. Full CI/browser evidence is\n * mandatory before promotion.\n *\n * Battlefield Premium 1.6 break-glass 2026-09-17: layout.tsx is intentionally
  * recertified only to mount forged-battlefield-premium-1-6.css immediately after
  * the certified Visual 4.4 battlefield UX layer. This is a presentation-only CSS
@@ -38,7 +45,7 @@ import { readFileSync } from "node:fs";
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
   "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
-  "src/app/play/BattleView.tsx": "262fa96ccf79c59027d19b9b2baf404f9bbc5e7c",
+  "src/app/play/BattleView.tsx": "7c0eea804c34e4c574733bb7c1c589b069edc7aa",
   "src/components/CardView.tsx": "edd582233b063110d7ca07028b83229236a74553",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
   "src/app/styles/visual-3-0-battlefield-cinematic.css": "3bf86d3b3729265db77b7ec8c92f58ae8a6bb04b",
