@@ -165,6 +165,9 @@ assert.match(phaserRuntime,/seat\.nexusHealth<=10/,"Nexus presentation must deri
 assert.match(phaserRuntime,/ELIMINADO/,"eliminated Commander seats must project a clear visual Nexus state");
 assert.match(phaserRuntime,/permanent:general-presence:/,"a General on the battlefield must project distinct arena presence");
 assert.match(phaserRuntime,/seat\.general\.castCount/,"General presentation must expose authoritative recast history");
+assert.match(phaserRuntime,/combat:destination:/,"attack declaration must preserve a visible route from collision point to the authoritative defending Nexus");
+assert.match(phaserRuntime,/combat:nexus-target:/,"attack declaration must identify the authoritative defending Nexus visually");
+assert.match(phaserRuntime,/combat:block-collision:/,"block declarations must produce a distinct collision marker on the authoritative attack route");
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
 assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
