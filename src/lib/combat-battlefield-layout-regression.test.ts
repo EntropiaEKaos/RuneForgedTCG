@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const battle=readFileSync("src/app/play/BattleView.tsx","utf8");
+const client=readFileSync("src/app/play/GameClient.tsx","utf8");
+const css=readFileSync("src/app/styles/visual-4-4-battlefield-ux.css","utf8");
+const responsive=readFileSync("src/app/styles/visual-4-0-responsive-battlefield.css","utf8");
+assert.ok(battle.includes('className="combat-lanes" data-combat-side="defense"'));
+assert.ok(battle.includes('className="combat-lanes" data-combat-side="attack"'));
+assert.ok(client.includes('state.phase === "blocking" && state.combat?.attackerId === "ai"'));
+assert.ok(client.includes('blocks: { ...locked, ...blockAssignments }'));
+assert.ok(css.includes('div:has(> .combat-lanes) > .combat-lanes'));
+assert.ok(!css.includes('.combat-center-zone .combat-lanes'),"must not depend on nonexistent combat-center-zone");
+assert.ok(css.includes('.tcg-arena[data-match-phase="combat"] .tcg-row[data-bench-side="ai"] + .relative.flex-1'));
+assert.ok(css.includes('min-height: 152px !important'));
+assert.ok(responsive.includes('flex: 1 1 64px !important'));
+console.log("COMBAT BATTLEFIELD LAYOUT REGRESSION: PASS");
