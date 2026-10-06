@@ -387,15 +387,19 @@ export default function CommanderPhaserRuntime({
             if(seat.general.zone==="battlefield")this.add.circle(base.x+48,base.y,19,generalColor,.02).setStrokeStyle(1,generalColor,.32).setDepth(19).setName(`permanent:general-presence:${seat.seat}`);
             this.add.text(base.x+48,base.y+22,`${seat.general.name} · ${seat.general.castCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"7px",color:seat.general.zone==="battlefield"?"#fde68a":"#ddd6fe",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:general-name:${seat.seat}`);
             seat.battlefield.slice(0,12).forEach((object,index)=>{
-              const angle=(Math.PI*2*index)/Math.max(1,Math.min(12,seat.battlefield.length));
-              const radius=82+(index%2)*27;
+              // Put the first permanent toward the shared battlefield, not to the right of every seat.
+              // Spread larger boards in a ring to preserve all twelve visible objects.
+              const count=Math.min(12,seat.battlefield.length);
+              const centerAngle=Math.atan2(450-base.y,490-base.x);
+              const angle=count<=3?centerAngle+(index-(count-1)/2)*.62:centerAngle+(Math.PI*2*index)/count;
+              const radius=count<=3?112:96+(index%2)*24;
               const x=base.x+Math.cos(angle)*radius;
               const y=base.y+Math.sin(angle)*radius;
               const damaged=object.health!=null&&object.maxHealth!=null&&object.health<object.maxHealth;
               const durabilityDamaged=object.durability!=null&&object.maxDurability!=null&&object.durability<object.maxDurability;
               const color=object.stunned?RF_BATTLEFIELD_THEME.opponent:object.barrier?RF_BATTLEFIELD_THEME.block:damaged||durabilityDamaged?RF_BATTLEFIELD_THEME.danger:RF_BATTLEFIELD_THEME.main;
-              const frame=this.add.rectangle(x,y,48,66,color,.16).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
-              if(object.barrier)this.add.circle(x,y,30,0x38bdf8,.025).setStrokeStyle(2,0x67e8f9,.7).setDepth(18.8).setName(`permanent:barrier:${object.id}`);
+              const frame=this.add.rectangle(x,y,58,78,color,.16).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
+              if(object.barrier)this.add.circle(x,y,38,0x38bdf8,.025).setStrokeStyle(2,0x67e8f9,.7).setDepth(18.8).setName(`permanent:barrier:${object.id}`);
               if(object.frostbitten)this.add.text(x-16,y-19,"❄",{fontFamily:"system-ui, sans-serif",fontSize:"10px",color:"#bae6fd"}).setDepth(19).setName(`permanent:frostbite:${object.id}`);
               if(object.stunned)this.add.text(x-16,y+17,"STUN",{fontFamily:"system-ui, sans-serif",fontSize:"6px",fontStyle:"bold",color:"#cbd5e1",stroke:"#020617",strokeThickness:2}).setDepth(19).setName(`permanent:stunned:${object.id}`);
               if(object.attackedThisTurn)this.add.text(x+11,y+17,"⚔",{fontFamily:"system-ui, sans-serif",fontSize:"9px",color:"#fda4af"}).setDepth(19).setName(`permanent:attacked:${object.id}`);
@@ -406,19 +410,19 @@ export default function CommanderPhaserRuntime({
                   this.load.image(textureKey,object.artUrl);
                   this.load.once(`filecomplete-image-${textureKey}`,()=>{
                     if(!frame.active)return;
-                    const art=this.add.image(x,y-3,textureKey).setDisplaySize(41,48).setDepth(18.2).setName(`permanent:art:${object.id}`);
+                    const art=this.add.image(x,y-3,textureKey).setDisplaySize(49,58).setDepth(18.2).setName(`permanent:art:${object.id}`);
                     frame.setDepth(18.3);
                     art.setCrop(0,0,art.width,Math.max(1,art.height));
                   });
                   this.load.start();
                 }else{
-                  this.add.image(x,y-3,textureKey).setDisplaySize(36,42).setDepth(18.2).setName(`permanent:art:${object.id}`);
+                  this.add.image(x,y-3,textureKey).setDisplaySize(49,58).setDepth(18.2).setName(`permanent:art:${object.id}`);
                   frame.setDepth(18.3);
                 }
               }
-              this.add.text(x,y-25,object.name.length>14?object.name.slice(0,13)+"…":object.name,{fontFamily:"system-ui, sans-serif",fontSize:"7px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(19).setName(`permanent:name:${object.id}`);
+              this.add.text(x,y-31,object.name.length>14?object.name.slice(0,13)+"…":object.name,{fontFamily:"system-ui, sans-serif",fontSize:"9px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(19).setName(`permanent:name:${object.id}`);
               const stat=object.power!=null&&object.health!=null?`${object.power}/${object.health}`:object.durability!=null?`D${object.durability}`:"";
-              if(stat)this.add.text(x,y+15,stat,{fontFamily:"system-ui, sans-serif",fontSize:"9px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:3}).setOrigin(.5).setDepth(19).setName(`permanent:stat:${object.id}`);
+              if(stat)this.add.text(x,y+23,stat,{fontFamily:"system-ui, sans-serif",fontSize:"12px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:3}).setOrigin(.5).setDepth(19).setName(`permanent:stat:${object.id}`);
               if(object.equipmentCount>0)this.add.text(x+14,y-19,`⚙${object.equipmentCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"8px",color:"#fde68a"}).setOrigin(.5).setDepth(19).setName(`permanent:equipment:${object.id}`);
             });
           }
