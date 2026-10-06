@@ -151,6 +151,10 @@ assert.match(phaserRuntime,/TARGETING_EVENT="runeforged:commander:targeting-fx"/
 assert.match(phaserRuntime,/selectedKind:"attacker"\|"blocker"\|null/,"targeting projection must distinguish attacker and blocker presentation");
 assert.doesNotMatch(phaserRuntime,/declare_attacker|declare_blocker|pass_priority|combat-command/,"Phaser targeting and priority FX must not own authoritative Commander commands");
 
+assert.match(phaserRuntime,/RF_BATTLEFIELD_THEME/,"Commander Phaser must inherit the certified RuneForged battlefield color language");
+assert.match(phaserRuntime,/main:0x6ae8be/,"Commander main-phase presentation must preserve the certified 1v1 green token");
+assert.match(phaserRuntime,/combat:0xfb923c/,"Commander combat presentation must preserve the certified 1v1 orange token");
+assert.match(phaserRuntime,/response:0xa78bfa/,"Commander response presentation must preserve the certified 1v1 violet token");
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
 assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
