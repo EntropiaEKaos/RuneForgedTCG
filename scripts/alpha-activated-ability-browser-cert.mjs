@@ -483,6 +483,15 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
     assert.equal(await clickSelector(cdp, attackerSelector), true, `could not assign blocker ${blockerId} to attacker ${attackerId}`);
     await sleep(80);
   }
+  if (blockCount > 0) {
+    const assigned = await evaluate(cdp, `(() => {
+      const lanes = [...document.querySelectorAll('.combat-lanes[data-combat-side="defense"] .combat-lane')];
+      return { lanes: lanes.length, blocked: lanes.filter(lane => lane.querySelectorAll('[data-card-tip-def-id]').length >= 2).length };
+    })()`);
+    assert.ok(assigned?.blocked > 0, `selected blockers must render inside actual defensive combat lanes: ${JSON.stringify(assigned)}`);
+    await capture(cdp, "12-combat-blocker-assigned.png");
+    console.log(`COMBAT BROWSER EVIDENCE: captured 12-combat-blocker-assigned.png — ${assigned.blocked} assigned blockers`);
+  }
   return blockCount;
 }
 
@@ -724,7 +733,22 @@ async function main() {
     const initialAbilityState = await abilityEvidence(cdp, chosen.sourceDefId);
     const sourceTrigger = `[data-bench-side="player"] [data-activated-ability-trigger]`;
     assert.equal(await clickSelector(cdp, sourceTrigger), true, "battlefield ability icon must open the floating controls");
-    const blocked = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Mana insuficiente/i);
+    let blocked;
+    try {
+      blocked = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Mana insuficiente/i);
+    } catch (error) {
+      const diagnostic = {
+        stage: "activated-ability-blocked",
+        expected: "blocked: Mana insuficiente",
+        actual: await abilityEvidence(cdp, chosen.sourceDefId),
+        match: await matchSnapshot(cdp),
+        initialAbilityState,
+      };
+      await mkdir(outputDir, { recursive: true });
+      await writeFile(join(outputDir, "05d-activated-ability-blocked-diagnostic.json"), JSON.stringify(diagnostic, null, 2));
+      await capture(cdp, "05d-activated-ability-blocked-diagnostic.png");
+      throw new Error(`${error.message}; diagnostic: ${JSON.stringify(diagnostic)}`);
+    }
     assert.equal(blocked.disabled, true, "played 6-mana source must immediately expose a disabled ability after spending all 6 mana");
     assert.match(blocked.text, /BLOQUEADA/i, "blocked state must be visible on the battlefield control");
     await capture(cdp, blockedScreenshot);
