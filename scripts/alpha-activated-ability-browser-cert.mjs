@@ -483,6 +483,15 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
     assert.equal(await clickSelector(cdp, attackerSelector), true, `could not assign blocker ${blockerId} to attacker ${attackerId}`);
     await sleep(80);
   }
+  if (blockCount > 0) {
+    const assigned = await evaluate(cdp, `(() => {
+      const lanes = [...document.querySelectorAll('.combat-lanes[data-combat-side="defense"] .combat-lane')];
+      return { lanes: lanes.length, blocked: lanes.filter(lane => lane.querySelectorAll('[data-card-tip-def-id]').length >= 2).length };
+    })()`);
+    assert.ok(assigned?.blocked > 0, `selected blockers must render inside actual defensive combat lanes: ${JSON.stringify(assigned)}`);
+    await capture(cdp, "12-combat-blocker-assigned.png");
+    console.log(`COMBAT BROWSER EVIDENCE: captured 12-combat-blocker-assigned.png — ${assigned.blocked} assigned blockers`);
+  }
   return blockCount;
 }
 
