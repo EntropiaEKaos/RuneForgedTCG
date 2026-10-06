@@ -101,6 +101,19 @@ const TARGETING_EVENT="runeforged:commander:targeting-fx";
 const PERMANENTS_EVENT="runeforged:commander:permanents";
 const HAND_EVENT="runeforged:commander:hand";
 
+const RF_BATTLEFIELD_THEME={
+  main:0x6ae8be,
+  combat:0xfb923c,
+  response:0xa78bfa,
+  opponent:0x94a3b8,
+  danger:0xfb7185,
+  targeting:0xf4c75b,
+  block:0x60a5fa,
+  sentinela:0x67e8f9,
+  surface:0x03070c,
+  ink:0xf1f5f9,
+} as const;
+
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
     {x:490,y:760},
@@ -239,7 +252,7 @@ export default function CommanderPhaserRuntime({
 
         private renderPriorityFx(state:{prioritySeat:number;reactionWindowOpen:boolean}){
           const point=seatPoint(state.prioritySeat,viewerSeat);
-          const color=state.reactionWindowOpen?0xa78bfa:0x67e8f9;
+          const color=state.reactionWindowOpen?RF_BATTLEFIELD_THEME.response:RF_BATTLEFIELD_THEME.main;
           const ring=this.add.circle(point.x,point.y,34,color,.08).setStrokeStyle(state.reactionWindowOpen?5:3,color,.95).setDepth(60);
           const halo=this.add.circle(point.x,point.y,48,color,.035).setStrokeStyle(2,color,.45).setDepth(59);
           this.tweens.add({targets:ring,scale:state.reactionWindowOpen?1.8:1.5,alpha:0,duration:700,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
@@ -289,7 +302,7 @@ export default function CommanderPhaserRuntime({
               const y=base.y+Math.sin(angle)*radius;
               const damaged=object.health!=null&&object.maxHealth!=null&&object.health<object.maxHealth;
               const durabilityDamaged=object.durability!=null&&object.maxDurability!=null&&object.durability<object.maxDurability;
-              const color=object.stunned?0x64748b:object.barrier?0x38bdf8:damaged||durabilityDamaged?0xfb7185:0x22c55e;
+              const color=object.stunned?RF_BATTLEFIELD_THEME.opponent:object.barrier?RF_BATTLEFIELD_THEME.block:damaged||durabilityDamaged?RF_BATTLEFIELD_THEME.danger:RF_BATTLEFIELD_THEME.main;
               const frame=this.add.rectangle(x,y,42,58,color,.14).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
               if(object.barrier)this.add.circle(x,y,30,0x38bdf8,.025).setStrokeStyle(2,0x67e8f9,.7).setDepth(18.8).setName(`permanent:barrier:${object.id}`);
               if(object.frostbitten)this.add.text(x-16,y-19,"❄",{fontFamily:"system-ui, sans-serif",fontSize:"10px",color:"#bae6fd"}).setDepth(19).setName(`permanent:frostbite:${object.id}`);
@@ -322,7 +335,7 @@ export default function CommanderPhaserRuntime({
 
         private renderTargetingFx(state:CommanderPhaserTargetingFx){
           if(!state.selectedKind||!state.selectedId)return;
-          const color=state.selectedKind==="attacker"?0x22d3ee:0xa78bfa;
+          const color=state.selectedKind==="attacker"?RF_BATTLEFIELD_THEME.combat:RF_BATTLEFIELD_THEME.block;
           for(const seat of state.targetSeats){
             const point=seatPoint(seat,viewerSeat);
             const ring=this.add.circle(point.x,point.y,58,color,.025).setStrokeStyle(3,color,.8).setDepth(58);
