@@ -184,9 +184,9 @@ function groupEquivalentBattlefieldObjects(objects:BattlefieldObject[],declaredA
 }
 
 function VisibleHand({cards,playableIds,onPlay}:{cards:ProjectedCard[];playableIds:Set<string>;onPlay?:(card:ProjectedCard)=>void}){
-  const shown=cards.slice(0,7);
-  return <div className="flex min-h-16 items-end justify-center overflow-x-auto px-2" aria-label={`${cards.length} cartas na sua mão`}>
-    {shown.map((card,index)=><div key={card.instanceId} data-commander-hand-card={card.instanceId} className="-ml-5 first:ml-0 origin-bottom transition-transform hover:z-30 hover:-translate-y-3" style={{transform:`rotate(${(index-(shown.length-1)/2)*3.5}deg)`}}>
+  const shown=cards.slice(0,9);
+  return <div className="flex min-h-20 items-end justify-center overflow-visible px-2" aria-label={`${cards.length} cartas na sua mão`}>
+    {shown.map((card,index)=><div key={card.instanceId} data-commander-hand-card={card.instanceId} className="-ml-4 first:ml-0 origin-bottom transition-transform hover:z-30 hover:-translate-y-4 hover:scale-110" style={{transform:`rotate(${(index-(shown.length-1)/2)*3.5}deg)`}}>
       <CardView defId={card.defId} size="sm" onClick={playableIds.has(card.instanceId)&&onPlay?()=>onPlay(card):undefined}/>
     </div>)}
     {cards.length>shown.length&&<span className="ml-2 self-center text-[9px] font-black text-cyan-100">+{cards.length-shown.length}</span>}
@@ -249,15 +249,15 @@ function SeatZone({
     </div>
 
     <div className={`absolute z-20 ${position==="top"?"left-2 top-2":position==="bottom"?"bottom-2 left-2":position==="left"?"left-2 top-2": "right-2 top-2"}`}>
-      <div className="relative scale-[.72] origin-top-left">
+      <div className={`relative origin-top-left ${isViewer?"scale-[.68]":"scale-[.56]"}`>
         <CardView defId={runtime.general.defId} size="sm" dimmed={runtime.general.zone!=="battlefield"}/>
         <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/85 px-1.5 py-0.5 text-[7px] font-black text-amber-100">GENERAL · {runtime.general.castCount}x</span>
       </div>
     </div>
 
-    <div className={`absolute z-20 flex gap-1 ${position==="top"?"left-24 top-2":position==="bottom"?"bottom-2 left-24":position==="left"?"bottom-2 left-2": "right-2 top-24"}`}>
-      <div className="grid h-12 w-9 place-items-center rounded-md border border-white/10 bg-cover bg-center text-[8px] font-black text-white shadow-lg" style={{backgroundImage:"url('/art/ui/runeforge-card-back.svg')"}} title="Deck">{runtime.deckCount}</div>
-      <button type="button" onClick={()=>setGraveOpen(true)} className="relative grid h-12 w-9 place-items-center overflow-hidden rounded-md border border-white/10 bg-slate-950/85 text-[8px] font-black text-slate-100 shadow-lg" title={graveTop?nameOf(graveTop.defId,collection):"Cemitério vazio"} data-commander-graveyard="pile">
+    <div className={`absolute z-20 flex gap-1 opacity-80 transition-opacity hover:opacity-100 ${position==="top"?"left-20 top-2":position==="bottom"?"bottom-2 left-20":position==="left"?"bottom-2 left-2": "right-2 top-20"}`}>
+      <div className="grid h-10 w-7 place-items-center rounded-md border border-white/10 bg-cover bg-center text-[8px] font-black text-white shadow-lg" style={{backgroundImage:"url('/art/ui/runeforge-card-back.svg')"}} title="Deck">{runtime.deckCount}</div>
+      <button type="button" onClick={()=>setGraveOpen(true)} className="relative grid h-10 w-7 place-items-center overflow-hidden rounded-md border border-white/10 bg-slate-950/85 text-[8px] font-black text-slate-100 shadow-lg" title={graveTop?nameOf(graveTop.defId,collection):"Cemitério vazio"} data-commander-graveyard="pile">
         {graveTop?<div className="pointer-events-none scale-[.42]"><CardView defId={graveTop.defId} size="sm" dimmed/></div>:<span className="text-base">☠</span>}
         <span className="absolute bottom-0 right-0 rounded-tl bg-black/90 px-1">☠ {runtime.graveyard.length}</span>
       </button>
