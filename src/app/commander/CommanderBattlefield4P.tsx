@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import CardView from "@/components/CardView";
+import CardInfo from "@/components/CardInfo";
+import Tooltip from "@/components/Tooltip";
 import CommanderPhaserRuntime from "./CommanderPhaserRuntime";
 import { getCard } from "@/game/cards";
 import { getCardArt } from "@/game/card-art";
@@ -150,7 +152,9 @@ function BattlefieldCard({
     data-commander-combat-motion={motion||undefined}
     style={{transform:combatMotionTransform(position,motion),transition:"transform 420ms cubic-bezier(.2,.85,.2,1), filter 300ms ease",filter:motion==="attacking"?"drop-shadow(0 0 14px rgba(251,113,133,.28))":motion==="blocking"?"drop-shadow(0 0 12px rgba(34,211,238,.24))":undefined}}
   >
-    <CardView defId={object.defId} size="sm" attacking={object.attackedThisTurn} selected={selected} targetable={targetable} onClick={onClick}/>
+    <Tooltip content={<CardInfo defId={object.defId}/>} panelWidth={420} panelHeightEstimate={900}>
+      <CardView defId={object.defId} size="sm" attacking={object.attackedThisTurn} selected={selected} targetable={targetable} onClick={onClick}/>
+    </Tooltip>
     {Boolean(damage)&&<span className="pointer-events-none absolute left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border border-rose-100/80 bg-rose-500/45 px-2 py-1 text-sm font-black text-white shadow-[0_0_24px_rgba(244,63,94,.6)]" data-commander-damage-fx={damage}>-{damage}</span>}
     {barrierBroken&&<span className="pointer-events-none absolute inset-1 z-30 grid place-items-center rounded-xl border-2 border-cyan-100/80 bg-cyan-300/10 text-[8px] font-black uppercase tracking-wider text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,.42)]" data-commander-barrier-break="true">BARREIRA QUEBROU</span>}
     {badge&&<span className="pointer-events-none absolute -top-2 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full border border-rose-200/30 bg-rose-950/90 px-2 py-0.5 text-[8px] font-black uppercase tracking-wide text-rose-100 shadow-lg">{badge}</span>}
@@ -187,7 +191,9 @@ function VisibleHand({cards,playableIds,onPlay}:{cards:ProjectedCard[];playableI
   const shown=cards.slice(0,9);
   return <div className="flex min-h-20 items-end justify-center overflow-visible px-2" aria-label={`${cards.length} cartas na sua mão`}>
     {shown.map((card,index)=><div key={card.instanceId} data-commander-hand-card={card.instanceId} className="-ml-4 first:ml-0 origin-bottom transition-transform hover:z-30 hover:-translate-y-4 hover:scale-110" style={{transform:`rotate(${(index-(shown.length-1)/2)*3.5}deg)`}}>
-      <CardView defId={card.defId} size="sm" onClick={playableIds.has(card.instanceId)&&onPlay?()=>onPlay(card):undefined}/>
+      <Tooltip content={<CardInfo defId={card.defId}/>} panelWidth={420} panelHeightEstimate={900}>
+        <CardView defId={card.defId} size="sm" onClick={playableIds.has(card.instanceId)&&onPlay?()=>onPlay(card):undefined}/>
+      </Tooltip>
     </div>)}
     {cards.length>shown.length&&<span className="ml-2 self-center text-[9px] font-black text-cyan-100">+{cards.length-shown.length}</span>}
   </div>;
@@ -250,7 +256,9 @@ function SeatZone({
 
     <div className={`absolute z-20 ${position==="top"?"left-2 top-2":position==="bottom"?"bottom-2 left-2":position==="left"?"left-2 top-2": "right-2 top-2"}`}>
       <div className={`relative origin-top-left ${isViewer?"scale-[.68]":"scale-[.56]"}`}>
-        <CardView defId={runtime.general.defId} size="sm" dimmed={runtime.general.zone!=="battlefield"}/>
+        <Tooltip content={<CardInfo defId={runtime.general.defId}/>} panelWidth={420} panelHeightEstimate={900}>
+          <CardView defId={runtime.general.defId} size="sm" dimmed={runtime.general.zone!=="battlefield"}/>
+        </Tooltip>
         <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/85 px-1.5 py-0.5 text-[7px] font-black text-amber-100">GENERAL · {runtime.general.castCount}x</span>
       </div>
     </div>
