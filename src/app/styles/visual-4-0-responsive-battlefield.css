@@ -808,14 +808,14 @@
   }
 
   .tcg-arena .player-hand-shell.expanded {
-    position: fixed;
-    top: auto;
-    left: max(6px, env(safe-area-inset-left));
-    right: max(6px, env(safe-area-inset-right));
-    bottom: calc(44px + env(safe-area-inset-bottom));
-    width: auto;
-    height: min(46dvh, 200px);
-    max-height: min(46dvh, 200px);
+    position: fixed !important;
+    top: auto !important;
+    left: max(6px, env(safe-area-inset-left)) !important;
+    right: max(6px, env(safe-area-inset-right)) !important;
+    bottom: calc(44px + env(safe-area-inset-bottom)) !important;
+    width: auto !important;
+    height: min(46dvh, 200px) !important;
+    max-height: min(46dvh, 200px) !important;
   }
 
   .tcg-arena .player-hand-shell.expanded .tcg-hand {
