@@ -724,7 +724,22 @@ async function main() {
     const initialAbilityState = await abilityEvidence(cdp, chosen.sourceDefId);
     const sourceTrigger = `[data-bench-side="player"] [data-activated-ability-trigger]`;
     assert.equal(await clickSelector(cdp, sourceTrigger), true, "battlefield ability icon must open the floating controls");
-    const blocked = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Mana insuficiente/i);
+    let blocked;
+    try {
+      blocked = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Mana insuficiente/i);
+    } catch (error) {
+      const diagnostic = {
+        stage: "activated-ability-blocked",
+        expected: "blocked: Mana insuficiente",
+        actual: await abilityEvidence(cdp, chosen.sourceDefId),
+        match: await matchSnapshot(cdp),
+        initialAbilityState,
+      };
+      await mkdir(outputDir, { recursive: true });
+      await writeFile(join(outputDir, "05d-activated-ability-blocked-diagnostic.json"), JSON.stringify(diagnostic, null, 2));
+      await capture(cdp, "05d-activated-ability-blocked-diagnostic.png");
+      throw new Error(`${error.message}; diagnostic: ${JSON.stringify(diagnostic)}`);
+    }
     assert.equal(blocked.disabled, true, "played 6-mana source must immediately expose a disabled ability after spending all 6 mana");
     assert.match(blocked.text, /BLOQUEADA/i, "blocked state must be visible on the battlefield control");
     await capture(cdp, blockedScreenshot);
