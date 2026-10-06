@@ -53,6 +53,7 @@ export interface BattleViewProps {
   isPlayerBlocking: boolean;
   canAttackNow: boolean;
   timeLeft: number;
+  turnSeconds: number;
   firstInfo: string;
   presentation: GamePresentationState;
   pvp: PvpTransportState;
@@ -83,7 +84,7 @@ export function BattleView(props: BattleViewProps) {
   const {
     state, presetDecks, activeEncounter, matchReward, reaction, pendingSpell, pendingReaction,
     pendingSentinelaAbility, selectedAttackers, selectedChallengers, selectedBlocker, challenges,
-    blockAssignments, isPlayerMain, isPlayerBlocking, canAttackNow, timeLeft, firstInfo,
+    blockAssignments, isPlayerMain, isPlayerBlocking, canAttackNow, timeLeft, turnSeconds, firstInfo,
     presentation, pvp, isValidSpellTarget, reactionTargetOk, activatedTargetOk, handlePermanentClick,
     handleSentinelaClick, handleSentinelaActivate, handleUnitClick, handleHandClick,
     confirmAttack, confirmBlocks, endMyTurn, finishReaction, replay, changeDeck,
@@ -172,6 +173,7 @@ export function BattleView(props: BattleViewProps) {
         <div className="tcg-match-header">
           <span className="tcg-match-brand">RUNE<b>FORGE</b><small>ARENA DO NEXUS</small></span>
           {isPvp ? <PvpStatus state={pvpConnection} message={pvpMessage} version={pvpVersion} latency={pvpLatency} /> : <span className="tcg-match-status"><i /> PARTIDA AO VIVO</span>}
+          <span data-turn-timer="true" className={["tcg-round-pill", turnSeconds <= 10 ? "text-rose-300 ring-1 ring-rose-400/40" : ""].join(" ")}>⏱ {Math.floor(turnSeconds / 60)}:{String(turnSeconds % 60).padStart(2, "0")}</span>
           <span className="tcg-round-pill">RODADA {state.round}</span>
         </div>
         <TurnRail phase={matchPhase} guidance={guidance} />
