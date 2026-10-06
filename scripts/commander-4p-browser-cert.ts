@@ -1130,7 +1130,7 @@ async function main(){
       await waitForEnabledButton(browsers[holder].cdp,"Passar reação",15_000);
       await clickText(browsers[holder].cdp,"Passar reação");
       responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
-      validateFourClientProjection(responses,`Commander Unit battlefield priority pass ${pass+1}`);
+      validateFourClientProjection(responses,`Commander Unit battlefield priority pass ${pass+1}`,[filteredCounterFixture.handCounts[0]-1,filteredCounterFixture.handCounts[1],filteredCounterFixture.handCounts[2],filteredCounterFixture.handCounts[3]]);
     }
     assert.deepEqual(unitResolutionHolders,[1,2,3,0],"Commander Unit must resolve after all four seats pass in circular order");
     const unitResolved=responses.map((response)=>response.body.room);
