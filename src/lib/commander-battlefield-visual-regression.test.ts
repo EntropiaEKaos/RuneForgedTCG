@@ -107,7 +107,8 @@ assert.match(battlefield,/objectSeats:Record<string,number>/,"authoritative reso
 assert.match(battlefield,/resolutionFx=\{resolutionFx\}/,"Commander battlefield must pass only its observed authoritative resolution delta to Phaser");
 assert.match(phaserRuntime,/RESOLUTION_EVENT="runeforged:commander:resolution-fx"/,"Phaser runtime must isolate authoritative resolution events from combat command frames");
 assert.match(phaserRuntime,/lastResolutionRevisionRef/,"Phaser resolution FX must deduplicate already-rendered revisions");
-assert.match(phaserRuntime,/playDamageImpactFx\(this,seatPoint\(Number\(seat\),viewerSeat\),damage,"nexus"\)/,"Nexus damage FX must target the authoritative damaged seat");
+assert.match(phaserRuntime,/const point=seatPoint\(seatNumber,viewerSeat\)/,"Nexus damage FX must resolve the authoritative damaged seat into the viewer-relative arena anchor");
+assert.match(phaserRuntime,/playDamageImpactFx\(this,point,damage,"nexus"\)/,"Nexus damage FX must target that authoritative arena anchor");
 assert.match(phaserRuntime,/playDamageImpactFx\(this,seatFxPoint\(seat,viewerSeat,index\),damage,"object"\)/,"object damage FX must use the authoritative object's seat");
 assert.match(phaserRuntime,/playBarrierBreakFx\(this,seatFxPoint\(seat,viewerSeat,index\)\)/,"Barrier FX must use the authoritative object's seat");
 assert.match(phaserRuntime,/playDepartureFx\(this,seatFxPoint\(departure\.seat,viewerSeat,index\),departure\.destination\)/,"departure FX must use the authoritative projected destination");
