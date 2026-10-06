@@ -235,6 +235,7 @@ async function driveMatchToResult(cdp, manifest, timeoutMs = 240_000) {
   let lastPhase = "unknown";
   let rounds = 0;
   const capturedCombatSides = new Set();
+  const combatObservations = { attack: 0, defense: 0 };
 
   const readDriveState = () => evaluate(cdp, `(() => {
     const arena = document.querySelector('.tcg-arena');
@@ -272,6 +273,7 @@ async function driveMatchToResult(cdp, manifest, timeoutMs = 240_000) {
         const lanes = document.querySelector('.tcg-arena .combat-lanes');
         return lanes ? { side: lanes.dataset.combatSide, count: lanes.querySelectorAll('.combat-lane').length } : null;
       })()`);
+      if (combat?.count > 0 && ["attack", "defense"].includes(combat.side)) combatObservations[combat.side]++;
       if (combat?.count > 0 && ["attack", "defense"].includes(combat.side) && !capturedCombatSides.has(combat.side)) {
         await capture(cdp, `12-combat-${combat.side}.png`, `real ${combat.side} combat lanes (${combat.count})`, manifest);
         capturedCombatSides.add(combat.side);
@@ -282,7 +284,7 @@ async function driveMatchToResult(cdp, manifest, timeoutMs = 240_000) {
     }
     await sleep(280);
   }
-  throw new Error(`Alpha browser match did not reach gameover within ${timeoutMs}ms (last phase=${lastPhase}, rounds=${rounds})`);
+  throw new Error(`Alpha browser match did not reach gameover within ${timeoutMs}ms (last phase=${lastPhase}, rounds=${rounds}, combat=${JSON.stringify(combatObservations)})`);
 }
 
 async function navigate(cdp, path) {
@@ -547,6 +549,7 @@ async function main() {
     await waitUntil(() => evaluate(cdp, "!document.querySelector('.match-guide-backdrop')"), "second-match guide to be absent or close");
 
     const completed = await driveMatchToResult(cdp, manifest);
+    console.log(`ALPHA VISUAL COMBAT EVIDENCE: ${JSON.stringify(manifest.filter((item) => item.file.startsWith("12-combat-")).map((item) => item.file))}`);
     await waitForSelector(cdp, ".match-result-backdrop", 10_000);
     await waitForSelector(cdp, "[aria-label='Recompensas confirmadas']", 30_000);
     await capture(cdp, "12-match-result.png", `completed match result (${completed.rounds} rounds)`, manifest);
