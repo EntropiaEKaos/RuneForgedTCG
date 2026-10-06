@@ -193,14 +193,14 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve }: {
   const frames = [reaction.action, ...(reaction.pendingHuman ? [reaction.pendingHuman] : [])];
   const progress = Math.max(0, Math.min(100, (timeLeft / 10_000) * 100));
   return (
-    <section className="reaction-stack" aria-label="Pilha de respostas" aria-live="assertive">
+    <section className="reaction-stack" aria-label="Pilha de respostas" aria-live="polite" data-reaction-window="true">
       <div className="reaction-stack-heading">
-        <div><span>PRIORIDADE ABERTA</span><h3>Pilha de respostas</h3></div>
-        <strong>{Math.ceil(timeLeft / 1000)}s</strong>
+        <div><span>⚡ JANELA DE REAÇÃO</span><h3>Pilha de respostas</h3><p className="reaction-guidance">Responda com uma carta da mão, ative uma habilidade do campo ou passe a prioridade.</p></div>
+        <strong aria-label={`Tempo restante: ${Math.ceil(timeLeft / 1000)} segundos`}>{Math.ceil(timeLeft / 1000)}s</strong>
       </div>
       <div className="reaction-timer"><i style={{ width: `${progress}%` }} /></div>
       {targetName && <p className="reaction-target">Alvo atual: <b>{targetName}</b></p>}
-      <div className="reaction-frames">
+      <div className="reaction-frames" aria-label="Ações na pilha, última resolve primeiro">
         {frames.map((item, index) => {
           const card = getCard(item.defId);
           const top = index === frames.length - 1;
@@ -216,7 +216,7 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve }: {
         })}
       </div>
       <ReactionActivatedPicker reaction={reaction} />
-      <button onClick={onResolve} className="btn-primary" aria-keyshortcuts="Space">Passar prioridade e resolver</button>
+      <button type="button" onClick={onResolve} className="btn-primary" aria-keyshortcuts="Space">✓ Passar prioridade e resolver</button>
     </section>
   );
 }
