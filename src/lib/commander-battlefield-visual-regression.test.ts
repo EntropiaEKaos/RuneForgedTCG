@@ -172,7 +172,13 @@ assert.match(phaserRuntime,/permanent:nexus-plate:/,"Commander Phaser must rende
 assert.match(phaserRuntime,/permanent:nexus-sigil:/,"Commander Phaser must keep Nexus identity readable in still-frame visual evidence");
 assert.match(phaserRuntime,/permanent:general-plate:/,"Commander Phaser must give each authoritative General a premium presentation plate");
 assert.match(phaserRuntime,/permanent:general-sigil:/,"Commander Phaser must retain a compact General sigil without changing General authority");
-assert.match(phaserRuntime,/const radius=82\+\(index%2\)\*27/,"Commander Phaser must reserve a larger readable permanent orbit around every seat");assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
+assert.match(phaserRuntime,/const radius=count<=3\?112:96\+\(index%2\)\*24/,"Commander Phaser must reserve a readable permanent orbit for small and crowded boards");
+assert.match(phaserRuntime,/const centerAngle=Math\.atan2\(450-base\.y,490-base\.x\)/,"first Commander permanents must face the shared arena center");
+assert.match(battlefield,/import Tooltip from "@\/components\/Tooltip"/,"Commander must reuse the certified 1v1 viewport-safe tooltip");
+assert.match(battlefield,/import CardInfo from "@\/components\/CardInfo"/,"Commander must reuse the existing card information panel");
+assert.match(battlefield,/<Tooltip content=\{<CardInfo defId=\{object\.defId\}\/>\}/,"battlefield cards must expose the existing card information tooltip");
+assert.match(battlefield,/<Tooltip content=\{<CardInfo defId=\{card\.defId\}\/>\}/,"viewer hand cards must expose the existing card information tooltip");
+assert.match(battlefield,/<Tooltip content=\{<CardInfo defId=\{runtime\.general\.defId\}\/>\}/,"General cards must expose the existing card information tooltip");assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
 assert.match(phaserRuntime,/turn:lane:/,"active-turn presentation must visually connect the authoritative seat to the arena core");
 assert.match(phaserRuntime,/stack:arena-core-pulse/,"authoritative stack entry and resolution must energize the shared arena core");
 assert.match(phaserRuntime,/permanent:nexus-halo:/,"each authoritative Commander seat must project a persistent Nexus halo");
