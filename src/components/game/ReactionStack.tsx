@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import CardInfo from "@/components/CardInfo";
+import { getCardArt } from "@/game/card-art";
 import { getCard } from "@/game/cards";
 import {
   reactionActivatedAbilityOptions,
@@ -192,6 +194,9 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve }: {
 }) {
   const frames = [reaction.action, ...(reaction.pendingHuman ? [reaction.pendingHuman] : [])];
   const progress = Math.max(0, Math.min(100, (timeLeft / 10_000) * 100));
+  const respondingTo = frames[frames.length - 1];
+  const respondingCard = getCard(respondingTo.defId);
+  const respondingArt = getCardArt(respondingTo.defId)?.url ?? respondingCard.art;
   return (
     <section className="reaction-stack" aria-label="Pilha de respostas" aria-live="polite" data-reaction-window="true">
       <div className="reaction-stack-heading">
@@ -200,6 +205,18 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve }: {
       </div>
       <div className="reaction-timer"><i style={{ width: `${progress}%` }} /></div>
       {targetName && <p className="reaction-target">Alvo atual: <b>{targetName}</b></p>}
+      <div className="reaction-card-preview" data-reaction-card-preview={respondingTo.defId}>
+        {respondingArt && <div className="reaction-card-art" style={{ backgroundImage: `url("${respondingArt}")` }} role="img" aria-label={`Arte de ${respondingCard.name}`} />}
+        <div className="reaction-card-summary">
+          <span className="reaction-card-eyebrow">Carta na pilha · {actionLabel(respondingTo)}</span>
+          <strong>{respondingCard.name}</strong>
+          <span>Custo {respondingCard.cost} · {respondingCard.type}</span>
+          <details className="reaction-card-details">
+            <summary>Ver efeito e informações completas</summary>
+            <div className="reaction-card-tooltip"><CardInfo defId={respondingTo.defId} state={reaction.baseState} /></div>
+          </details>
+        </div>
+      </div>
       <div className="reaction-frames" aria-label="Ações na pilha, última resolve primeiro">
         {frames.map((item, index) => {
           const card = getCard(item.defId);
