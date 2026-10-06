@@ -403,7 +403,7 @@ async function matchSnapshot(cdp) {
     const manaMatch = manaText.match(/(\\d+)\\s*\\/\\s*(\\d+)/);
     return {
       phase: document.querySelector('.tcg-arena')?.dataset?.matchPhase || null,
-      round: Number.parseInt((document.querySelector('.tcg-round-pill')?.textContent || '').replace('RODADA ', '').trim(), 10) || 0,
+      round: Number.parseInt((document.querySelector('.tcg-round-pill:not([data-turn-timer="true"])')?.textContent || '').replace('RODADA ', '').trim(), 10) || 0,
       gameover: Boolean(document.querySelector('.match-result-backdrop')) || document.querySelector('.tcg-arena')?.dataset?.matchPhase === 'gameover',
       playerTurn: Boolean(playerBar?.classList.contains('tcg-playerbar-active')),
       playerMana: manaMatch ? Number(manaMatch[1]) : null,
@@ -551,7 +551,7 @@ async function abilityEvidence(cdp, defId) {
       ariaLabel: button.getAttribute('aria-label') || '',
       title: button.getAttribute('title') || '',
       text: button.textContent || '',
-      round: Number.parseInt((document.querySelector('.tcg-round-pill')?.textContent || '').replace('RODADA ', '').trim(), 10) || 0,
+      round: Number.parseInt((document.querySelector('.tcg-round-pill:not([data-turn-timer="true"])')?.textContent || '').replace('RODADA ', '').trim(), 10) || 0,
     };
   })()`);
 }
