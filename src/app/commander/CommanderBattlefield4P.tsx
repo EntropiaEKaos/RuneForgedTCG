@@ -234,7 +234,7 @@ function SeatZone({
     data-commander-position={position}
     data-commander-seat-zone="integrated"
   >
-    <div className={`absolute z-30 flex items-center gap-2 rounded-full border px-2.5 py-1 backdrop-blur-md ${hasPriority?"border-cyan-200/55 bg-cyan-950/75 shadow-[0_0_20px_rgba(34,211,238,.18)]":isActive?"border-amber-200/35 bg-slate-950/75":"border-white/10 bg-slate-950/65"} ${position==="top"?"left-1/2 top-0 -translate-x-1/2":position==="bottom"?"bottom-0 left-1/2 -translate-x-1/2":position==="left"?"left-0 top-1/2 -translate-y-1/2": "right-0 top-1/2 -translate-y-1/2"}`}>
+    <div className={`absolute z-30 flex items-center gap-2 rounded-full border px-2.5 py-1 backdrop-blur-md ${hasPriority?"border-cyan-200/55 bg-cyan-950/75 shadow-[0_0_20px_rgba(34,211,238,.18)]":isActive?"border-amber-200/35 bg-slate-950/75":"border-white/10 bg-slate-950/65"} ${position==="top"?"left-1/2 top-0 -translate-x-1/2":position==="bottom"?"bottom-0 left-1/2 -translate-x-1/2":position==="left"?"left-1 top-1/2 -translate-y-1/2": "right-1 top-1/2 -translate-y-1/2"}`}>
       <b className="max-w-32 truncate text-[10px] text-white">P{runtime.seat+1} · {playerName}</b>
       {isViewer&&<span className="text-[7px] font-black uppercase text-cyan-100">VOCÊ</span>}
       {isActive&&<span className="text-[7px] font-black uppercase text-amber-200">TURNO</span>}
@@ -271,7 +271,7 @@ function SeatZone({
       </button>
     </div>
 
-    <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-7 py-4":"px-14 py-5"}`} data-commander-zone="battlefield">
+    <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-3 py-10":"px-24 py-7"}`} data-commander-zone="battlefield">
       <div className={`flex h-full w-full max-h-full max-w-full items-center justify-center gap-1 ${vertical?"flex-wrap content-center":"flex-wrap content-center"}`}>
         {battlefield.length?groupEquivalentBattlefieldObjects(battlefield,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds,attackableIds,blockableIds).map(group=>{
           const object=group[0];
@@ -598,7 +598,7 @@ export default function CommanderBattlefield4P({
       <button type="button" className="ml-3 text-slate-500 underline" onClick={()=>{setSelectedAttackerId(null);setSelectedBlockerId(null);}}>Cancelar</button>
     </div>}
     <div
-      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(150px,.48fr)_minmax(600px,3fr)_minmax(150px,.48fr)] grid-rows-[minmax(128px,.52fr)_minmax(330px,2.3fr)_minmax(190px,.82fr)] gap-0 px-1 pb-1 pt-8 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
+      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(190px,.72fr)_minmax(480px,2.6fr)_minmax(190px,.72fr)] grid-rows-[minmax(150px,.64fr)_minmax(260px,1.8fr)_minmax(205px,.88fr)] gap-0 px-1 pb-1 pt-8 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
       data-commander-camera-surface="table"
     >
       {(["top","left","right","bottom"] as Position[]).map(position=>{
