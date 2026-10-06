@@ -302,11 +302,17 @@ export default function CommanderPhaserRuntime({
           this.children.getAll().filter(child=>child.name.startsWith("permanent:")).forEach(child=>child.destroy());
           for(const seat of state.seats){
             const base=seatPoint(seat.seat,viewerSeat);
-            const nexus=this.add.circle(base.x,base.y,26,seat.eliminated?0x334155:0x0e7490,.18).setStrokeStyle(2,seat.eliminated?0x64748b:0x67e8f9,.7).setDepth(20).setName(`permanent:nexus:${seat.seat}`);
-            this.add.text(base.x,base.y,`N ${seat.nexusHealth}`,{fontFamily:"system-ui, sans-serif",fontSize:"11px",fontStyle:"bold",color:"#cffafe"}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-label:${seat.seat}`);
-            const generalColor=seat.general.zone==="battlefield"?0xf59e0b:0x7c3aed;
-            this.add.circle(base.x+42,base.y,12,generalColor,.16).setStrokeStyle(2,generalColor,.8).setDepth(20).setName(`permanent:general:${seat.seat}`);
-            this.add.text(base.x+42,base.y+21,seat.general.name,{fontFamily:"system-ui, sans-serif",fontSize:"7px",color:"#fde68a",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:general-name:${seat.seat}`);
+            const critical=!seat.eliminated&&seat.nexusHealth<=10;
+            const nexusColor=seat.eliminated?0x475569:critical?RF_BATTLEFIELD_THEME.danger:RF_BATTLEFIELD_THEME.main;
+            const nexusHalo=this.add.circle(base.x,base.y,36,nexusColor,.025).setStrokeStyle(1,nexusColor,seat.eliminated?.12:critical?.5:.22).setDepth(19).setName(`permanent:nexus-halo:${seat.seat}`);
+            const nexus=this.add.circle(base.x,base.y,27,nexusColor,seat.eliminated?.06:.16).setStrokeStyle(3,nexusColor,seat.eliminated?.28:.82).setDepth(20).setName(`permanent:nexus:${seat.seat}`);
+            if(critical)this.tweens.add({targets:[nexus,nexusHalo],scale:1.1,alpha:.55,duration:720,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
+            this.add.text(base.x,base.y-3,`${seat.nexusHealth}`,{fontFamily:"system-ui, sans-serif",fontSize:"16px",fontStyle:"bold",color:seat.eliminated?"#64748b":critical?"#fecdd3":"#d1fae5",stroke:"#020617",strokeThickness:4}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-label:${seat.seat}`);
+            this.add.text(base.x,base.y+15,seat.eliminated?"ELIMINADO":"NEXUS",{fontFamily:"system-ui, sans-serif",fontSize:"6px",fontStyle:"bold",color:seat.eliminated?"#64748b":"#94a3b8",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-state:${seat.seat}`);
+            const generalColor=seat.general.zone==="battlefield"?RF_BATTLEFIELD_THEME.targeting:RF_BATTLEFIELD_THEME.response;
+            const general=this.add.circle(base.x+48,base.y,13,generalColor,.13).setStrokeStyle(2,generalColor,.78).setDepth(20).setName(`permanent:general:${seat.seat}`);
+            if(seat.general.zone==="battlefield")this.add.circle(base.x+48,base.y,19,generalColor,.02).setStrokeStyle(1,generalColor,.32).setDepth(19).setName(`permanent:general-presence:${seat.seat}`);
+            this.add.text(base.x+48,base.y+22,`${seat.general.name} · ${seat.general.castCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"7px",color:seat.general.zone==="battlefield"?"#fde68a":"#ddd6fe",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:general-name:${seat.seat}`);
             seat.battlefield.slice(0,12).forEach((object,index)=>{
               const angle=(Math.PI*2*index)/Math.max(1,Math.min(12,seat.battlefield.length));
               const radius=74+(index%2)*24;
