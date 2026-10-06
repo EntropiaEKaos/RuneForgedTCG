@@ -147,7 +147,7 @@ function BattlefieldCard({
         ? `L${object.loyalty}`
         : "";
   return <div
-    className="group relative shrink-0"
+    className="group relative shrink-0 transition-[filter] duration-200 hover:z-40 hover:drop-shadow-[0_12px_18px_rgba(0,0,0,.5)]"
     data-commander-object={object.id}
     data-commander-combat-motion={motion||undefined}
     style={{transform:combatMotionTransform(position,motion),transition:"transform 420ms cubic-bezier(.2,.85,.2,1), filter 300ms ease",filter:motion==="attacking"?"drop-shadow(0 0 14px rgba(251,113,133,.28))":motion==="blocking"?"drop-shadow(0 0 12px rgba(34,211,238,.24))":undefined}}
@@ -190,12 +190,12 @@ function groupEquivalentBattlefieldObjects(objects:BattlefieldObject[],declaredA
 function VisibleHand({cards,playableIds,onPlay}:{cards:ProjectedCard[];playableIds:Set<string>;onPlay?:(card:ProjectedCard)=>void}){
   const shown=cards.slice(0,9);
   return <div className="flex min-h-20 items-end justify-center overflow-visible px-2" aria-label={`${cards.length} cartas na sua mão`}>
-    {shown.map((card,index)=><div key={card.instanceId} data-commander-hand-card={card.instanceId} className="-ml-4 first:ml-0 origin-bottom transition-transform hover:z-30 hover:-translate-y-4 hover:scale-110" style={{transform:`rotate(${(index-(shown.length-1)/2)*3.5}deg)`}}>
+    {shown.map((card,index)=><div key={card.instanceId} data-commander-hand-card={card.instanceId} className="-ml-3 first:ml-0 origin-bottom transition-transform duration-200 hover:z-40 hover:-translate-y-6 hover:scale-[1.18] focus-within:z-40 focus-within:-translate-y-5 focus-within:scale-[1.12]" style={{transform:`rotate(${(index-(shown.length-1)/2)*2}deg)`}}>
       <Tooltip content={<CardInfo defId={card.defId}/>} panelWidth={420} panelHeightEstimate={900}>
         <CardView defId={card.defId} size="sm" onClick={playableIds.has(card.instanceId)&&onPlay?()=>onPlay(card):undefined}/>
       </Tooltip>
     </div>)}
-    {cards.length>shown.length&&<span className="ml-2 self-center text-[9px] font-black text-cyan-100">+{cards.length-shown.length}</span>}
+    {cards.length>shown.length&&<span className="ml-2 self-center text-[9px] font-black text-amber-100">+{cards.length-shown.length}</span>}
   </div>;
 }
 
@@ -204,7 +204,7 @@ function HiddenHand({count}:{count:number}){
   return <div className="flex h-10 min-w-24 items-end justify-center" aria-label={`${count} cartas ocultas na mão`}>
     {Array.from({length:visible},(_,index)=><div
       key={index}
-      className="-ml-3 h-9 w-6 first:ml-0 rounded border border-cyan-100/20 bg-cover bg-center shadow-lg"
+      className="-ml-3 h-9 w-6 first:ml-0 rounded border border-amber-100/20 bg-cover bg-center shadow-lg"
       style={{backgroundImage:"url('/art/ui/runeforge-card-back.svg')",transform:`rotate(${(index-(visible-1)/2)*5}deg)`,transformOrigin:"50% 120%"}}
     />)}
     {count>visible&&<span className="ml-1 text-[9px] font-black text-slate-400">+{count-visible}</span>}
@@ -271,8 +271,8 @@ function SeatZone({
       </button>
     </div>
 
-    <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-3 pb-12 pt-14":"px-24 pb-12 pt-12"}`} data-commander-zone="battlefield">
-      <div className="flex h-full w-full max-h-full max-w-full flex-wrap content-center items-center justify-center gap-x-2 gap-y-4">
+    <div className={`absolute inset-0 flex min-h-0 min-w-0 items-center justify-center ${vertical?"px-4 pb-12 pt-16":"px-20 pb-14 pt-14"}`} data-commander-zone="battlefield">
+      <div className="flex h-full w-full max-h-full max-w-full flex-wrap content-center items-center justify-center gap-x-3 gap-y-5">
         {battlefield.length?groupEquivalentBattlefieldObjects(battlefield,declaredAttackerIds,declaredBlockerIds,incomingAttackerIds,attackableIds,blockableIds).map(group=>{
           const object=group[0];
           const attackable=isViewer&&attackableIds.has(object.id);
@@ -314,7 +314,7 @@ function SeatZone({
       </div>
     </div>
 
-    <div className={`absolute z-20 ${position==="top"?"left-1/2 top-8 -translate-x-1/2":position==="bottom"?"bottom-8 left-1/2 -translate-x-1/2":position==="left"?"left-8 top-1/2 -translate-y-1/2": "right-8 top-1/2 -translate-y-1/2"}`}>
+    <div className={`absolute z-20 ${position==="top"?"left-1/2 top-1 -translate-x-1/2":position==="bottom"?"bottom-1 left-1/2 -translate-x-1/2":position==="left"?"left-1 bottom-1": "right-1 bottom-1"}`}>
       {isViewer&&runtime.hand?<VisibleHand cards={runtime.hand} playableIds={playableHandIds} onPlay={onPlayHandCard}/>:<HiddenHand count={runtime.handCount}/>}
     </div>
 
@@ -598,7 +598,7 @@ export default function CommanderBattlefield4P({
       <button type="button" className="ml-3 text-slate-500 underline" onClick={()=>{setSelectedAttackerId(null);setSelectedBlockerId(null);}}>Cancelar</button>
     </div>}
     <div
-      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(190px,.72fr)_minmax(480px,2.6fr)_minmax(190px,.72fr)] grid-rows-[minmax(165px,.7fr)_minmax(260px,1.65fr)_minmax(220px,.95fr)] gap-0 px-1 pb-1 pt-8 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
+      className={`relative z-20 grid h-full w-full origin-center grid-cols-[minmax(215px,.9fr)_minmax(460px,2.35fr)_minmax(215px,.9fr)] grid-rows-[minmax(180px,.8fr)_minmax(250px,1.55fr)_minmax(240px,1.05fr)] gap-0 px-1 pb-1 pt-8 transition-transform duration-300 ${cameraZoom===80?"scale-[.80]":cameraZoom===90?"scale-90":"scale-100"}`}
       data-commander-camera-surface="table"
     >
       {(["top","left","right","bottom"] as Position[]).map(position=>{
