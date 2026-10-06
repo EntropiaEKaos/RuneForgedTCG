@@ -100,6 +100,20 @@ const OUTCOME_EVENT="runeforged:commander:outcome-fx";
 const TARGETING_EVENT="runeforged:commander:targeting-fx";
 const PERMANENTS_EVENT="runeforged:commander:permanents";
 const HAND_EVENT="runeforged:commander:hand";
+const GENERAL_EVENT="runeforged:commander:general-transition";
+
+const RF_BATTLEFIELD_THEME={
+  main:0xc69a58,
+  combat:0xfb923c,
+  response:0xa78bfa,
+  opponent:0x967b5c,
+  danger:0xfb7185,
+  targeting:0xf4c75b,
+  block:0x60a5fa,
+  sentinela:0x67e8f9,
+  surface:0x21160e,
+  ink:0xf3e5ca,
+} as const;
 
 function seatPoint(seat:number,viewerSeat:number){
   const points=[
@@ -161,6 +175,7 @@ export default function CommanderPhaserRuntime({
   const previousStackRef=useRef<CommanderPhaserStackItem[]>([]);
   const previousHandRef=useRef<CommanderPhaserHandCard[]>(hand);
   const previousPermanentsRef=useRef<CommanderPhaserPermanentSnapshot>(permanents);
+  const previousGeneralsRef=useRef<CommanderPhaserPermanentSnapshot>(permanents);
   const stackInitializedRef=useRef(false);
   const lastPriorityRevisionRef=useRef<number|null>(null);
   const queuedPriorityFxRef=useRef<Array<{prioritySeat:number;reactionWindowOpen:boolean}>>([]);
@@ -199,8 +214,74 @@ export default function CommanderPhaserRuntime({
       class CommanderPresentationScene extends Phaser.Scene {
         private headline?:InstanceType<typeof Phaser.GameObjects.Text>;
         private detail?:InstanceType<typeof Phaser.GameObjects.Text>;
+        private arenaCore?:InstanceType<typeof Phaser.GameObjects.Arc>;
+        private arenaHalo?:InstanceType<typeof Phaser.GameObjects.Arc>;
+        private seatAnchors:InstanceType<typeof Phaser.GameObjects.Arc>[]=[];
 
         create(){
+          this.arenaHalo=this.add.circle(490,450,118,RF_BATTLEFIELD_THEME.main,.018).setStrokeStyle(2,RF_BATTLEFIELD_THEME.main,.12).setDepth(2).setName("arena:legacy-halo");
+          this.arenaCore=this.add.circle(490,450,48,RF_BATTLEFIELD_THEME.main,.035).setStrokeStyle(2,RF_BATTLEFIELD_THEME.main,.28).setDepth(3).setName("arena:legacy-core");
+
+          // Presentation-only four-seat fantasy tabletop: restrained brass inlays and warm stone,
+          // with the actual card art and combat states remaining the visual focus.
+          [174,232,292].forEach((radius,index)=>{
+            this.add.circle(490,450,radius,RF_BATTLEFIELD_THEME.surface,.012)
+              .setStrokeStyle(index===1?2:1,index===1?RF_BATTLEFIELD_THEME.main:RF_BATTLEFIELD_THEME.opponent,index===1?.10:.065)
+              .setDepth(1)
+              .setName(`arena:rune-ring:${index}`);
+          });
+          [0,1,2,3].forEach(relativeSeat=>{
+            const point=seatPoint((viewerSeat+relativeSeat)%4,viewerSeat);
+            const local=relativeSeat===0;
+            const laneColor=local?RF_BATTLEFIELD_THEME.main:RF_BATTLEFIELD_THEME.opponent;
+            const laneMid={x:490+(point.x-490)*.56,y:450+(point.y-450)*.56};
+            this.add.line(0,0,490,450,point.x,point.y,laneColor,local?.12:.085)
+              .setOrigin(0,0)
+              .setLineWidth(local?3:2)
+              .setDepth(1)
+              .setName(`arena:territory-spoke:${relativeSeat}`);
+            this.add.ellipse(laneMid.x,laneMid.y,local?214:188,local?128:112,laneColor,local?.028:.016)
+              .setStrokeStyle(local?2:1,laneColor,local?.16:.10)
+              .setDepth(1.25)
+              .setName(`arena:territory-lane:${relativeSeat}`);
+            this.add.ellipse(point.x,point.y,local?194:166,local?116:104,RF_BATTLEFIELD_THEME.surface,local?.09:.065)
+              .setStrokeStyle(local?3:2,laneColor,local?.32:.20)
+              .setDepth(1.5)
+              .setName(`arena:seat-sanctum:${relativeSeat}`);
+            this.add.text(point.x,point.y+(local?67:59),local?"SEU CAMPO":`CAMPO P${((viewerSeat+relativeSeat)%4)+1}`,{fontFamily:"system-ui, sans-serif",fontSize:local?"9px":"8px",fontStyle:"bold",color:local?"#e5bf78":"#b49a78",stroke:"#170f0b",strokeThickness:3})
+              .setOrigin(.5).setAlpha(local?.58:.38).setDepth(2.1).setName(`arena:territory-label:${relativeSeat}`);
+          });
+          const runeAngles=[0,Math.PI/4,Math.PI/2,Math.PI*3/4];
+          runeAngles.forEach((angle,index)=>{
+            const dx=Math.cos(angle)*86;
+            const dy=Math.sin(angle)*86;
+            this.add.line(0,0,490-dx,450-dy,490+dx,450+dy,RF_BATTLEFIELD_THEME.response,.08)
+              .setOrigin(0,0)
+              .setLineWidth(1)
+              .setDepth(2)
+              .setName(`arena:core-rune:${index}`);
+          });
+
+          // Persistent Forge Presence: a low-noise ritual engine that reads in still captures,
+          // while remaining strictly presentation-only and driven by the certified legacy palette.
+          const forgePlate=this.add.circle(490,450,82,RF_BATTLEFIELD_THEME.surface,.42)
+            .setStrokeStyle(2,RF_BATTLEFIELD_THEME.response,.34).setDepth(2.4).setName("arena:forge-plate");
+          const forgeCrown=this.add.circle(490,450,64,RF_BATTLEFIELD_THEME.response,.045)
+            .setStrokeStyle(3,RF_BATTLEFIELD_THEME.main,.48).setDepth(2.6).setName("arena:forge-crown");
+          const forgeSigil=this.add.text(490,450,"◆",{fontFamily:"system-ui, sans-serif",fontSize:"28px",fontStyle:"bold",color:"#a78bfa",stroke:"#020617",strokeThickness:6})
+            .setOrigin(.5).setAlpha(.68).setDepth(3.2).setName("arena:forge-sigil");
+          this.add.text(490,510,"RUNE FORGE",{fontFamily:"system-ui, sans-serif",fontSize:"8px",fontStyle:"bold",color:"#94a3b8",stroke:"#020617",strokeThickness:3})
+            .setOrigin(.5).setAlpha(.82).setDepth(3.2).setName("arena:forge-label");
+          this.tweens.add({targets:forgeCrown,angle:360,duration:18000,repeat:-1,ease:"Linear"});
+          this.tweens.add({targets:[forgePlate,forgeSigil],scale:1.06,alpha:.62,duration:2600,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
+
+          this.seatAnchors=[0,1,2,3].map(seat=>{
+            const point=seatPoint(seat,viewerSeat);
+            return this.add.circle(point.x,point.y,62,RF_BATTLEFIELD_THEME.opponent,.012).setStrokeStyle(1,RF_BATTLEFIELD_THEME.opponent,.14).setDepth(2).setName(`arena:seat-anchor:${seat}`);
+          });
+          this.tweens.add({targets:this.arenaCore,scale:1.12,alpha:.72,duration:2200,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
+          this.tweens.add({targets:this.arenaHalo,scale:1.06,alpha:.5,duration:3200,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
+
           this.headline=this.add.text(490,410,"",{
             fontFamily:"system-ui, sans-serif",
             fontSize:"24px",
@@ -227,6 +308,7 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(TARGETING_EVENT,(state:CommanderPhaserTargetingFx)=>this.renderTargetingFx(state));
           this.game.events.on(PERMANENTS_EVENT,(state:CommanderPhaserPermanentSnapshot)=>this.renderPermanents(state));
           this.game.events.on(HAND_EVENT,(cards:CommanderPhaserHandCard[])=>this.renderHand(cards));
+          this.game.events.on(GENERAL_EVENT,(state:{seat:number;from:string;to:string;name:string})=>this.renderGeneralTransition(state));
           for(const state of queuedPriorityFxRef.current.splice(0))this.renderPriorityFx(state);
           for(const state of queuedOutcomeFxRef.current.splice(0))this.renderOutcomeFx(state);
           for(const state of queuedTargetingFxRef.current.splice(0))this.renderTargetingFx(state);
@@ -237,9 +319,21 @@ export default function CommanderPhaserRuntime({
           for(const fx of queuedStackFxRef.current.splice(0))this.renderStackFx(fx);
         }
 
+        private renderGeneralTransition(state:{seat:number;from:string;to:string;name:string}){
+          const point=seatPoint(state.seat,viewerSeat);
+          const entering=state.to==="battlefield";
+          const color=entering?RF_BATTLEFIELD_THEME.targeting:RF_BATTLEFIELD_THEME.response;
+          const start=entering?{x:point.x+48,y:point.y}:{x:point.x,y:point.y-18};
+          const end=entering?{x:point.x,y:point.y-18}:{x:point.x+48,y:point.y};
+          const sigil=this.add.circle(start.x,start.y,15,color,.12).setStrokeStyle(3,color,.92).setDepth(90).setName(`general:transition:${state.seat}`);
+          const label=this.add.text(start.x,start.y-28,entering?"GENERAL EM CAMPO":"GENERAL ZONE",{fontFamily:"system-ui, sans-serif",fontSize:"10px",fontStyle:"bold",color:entering?"#fde68a":"#ddd6fe",stroke:"#020617",strokeThickness:4}).setOrigin(.5).setDepth(91);
+          this.tweens.add({targets:sigil,x:end.x,y:end.y,scale:entering?2.2:.55,alpha:0,duration:760,ease:entering?"Cubic.easeOut":"Cubic.easeIn",onComplete:()=>sigil.destroy()});
+          this.tweens.add({targets:label,y:label.y-18,alpha:0,duration:820,ease:"Sine.easeOut",onComplete:()=>label.destroy()});
+        }
+
         private renderPriorityFx(state:{prioritySeat:number;reactionWindowOpen:boolean}){
           const point=seatPoint(state.prioritySeat,viewerSeat);
-          const color=state.reactionWindowOpen?0xa78bfa:0x67e8f9;
+          const color=state.reactionWindowOpen?RF_BATTLEFIELD_THEME.response:RF_BATTLEFIELD_THEME.main;
           const ring=this.add.circle(point.x,point.y,34,color,.08).setStrokeStyle(state.reactionWindowOpen?5:3,color,.95).setDepth(60);
           const halo=this.add.circle(point.x,point.y,48,color,.035).setStrokeStyle(2,color,.45).setDepth(59);
           this.tweens.add({targets:ring,scale:state.reactionWindowOpen?1.8:1.5,alpha:0,duration:700,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
@@ -277,21 +371,35 @@ export default function CommanderPhaserRuntime({
           this.children.getAll().filter(child=>child.name.startsWith("permanent:")).forEach(child=>child.destroy());
           for(const seat of state.seats){
             const base=seatPoint(seat.seat,viewerSeat);
-            const nexus=this.add.circle(base.x,base.y,26,seat.eliminated?0x334155:0x0e7490,.18).setStrokeStyle(2,seat.eliminated?0x64748b:0x67e8f9,.7).setDepth(20).setName(`permanent:nexus:${seat.seat}`);
-            this.add.text(base.x,base.y,`N ${seat.nexusHealth}`,{fontFamily:"system-ui, sans-serif",fontSize:"11px",fontStyle:"bold",color:"#cffafe"}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-label:${seat.seat}`);
-            const generalColor=seat.general.zone==="battlefield"?0xf59e0b:0x7c3aed;
-            this.add.circle(base.x+42,base.y,12,generalColor,.16).setStrokeStyle(2,generalColor,.8).setDepth(20).setName(`permanent:general:${seat.seat}`);
-            this.add.text(base.x+42,base.y+21,seat.general.name,{fontFamily:"system-ui, sans-serif",fontSize:"7px",color:"#fde68a",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:general-name:${seat.seat}`);
+            const critical=!seat.eliminated&&seat.nexusHealth<=10;
+            const nexusColor=seat.eliminated?0x475569:critical?RF_BATTLEFIELD_THEME.danger:RF_BATTLEFIELD_THEME.main;
+            const nexusPlate=this.add.circle(base.x,base.y,43,RF_BATTLEFIELD_THEME.surface,.34).setStrokeStyle(1,nexusColor,seat.eliminated?.10:.18).setDepth(18.6).setName(`permanent:nexus-plate:${seat.seat}`);
+            const nexusHalo=this.add.circle(base.x,base.y,37,nexusColor,.025).setStrokeStyle(2,nexusColor,seat.eliminated?.12:critical?.5:.28).setDepth(19).setName(`permanent:nexus-halo:${seat.seat}`);
+            const nexus=this.add.circle(base.x,base.y,28,nexusColor,seat.eliminated?.06:.18).setStrokeStyle(3,nexusColor,seat.eliminated?.28:.88).setDepth(20).setName(`permanent:nexus:${seat.seat}`);
+            this.add.text(base.x,base.y-38,"◇",{fontFamily:"system-ui, sans-serif",fontSize:"11px",fontStyle:"bold",color:seat.eliminated?"#475569":critical?"#fb7185":"#6ae8be",stroke:"#020617",strokeThickness:3}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-sigil:${seat.seat}`);
+            if(critical)this.tweens.add({targets:[nexus,nexusHalo],scale:1.1,alpha:.55,duration:720,yoyo:true,repeat:-1,ease:"Sine.easeInOut"});
+            this.add.text(base.x,base.y-3,`${seat.nexusHealth}`,{fontFamily:"system-ui, sans-serif",fontSize:"16px",fontStyle:"bold",color:seat.eliminated?"#64748b":critical?"#fecdd3":"#d1fae5",stroke:"#020617",strokeThickness:4}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-label:${seat.seat}`);
+            this.add.text(base.x,base.y+15,seat.eliminated?"ELIMINADO":"NEXUS",{fontFamily:"system-ui, sans-serif",fontSize:"6px",fontStyle:"bold",color:seat.eliminated?"#64748b":"#94a3b8",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:nexus-state:${seat.seat}`);
+            const generalColor=seat.general.zone==="battlefield"?RF_BATTLEFIELD_THEME.targeting:RF_BATTLEFIELD_THEME.response;
+            const generalPlate=this.add.circle(base.x+50,base.y,19,RF_BATTLEFIELD_THEME.surface,.42).setStrokeStyle(1,generalColor,.26).setDepth(19.2).setName(`permanent:general-plate:${seat.seat}`);
+            const general=this.add.circle(base.x+50,base.y,14,generalColor,.16).setStrokeStyle(2,generalColor,.86).setDepth(20).setName(`permanent:general:${seat.seat}`);
+            this.add.text(base.x+50,base.y,"✦",{fontFamily:"system-ui, sans-serif",fontSize:"9px",fontStyle:"bold",color:seat.general.zone==="battlefield"?"#fde68a":"#ddd6fe",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:general-sigil:${seat.seat}`);
+            if(seat.general.zone==="battlefield")this.add.circle(base.x+48,base.y,19,generalColor,.02).setStrokeStyle(1,generalColor,.32).setDepth(19).setName(`permanent:general-presence:${seat.seat}`);
+            this.add.text(base.x+48,base.y+22,`${seat.general.name} · ${seat.general.castCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"7px",color:seat.general.zone==="battlefield"?"#fde68a":"#ddd6fe",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(21).setName(`permanent:general-name:${seat.seat}`);
             seat.battlefield.slice(0,12).forEach((object,index)=>{
-              const angle=(Math.PI*2*index)/Math.max(1,Math.min(12,seat.battlefield.length));
-              const radius=74+(index%2)*24;
+              // Put the first permanent toward the shared battlefield, not to the right of every seat.
+              // Spread larger boards in a ring to preserve all twelve visible objects.
+              const count=Math.min(12,seat.battlefield.length);
+              const centerAngle=Math.atan2(450-base.y,490-base.x);
+              const angle=count<=3?centerAngle+(index-(count-1)/2)*.62:centerAngle+(Math.PI*2*index)/count;
+              const radius=count<=3?112:96+(index%2)*24;
               const x=base.x+Math.cos(angle)*radius;
               const y=base.y+Math.sin(angle)*radius;
               const damaged=object.health!=null&&object.maxHealth!=null&&object.health<object.maxHealth;
               const durabilityDamaged=object.durability!=null&&object.maxDurability!=null&&object.durability<object.maxDurability;
-              const color=object.stunned?0x64748b:object.barrier?0x38bdf8:damaged||durabilityDamaged?0xfb7185:0x22c55e;
-              const frame=this.add.rectangle(x,y,42,58,color,.14).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
-              if(object.barrier)this.add.circle(x,y,30,0x38bdf8,.025).setStrokeStyle(2,0x67e8f9,.7).setDepth(18.8).setName(`permanent:barrier:${object.id}`);
+              const color=object.stunned?RF_BATTLEFIELD_THEME.opponent:object.barrier?RF_BATTLEFIELD_THEME.block:damaged||durabilityDamaged?RF_BATTLEFIELD_THEME.danger:RF_BATTLEFIELD_THEME.main;
+              const frame=this.add.rectangle(x,y,58,78,color,.16).setStrokeStyle(2,color,.75).setDepth(18).setName(`permanent:object:${object.id}`);
+              if(object.barrier)this.add.circle(x,y,38,0x38bdf8,.025).setStrokeStyle(2,0x67e8f9,.7).setDepth(18.8).setName(`permanent:barrier:${object.id}`);
               if(object.frostbitten)this.add.text(x-16,y-19,"❄",{fontFamily:"system-ui, sans-serif",fontSize:"10px",color:"#bae6fd"}).setDepth(19).setName(`permanent:frostbite:${object.id}`);
               if(object.stunned)this.add.text(x-16,y+17,"STUN",{fontFamily:"system-ui, sans-serif",fontSize:"6px",fontStyle:"bold",color:"#cbd5e1",stroke:"#020617",strokeThickness:2}).setDepth(19).setName(`permanent:stunned:${object.id}`);
               if(object.attackedThisTurn)this.add.text(x+11,y+17,"⚔",{fontFamily:"system-ui, sans-serif",fontSize:"9px",color:"#fda4af"}).setDepth(19).setName(`permanent:attacked:${object.id}`);
@@ -302,19 +410,19 @@ export default function CommanderPhaserRuntime({
                   this.load.image(textureKey,object.artUrl);
                   this.load.once(`filecomplete-image-${textureKey}`,()=>{
                     if(!frame.active)return;
-                    const art=this.add.image(x,y-3,textureKey).setDisplaySize(36,42).setDepth(18.2).setName(`permanent:art:${object.id}`);
+                    const art=this.add.image(x,y-3,textureKey).setDisplaySize(49,58).setDepth(18.2).setName(`permanent:art:${object.id}`);
                     frame.setDepth(18.3);
                     art.setCrop(0,0,art.width,Math.max(1,art.height));
                   });
                   this.load.start();
                 }else{
-                  this.add.image(x,y-3,textureKey).setDisplaySize(36,42).setDepth(18.2).setName(`permanent:art:${object.id}`);
+                  this.add.image(x,y-3,textureKey).setDisplaySize(49,58).setDepth(18.2).setName(`permanent:art:${object.id}`);
                   frame.setDepth(18.3);
                 }
               }
-              this.add.text(x,y-25,object.name.length>14?object.name.slice(0,13)+"…":object.name,{fontFamily:"system-ui, sans-serif",fontSize:"7px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(19).setName(`permanent:name:${object.id}`);
+              this.add.text(x,y-31,object.name.length>14?object.name.slice(0,13)+"…":object.name,{fontFamily:"system-ui, sans-serif",fontSize:"9px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:2}).setOrigin(.5).setDepth(19).setName(`permanent:name:${object.id}`);
               const stat=object.power!=null&&object.health!=null?`${object.power}/${object.health}`:object.durability!=null?`D${object.durability}`:"";
-              if(stat)this.add.text(x,y+15,stat,{fontFamily:"system-ui, sans-serif",fontSize:"9px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:3}).setOrigin(.5).setDepth(19).setName(`permanent:stat:${object.id}`);
+              if(stat)this.add.text(x,y+23,stat,{fontFamily:"system-ui, sans-serif",fontSize:"12px",fontStyle:"bold",color:"#f8fafc",stroke:"#020617",strokeThickness:3}).setOrigin(.5).setDepth(19).setName(`permanent:stat:${object.id}`);
               if(object.equipmentCount>0)this.add.text(x+14,y-19,`⚙${object.equipmentCount}`,{fontFamily:"system-ui, sans-serif",fontSize:"8px",color:"#fde68a"}).setOrigin(.5).setDepth(19).setName(`permanent:equipment:${object.id}`);
             });
           }
@@ -322,7 +430,7 @@ export default function CommanderPhaserRuntime({
 
         private renderTargetingFx(state:CommanderPhaserTargetingFx){
           if(!state.selectedKind||!state.selectedId)return;
-          const color=state.selectedKind==="attacker"?0x22d3ee:0xa78bfa;
+          const color=state.selectedKind==="attacker"?RF_BATTLEFIELD_THEME.combat:RF_BATTLEFIELD_THEME.block;
           for(const seat of state.targetSeats){
             const point=seatPoint(seat,viewerSeat);
             const ring=this.add.circle(point.x,point.y,58,color,.025).setStrokeStyle(3,color,.8).setDepth(58);
@@ -338,6 +446,15 @@ export default function CommanderPhaserRuntime({
 
         private renderStackFx(fx:CommanderPhaserStackFx){
           const center={x:490,y:450};
+          const stackPulse=()=>{
+            const pulse=this.add.circle(center.x,center.y,42,RF_BATTLEFIELD_THEME.response,.035).setStrokeStyle(3,RF_BATTLEFIELD_THEME.response,.72).setDepth(57).setName("stack:arena-core-pulse");
+            this.tweens.add({targets:pulse,scale:2.25,alpha:0,duration:720,ease:"Sine.easeOut",onComplete:()=>pulse.destroy()});
+          };
+          if(fx.entered.length||fx.departed.length){
+            stackPulse();
+            this.arenaCore?.setFillStyle(RF_BATTLEFIELD_THEME.response,.07).setStrokeStyle(3,RF_BATTLEFIELD_THEME.response,.58);
+            this.tweens.add({targets:this.arenaCore,scale:1.28,duration:180,yoyo:true,ease:"Quad.easeOut"});
+          }
           fx.entered.forEach((item,index)=>{
             const handCard=fx.viewerHandDepartures[item.id];
             const source=handCard?{x:490,y:830}:seatPoint(item.controllerSeat,viewerSeat);
@@ -357,7 +474,7 @@ export default function CommanderPhaserRuntime({
             playStackDepartureFx(this,start);
             if(arrival){
               const target=seatFxPoint(arrival.seat,viewerSeat,index);
-              const marker=this.add.circle(start.x,start.y,8,0x67e8f9,.82).setDepth(84).setName(`stack:arrival:${arrival.id}`);
+              const marker=this.add.circle(start.x,start.y,8,RF_BATTLEFIELD_THEME.main,.82).setDepth(84).setName(`stack:arrival:${arrival.id}`);
               this.tweens.add({targets:marker,x:target.x,y:target.y,scale:1.8,alpha:0,duration:560,ease:"Cubic.Out",onComplete:()=>marker.destroy()});
             }
           });
@@ -383,9 +500,15 @@ export default function CommanderPhaserRuntime({
 
         private renderTurnFx(state:{activeSeat:number;turn:number;round:number;phase:string}){
           const point=seatPoint(state.activeSeat,viewerSeat);
-          const ring=this.add.circle(point.x,point.y,34,0xfbbf24,.08).setStrokeStyle(4,0xfbbf24,.9).setDepth(88).setName(`turn:active:${state.activeSeat}`);
+          const phaseColor=state.phase==="combat"?RF_BATTLEFIELD_THEME.combat:state.phase==="response"?RF_BATTLEFIELD_THEME.response:RF_BATTLEFIELD_THEME.main;
+          this.arenaCore?.setFillStyle(phaseColor,.04).setStrokeStyle(2,phaseColor,.34);
+          this.arenaHalo?.setFillStyle(phaseColor,.015).setStrokeStyle(2,phaseColor,.13);
+          this.seatAnchors.forEach((anchor,index)=>anchor.setStrokeStyle(index===state.activeSeat?3:1,index===state.activeSeat?phaseColor:RF_BATTLEFIELD_THEME.opponent,index===state.activeSeat?.62:.12));
+          const lane=this.add.line(0,0,point.x,point.y,490,450,phaseColor,.22).setOrigin(0,0).setLineWidth(2).setDepth(4).setName(`turn:lane:${state.activeSeat}`);
+          const ring=this.add.circle(point.x,point.y,34,phaseColor,.08).setStrokeStyle(4,phaseColor,.9).setDepth(88).setName(`turn:active:${state.activeSeat}`);
           const label=this.add.text(490,410,`TURNO ${state.turn} · RODADA ${state.round} · ${state.phase.toUpperCase()}`,{fontFamily:"system-ui, sans-serif",fontSize:"18px",fontStyle:"bold",color:"#fde68a"}).setOrigin(.5).setDepth(89).setName("turn:transition");
           this.tweens.add({targets:ring,scale:2.3,alpha:0,duration:850,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
+          this.tweens.add({targets:lane,alpha:0,duration:1200,delay:500,ease:"Sine.easeOut",onComplete:()=>lane.destroy()});
           this.tweens.add({targets:label,y:390,alpha:0,duration:900,delay:450,ease:"Sine.easeIn",onComplete:()=>label.destroy()});
         }
 
@@ -405,7 +528,15 @@ export default function CommanderPhaserRuntime({
           Object.entries(fx.nexusDamage)
             .sort(([a],[b])=>Number(a)-Number(b))
             .forEach(([seat,damage])=>{
-              playDamageImpactFx(this,seatPoint(Number(seat),viewerSeat),damage,"nexus");
+              const seatNumber=Number(seat);
+              const point=seatPoint(seatNumber,viewerSeat);
+              playDamageImpactFx(this,point,damage,"nexus");
+              const shock=this.add.circle(point.x,point.y,31,RF_BATTLEFIELD_THEME.danger,.04).setStrokeStyle(4,RF_BATTLEFIELD_THEME.danger,.88).setDepth(87).setName(`nexus:impact:${seatNumber}`);
+              const recoil=this.add.line(0,0,point.x,point.y,490,450,RF_BATTLEFIELD_THEME.danger,.26).setOrigin(0,0).setLineWidth(3).setDepth(52).setName(`nexus:recoil:${seatNumber}`);
+              const anchor=this.seatAnchors[(seatNumber-viewerSeat+4)%4];
+              if(anchor)this.tweens.add({targets:anchor,scale:.86,duration:90,yoyo:true,repeat:1,ease:"Quad.easeOut"});
+              this.tweens.add({targets:shock,scale:3.4,alpha:0,duration:680,ease:"Cubic.easeOut",onComplete:()=>shock.destroy()});
+              this.tweens.add({targets:recoil,alpha:0,duration:520,ease:"Sine.easeOut",onComplete:()=>recoil.destroy()});
             });
 
           Object.entries(fx.objectDamage)
@@ -434,7 +565,7 @@ export default function CommanderPhaserRuntime({
         }
 
         private renderFrame(frame:BattlefieldCombatPresentationFrame){
-          const tone=frame.phase==="blockers"?0x67e8f9:frame.phase==="damage"?0xfb7185:frame.phase==="complete"?0xa78bfa:0xfbbf24;
+          const tone=frame.phase==="blockers"?RF_BATTLEFIELD_THEME.block:frame.phase==="damage"?RF_BATTLEFIELD_THEME.danger:frame.phase==="complete"?RF_BATTLEFIELD_THEME.response:RF_BATTLEFIELD_THEME.combat;
           const center={x:490,y:450};
 
           this.headline?.setText(frame.headline).setColor(frame.phase==="blockers"?"#a5f3fc":frame.phase==="damage"?"#fecdd3":frame.phase==="complete"?"#ddd6fe":"#fde68a").setAlpha(1);
@@ -448,6 +579,9 @@ export default function CommanderPhaserRuntime({
               const end=seatPoint(route.defendingSeat,viewerSeat);
               const impact=collisionPoint(start,end);
               playCombatLaneFx(this,start,impact,"attackers");
+              const destination=this.add.line(0,0,impact.x,impact.y,end.x,end.y,RF_BATTLEFIELD_THEME.combat,.18).setOrigin(0,0).setLineWidth(2).setDepth(45).setName(`combat:destination:${route.unitId}`);
+              const targetRing=this.add.circle(end.x,end.y,34,RF_BATTLEFIELD_THEME.combat,.018).setStrokeStyle(2,RF_BATTLEFIELD_THEME.combat,.34).setDepth(46).setName(`combat:nexus-target:${route.unitId}`);
+              this.tweens.add({targets:[destination,targetRing],alpha:0,duration:1250,delay:180,ease:"Sine.easeOut",onComplete:()=>{destination.destroy();targetRing.destroy();}});
               const orb=this.add.circle(start.x,start.y,7,tone,.95);
               this.tweens.add({
                 targets:orb,
@@ -469,6 +603,9 @@ export default function CommanderPhaserRuntime({
               const impact=collisionPoint(attackerStart,defender);
               const start=seatPoint(route.controllerSeat,viewerSeat);
               playCombatLaneFx(this,start,impact,"blockers");
+              const collision=this.add.circle(impact.x,impact.y,12,RF_BATTLEFIELD_THEME.block,.08).setStrokeStyle(3,RF_BATTLEFIELD_THEME.block,.86).setDepth(55).setName(`combat:block-collision:${route.attackerId}`);
+              const shield=this.add.text(impact.x,impact.y,"◆",{fontFamily:"system-ui, sans-serif",fontSize:"18px",fontStyle:"bold",color:"#bfdbfe",stroke:"#172554",strokeThickness:4}).setOrigin(.5).setDepth(56).setName(`combat:block-shield:${route.attackerId}`);
+              this.tweens.add({targets:[collision,shield],scale:2.2,alpha:0,duration:620,ease:"Cubic.easeOut",onComplete:()=>{collision.destroy();shield.destroy();}});
               const orb=this.add.circle(start.x,start.y,6,tone,.9);
               this.tweens.add({
                 targets:orb,
@@ -540,6 +677,16 @@ export default function CommanderPhaserRuntime({
   useEffect(()=>{
     if(gameRef.current)gameRef.current.events.emit(PERMANENTS_EVENT,permanents);
     else queuedPermanentsRef.current.push(permanents);
+  },[permanents,viewerSeat]);
+
+  useEffect(()=>{
+    const previous=previousGeneralsRef.current;
+    for(const seat of permanents.seats){
+      const before=previous.seats.find(entry=>entry.seat===seat.seat)?.general;
+      if(!before||before.zone===seat.general.zone)continue;
+      gameRef.current?.events.emit(GENERAL_EVENT,{seat:seat.seat,from:before.zone,to:seat.general.zone,name:seat.general.name});
+    }
+    previousGeneralsRef.current=permanents;
   },[permanents,viewerSeat]);
 
   useEffect(()=>{

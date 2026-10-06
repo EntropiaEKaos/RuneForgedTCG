@@ -56,7 +56,7 @@ assert.match(battlefield,/stroke-dashoffset/,"attack routes must retain animated
 assert.match(battlefield,/attributeName="cx"/,"attack FX must retain a projectile moving from controller to defender");
 assert.match(battlefield,/attributeName="r"/,"defending seat must retain an impact pulse driven by an authoritative attacker");
 
-assert.match(battlefield,/NEXUS DA STACK/,"battlefield must retain a central authoritative stack surface");
+assert.match(battlefield,/NEXUS DA STACK/,"compact stack must retain an expandable authoritative physical surface");
 assert.match(battlefield,/combat\.stack/,"stack presentation must be derived from projected server state");
 assert.match(battlefield,/data-commander-stack-cards="physical"/,"stack must retain a physical layered-card presentation");
 assert.match(battlefield,/data-commander-stack-top/,"stack must expose its visual top object");
@@ -67,12 +67,24 @@ assert.match(battlefield,/runtime\.graveyard\.length/,"public graveyard counts m
 assert.match(battlefield,/runtime\.handCount/,"opponent hidden-hand presentation must use public counts only");
 assert.match(battlefield,/function VisibleHand/,"local viewer must receive a real visible-hand presentation");
 assert.match(battlefield,/runtime\.hand\?/,"visible hand must be driven only by the viewer-private projected hand");
-assert.match(battlefield,/overflow-x-auto/,"four-seat arena must remain navigable on narrow viewports");
+assert.match(client,/data-commander-surface=\{matchPresented\?"table":"lobby"\}/,"Commander must expose a distinct fullscreen match surface instead of presenting the lobby above the battlefield");
+assert.match(client,/matchPresented\?"h-screen w-screen overflow-hidden"/,"active Commander matches must claim the full viewport");
+assert.match(client,/matchPresented\?"hidden":"mt-6 grid gap-4 md:grid-cols-2"/,"legacy lobby seat cards must be hidden while the match table is presented");
+assert.match(client,/matchPresented\?"hidden":"border border-white\/10 bg-black\/20 p-5"/,"lobby controls must be hidden while the match table is presented");
+assert.match(battlefield,/className="relative h-full w-full overflow-hidden bg-\[#17110d\]/,"four-seat arena must fill its match shell without laboratory horizontal scrolling");
+assert.match(battlefield,/rgba\(161,113,59,\.24\)/,"Commander fantasy tabletop must retain its warm wood-and-bronze arena treatment");
+assert.match(battlefield,/grid h-full w-full origin-center/,"unified four-seat arena geometry must fill the available viewport");
 assert.match(battlefield,/selectedAttackerId/,"cinematic battlefield must support local attacker selection");
 assert.match(battlefield,/selectedBlockerId/,"cinematic battlefield must support local blocker selection");
 assert.match(battlefield,/onDeclareAttacker/,"cinematic battlefield must delegate attack commitment to its parent authority");
 assert.match(battlefield,/onDeclareBlocker/,"cinematic battlefield must delegate block commitment to its parent authority");
 assert.match(battlefield,/data-commander-nexus-target/,"opponent Nexus surfaces must become explicit attack targets");
+assert.match(battlefield,/data-commander-seat-zone="integrated"/,"players must occupy integrated arena zones instead of four boxed mini-tables");
+assert.match(battlefield,/data-commander-graveyard="pile"/,"graveyards must render as physical clickable piles");
+assert.match(battlefield,/data-commander-graveyard-overlay/,"graveyard inspection must expand into a dedicated overlay");
+assert.match(battlefield,/useState<80\|90\|100>\(100\)/,"unified arena must default to full-scale viewport usage");
+assert.doesNotMatch(battlefield,/w-\[min\(38vw,460px\)\]/,"legacy four-mini-table seat cards must not return");
+
 assert.match(client,/onDeclareAttacker=\{\(unitId,defendingSeat\)=>combatCommand\("declare_attacker"/,"Commander client must keep authoritative attack command ownership");
 assert.match(client,/onDeclareBlocker=\{\(unitId,attackerId\)=>combatCommand\("declare_blocker"/,"Commander client must keep authoritative block command ownership");
 
@@ -96,7 +108,8 @@ assert.match(battlefield,/objectSeats:Record<string,number>/,"authoritative reso
 assert.match(battlefield,/resolutionFx=\{resolutionFx\}/,"Commander battlefield must pass only its observed authoritative resolution delta to Phaser");
 assert.match(phaserRuntime,/RESOLUTION_EVENT="runeforged:commander:resolution-fx"/,"Phaser runtime must isolate authoritative resolution events from combat command frames");
 assert.match(phaserRuntime,/lastResolutionRevisionRef/,"Phaser resolution FX must deduplicate already-rendered revisions");
-assert.match(phaserRuntime,/playDamageImpactFx\(this,seatPoint\(Number\(seat\),viewerSeat\),damage,"nexus"\)/,"Nexus damage FX must target the authoritative damaged seat");
+assert.match(phaserRuntime,/const point=seatPoint\(seatNumber,viewerSeat\)/,"Nexus damage FX must resolve the authoritative damaged seat into the viewer-relative arena anchor");
+assert.match(phaserRuntime,/playDamageImpactFx\(this,point,damage,"nexus"\)/,"Nexus damage FX must target that authoritative arena anchor");
 assert.match(phaserRuntime,/playDamageImpactFx\(this,seatFxPoint\(seat,viewerSeat,index\),damage,"object"\)/,"object damage FX must use the authoritative object's seat");
 assert.match(phaserRuntime,/playBarrierBreakFx\(this,seatFxPoint\(seat,viewerSeat,index\)\)/,"Barrier FX must use the authoritative object's seat");
 assert.match(phaserRuntime,/playDepartureFx\(this,seatFxPoint\(departure\.seat,viewerSeat,index\),departure\.destination\)/,"departure FX must use the authoritative projected destination");
@@ -140,6 +153,49 @@ assert.match(phaserRuntime,/TARGETING_EVENT="runeforged:commander:targeting-fx"/
 assert.match(phaserRuntime,/selectedKind:"attacker"\|"blocker"\|null/,"targeting projection must distinguish attacker and blocker presentation");
 assert.doesNotMatch(phaserRuntime,/declare_attacker|declare_blocker|pass_priority|combat-command/,"Phaser targeting and priority FX must not own authoritative Commander commands");
 
+assert.match(phaserRuntime,/RF_BATTLEFIELD_THEME/,"Commander Phaser must inherit the certified RuneForged battlefield color language");
+assert.match(phaserRuntime,/main:0xc69a58/,"Commander four-seat fantasy arena must use the approved brass presentation token without modifying 1v1");
+assert.match(phaserRuntime,/combat:0xfb923c/,"Commander combat presentation must preserve the certified 1v1 orange token");
+assert.match(phaserRuntime,/response:0xa78bfa/,"Commander response presentation must preserve the certified 1v1 violet token");
+assert.match(phaserRuntime,/arena:legacy-core/,"Commander Phaser must render a persistent RuneForged arena core");
+assert.match(phaserRuntime,/arena:legacy-halo/,"Commander Phaser must render ambient arena energy");
+
+assert.match(phaserRuntime,/arena:rune-ring:/,"Commander Phaser must retain persistent low-noise rune rings around the shared arena core");
+assert.match(phaserRuntime,/arena:territory-spoke:/,"Commander Phaser must visually connect all four authoritative seats to the shared arena core");
+assert.match(phaserRuntime,/arena:territory-lane:/,"Commander Phaser must retain readable presentation-only lanes between every seat and the shared Forge");
+assert.match(phaserRuntime,/arena:territory-label:/,"Commander Phaser must keep compact seat-territory identity readable in still-frame showcase evidence");
+assert.match(phaserRuntime,/local\?194:166/,"Commander Phaser must reserve enlarged sanctums for four-player showcase readability");
+assert.match(phaserRuntime,/arena:seat-sanctum:/,"Commander Phaser must give each relative seat a persistent presentation-only territory");
+assert.match(phaserRuntime,/arena:core-rune:/,"Commander Phaser must retain the legacy response color language in the shared ritual core");
+assert.match(phaserRuntime,/arena:forge-plate/,"Commander Phaser must retain a persistent presentation-only Forge plate in the shared arena core");
+assert.match(phaserRuntime,/arena:forge-crown/,"Commander Phaser must retain a persistent animated Forge crown without gameplay authority");
+assert.match(phaserRuntime,/permanent:nexus-plate:/,"Commander Phaser must render premium Nexus plates from authoritative seat snapshots");
+assert.match(phaserRuntime,/permanent:nexus-sigil:/,"Commander Phaser must keep Nexus identity readable in still-frame visual evidence");
+assert.match(phaserRuntime,/permanent:general-plate:/,"Commander Phaser must give each authoritative General a premium presentation plate");
+assert.match(phaserRuntime,/permanent:general-sigil:/,"Commander Phaser must retain a compact General sigil without changing General authority");
+assert.match(phaserRuntime,/const radius=count<=3\?112:96\+\(index%2\)\*24/,"Commander Phaser must reserve a readable permanent orbit for small and crowded boards");
+assert.match(phaserRuntime,/const centerAngle=Math\.atan2\(450-base\.y,490-base\.x\)/,"first Commander permanents must face the shared arena center");
+assert.match(battlefield,/import Tooltip from "@\/components\/Tooltip"/,"Commander must reuse the certified 1v1 viewport-safe tooltip");
+assert.match(battlefield,/import CardInfo from "@\/components\/CardInfo"/,"Commander must reuse the existing card information panel");
+assert.match(battlefield,/<Tooltip content=\{<CardInfo defId=\{object\.defId\}\/>\}/,"battlefield cards must expose the existing card information tooltip");
+assert.match(battlefield,/<Tooltip content=\{<CardInfo defId=\{card\.defId\}\/>\}/,"viewer hand cards must expose the existing card information tooltip");
+assert.match(battlefield,/<Tooltip content=\{<CardInfo defId=\{runtime\.general\.defId\}\/>\}/,"General cards must expose the existing card information tooltip");assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
+assert.match(phaserRuntime,/turn:lane:/,"active-turn presentation must visually connect the authoritative seat to the arena core");
+assert.match(phaserRuntime,/stack:arena-core-pulse/,"authoritative stack entry and resolution must energize the shared arena core");
+assert.match(phaserRuntime,/permanent:nexus-halo:/,"each authoritative Commander seat must project a persistent Nexus halo");
+assert.match(phaserRuntime,/seat\.nexusHealth<=10/,"Nexus presentation must derive critical state from authoritative health");
+assert.match(phaserRuntime,/ELIMINADO/,"eliminated Commander seats must project a clear visual Nexus state");
+assert.match(phaserRuntime,/permanent:general-presence:/,"a General on the battlefield must project distinct arena presence");
+assert.match(phaserRuntime,/seat\.general\.castCount/,"General presentation must expose authoritative recast history");
+assert.match(phaserRuntime,/combat:destination:/,"attack declaration must preserve a visible route from collision point to the authoritative defending Nexus");
+assert.match(phaserRuntime,/combat:nexus-target:/,"attack declaration must identify the authoritative defending Nexus visually");
+assert.match(phaserRuntime,/combat:block-collision:/,"block declarations must produce a distinct collision marker on the authoritative attack route");
+assert.match(phaserRuntime,/GENERAL_EVENT="runeforged:commander:general-transition"/,"General transitions must consume a dedicated presentation event");
+assert.match(phaserRuntime,/before\.zone===seat\.general\.zone/,"General FX must only fire after an authoritative zone transition");
+assert.match(phaserRuntime,/general:transition:/,"General battlefield and General Zone movement must have a distinct cinematic projection");
+assert.match(phaserRuntime,/nexus:impact:/,"authoritative Nexus damage must produce a seat-localized arena impact");
+assert.match(phaserRuntime,/nexus:recoil:/,"authoritative Nexus damage must visually propagate between the damaged seat and shared arena core");
+assert.match(phaserRuntime,/fx\.nexusDamage/,"Nexus impact presentation must remain sourced from authoritative resolution data");
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
 assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
@@ -148,6 +204,17 @@ assert.doesNotMatch(phaserRuntime,/fetch\(|combatCommand|onDeclareAttacker|onDec
 assert.match(phaserRuntime,/React battlefield remains active/,"Phaser runtime failure must preserve the React battlefield fallback");
 assert.doesNotMatch(battlefield,/fetch\(/,"cinematic battlefield must remain a pure projection layer with no network authority");
 assert.doesNotMatch(battlefield,/combatCommand|mutate\(/,"cinematic battlefield must not create a second command authority");
+assert.match(battlefield,/groupEquivalentBattlefieldObjects/,"Commander battlefield must visually group equivalent repeated objects for dense boards");
+assert.match(battlefield,/battlefieldVisualStateKey/,"visual stacking must split copies when authoritative state differs");
+assert.match(battlefield,/enteredTurn:object\.enteredTurn/,"visual stacking must split summoning-sick copies from otherwise equivalent ready copies");
+assert.match(battlefield,/attackable:attackableIds\.has\(object\.id\)/,"visual stacking must preserve per-instance attack readiness");
+assert.match(battlefield,/blockable:blockableIds\.has\(object\.id\)/,"visual stacking must preserve per-instance block readiness");
+assert.match(battlefield,/data-commander-visual-stack=/,"visual piles must expose their copy count");
+assert.match(battlefield,/data-commander-stack-instance-ids=/,"visual piles must preserve every authoritative instance id");
+assert.match(battlefield,/×\{group\.length\}/,"visual piles must show a visible copy count");
+assert.match(battlefield,/data-commander-stack-copy=/,"expanded visual piles must preserve addressable individual copies");
+assert.match(battlefield,/copyAttackable/,"expanded copies must preserve per-instance attack interaction");
+assert.match(battlefield,/copyBlockable/,"expanded copies must preserve per-instance block interaction");
 
 const commanderClient=read("src/app/commander/CommanderClient.tsx");
 assert.match(commanderClient,/fetch\(\`\/api\/commander\/\$\{code\}\`,\{cache:"no-store",credentials:"include"\}\)/,"Commander recovery must reload the authoritative room snapshot with a no-store GET");

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { isFourPlayerSpellChainSupported } from "@/game/four-player-spell-contract";
 import CommanderBattlefield4P from "./CommanderBattlefield4P";
+import CardInfo from "@/components/CardInfo";
+import Tooltip from "@/components/Tooltip";
 import {
   commanderMutationNeedsResync,
   commanderResumeNeedsResync,
@@ -147,10 +149,6 @@ export default function CommanderClient(){
     };
   },[room?.code,resyncRoom]);
   useEffect(()=>{
-    const id=window.setTimeout(clearPendingCombatIntent,0);
-    return()=>window.clearTimeout(id);
-  },[room?.combat?.revision,clearPendingCombatIntent]);
-  useEffect(()=>{
     if(!room?.combat?.priorityDeadlineAt)return;
     const tick=()=>setNowMs(Date.now());
     tick();
@@ -206,6 +204,14 @@ export default function CommanderClient(){
   const canSubmit=deck.length===COUNT&&Boolean(general)&&!busy;
   const combat=room?.combat??null;
   const viewerRuntime=combat?.seats.find(seat=>seat.seat===room?.viewerSeat);
+  const pendingCardStillInHand=!pendingSpellInstanceId||Boolean(viewerRuntime?.hand?.some(card=>card.instanceId===pendingSpellInstanceId));
+  const stillOwnPriority=combat?.prioritySeat===room?.viewerSeat;
+  useEffect(()=>{
+    if(!pendingSpellInstanceId&&!pendingAbility)return;
+    if(pendingCardStillInHand&&stillOwnPriority)return;
+    const id=window.setTimeout(clearPendingCombatIntent,0);
+    return()=>window.clearTimeout(id);
+  },[combat?.revision,pendingSpellInstanceId,pendingAbility,pendingCardStillInHand,stillOwnPriority,clearPendingCombatIntent]);
   const viewerHasPriority=Boolean(combat&&room?.viewerSeat!=null&&combat.prioritySeat===room.viewerSeat&&combat.status==="active");
   const viewerIsActive=Boolean(combat&&room?.viewerSeat!=null&&combat.activeSeat===room.viewerSeat&&combat.status==="active");
   const viewerAlive=Boolean(viewerRuntime&&!viewerRuntime.eliminated&&combat?.status==="active");
@@ -347,9 +353,25 @@ export default function CommanderClient(){
     });
   }
 
-  return <main className="min-h-screen bg-[#06090e] text-slate-100">
-    <div className="mx-auto max-w-[1500px] px-5 py-8">
-      <header className="border-b border-white/10 pb-6">
+  function canStageHandCard(card:ProjectedCard){
+    const definition=collection.find(item=>item.defId===card.defId);
+    const physical=["Unit","Enchantment","Artifact","Equipment","Sentinela"].includes(definition?.type||"");
+    const spell=definition?.type==="Spell"&&isFourPlayerSpellChainSupported(definition.spell);
+    const availableMana=(viewerRuntime?.mana??0)+(cardCanUseSpellMana(definition)?(viewerRuntime?.spellMana??0):0);
+    const counterTargets=definition?legalCounterTargets(definition,stackItems):[];
+    const proactive=definition?.archetypeKey!=="trap";
+    const reactive=Boolean(spell&&definition?.speed&&stackTop&&stackTop.actionKind&&(stackTop.actionKind!=="spell"||definition.speed==="Burst")&&(definition.spell?.kind!=="negateSpell"||counterTargets.length>0));
+    const hasEquipmentTarget=definition?.type!=="Equipment"||(viewerRuntime?.battlefield||[]).some(object=>
+      ["unit","general","token"].includes(object.kind)&&Boolean(object.combat&&object.combat.health>0)&&object.equipment.length<2
+    );
+    return Boolean((physical||spell)&&(definition?.cost??0)<=availableMana&&hasEquipmentTarget&&((canPlayPhysicalCard&&proactive)||(viewerHasPriority&&viewerAlive&&reactive)));
+  }
+
+  const matchPresented=Boolean(room&&(room.state==="playing"||combat?.status==="completed"));
+
+  return <main className={`min-h-screen bg-[#06090e] text-slate-100 ${matchPresented?"overflow-hidden":""}`} data-commander-surface={matchPresented?"table":"lobby"}>
+    <div className={matchPresented?"h-screen w-screen overflow-hidden":"mx-auto max-w-[1500px] px-5 py-8"}>
+      <header className={matchPresented?"hidden":"border-b border-white/10 pb-6"}>
         <p className="text-[10px] font-black uppercase tracking-[.3em] text-amber-200/55">FORGED · EXPERIMENTAL MULTIPLAYER</p>
         <h1 className="mt-2 text-4xl font-black text-[#f1dfb5]">Commander 4P Alpha</h1>
         <p className="mt-3 max-w-4xl text-sm text-slate-400">Modo separado do 1v1: quatro jogadores reais, 60 cartas + 1 General, Nexus 30, combate dividido, prioridade circular e stack LIFO com reações Fast/Burst. Ranked e o motor 1v1 permanecem isolados.</p>
@@ -357,13 +379,13 @@ export default function CommanderClient(){
       {error&&<div className="mt-5 border border-red-400/25 bg-red-950/20 p-3 text-sm text-red-200">{error}</div>}
       {resyncing&&<div className="mt-5 border border-cyan-300/20 bg-cyan-950/20 p-3 text-sm text-cyan-100">Reconectando ao estado autoritativo da partida…</div>}
 
-      {room ? <section className="mt-7 grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
-        <div className="border border-white/10 bg-white/[.025] p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+      {room ? <section className={matchPresented?"h-full w-full":"mt-7 grid gap-6 xl:grid-cols-[1.2fr_.8fr]"}>
+        <div className={matchPresented?"relative h-full w-full overflow-hidden":"border border-white/10 bg-white/[.025] p-6"}>
+          <div className={matchPresented?"hidden":"flex flex-wrap items-center justify-between gap-3"}>
             <div><p className="text-xs uppercase tracking-[.2em] text-slate-500">Sala {room.code}</p><h2 className="mt-1 text-2xl font-black">{room.state==="playing"?"Partida 4P iniciada":"Lobby 4P"}</h2></div>
             <span className="border border-amber-200/20 px-3 py-2 text-xs font-black uppercase text-amber-100">{room.state} · v{room.version}</span>
           </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className={matchPresented?"hidden":"mt-6 grid gap-4 md:grid-cols-2"}>
             {[0,1,2,3].map(seatIndex=>{
               const seat=room.seats.find(item=>item.seat===seatIndex);
               const runtime=combat?.seats.find(item=>item.seat===seatIndex);
@@ -375,7 +397,7 @@ export default function CommanderClient(){
               </article>
             })}
           </div>
-          {(room.state==="playing"||combat?.status==="completed")&&<div className="mt-5 border border-white/10 p-4">
+          {(room.state==="playing"||combat?.status==="completed")&&<div className={matchPresented?"h-full w-full":"mt-5 border border-white/10 p-4"}>
             {combat?<><CommanderBattlefield4P
               room={room}
               combat={combat}
@@ -383,33 +405,47 @@ export default function CommanderClient(){
               busy={busy}
               onDeclareAttacker={(unitId,defendingSeat)=>combatCommand("declare_attacker",{unitId,defendingSeat})}
               onDeclareBlocker={(unitId,attackerId)=>combatCommand("declare_blocker",{unitId,attackerId})}
-            /><div className={`mb-4 mt-5 border p-3 ${priorityTone}`} data-commander-priority-state={viewerHasPriority?(priorityUrgent?"urgent":"yours"):"waiting"}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <b className="text-xs uppercase tracking-[.18em]">{viewerHasPriority?"Sua prioridade":`Prioridade · ${priorityHolderName}`}</b>
-                  <p className="mt-1 text-xs opacity-75">
-                    {reactionWindowOpen
-                      ? (viewerReactionWindow?"Janela de reação aberta — responda, contra-ataque ou passe.":"Stack aberta — aguardando a janela autoritativa chegar até você.")
-                      : (viewerHasPriority?"Você pode agir agora dentro das regras da fase atual.":"Aguardando a prioridade circular autoritativa.")}
-                  </p>
+              nexusTargetSeats={pendingAbility?.targetKind==="opponentPlayer"&&abilityDiscardIds.length===pendingAbility.discardCount
+                ? livingOpponents.map(target=>target.seat)
+                : pendingSpellDef&&(pendingSpellDef.spell?.kind==="damageNexus"||pendingSpellDef.spell?.kind==="poison"||pendingSpellDef.spell?.kind==="mill")
+                  ? livingOpponents.map(target=>target.seat)
+                  : []}
+              onTargetNexusSeat={(seat)=>pendingAbility?.targetKind==="opponentPlayer"
+                ? activateAbility(pendingAbility,{kind:"player",seat:`p${seat+1}`})
+                : playPendingSpell({kind:"player",seat:`p${seat+1}`})}
+              playableHandInstanceIds={(viewerRuntime?.hand||[]).filter(canStageHandCard).map(card=>card.instanceId)}
+              onPlayHandCard={(card)=>void playHandCard(card,collection.find(item=>item.defId===card.defId))}
+              targetableStackIds={pendingSpellDef?.spell?.target==="spellOnStack"?pendingCounterTargets.map(item=>item.id):[]}
+              onTargetStackItem={(id)=>void playPendingSpell(undefined,id)}
+            /><div className={`pointer-events-none absolute z-40 ${viewerHasPriority||reactionWindowOpen?"right-4 top-16 w-[min(86vw,330px)]":"bottom-24 right-3 w-[min(72vw,230px)]"}`} data-commander-reaction-window={reactionWindowOpen?(viewerReactionWindow?"actionable":"waiting"):"priority"} data-commander-priority-state={viewerHasPriority?"yours":"waiting"} aria-live="assertive"><span className="sr-only" data-commander-revision={combat.revision}>rev {combat.revision}</span>{reactionWindowOpen&&<span className="sr-only">Janela de reação aberta</span>}
+              <div className={`pointer-events-auto overflow-hidden rounded-xl border backdrop-blur-md ${viewerReactionWindow?"border-amber-200/40 bg-[#1b130e]/85 shadow-[0_18px_45px_rgba(0,0,0,.35)]":viewerHasPriority?"border-amber-300/35 bg-[#21170f]/85":"border-amber-200/10 bg-[#1b130e]/70"}`}>
+                <div className="flex items-center justify-between gap-3 px-3 py-2">
+                  <div className="min-w-0">
+                    <span className="text-[9px] font-black uppercase tracking-[.22em] text-amber-200/80">{reactionWindowOpen?"PRIORIDADE ABERTA":"PRIORIDADE"}</span>
+                    <b className="block truncate text-xs text-slate-100">{viewerHasPriority?"Sua janela":`Aguardando ${priorityHolderName}`}</b>
+                  </div>
+                  {prioritySeconds!=null&&<strong className={`text-sm ${priorityUrgent?"text-rose-200":"text-amber-100"}`}>{prioritySeconds}s</strong>}
                 </div>
-                <div className="flex items-center gap-2">
-                  {reactionWindowOpen&&<span className="border border-violet-300/25 bg-violet-950/25 px-2 py-1 text-[10px] font-black uppercase tracking-[.16em] text-violet-100">Reação · {stackItems.length} na stack</span>}
-                  {prioritySeconds!=null&&<span className={`min-w-16 border px-2 py-1 text-center text-xs font-black ${priorityUrgent?"border-rose-300/50 text-rose-100":"border-current/20"}`}>{prioritySeconds}s</span>}
+                {prioritySeconds!=null&&<div className="h-0.5 bg-white/5"><i className="block h-full bg-amber-200/70 transition-[width] duration-300" style={{width:`${Math.max(0,Math.min(100,(prioritySeconds/30)*100))}%`}} /></div>}
+                {reactionWindowOpen&&<div className="border-t border-white/8 px-3 py-2">
+                  <div className="flex items-center justify-between"><b className="text-[10px] uppercase tracking-[.16em] text-amber-100">Pilha de respostas</b><span className="text-[9px] text-slate-500">{stackItems.length} item(ns)</span></div>
+                  <div className="mt-2 flex flex-col-reverse gap-1 overflow-hidden">{[...stackItems].slice(-4).map((item,index,visible)=>{
+                    const top=index===visible.length-1;
+                    const name=item.abilityDescription||collection.find(card=>card.defId===item.defId)?.name||item.defId||item.kind;
+                    return <div key={item.id} className={`relative min-w-0 border px-2 py-1 ${top?"border-amber-200/40 bg-amber-100/10":"border-white/8 bg-black/25"}`} title={name}>
+                      <span className="absolute right-2 top-1 text-[8px] font-black text-slate-500">P{item.controllerSeat+1}</span>
+                      {item.defId?<Tooltip content={<CardInfo defId={item.defId}/>} panelWidth={420} panelHeightEstimate={900}><b className="block truncate pr-8 text-[9px] text-amber-50 underline decoration-amber-300/30 underline-offset-2">{name}</b></Tooltip>:<b className="block truncate pr-8 text-[9px] text-slate-200">{name}</b>}
+                      {top&&<em className="mt-0.5 block text-[7px] not-italic font-black uppercase tracking-[.1em] text-amber-200">Resolve primeiro</em>}
+                    </div>;
+                  })}</div>
+                </div>}
+                <div className={`flex items-center gap-2 border-t border-white/8 px-3 py-2 ${!viewerHasPriority&&!reactionWindowOpen?"hidden":""}`}> 
+                  <p className="min-w-0 flex-1 truncate text-[9px] text-slate-500">{viewerReactionWindow?"Responda, contra-ataque ou passe.":reactionWindowOpen?"Stack aberta — aguardando a janela autoritativa chegar até você.":viewerHasPriority?"Você pode agir agora dentro das regras da fase atual.":"Aguardando a prioridade circular autoritativa."}</p>
+                  <button className={viewerHasPriority?"rounded-md border border-amber-300/40 bg-amber-900/40 px-3 py-1.5 text-[10px] font-black text-amber-100":"hidden"} disabled={busy||!viewerHasPriority} onClick={()=>void combatCommand("pass_priority")}>{viewerReactionWindow?"Passar reação":"Passar prioridade"}</button>
                 </div>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div><small className="text-slate-500">FASE</small><b className="block text-amber-100">{phaseLabel(combat.phase)}</b></div>
-              <div><small className="text-slate-500">TURNO</small><b className="block">P{combat.activeSeat+1} · #{combat.turn}</b></div>
-              <div><small className="text-slate-500">PRIORIDADE</small><b className="block text-cyan-200">P{combat.prioritySeat+1}{prioritySeconds!=null?` · ${prioritySeconds}s`:""}</b></div>
-              <div><small className="text-slate-500">AUTORIDADE</small><b className="block">rev {combat.revision}</b></div>
-            </div>
-            {stackItems.length>0&&<div className={`mt-4 border p-3 transition-[border-color,box-shadow,background-color] duration-200 ${viewerHasPriority?"border-violet-200/45 bg-violet-950/20 shadow-[0_0_32px_rgba(196,181,253,.10)]":"border-violet-300/15 bg-violet-950/10"}`} data-commander-stack-focus={viewerHasPriority?"active":"waiting"}>
-              <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-violet-100">{viewerHasPriority?"Stack 4P · sua resposta":"Stack 4P"}</b><span className="text-[10px] text-violet-300/50">{stackItems.length} item(ns) · topo primeiro</span></div>
-              <div className="mt-2 space-y-1">{[...stackItems].reverse().map((item,index)=><div key={item.id} className="flex items-center justify-between gap-3 border border-white/8 px-3 py-2 text-xs"><span><b>{index===0?"TOPO · ":""}{item.abilityDescription||collection.find(card=>card.defId===item.defId)?.name||item.defId||item.kind}</b><small className="ml-2 text-slate-500">P{item.controllerSeat+1} · {item.abilityTiming?"habilidade "+item.abilityTiming:(item.speed||item.actionKind||item.kind)}{item.uncounterable?" · NÃO ANULÁVEL":""}</small></span><code className="text-[9px] text-slate-600">{item.id}</code></div>)}</div>
-            </div>}
-            {inCombat&&viewerHasPriority&&<div className="mt-4 border border-cyan-300/15 bg-cyan-950/10 p-3">
+            {!matchPresented&&inCombat&&viewerHasPriority&&<div className="mt-4 border border-cyan-300/15 bg-cyan-950/10 p-3">
               <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-cyan-100">Combate autoritativo</b><span className="text-[10px] text-cyan-300/50">split attack 4P</span></div>
               {viewerIsActive?<div className="mt-3 space-y-2">
                 {attackable.map(object=><div key={object.id} className="border border-white/10 p-3 text-xs">
@@ -438,7 +474,7 @@ export default function CommanderClient(){
                 </button>
               })}</div>
             </div>}
-            {viewerRuntime?.hand&&viewerRuntime.hand.length>0&&<div className="mt-4 border border-white/10 bg-black/20 p-3">
+            {!matchPresented&&viewerRuntime?.hand&&viewerRuntime.hand.length>0&&<div className="mt-4 border border-white/10 bg-black/20 p-3">
               <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-slate-400">Sua mão</b><span className="text-[10px] text-slate-600">instâncias autoritativas</span></div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {viewerRuntime.hand.map(card=>{
@@ -508,20 +544,14 @@ export default function CommanderClient(){
                 </div>}
               </div>}
             </div>}
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <button
-                className={viewerHasPriority?(priorityUrgent?"border border-rose-300/50 bg-rose-950/30 px-5 py-2.5 text-sm font-black text-rose-100 shadow-[0_0_22px_rgba(251,113,133,.12)]":"border border-cyan-300/35 bg-cyan-950/20 px-5 py-2.5 text-sm font-black text-cyan-100"):"btn-ghost"}
-                disabled={busy||!viewerHasPriority}
-                onClick={()=>void combatCommand("pass_priority")}
-              >{viewerReactionWindow?"Passar reação":"Passar prioridade"}{viewerHasPriority&&prioritySeconds!=null?` · ${prioritySeconds}s`:""}</button>
+            <div className="absolute bottom-3 right-3 z-30 flex items-center gap-2">
               <button className="btn-ghost" disabled={busy||!canCastGeneral} onClick={()=>void combatCommand("cast_general")}>Conjurar General</button>
               <button className="btn-primary" disabled={busy||!viewerIsActive||!viewerHasPriority||stackItems.length>0} onClick={()=>void combatCommand("end_turn")}>Encerrar turno</button>
               <button className="border border-rose-400/25 px-3 py-2 text-xs font-black uppercase text-rose-200 disabled:opacity-30" disabled={busy||!viewerAlive} onClick={()=>void combatCommand("concede")}>Conceder partida</button>
-            </div>
-            <p className="mt-3 text-xs text-slate-500">Comandos enviados com revisionamento autoritativo; ações fora de prioridade, turno ou timing são recusadas pelo servidor.</p></>:<><p className="text-sm">Rodada <b>{room.round}</b> · compatibilidade de sala anterior.</p>{room.viewerSeat===room.activeSeat&&<button className="btn-primary mt-3" disabled={busy} onClick={()=>void mutate(`/api/commander/${room.code}`,{action:"pass-turn"})}>Passar turno</button>}</>}
+            </div></>:<><p className="text-sm">Rodada <b>{room.round}</b> · compatibilidade de sala anterior.</p>{room.viewerSeat===room.activeSeat&&<button className="btn-primary mt-3" disabled={busy} onClick={()=>void mutate(`/api/commander/${room.code}`,{action:"pass-turn"})}>Passar turno</button>}</>}
           </div>}
         </div>
-        <aside className="border border-white/10 bg-black/20 p-5">
+        <aside className={matchPresented?"hidden":"border border-white/10 bg-black/20 p-5"}>
           <h3 className="font-black">Controles do lobby</h3>
           {room.state==="waiting"&&<>
             <button className="btn-primary mt-4 w-full" disabled={busy||room.viewerSeat==null} onClick={()=>void mutate(`/api/commander/${room.code}`,{action:"ready",ready:!room.seats.find(s=>s.seat===room.viewerSeat)?.ready})}>{room.seats.find(s=>s.seat===room.viewerSeat)?.ready?"Retirar ready":"Estou pronto"}</button>

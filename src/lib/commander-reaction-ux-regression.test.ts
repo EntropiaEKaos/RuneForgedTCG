@@ -5,15 +5,16 @@ import path from "node:path";
 const root=process.cwd();
 const client=fs.readFileSync(path.join(root,"src/app/commander/CommanderClient.tsx"),"utf8");
 
-assert.match(client,/data-commander-priority-state=/,"Commander must expose an explicit priority presentation state");
-assert.match(client,/Sua prioridade/,"Commander must tell the local viewer when authority belongs to them");
-assert.match(client,/Prioridade ·/,"Commander must identify the remote priority holder");
-assert.match(client,/Janela de reação aberta/,"Commander must surface the authoritative reaction window");
+assert.match(client,/data-commander-reaction-window=/,"Commander must expose a contextual reaction presentation state");
+assert.match(client,/Sua janela/,"Commander must tell the local viewer when reaction authority belongs to them");
+assert.match(client,/Aguardando \$\{priorityHolderName\}/,"Commander must identify the remote priority holder compactly");
+assert.match(client,/PRIORIDADE ABERTA/,"Commander must surface the authoritative reaction window");
 assert.match(client,/Stack aberta — aguardando a janela autoritativa chegar até você/,"non-holder clients must not imply local reaction authority");
 assert.match(client,/prioritySeconds<=7/,"Commander must mark the final priority seconds as urgent presentation");
-assert.match(client,/data-commander-stack-focus=/,"Commander stack must expose focus state");
-assert.match(client,/Stack 4P · sua resposta/,"Commander must focus the stack when the viewer owns priority");
-assert.match(client,/Passar reação/,"Commander must distinguish reaction pass copy from ordinary priority pass");
+assert.match(client,/Pilha de respostas/,"Commander reaction window must expose the response stack");
+assert.match(client,/Resolve primeiro/,"Commander reaction stack must identify the LIFO top frame");
+assert.match(client,/Passar reação/,"Commander must distinguish reaction pass copy from ordinary priority pass"); 
+assert.match(client,/item\.controllerSeat\+1/,"Commander reaction frames must identify P1/P2/P3/P4 ownership");
 assert.match(client,/disabled={busy\|\|!viewerHasPriority}/,"presentation changes must preserve server-authoritative priority gating");
 
 const priorityBlock=client.indexOf("const prioritySeconds=");

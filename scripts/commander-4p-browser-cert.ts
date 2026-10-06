@@ -147,6 +147,11 @@ async function waitForText(cdp:CdpClient,text:string,timeoutMs=25_000){
   return waitUntil(()=>evaluate(cdp,`document.body?.innerText?.includes(${encoded})===true`),`text ${encoded}`,timeoutMs);
 }
 
+async function waitForSelector(cdp:CdpClient,selector:string,timeoutMs=25_000){
+  const encoded=JSON.stringify(selector);
+  return waitUntil(()=>evaluate(cdp,`Boolean(document.querySelector(${encoded}))`),`selector ${encoded}`,timeoutMs);
+}
+
 async function waitForCommanderUiAuthority(
   browser:Browser,
   revision:number,
@@ -175,6 +180,34 @@ async function clickText(cdp:CdpClient,text:string,exact=false){
     return true;
   })()`);
   assert.equal(clicked,true,`Could not click control ${exact?"equal to":"containing"} text: ${text}`);
+}
+
+async function clickArenaHandCard(cdp:CdpClient,text:string){
+  const encoded=JSON.stringify(text);
+  const clicked=await evaluate<boolean>(cdp,`(()=>{
+    const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+    const target=[...document.querySelectorAll('[data-commander-hand-card] button')]
+      .find((button)=>!button.disabled&&normalize(button.textContent).includes(${encoded}));
+    if(!target)return false;
+    target.scrollIntoView({block:'center',inline:'center'});
+    target.click();
+    return true;
+  })()`);
+  assert.equal(clicked,true,`Could not click enabled Arena hand card containing text: ${text}`);
+}
+
+async function clickArenaStackCard(cdp:CdpClient,text:string){
+  const encoded=JSON.stringify(text);
+  const clicked=await evaluate<boolean>(cdp,`(()=>{
+    const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+    const target=[...document.querySelectorAll('[data-commander-stack-item]')]
+      .find((item)=>normalize(item.textContent).includes(${encoded}));
+    if(!target)return false;
+    target.scrollIntoView({block:'center',inline:'center'});
+    target.click();
+    return true;
+  })()`);
+  assert.equal(clicked,true,`Could not click Arena stack card containing text: ${text}`);
 }
 
 async function waitForEnabledButton(cdp:CdpClient,text:string,timeoutMs=25_000){
@@ -557,6 +590,12 @@ async function seedCommanderReactionFixture(roomCode:string,loadout:ReturnType<t
     counterInstanceId:counterSwap.card.instanceId,
     counterOfCounterInstanceId:counterOfCounterSwap.card.instanceId,
     targetDeckCount:next.zones.p2.deck.length,
+    handCounts:[
+      next.zones.p1.hand.length,
+      next.zones.p2.hand.length,
+      next.zones.p3.hand.length,
+      next.zones.p4.hand.length,
+    ] as [number,number,number,number],
   };
 }
 
@@ -677,6 +716,49 @@ async function waitForAllRoomVersion(browsers:Browser[],code:string,minimumRevis
   },`all four Commander clients at revision >= ${minimumRevision}`,timeoutMs);
 }
 
+async function waitForFourClientState(
+  browsers:Browser[],
+  code:string,
+  minimumRevision:number,
+  expectedHandCounts:[number,number,number,number],
+  minimumStackSize:number,
+  timeoutMs=20_000,
+){
+  let lastSnapshot:any[]=[];
+  try{
+    return await waitUntil(async()=>{
+      const responses=await Promise.all(browsers.map((browser)=>fetchCommander(browser,code)));
+      if(responses.some((response)=>response.status!==200||!response.body?.room?.combat))return false;
+      const rooms=responses.map((response)=>response.body.room);
+      lastSnapshot=rooms.map((room)=>({
+        viewerSeat:room.viewerSeat,
+        version:room.version,
+        revision:room.combat.revision,
+        prioritySeat:room.combat.prioritySeat,
+        stack:(room.combat.stack??[]).map((item:any)=>({id:item.id,defId:item.defId,controller:item.controller})),
+        seats:room.combat.seats.map((seat:any)=>({
+          seat:seat.seat,
+          handCount:seat.handCount,
+          privateHandLength:Array.isArray(seat.hand)?seat.hand.length:null,
+        })),
+      }));
+      const revisions=rooms.map((room)=>Number(room.combat.revision));
+      if(revisions.some((revision)=>revision<minimumRevision)||new Set(revisions).size!==1)return false;
+      for(const room of rooms){
+        if((room.combat.stack?.length??0)<minimumStackSize)return false;
+        for(const seat of room.combat.seats){
+          const expected=expectedHandCounts[seat.seat];
+          if(seat.handCount!==expected)return false;
+          if(seat.seat===room.viewerSeat&&Array.isArray(seat.hand)&&seat.hand.length!==expected)return false;
+        }
+      }
+      return responses;
+    },`all four Commander clients converged at revision >= ${minimumRevision}, stack >= ${minimumStackSize}, hands ${expectedHandCounts.join("/")}`,timeoutMs);
+  }catch(error){
+    throw new Error(`${error instanceof Error?error.message:String(error)} | four-client-state=${JSON.stringify(lastSnapshot)}`);
+  }
+}
+
 function validateFourClientProjection(
   responses:any[],
   label:string,
@@ -755,7 +837,7 @@ async function main(){
     await clickText(host.cdp,"Iniciar com 4 jogadores",true);
 
     await Promise.all(browsers.map(async(browser)=>{
-      await waitForText(browser.cdp,"Partida 4P iniciada",30_000);
+      await waitForSelector(browser.cdp,'[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]',30_000);
       await waitForText(browser.cdp,"PRIORIDADE",30_000);
     }));
 
@@ -855,17 +937,39 @@ async function main(){
 
     const counterChainFixture=await seedCommanderReactionFixture(roomCode,loadout);
     responses=await waitForAllRoomVersion(browsers,roomCode,counterChainFixture.revision,20_000);
-    rooms=validateFourClientProjection(responses,"Commander counter-chain fixture",[4,4,5,5]);
+    rooms=validateFourClientProjection(responses,"Commander counter-chain fixture",counterChainFixture.handCounts);
     assert.equal(rooms[0].combat.prioritySeat,0,"counter-chain fixture must reopen P1 priority");
 
     await waitForCommanderUiAuthority(browsers[0],counterChainFixture.revision,"yours",20_000);
     await waitForEnabledButton(browsers[0].cdp,loadout.reaction.source.name,15_000);
-    await clickText(browsers[0].cdp,loadout.reaction.source.name);
-    await waitForEnabledButton(browsers[0].cdp,"Nexus P2",15_000);
+    await clickArenaHandCard(browsers[0].cdp,loadout.reaction.source.name);
+    try{
+      await waitForEnabledButton(browsers[0].cdp,"Nexus P2",15_000);
+    }catch(error){
+      const arenaTargetDebug=await evaluate<any>(browsers[0].cdp,`(()=>{
+        const normalize=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
+        return {
+          buttons:[...document.querySelectorAll('button')].map((button)=>({
+            text:normalize(button.textContent),
+            disabled:Boolean(button.disabled),
+            aria:button.getAttribute('aria-label'),
+          })).filter((button)=>button.text.includes('Nexus')||button.text.includes('Tidal Erosion')),
+          arena:document.querySelector('[data-commander-arena]')?.getAttribute('data-commander-arena')||null,
+          stackTop:normalize(document.querySelector('[data-commander-stack-top]')?.textContent),
+        };
+      })()`);
+      throw new Error(`${error instanceof Error?error.message:String(error)} | arena-target-debug=${JSON.stringify(arenaTargetDebug)}`);
+    }
     await clickText(browsers[0].cdp,"Nexus P2",true);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,counterChainFixture.revision+1,20_000);
-    rooms=validateFourClientProjection(responses,"counter-chain source cast",[3,4,5,5]);
+    const chainSourceHands:[number,number,number,number]=[
+      counterChainFixture.handCounts[0]-1,
+      counterChainFixture.handCounts[1],
+      counterChainFixture.handCounts[2],
+      counterChainFixture.handCounts[3],
+    ];
+    rooms=validateFourClientProjection(responses,"counter-chain source cast",chainSourceHands);
     const chainSourceRevision=rooms[0].combat.revision;
     const chainSourceStackId=rooms[0].combat.stack[0]?.id;
     assert.ok(chainSourceStackId,"counter-chain source spell must expose a public stack id");
@@ -873,12 +977,18 @@ async function main(){
 
     await waitForCommanderUiAuthority(browsers[1],chainSourceRevision,"yours",20_000);
     await waitForEnabledButton(browsers[1].cdp,loadout.reaction.counter.name,15_000);
-    await clickText(browsers[1].cdp,loadout.reaction.counter.name);
+    await clickArenaHandCard(browsers[1].cdp,loadout.reaction.counter.name);
     await waitForEnabledButton(browsers[1].cdp,loadout.reaction.source.name,15_000);
-    await clickText(browsers[1].cdp,loadout.reaction.source.name);
+    await clickArenaStackCard(browsers[1].cdp,loadout.reaction.source.name);
 
-    responses=await waitForAllRoomVersion(browsers,roomCode,chainSourceRevision+1,20_000);
-    rooms=validateFourClientProjection(responses,"counter-chain first counter",[3,3,5,5]);
+    const chainCounterHands:[number,number,number,number]=[
+      chainSourceHands[0],
+      chainSourceHands[1]-1,
+      chainSourceHands[2],
+      chainSourceHands[3],
+    ];
+    responses=await waitForFourClientState(browsers,roomCode,chainSourceRevision+1,chainCounterHands,2,20_000);
+    rooms=validateFourClientProjection(responses,"counter-chain first counter",chainCounterHands);
     const chainCounterRevision=rooms[0].combat.revision;
     const chainCounterStackId=rooms[0].combat.stack.at(-1)?.id;
     assert.ok(chainCounterStackId,"P2 counter must expose a public stack id");
@@ -887,12 +997,17 @@ async function main(){
 
     await waitForCommanderUiAuthority(browsers[2],chainCounterRevision,"yours",20_000);
     await waitForEnabledButton(browsers[2].cdp,loadout.reaction.counter.name,15_000);
-    await clickText(browsers[2].cdp,loadout.reaction.counter.name);
-    await waitForEnabledButton(browsers[2].cdp,"TOPO · "+loadout.reaction.counter.name,15_000);
-    await clickText(browsers[2].cdp,"TOPO · "+loadout.reaction.counter.name);
+    await clickArenaHandCard(browsers[2].cdp,loadout.reaction.counter.name);
+    await clickArenaStackCard(browsers[2].cdp,loadout.reaction.counter.name);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,chainCounterRevision+1,20_000);
-    rooms=validateFourClientProjection(responses,"counter-chain P3 counter-of-counter",[3,3,4,5]);
+    const chainCounterOfCounterHands:[number,number,number,number]=[
+      chainCounterHands[0],
+      chainCounterHands[1],
+      chainCounterHands[2]-1,
+      chainCounterHands[3],
+    ];
+    rooms=validateFourClientProjection(responses,"counter-chain P3 counter-of-counter",chainCounterOfCounterHands);
     const counterOfCounterRevision=rooms[0].combat.revision;
     assert.equal(rooms[0].combat.stack.length,3,"counter-of-counter proof requires three simultaneous stack objects");
     assert.equal(rooms[0].combat.stack[0].id,chainSourceStackId,"original source must remain at stack base");
@@ -1003,6 +1118,28 @@ async function main(){
     assert.equal(rooms[0].combat.stack.length,1,"illegal filtered counter must not mutate the stack");
     assert.equal(rooms[0].combat.seats[1].handCount,filteredCounterFixture.responderHandCount,"illegal filtered counter must remain in P2 hand");
 
+    // Real Commander battlefield evidence: resolve the already-cast Unit through
+    // the authoritative four-seat priority cycle before capturing the actual board.
+    const unitResolutionHolders:number[]=[];
+    for(let pass=0;pass<4;pass++){
+      const current=responses.map((response)=>response.body.room);
+      const revision=current[0].combat.revision;
+      const holder=current[0].combat.prioritySeat;
+      unitResolutionHolders.push(holder);
+      await waitForCommanderUiAuthority(browsers[holder],revision,"yours",20_000);
+      await waitForEnabledButton(browsers[holder].cdp,"Passar reação",15_000);
+      await clickText(browsers[holder].cdp,"Passar reação");
+      responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
+      validateFourClientProjection(responses,`Commander Unit battlefield priority pass ${pass+1}`,[filteredCounterFixture.handCounts[0]-1,filteredCounterFixture.handCounts[1],filteredCounterFixture.handCounts[2],filteredCounterFixture.handCounts[3]]);
+    }
+    assert.deepEqual(unitResolutionHolders,[1,2,3,0],"Commander Unit must resolve after all four seats pass in circular order");
+    const unitResolved=responses.map((response)=>response.body.room);
+    assert.equal(unitResolved[0].combat.stack.length,0,"Commander Unit must leave the stack after the full pass cycle");
+    const p1Units=unitResolved[0].combat.seats[0].battlefield;
+    assert.ok(p1Units.some((unit:any)=>unit.defId===loadout.legality.unit.defId),"Commander must render a real resolved Unit on P1 battlefield");
+    await waitUntil(async()=>await evaluate<boolean>(browsers[0].cdp,`document.querySelector('[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]')!==null`),"Commander real Unit battlefield visual evidence",20_000);
+    await capture(browsers[0],"73b-commander-4p-unit-on-battlefield.png","Commander authoritative Unit resolved onto the real four-player battlefield",manifest);
+
     const uncounterableFixture=await seedCommanderLegalityFixture(
       roomCode,
       loadout.legality.uncounterableSpell.defId,
@@ -1110,11 +1247,11 @@ async function main(){
     const endTurnRevision=rooms[0].combat.revision;
     assert.notEqual(activeSeatAfterEnd,activeSeatBeforeEnd,"end_turn must advance the authoritative active seat");
     assert.equal(rooms[0].combat.prioritySeat,activeSeatAfterEnd,"new active seat must receive authoritative priority after end_turn");
-    await capture(browsers[activeSeatAfterEnd],"76-commander-4p-end-turn.png","Commander authoritative end-turn transition",manifest);
+    await waitUntil(async()=>await evaluate<boolean>(browsers[activeSeatAfterEnd].cdp,`document.querySelector('[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]')!==null`),"Commander fullscreen four-seat table",20_000);
+    await capture(browsers[activeSeatAfterEnd],"76-commander-4p-fullscreen-table.png","Commander fullscreen four-seat battlefield after authoritative end-turn",manifest);
 
     const recoveryBrowser=browsers[activeSeatAfterEnd];
     await navigate(recoveryBrowser.cdp,"/commander");
-    await waitForText(recoveryBrowser.cdp,"Commander 4P Alpha",20_000);
     const recoveryRoomLabel=JSON.stringify(`Sala ${roomCode}`);
     await waitUntil(async()=>{
       const direct=await evaluate<boolean>(recoveryBrowser.cdp,`document.body?.innerText?.includes(${recoveryRoomLabel})===true&&document.body?.innerText?.includes('PRIORIDADE')===true`);
@@ -1130,12 +1267,13 @@ async function main(){
       return opened?"opened":false;
     },`${recoveryBrowser.label} Commander recovery path`,20_000);
     await waitForText(recoveryBrowser.cdp,`Sala ${roomCode}`,20_000);
+    await waitUntil(async()=>await evaluate<boolean>(recoveryBrowser.cdp,`document.querySelector('[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]')!==null`),"Commander recovery restores fullscreen table",20_000);
     await waitForCommanderUiAuthority(recoveryBrowser,endTurnRevision,"yours",20_000);
     const recovered=await fetchCommander(recoveryBrowser,roomCode);
     assert.equal(recovered.status,200,"hard-refresh recovery must reload the Commander room");
     assert.equal(recovered.body.room.combat.revision,endTurnRevision,"hard-refresh recovery must preserve the exact authoritative revision without replay");
     assert.equal(recovered.body.room.combat.activeSeat,activeSeatAfterEnd,"hard-refresh recovery must preserve the authoritative active seat");
-    await capture(recoveryBrowser,"77-commander-4p-refresh-recovered.png","Commander hard-refresh authoritative recovery",manifest);
+    await capture(recoveryBrowser,"77-commander-4p-refresh-recovered-table.png","Commander hard-refresh authoritative fullscreen table recovery",manifest);
 
     const concedeSeats=[0,1,2,3].filter((seat)=>seat!==activeSeatAfterEnd).slice(0,3);
     let terminalRevision=endTurnRevision;
