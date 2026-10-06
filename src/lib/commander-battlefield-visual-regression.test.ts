@@ -167,6 +167,9 @@ assert.match(battlefield,/blockable:blockableIds\.has\(object\.id\)/,"visual sta
 assert.match(battlefield,/data-commander-visual-stack=/,"visual piles must expose their copy count");
 assert.match(battlefield,/data-commander-stack-instance-ids=/,"visual piles must preserve every authoritative instance id");
 assert.match(battlefield,/×\{group\.length\}/,"visual piles must show a visible copy count");
+assert.match(battlefield,/data-commander-stack-copy=/,"expanded visual piles must preserve addressable individual copies");
+assert.match(battlefield,/copyAttackable/,"expanded copies must preserve per-instance attack interaction");
+assert.match(battlefield,/copyBlockable/,"expanded copies must preserve per-instance block interaction");
 
 const commanderClient=read("src/app/commander/CommanderClient.tsx");
 assert.match(commanderClient,/fetch\(\`\/api\/commander\/\$\{code\}\`,\{cache:"no-store",credentials:"include"\}\)/,"Commander recovery must reload the authoritative room snapshot with a no-store GET");
