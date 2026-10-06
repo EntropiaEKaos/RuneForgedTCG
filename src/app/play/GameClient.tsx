@@ -79,6 +79,7 @@ export default function GameClient() {
   const [reaction, setReaction] = useState<ReactionPending | null>(null);
   const [pendingReaction, setPendingReaction] = useState<PendingSpell | null>(null);
   const [reactionMs, setReactionMs] = useState(REACTION_MS);
+  const [turnSeconds, setTurnSeconds] = useState(60);
 
   const presentation = useGamePresentation({ state, reaction, setPendingSpell, setPendingReaction, setAiDifficulty });
   const {
@@ -463,6 +464,22 @@ export default function GameClient() {
   }, [state, isPlayerMain, recordAction, isPvp, sendPvpAction, cancelActivatedDiscard]);
 
   useEffect(() => {
+    if (!state || screen !== "battle" || state.phase === "gameover") return;
+    setTurnSeconds(60);
+  }, [state?.round, state?.activePlayer, screen]);
+
+  useEffect(() => {
+    if (!state || screen !== "battle" || state.phase === "gameover") return;
+    const timer = window.setInterval(() => setTurnSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [state?.round, state?.activePlayer, state?.phase, screen]);
+
+  useEffect(() => {
+    if (turnSeconds !== 0 || !state || state.phase === "gameover") return;
+    if (state.activePlayer === "player" && isPlayerMain) endMyTurn();
+  }, [turnSeconds, state, isPlayerMain, endMyTurn]);
+
+  useEffect(() => {
     const onBattleKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.matches("input,textarea,select,[contenteditable='true']") || settingsOpen || guideOpen || pendingActivatedDiscard) return;
@@ -505,7 +522,7 @@ export default function GameClient() {
         reaction={reaction} pendingSpell={pendingSpell} pendingReaction={pendingReaction} pendingSentinelaAbility={pendingSentinelaAbility}
         selectedAttackers={selectedAttackers} selectedChallengers={selectedChallengers} selectedBlocker={selectedBlocker}
         challenges={challenges} blockAssignments={blockAssignments} isPlayerMain={isPlayerMain} isPlayerBlocking={isPlayerBlocking}
-        canAttackNow={canAttackNow} timeLeft={timeLeft} firstInfo={firstInfo} presentation={presentation} pvp={pvp}
+        canAttackNow={canAttackNow} timeLeft={timeLeft} turnSeconds={turnSeconds} firstInfo={firstInfo} presentation={presentation} pvp={pvp}
         isValidSpellTarget={isValidSpellTarget} reactionTargetOk={reactionTargetOk} activatedTargetOk={activatedTargetOk}
         handlePermanentClick={handlePermanentClick} handleSentinelaClick={handleSentinelaClick} handleSentinelaActivate={handleActivatedAbility}
         handleUnitClick={handleUnitClick} handleHandClick={handleHandClick} confirmAttack={confirmAttack} confirmBlocks={confirmBlocks}
