@@ -249,7 +249,7 @@ function SeatZone({
     </div>
 
     <div className={`absolute z-20 ${position==="top"?"left-2 top-2":position==="bottom"?"bottom-2 left-2":position==="left"?"left-2 top-2": "right-2 top-2"}`}>
-      <div className={`relative origin-top-left ${isViewer?"scale-[.68]":"scale-[.56]"}`>
+      <div className={`relative origin-top-left ${isViewer?"scale-[.68]":"scale-[.56]"}`}>
         <CardView defId={runtime.general.defId} size="sm" dimmed={runtime.general.zone!=="battlefield"}/>
         <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/85 px-1.5 py-0.5 text-[7px] font-black text-amber-100">GENERAL · {runtime.general.castCount}x</span>
       </div>
