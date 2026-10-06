@@ -38,7 +38,7 @@ export function PlayerHand({ state, reaction, pendingSpell, pendingReaction, isP
 }) {
   const hand = state.players.player.hand;
   return (
-    <section className={`player-hand-shell ${expanded ? "expanded" : ""}`} aria-label="Sua mão">
+    <section className={`player-hand-shell relative z-[60] ${expanded ? "expanded" : ""}`} aria-label="Sua mão">
       <button className="mobile-hand-toggle" onClick={onToggle} aria-expanded={expanded} aria-controls="player-hand-cards">
         <span>🎴 Sua mão</span><b>{hand.length}</b><i>{expanded ? "Recolher" : "Expandir"}</i>
       </button>
