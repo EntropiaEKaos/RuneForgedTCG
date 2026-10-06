@@ -1118,6 +1118,28 @@ async function main(){
     assert.equal(rooms[0].combat.stack.length,1,"illegal filtered counter must not mutate the stack");
     assert.equal(rooms[0].combat.seats[1].handCount,filteredCounterFixture.responderHandCount,"illegal filtered counter must remain in P2 hand");
 
+    // Real Commander battlefield evidence: resolve the already-cast Unit through
+    // the authoritative four-seat priority cycle before capturing the actual board.
+    const unitResolutionHolders:number[]=[];
+    for(let pass=0;pass<4;pass++){
+      const current=responses.map((response)=>response.body.room);
+      const revision=current[0].combat.revision;
+      const holder=current[0].combat.prioritySeat;
+      unitResolutionHolders.push(holder);
+      await waitForCommanderUiAuthority(browsers[holder],revision,"yours",20_000);
+      await waitForEnabledButton(browsers[holder].cdp,"Passar reação",15_000);
+      await clickText(browsers[holder].cdp,"Passar reação");
+      responses=await waitForAllRoomVersion(browsers,roomCode,revision+1,20_000);
+      validateFourClientProjection(responses,`Commander Unit battlefield priority pass ${pass+1}`);
+    }
+    assert.deepEqual(unitResolutionHolders,[1,2,3,0],"Commander Unit must resolve after all four seats pass in circular order");
+    const unitResolved=responses.map((response)=>response.body.room);
+    assert.equal(unitResolved[0].combat.stack.length,0,"Commander Unit must leave the stack after the full pass cycle");
+    const p1Units=unitResolved[0].combat.seats[0].battlefield;
+    assert.ok(p1Units.some((unit:any)=>unit.defId===loadout.legality.unit.defId),"Commander must render a real resolved Unit on P1 battlefield");
+    await waitUntil(async()=>await evaluate<boolean>(browsers[0].cdp,`document.querySelector('[data-commander-surface="table"] [data-commander-battlefield="cinematic-v1"]')!==null`),"Commander real Unit battlefield visual evidence",20_000);
+    await capture(browsers[0],"73b-commander-4p-unit-on-battlefield.png","Commander authoritative Unit resolved onto the real four-player battlefield",manifest);
+
     const uncounterableFixture=await seedCommanderLegalityFixture(
       roomCode,
       loadout.legality.uncounterableSpell.defId,
