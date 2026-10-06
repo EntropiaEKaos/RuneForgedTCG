@@ -443,7 +443,7 @@ export default function CommanderClient(){
                 </div>
               </div>
             </div>
-            {inCombat&&viewerHasPriority&&<div className="mt-4 border border-cyan-300/15 bg-cyan-950/10 p-3">
+            {!matchPresented&&inCombat&&viewerHasPriority&&<div className="mt-4 border border-cyan-300/15 bg-cyan-950/10 p-3">
               <div className="flex items-center justify-between gap-3"><b className="text-xs uppercase tracking-[.16em] text-cyan-100">Combate autoritativo</b><span className="text-[10px] text-cyan-300/50">split attack 4P</span></div>
               {viewerIsActive?<div className="mt-3 space-y-2">
                 {attackable.map(object=><div key={object.id} className="border border-white/10 p-3 text-xs">
