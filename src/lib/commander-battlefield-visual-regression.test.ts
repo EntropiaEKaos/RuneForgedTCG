@@ -162,7 +162,14 @@ assert.match(phaserRuntime,/arena:legacy-halo/,"Commander Phaser must render amb
 assert.match(phaserRuntime,/arena:rune-ring:/,"Commander Phaser must retain persistent low-noise rune rings around the shared arena core");
 assert.match(phaserRuntime,/arena:territory-spoke:/,"Commander Phaser must visually connect all four authoritative seats to the shared arena core");
 assert.match(phaserRuntime,/arena:seat-sanctum:/,"Commander Phaser must give each relative seat a persistent presentation-only territory");
-assert.match(phaserRuntime,/arena:core-rune:/,"Commander Phaser must retain the legacy response color language in the shared ritual core");assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
+assert.match(phaserRuntime,/arena:core-rune:/,"Commander Phaser must retain the legacy response color language in the shared ritual core");
+assert.match(phaserRuntime,/arena:forge-plate/,"Commander Phaser must retain a persistent presentation-only Forge plate in the shared arena core");
+assert.match(phaserRuntime,/arena:forge-crown/,"Commander Phaser must retain a persistent animated Forge crown without gameplay authority");
+assert.match(phaserRuntime,/permanent:nexus-plate:/,"Commander Phaser must render premium Nexus plates from authoritative seat snapshots");
+assert.match(phaserRuntime,/permanent:nexus-sigil:/,"Commander Phaser must keep Nexus identity readable in still-frame visual evidence");
+assert.match(phaserRuntime,/permanent:general-plate:/,"Commander Phaser must give each authoritative General a premium presentation plate");
+assert.match(phaserRuntime,/permanent:general-sigil:/,"Commander Phaser must retain a compact General sigil without changing General authority");
+assert.match(phaserRuntime,/const radius=82\+\(index%2\)\*27/,"Commander Phaser must reserve a larger readable permanent orbit around every seat");assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
 assert.match(phaserRuntime,/turn:lane:/,"active-turn presentation must visually connect the authoritative seat to the arena core");
 assert.match(phaserRuntime,/stack:arena-core-pulse/,"authoritative stack entry and resolution must energize the shared arena core");
 assert.match(phaserRuntime,/permanent:nexus-halo:/,"each authoritative Commander seat must project a persistent Nexus halo");
