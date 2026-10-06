@@ -79,7 +79,9 @@ export default function GameClient() {
   const [reaction, setReaction] = useState<ReactionPending | null>(null);
   const [pendingReaction, setPendingReaction] = useState<PendingSpell | null>(null);
   const [reactionMs, setReactionMs] = useState(REACTION_MS);
-  const [turnSeconds, setTurnSeconds] = useState(60);
+  const [turnDeadline, setTurnDeadline] = useState(() => Date.now() + 60_000);
+  const [turnNow, setTurnNow] = useState(() => Date.now());
+  const turnSeconds = Math.max(0, Math.ceil((turnDeadline - turnNow) / 1000));
 
   const presentation = useGamePresentation({ state, reaction, setPendingSpell, setPendingReaction, setAiDifficulty });
   const {
@@ -465,18 +467,24 @@ export default function GameClient() {
 
   useEffect(() => {
     if (!state || screen !== "game" || state.phase === "gameover") return;
-    setTurnSeconds(60);
-  }, [state?.round, state?.activePlayer, screen]);
+    const resetTimer = window.setTimeout(() => {
+      const now = Date.now();
+      setTurnNow(now);
+      setTurnDeadline(now + 60_000);
+    }, 0);
+    return () => window.clearTimeout(resetTimer);
+  }, [state?.round, state?.activePlayer, state?.phase, screen, state]);
 
   useEffect(() => {
     if (!state || screen !== "game" || state.phase === "gameover") return;
-    const timer = window.setInterval(() => setTurnSeconds((seconds) => Math.max(0, seconds - 1)), 1000);
+    const timer = window.setInterval(() => setTurnNow(Date.now()), 250);
     return () => window.clearInterval(timer);
-  }, [state?.round, state?.activePlayer, state?.phase, screen]);
+  }, [screen, state]);
 
   useEffect(() => {
-    if (turnSeconds !== 0 || !state || state.phase === "gameover") return;
-    if (state.activePlayer === "player" && isPlayerMain) endMyTurn();
+    if (turnSeconds !== 0 || !state || state.phase === "gameover" || state.activePlayer !== "player" || !isPlayerMain) return;
+    const timeout = window.setTimeout(() => endMyTurn(), 0);
+    return () => window.clearTimeout(timeout);
   }, [turnSeconds, state, isPlayerMain, endMyTurn]);
 
   useEffect(() => {
