@@ -168,6 +168,9 @@ assert.match(phaserRuntime,/seat\.general\.castCount/,"General presentation must
 assert.match(phaserRuntime,/combat:destination:/,"attack declaration must preserve a visible route from collision point to the authoritative defending Nexus");
 assert.match(phaserRuntime,/combat:nexus-target:/,"attack declaration must identify the authoritative defending Nexus visually");
 assert.match(phaserRuntime,/combat:block-collision:/,"block declarations must produce a distinct collision marker on the authoritative attack route");
+assert.match(phaserRuntime,/GENERAL_EVENT="runeforged:commander:general-transition"/,"General transitions must consume a dedicated presentation event");
+assert.match(phaserRuntime,/before\.zone===seat\.general\.zone/,"General FX must only fire after an authoritative zone transition");
+assert.match(phaserRuntime,/general:transition:/,"General battlefield and General Zone movement must have a distinct cinematic projection");
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
 assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
