@@ -126,7 +126,9 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
       ? rightSideLeft
       : Math.max(VIEWPORT_GUTTER, pos.x - width - 16);
     const height = Math.min(panelHeightEstimate, window.innerHeight - VIEWPORT_GUTTER * 2);
-    const top = Math.max(VIEWPORT_GUTTER, Math.min(pos.y + 16, window.innerHeight - height - VIEWPORT_GUTTER));
+    const preferAbove = pos.y > window.innerHeight * 0.56;
+    const desiredTop = preferAbove ? pos.y - height - 16 : pos.y + 16;
+    const top = Math.max(VIEWPORT_GUTTER, Math.min(desiredTop, window.innerHeight - height - VIEWPORT_GUTTER));
     return { left, top, width, maxHeight: window.innerHeight - VIEWPORT_GUTTER * 2 };
   };
 
@@ -147,7 +149,7 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
       {pos && typeof window !== "undefined" && createPortal(
         <div
           data-tooltip-panel="true"
-          className="fixed z-[100] overflow-y-auto overscroll-contain"
+          className="fixed z-[200] overflow-y-auto overscroll-contain"
           style={positionStyle()}
           onMouseEnter={clearCloseTimer}
           onMouseLeave={scheduleClose}
