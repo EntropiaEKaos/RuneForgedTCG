@@ -559,7 +559,7 @@ export default function CommanderBattlefield4P({
           </div>)}
         </div>}
       </div>
-    </div>
+    </div>}
     <CommanderPhaserRuntime
       combat={{
         revision:combat.revision,
