@@ -221,6 +221,38 @@ export default function CommanderPhaserRuntime({
         create(){
           this.arenaHalo=this.add.circle(490,450,118,RF_BATTLEFIELD_THEME.main,.018).setStrokeStyle(2,RF_BATTLEFIELD_THEME.main,.12).setDepth(2).setName("arena:legacy-halo");
           this.arenaCore=this.add.circle(490,450,48,RF_BATTLEFIELD_THEME.main,.035).setStrokeStyle(2,RF_BATTLEFIELD_THEME.main,.28).setDepth(3).setName("arena:legacy-core");
+
+          // Presentation-only arena architecture: inherit the certified 1v1 color language
+          // while giving Commander four readable territories and one shared ritual core.
+          [174,232,292].forEach((radius,index)=>{
+            this.add.circle(490,450,radius,RF_BATTLEFIELD_THEME.surface,.012)
+              .setStrokeStyle(index===1?2:1,index===1?RF_BATTLEFIELD_THEME.main:RF_BATTLEFIELD_THEME.opponent,index===1?.10:.065)
+              .setDepth(1)
+              .setName(`arena:rune-ring:${index}`);
+          });
+          [0,1,2,3].forEach(relativeSeat=>{
+            const point=seatPoint((viewerSeat+relativeSeat)%4,viewerSeat);
+            this.add.line(0,0,490,450,point.x,point.y,RF_BATTLEFIELD_THEME.main,.055)
+              .setOrigin(0,0)
+              .setLineWidth(relativeSeat===0?2:1)
+              .setDepth(1)
+              .setName(`arena:territory-spoke:${relativeSeat}`);
+            this.add.ellipse(point.x,point.y,relativeSeat===0?176:148,relativeSeat===0?104:92,RF_BATTLEFIELD_THEME.surface,.035)
+              .setStrokeStyle(relativeSeat===0?2:1,relativeSeat===0?RF_BATTLEFIELD_THEME.main:RF_BATTLEFIELD_THEME.opponent,relativeSeat===0?.20:.11)
+              .setDepth(1.5)
+              .setName(`arena:seat-sanctum:${relativeSeat}`);
+          });
+          const runeAngles=[0,Math.PI/4,Math.PI/2,Math.PI*3/4];
+          runeAngles.forEach((angle,index)=>{
+            const dx=Math.cos(angle)*86;
+            const dy=Math.sin(angle)*86;
+            this.add.line(0,0,490-dx,450-dy,490+dx,450+dy,RF_BATTLEFIELD_THEME.response,.08)
+              .setOrigin(0,0)
+              .setLineWidth(1)
+              .setDepth(2)
+              .setName(`arena:core-rune:${index}`);
+          });
+
           this.seatAnchors=[0,1,2,3].map(seat=>{
             const point=seatPoint(seat,viewerSeat);
             return this.add.circle(point.x,point.y,62,RF_BATTLEFIELD_THEME.opponent,.012).setStrokeStyle(1,RF_BATTLEFIELD_THEME.opponent,.14).setDepth(2).setName(`arena:seat-anchor:${seat}`);
