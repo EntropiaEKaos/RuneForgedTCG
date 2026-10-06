@@ -159,6 +159,7 @@ assert.match(phaserRuntime,/arena:legacy-core/,"Commander Phaser must render a p
 assert.match(phaserRuntime,/arena:legacy-halo/,"Commander Phaser must render ambient arena energy");
 assert.match(phaserRuntime,/arena:seat-anchor:/,"Commander Phaser must anchor all four seats into the shared battlefield");
 assert.match(phaserRuntime,/turn:lane:/,"active-turn presentation must visually connect the authoritative seat to the arena core");
+assert.match(phaserRuntime,/stack:arena-core-pulse/,"authoritative stack entry and resolution must energize the shared arena core");
 assert.match(phaserRuntime,/data-commander-phaser-runtime="presentation-only"/,"Phaser overlay must expose its presentation-only certification marker");
 assert.match(phaserRuntime,/pointer-events-none/,"Phaser overlay must not intercept gameplay input");
 assert.match(packageJson,/"phaser": "4\.2\.1"/,"runtime must pin certified Phaser 4.2.1");
