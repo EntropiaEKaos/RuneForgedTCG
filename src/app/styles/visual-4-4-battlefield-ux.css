@@ -126,14 +126,13 @@
 /* Keep reaction decisions readable without changing the stack mechanics. */
 .tcg-arena .reaction-stack[data-reaction-window="true"] {
   box-sizing: border-box;
-  width: min(560px, calc(100vw - 24px));
-  max-height: min(66dvh, 540px);
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  width: min(620px, calc(100vw - 24px));
+  max-height: none;
+  overflow: visible;
   padding: clamp(12px, 2vw, 20px);
   border-radius: 18px;
-  background: linear-gradient(160deg, rgba(18, 25, 43, .98), rgba(7, 12, 25, .98));
+  background: linear-gradient(160deg, rgba(18, 25, 43, .83), rgba(7, 12, 25, .78));
+  backdrop-filter: blur(10px);
 }
 .tcg-arena .reaction-stack .reaction-guidance {
   margin-top: 6px;
@@ -144,8 +143,10 @@
 }
 .tcg-arena .reaction-stack .reaction-frames {
   max-width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
+  overflow-x: visible;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .tcg-arena .reaction-stack > .btn-primary {
   display: block;
@@ -154,11 +155,16 @@
   margin-top: 12px;
   white-space: normal;
 }
-@media (max-height: 650px) {
-  .tcg-arena .reaction-stack[data-reaction-window="true"] {
-    max-height: 52dvh;
-  }
-}
+.tcg-arena .reaction-card-preview { display: flex; gap: 12px; align-items: center; padding: 10px; margin-top: 10px; border: 1px solid rgba(167,139,250,.34); border-radius: 12px; background: rgba(4,8,20,.38); }
+.tcg-arena .reaction-card-art { flex: 0 0 64px; width: 64px; height: 88px; border-radius: 8px; background-size: cover; background-position: center; border: 1px solid rgba(255,255,255,.22); }
+.tcg-arena .reaction-card-summary { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.tcg-arena .reaction-card-summary > strong { font-size: 15px; color: #fff; }
+.tcg-arena .reaction-card-summary > span { font-size: 11px; color: #cbd5e1; }
+.tcg-arena .reaction-card-summary .reaction-card-eyebrow { color: #c4b5fd; font-size: 10px; }
+.tcg-arena .reaction-card-details summary { cursor: pointer; color: #f5d475; font-size: 11px; font-weight: 700; }
+.tcg-arena .reaction-card-tooltip { margin-top: 8px; padding: 10px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; background: rgba(8,13,27,.88); font-size: 12px; }
+@media (max-height: 650px) { .tcg-arena .reaction-stack[data-reaction-window="true"] { padding: 10px; } }
+@media (max-width: 600px) { .tcg-arena .reaction-card-art { flex-basis: 48px; width: 48px; height: 66px; } .tcg-arena .reaction-card-preview { gap: 8px; padding: 8px; } }
 
 /* Target selection -------------------------------------------------------- */
 .tcg-arena .targeting-hud {
