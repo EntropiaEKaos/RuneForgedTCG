@@ -164,6 +164,7 @@ export default function CommanderPhaserRuntime({
   const stackInitializedRef=useRef(false);
   const lastPriorityRevisionRef=useRef<number|null>(null);
   const queuedPriorityFxRef=useRef<Array<{prioritySeat:number;reactionWindowOpen:boolean}>>([]);
+  const queuedOutcomeFxRef=useRef<Array<{status:string;winnerSeat:number|null;eliminatedSeats:number[];newlyEliminated:number[]}>>([]);
   const queuedTargetingFxRef=useRef<CommanderPhaserTargetingFx[]>([]);
   const queuedPermanentsRef=useRef<CommanderPhaserPermanentSnapshot[]>([]);
   const queuedHandRef=useRef<CommanderPhaserHandCard[][]>([]);
@@ -227,6 +228,7 @@ export default function CommanderPhaserRuntime({
           this.game.events.on(PERMANENTS_EVENT,(state:CommanderPhaserPermanentSnapshot)=>this.renderPermanents(state));
           this.game.events.on(HAND_EVENT,(cards:CommanderPhaserHandCard[])=>this.renderHand(cards));
           for(const state of queuedPriorityFxRef.current.splice(0))this.renderPriorityFx(state);
+          for(const state of queuedOutcomeFxRef.current.splice(0))this.renderOutcomeFx(state);
           for(const state of queuedTargetingFxRef.current.splice(0))this.renderTargetingFx(state);
           for(const state of queuedPermanentsRef.current.splice(0))this.renderPermanents(state);
           for(const cards of queuedHandRef.current.splice(0))this.renderHand(cards);
@@ -367,10 +369,15 @@ export default function CommanderPhaserRuntime({
             const ring=this.add.circle(point.x,point.y,46,0xef4444,.08).setStrokeStyle(5,0xef4444,.95).setDepth(92).setName(`outcome:eliminated:${seat}`);
             this.tweens.add({targets:ring,scale:2.4,alpha:0,duration:1000,ease:"Sine.easeOut",onComplete:()=>ring.destroy()});
           }
-          if(state.winnerSeat!==null){
+          const existingWinner=this.children.getByName("outcome:winner");
+          if(state.status==="completed"&&state.winnerSeat!==null){
             const point=seatPoint(state.winnerSeat,viewerSeat);
-            const crown=this.add.text(point.x,point.y-72,"VITÓRIA",{fontFamily:"system-ui, sans-serif",fontSize:"22px",fontStyle:"bold",color:"#fde68a",stroke:"#020617",strokeThickness:6}).setOrigin(.5).setDepth(95).setName(`outcome:winner:${state.winnerSeat}`);
-            this.tweens.add({targets:crown,scale:1.12,duration:550,yoyo:true,repeat:2,ease:"Sine.easeInOut"});
+            const crown=(existingWinner as InstanceType<typeof Phaser.GameObjects.Text>|null)
+              ?? this.add.text(point.x,point.y-72,"VITÓRIA",{fontFamily:"system-ui, sans-serif",fontSize:"22px",fontStyle:"bold",color:"#fde68a",stroke:"#020617",strokeThickness:6}).setOrigin(.5).setDepth(95).setName("outcome:winner");
+            crown.setPosition(point.x,point.y-72).setText("VITÓRIA").setVisible(true);
+            if(!existingWinner)this.tweens.add({targets:crown,scale:1.12,duration:550,yoyo:true,repeat:2,ease:"Sine.easeInOut"});
+          }else if(existingWinner){
+            existingWinner.destroy();
           }
         }
 
@@ -555,10 +562,11 @@ export default function CommanderPhaserRuntime({
     const next={status:combat.status,winnerSeat:combat.winnerSeat,eliminatedSeats:[...combat.eliminatedSeats].sort((a,b)=>a-b)};
     const previous=previousOutcomeRef.current;
     previousOutcomeRef.current=next;
-    if(!previous)return;
-    const newlyEliminated=next.eliminatedSeats.filter(seat=>!previous.eliminatedSeats.includes(seat));
-    if(newlyEliminated.length===0&&previous.status===next.status&&previous.winnerSeat===next.winnerSeat)return;
-    if(gameRef.current)gameRef.current.events.emit(OUTCOME_EVENT,{...next,newlyEliminated});
+    const newlyEliminated=previous?next.eliminatedSeats.filter(seat=>!previous.eliminatedSeats.includes(seat)):[];
+    if(previous&&newlyEliminated.length===0&&previous.status===next.status&&previous.winnerSeat===next.winnerSeat)return;
+    const outcome={...next,newlyEliminated};
+    if(gameRef.current)gameRef.current.events.emit(OUTCOME_EVENT,outcome);
+    else queuedOutcomeFxRef.current.push(outcome);
   },[combat.status,combat.winnerSeat,combat.eliminatedSeats]);
 
   useEffect(()=>{
@@ -633,5 +641,7 @@ export default function CommanderPhaserRuntime({
     className="pointer-events-none absolute inset-0 z-[15] overflow-hidden rounded-[2rem]"
     aria-hidden="true"
     data-commander-phaser-runtime="presentation-only"
+    data-match-status={combat.status}
+    data-winner-seat={combat.winnerSeat??""}
   />;
 }
