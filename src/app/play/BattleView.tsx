@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import CardTip from "@/components/CardTip";
+import { HybridUnitStacks } from "@/components/game/HybridUnitStacks";
 import { PlayerBar, Row, EmptyHint } from "@/components/GameUI";
 import { AttackForecast, FirstMatchGuide, TurnRail, matchGuidance, type MatchPhase } from "@/components/MatchExperience";
 import { MatchResult, type MatchReward } from "@/components/game/MatchResult";
@@ -200,7 +201,7 @@ export function BattleView(props: BattleViewProps) {
               </div>
             );
           })}
-          {ai.bench.map((unit) => {
+          <HybridUnitStacks label="ai" units={ai.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit) => {((unit: UnitInstance) => {
             const challenged = Object.values(challenges).includes(unit.instanceId);
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "ai" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || (reaction && !!pendingReaction && reactionTargetOk("ai")) || (isPlayerBlocking && unit.isAttacking) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0);
@@ -209,7 +210,7 @@ export function BattleView(props: BattleViewProps) {
                 targetable={abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || !!(reaction && pendingReaction && reactionTargetOk("ai")) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0)}
                 selected={challenged || (isPlayerBlocking && unit.isAttacking && !!blockAssignments[unit.instanceId])} onClick={clickable ? () => handleUnitClick(unit) : undefined} />
             );
-          })}
+          })} />
         </Row>
 
         <div className="relative flex-1 border-y border-white/10 bg-black/20 px-3 py-2">
@@ -263,7 +264,7 @@ export function BattleView(props: BattleViewProps) {
               </div>
             );
           })}
-          {player.bench.map((unit) => {
+          <HybridUnitStacks label="player" units={player.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit) => {((unit: UnitInstance) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "player" });
             const selectable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || (reaction && !!pendingReaction && reactionTargetOk("player")) || (normalActionsOpen && isPlayerMain && canAttackNow) || isPlayerBlocking;
             return (
@@ -273,7 +274,7 @@ export function BattleView(props: BattleViewProps) {
                 onClick={selectable ? () => handleUnitClick(unit) : undefined}
                 onActivateAbility={(index, modeId) => handleSentinelaActivate(unit.instanceId, index, modeId)} />
             );
-          })}
+          })} />
         </Row>
 
         <div className="tcg-divider" aria-hidden="true" />
