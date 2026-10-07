@@ -187,11 +187,11 @@ export function BattleView(props: BattleViewProps) {
 
         <Row label="CAMPO RIVAL" side="ai">
           {ai.bench.length === 0 && ai.permanents.length === 0 && <EmptyHint text="Sem unidades ou permanentes inimigos" />}
-          {ai.permanents.map((permanent) => {
+          <HybridUnitStacks label="ai-permanents" units={ai.permanents} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility)} renderUnit={(permanent: PermanentInstance) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "permanent", perm: permanent, owner: "ai" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("ai", { kind: "permanent" }));
             return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} />;
-          })}
+          }} />
           {ai.sentinelas.map((sentinela) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: "ai" });
             const attackTarget = normalActionsOpen && isPlayerMain && canAttackNow;
@@ -251,11 +251,11 @@ export function BattleView(props: BattleViewProps) {
 
         <Row label="SEU CAMPO" side="player">
           {player.bench.length === 0 && player.permanents.length === 0 && <EmptyHint text="Jogue unidades ou permanentes" />}
-          {player.permanents.map((permanent) => {
+          <HybridUnitStacks label="player-permanents" units={player.permanents} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility)} renderUnit={(permanent: PermanentInstance) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "permanent", perm: permanent, owner: "player" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("player", { kind: "permanent" }));
             return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} onActivateAbility={(index, modeId) => handleSentinelaActivate(permanent.instanceId, index, modeId)} />;
-          })}
+          }} />
           {player.sentinelas.map((sentinela) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: "player" });
             return (
