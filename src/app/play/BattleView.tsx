@@ -201,7 +201,7 @@ export function BattleView(props: BattleViewProps) {
               </div>
             );
           })}
-          <HybridUnitStacks label="ai" units={ai.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit: UnitInstance) => {
+          <HybridUnitStacks label="ai" units={ai.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking || (normalActionsOpen && isPlayerMain && canAttackNow))} renderUnit={(unit: UnitInstance) => {
             const challenged = Object.values(challenges).includes(unit.instanceId);
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "ai" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || (reaction && !!pendingReaction && reactionTargetOk("ai")) || (isPlayerBlocking && unit.isAttacking) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0);
