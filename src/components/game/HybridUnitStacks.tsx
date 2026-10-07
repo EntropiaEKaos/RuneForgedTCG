@@ -7,10 +7,11 @@ type Props<T extends StackableUnit> = {
   units: readonly T[];
   renderUnit: (unit: T) => ReactNode;
   label?: string;
+  forceExpanded?: boolean;
 };
 
 /** Presentation-only wrapper: every expanded card still uses its original instance and handler. */
-export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, label = "Criaturas" }: Props<T>) {
+export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, label = "Criaturas", forceExpanded = false }: Props<T>) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const [separated, setSeparated] = useState<ReadonlySet<string>>(() => new Set());
   const groups = useMemo(() => groupVisualUnits(units, {
@@ -24,7 +25,7 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
   });
   return <div data-hybrid-stacks={label} className="flex flex-wrap items-end justify-center gap-2">
     {groups.map(group => {
-      const compact = group.members.length > 1 && !group.expanded;
+      const compact = group.members.length > 1 && !group.expanded && !forceExpanded;
       return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} className="relative flex flex-wrap items-end justify-center gap-1">
         {compact ? <div className="relative">
           {renderUnit(group.members[0])}
