@@ -37,3 +37,28 @@ test("rejects duplicate authoritative instance identifiers", () => {
     { instanceId: "same", defId: "token" },
   ]), /Duplicate unit instanceId/);
 });
+
+
+test("new copies automatically join the matching visual stack", () => {
+  const firstBoard = [
+    { instanceId: "a", defId: "relic" },
+    { instanceId: "b", defId: "relic" },
+  ];
+  assert.equal(groupVisualUnits(firstBoard)[0].members.length, 2);
+  const afterCast = [...firstBoard, { instanceId: "c", defId: "relic" }];
+  const groups = groupVisualUnits(afterCast);
+  assert.equal(groups.length, 1);
+  assert.deepEqual(groups[0].members.map(unit => unit.instanceId), ["a", "b", "c"]);
+});
+
+test("creatures and compatible permanents use the same grouping contract without merging instances", () => {
+  const artifacts = [
+    { instanceId: "artifact-a", defId: "iron-relic", charges: 1 },
+    { instanceId: "artifact-b", defId: "iron-relic", charges: 3 },
+  ];
+  const [stack] = groupVisualUnits(artifacts);
+  assert.equal(stack.members.length, 2);
+  assert.equal(stack.members[0].charges, 1);
+  assert.equal(stack.members[1].charges, 3);
+  assert.notEqual(stack.members[0].instanceId, stack.members[1].instanceId);
+});
