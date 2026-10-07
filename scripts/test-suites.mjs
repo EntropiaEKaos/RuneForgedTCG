@@ -176,6 +176,7 @@ export const sourceContractTests = [
   "src/lib/api-contract-regression.test.ts",
   "src/lib/alpha-onboarding-regression.test.ts",
   "src/lib/activated-ability-browser-fixture-regression.test.ts",
+  "src/lib/smart-stacks-browser-fixture-regression.test.ts",
   "src/lib/casual-pvp-create-room-readiness-regression.test.ts",
   "src/lib/commander-4p-alpha-regression.test.ts",
   "src/lib/commander-battlefield-visual-regression.test.ts",
