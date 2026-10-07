@@ -210,7 +210,7 @@ export function BattleView(props: BattleViewProps) {
                 targetable={abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || !!(reaction && pendingReaction && reactionTargetOk("ai")) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0)}
                 selected={challenged || (isPlayerBlocking && unit.isAttacking && !!blockAssignments[unit.instanceId])} onClick={clickable ? () => handleUnitClick(unit) : undefined} />
             );
-          })} />
+          }} />
         </Row>
 
         <div className="relative flex-1 border-y border-white/10 bg-black/20 px-3 py-2">
@@ -274,7 +274,7 @@ export function BattleView(props: BattleViewProps) {
                 onClick={selectable ? () => handleUnitClick(unit) : undefined}
                 onActivateAbility={(index, modeId) => handleSentinelaActivate(unit.instanceId, index, modeId)} />
             );
-          })} />
+          }} />
         </Row>
 
         <div className="tcg-divider" aria-hidden="true" />
