@@ -201,7 +201,7 @@ export function BattleView(props: BattleViewProps) {
               </div>
             );
           })}
-          <HybridUnitStacks label="ai" units={ai.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit) => {((unit: UnitInstance) => {
+          <HybridUnitStacks label="ai" units={ai.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit: UnitInstance) => {
             const challenged = Object.values(challenges).includes(unit.instanceId);
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "ai" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || (reaction && !!pendingReaction && reactionTargetOk("ai")) || (isPlayerBlocking && unit.isAttacking) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0);
@@ -264,7 +264,7 @@ export function BattleView(props: BattleViewProps) {
               </div>
             );
           })}
-          <HybridUnitStacks label="player" units={player.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit) => {((unit: UnitInstance) => {
+          <HybridUnitStacks label="player" units={player.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit: UnitInstance) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "player" });
             const selectable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || (reaction && !!pendingReaction && reactionTargetOk("player")) || (normalActionsOpen && isPlayerMain && canAttackNow) || isPlayerBlocking;
             return (
