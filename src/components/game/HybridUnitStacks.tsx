@@ -26,10 +26,10 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
   return <div data-hybrid-stacks={label} className="flex flex-wrap items-end justify-center gap-2">
     {groups.map(group => {
       const compact = group.members.length > 1 && !group.expanded && !forceExpanded;
-      return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} className="relative flex flex-wrap items-end justify-center gap-1">
+      return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-1">
         {compact ? <div className="relative">
           {renderUnit(group.members[0])}
-          <button type="button" aria-label={`Expandir ${group.members.length} criaturas ${group.defId}`}
+          <button type="button" aria-label={`Expandir pilha ${group.defId} com ${group.members.length} cartas`}
             aria-expanded={false} onClick={() => toggle(group.id)}
             className="absolute -right-2 -top-2 z-30 rounded-full border border-amber-300 bg-slate-950 px-2 py-1 text-xs font-black text-amber-100 shadow-lg">
             ×{group.members.length} ▾
@@ -37,10 +37,10 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
         </div> : <>
           {group.members.map(unit => <div key={unit.instanceId} className="relative">
             {renderUnit(unit)}
-            {group.members.length > 1 && <button type="button" aria-label={`Separar criatura ${unit.instanceId}`}
+            {group.members.length > 1 && <button type="button" aria-label={`Separar carta ${unit.instanceId}`}
               title="Separar da pilha" onClick={() => setSeparated(previous => new Set(previous).add(unit.instanceId))}
               className="absolute -right-1 -top-1 z-30 rounded-full bg-slate-950/95 px-1 text-[10px] text-cyan-200">↗</button>}
-            {separated.has(unit.instanceId) && <button type="button" aria-label={`Reagrupar criatura ${unit.instanceId}`}
+            {separated.has(unit.instanceId) && <button type="button" aria-label={`Reagrupar carta ${unit.instanceId}`}
               onClick={() => setSeparated(previous => { const next = new Set(previous); next.delete(unit.instanceId); return next; })}
               className="absolute -right-1 -bottom-1 z-30 rounded bg-slate-950/95 px-1 text-[10px] text-cyan-200">↩</button>}
           </div>)}
