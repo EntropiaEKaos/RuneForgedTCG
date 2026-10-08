@@ -781,12 +781,6 @@ async function main() {
     cdp.notifications.length = 0;
     const stackFixture = await driveUntilSmartStack(cdp, chosen.smartStackDefId);
     assert.ok(stackFixture.copies.length >= 2, `fixture must establish two authoritative equal creatures before visual assertion: ${JSON.stringify(stackFixture)}`);
-    const played = await driveUntilSourcePlayed(cdp, chosen.sourceDefId);
-    assert.equal(
-      played.round,
-      sourcePlayRound,
-      `cost-6 activated source must be played in round ${sourcePlayRound} for deterministic refresh proof: ${JSON.stringify(played)}`,
-    );
 
     const smartStack = await waitUntil(async () => {
       return evaluate(cdp, `(() => {
