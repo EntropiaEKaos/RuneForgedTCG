@@ -365,13 +365,14 @@ async function prepareAuthoritativeFixture(cdp) {
     const cards = Array.isArray(deck.cards) ? deck.cards : certificationDeck;
     const openingHand = seededShuffle(cards, (seed ^ 0x9e3779b9) >>> 0).slice(0, startHand);
     const sourceInOpeningHand = openingHand.includes(sourceDefId);
-    attempts.push({ attempt, seed, playerFirst, openingHand, sourceInOpeningHand });
-    if (sourceInOpeningHand && playerFirst) {
-      return { deck, token, sourceDefId, openingHand, attempts };
+    const smartStackCopiesInOpeningHand = openingHand.filter((id) => id === smartStackDefId).length;
+    attempts.push({ attempt, seed, playerFirst, openingHand, sourceInOpeningHand, smartStackCopiesInOpeningHand });
+    if (sourceInOpeningHand && smartStackCopiesInOpeningHand >= 2 && playerFirst) {
+      return { deck, token, sourceDefId, smartStackDefId, openingHand, attempts };
     }
   }
   throw new Error(
-    `could not prepare a player-first authoritative fixture with ${sourceDefId} in the opening hand: ${JSON.stringify(attempts)}`,
+    `could not prepare a player-first authoritative fixture with ${sourceDefId} and two ${smartStackDefId} copies in the opening hand: ${JSON.stringify(attempts)}`,
   );
 }
 
@@ -554,6 +555,51 @@ async function driveUntilSourcePlayed(cdp, defId, timeoutMs = 150_000) {
   throw new Error(`timed out before playing ${defId}: ${JSON.stringify(actions.slice(-20))}`);
 }
 
+async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
+  const deadline = Date.now() + timeoutMs;
+  const actions = [];
+  while (Date.now() < deadline) {
+    const snapshot = await matchSnapshot(cdp);
+    const copies = snapshot.board.filter((unit) => unit.defId === defId && unit.unitId);
+    if (copies.length >= 2) return { snapshot, copies, actions };
+    if (snapshot.gameover) throw new Error(`match ended before duplicate ${defId} creatures could coexist: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
+
+    if (snapshot.phase === "main") {
+      const selector = `#player-hand-cards [data-card-tip-def-id="${defId}"] button[data-card-state="playable"]:not(:disabled)`;
+      if (await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`)) {
+        const before = new Set(copies.map((unit) => unit.unitId));
+        assert.equal(await clickSelector(cdp, selector), true, `could not play Smart Stack fixture copy ${defId}`);
+        await waitUntil(async () => {
+          const current = await matchSnapshot(cdp);
+          return current.board.some((unit) => unit.defId === defId && unit.unitId && !before.has(unit.unitId));
+        }, `new authoritative ${defId} instance to enter battlefield`, 10_000);
+        actions.push({ round: snapshot.round, action: `play-stack-copy:${defId}` });
+        await sleep(160);
+        continue;
+      }
+      actions.push({ round: snapshot.round, action: "advance-for-stack-mana" });
+      await pressKey(cdp, "Escape", "Escape");
+      await pressKey(cdp, " ", "Space");
+      await sleep(260);
+      continue;
+    }
+    if (snapshot.phase === "response") {
+      await pressKey(cdp, " ", "Space");
+      await sleep(260);
+      continue;
+    }
+    if (snapshot.phase === "combat") {
+      const blocks = await assignDefensiveBlocks(cdp, defId);
+      actions.push({ round: snapshot.round, action: "protect-stack-copies-and-confirm-combat", blocks });
+      await pressKey(cdp, "Enter", "Enter");
+      await sleep(260);
+      continue;
+    }
+    await sleep(300);
+  }
+  throw new Error(`timed out before two authoritative ${defId} instances coexisted: ${JSON.stringify(actions.slice(-20))}`);
+}
+
 async function abilityEvidence(cdp, defId) {
   return evaluate(cdp, `(() => {
     const source = document.querySelector('[data-bench-side="player"] [data-card-tip-def-id="${defId}"][data-unit-id]');
@@ -728,6 +774,8 @@ async function main() {
     );
 
     cdp.notifications.length = 0;
+    const stackFixture = await driveUntilSmartStack(cdp, chosen.smartStackDefId);
+    assert.ok(stackFixture.copies.length >= 2, `fixture must establish two authoritative equal creatures before visual assertion: ${JSON.stringify(stackFixture)}`);
     const played = await driveUntilSourcePlayed(cdp, chosen.sourceDefId);
     assert.equal(
       played.round,
