@@ -15,6 +15,7 @@ const usedScreenshot = "05f-activated-ability-used.png";
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 
 const sourceDefId = "van_tide_u15";
+const smartStackDefId = "tide_tidebarrier";
 const sourcePlayRound = 6;
 const sourceRefreshRound = 7;
 const maxDefensiveBench = 5;
@@ -421,7 +422,11 @@ async function matchSnapshot(cdp) {
 
 async function playDefensiveUnit(cdp, snapshot) {
   if (snapshot.boardCount >= maxDefensiveBench) return null;
-  for (const defId of defensiveUnits) {
+  // The Smart Stack fixture deliberately develops repeated Tide Barriers first and
+  // keeps them out of defensive blocks. This creates the state through legal gameplay
+  // instead of injecting DOM/game state, while preserving the generic fallback list.
+  const developmentOrder = [smartStackDefId, ...defensiveUnits.filter((defId) => defId !== smartStackDefId)];
+  for (const defId of developmentOrder) {
     const selector = `#player-hand-cards [data-card-tip-def-id="${defId}"] button[data-card-state="playable"]:not(:disabled)`;
     const playable = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`);
     if (!playable) continue;
@@ -537,8 +542,8 @@ async function driveUntilSourcePlayed(cdp, defId, timeoutMs = 150_000) {
     }
 
     if (snapshot.phase === "combat") {
-      const blocks = await assignDefensiveBlocks(cdp);
-      actions.push({ round: snapshot.round, action: "confirm-combat", blocks });
+      const blocks = await assignDefensiveBlocks(cdp, smartStackDefId);
+      actions.push({ round: snapshot.round, action: "confirm-combat", blocks, protectedSmartStackDefId: smartStackDefId });
       await pressKey(cdp, "Enter", "Enter");
       await sleep(260);
       continue;
