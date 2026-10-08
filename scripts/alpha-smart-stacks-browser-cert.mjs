@@ -794,7 +794,12 @@ async function main() {
       })()`);
     }, "real Smart Stack with at least two equal creatures", 20_000);
     assert.ok(smartStack.count >= 2, `Smart Stack must compact at least two equal creatures: ${JSON.stringify(smartStack)}`);
-    assert.equal(smartStack.expandable, true, "compact Smart Stack must expose its expand control");
+    if (!smartStack.expandable) {
+      // Combat, targeting and response windows deliberately force individual cards
+      // to remain visible. Wait for the compact UI rather than certifying a
+      // temporary forced-expanded state as a product defect.
+      await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack compact control after interaction window", 15_000);
+    }
     await capture(cdp, "smart-stack-01-compact.png");
 
     const expanded = await evaluate(cdp, `(() => {
