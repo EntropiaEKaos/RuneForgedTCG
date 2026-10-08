@@ -834,92 +834,14 @@ async function main() {
     await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack to return to compact mode", 10_000);
     await capture(cdp, "smart-stack-03-regrouped.png");
 
-    const initialAbilityState = await abilityEvidence(cdp, chosen.sourceDefId);
-    const sourceTrigger = `[data-bench-side="player"] [data-activated-ability-trigger]`;
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "battlefield ability icon must open the floating controls");
-    let blocked;
-    try {
-      blocked = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Mana insuficiente/i);
-    } catch (error) {
-      const diagnostic = {
-        stage: "activated-ability-blocked",
-        expected: "blocked: Mana insuficiente",
-        actual: await abilityEvidence(cdp, chosen.sourceDefId),
-        match: await matchSnapshot(cdp),
-        initialAbilityState,
-      };
-      await mkdir(outputDir, { recursive: true });
-      await writeFile(join(outputDir, "05d-activated-ability-blocked-diagnostic.json"), JSON.stringify(diagnostic, null, 2));
-      await capture(cdp, "05d-activated-ability-blocked-diagnostic.png");
-      throw new Error(`${error.message}; diagnostic: ${JSON.stringify(diagnostic)}`);
-    }
-    assert.equal(blocked.disabled, true, "played 6-mana source must immediately expose a disabled ability after spending all 6 mana");
-    assert.match(blocked.text, /BLOQUEADA/i, "blocked state must be visible on the battlefield control");
-    await capture(cdp, blockedScreenshot);
-
-    await pressKey(cdp, " ", "Space");
-    const refreshed = await waitForNextPlayerMain(cdp, played.round, chosen.sourceDefId);
-    assert.equal(refreshed.round, sourceRefreshRound, `player-first fixture must advance directly from round ${sourcePlayRound} to player main in round ${sourceRefreshRound}: ${JSON.stringify(refreshed)}`);
-    assert.equal(refreshed.playerTurn, true, `round-${sourceRefreshRound} refresh must visibly belong to the player: ${JSON.stringify(refreshed)}`);
-    assert.ok((refreshed.playerMana ?? 0) >= 2, `round-${sourceRefreshRound} refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`);
-
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must reopen after turn refresh");
-    const ready = await waitForAbilityState(cdp, chosen.sourceDefId, "ready", null);
-    assert.equal(ready.disabled, false, "activated ability must become usable after mana refresh");
-    assert.match(ready.text, /PRONTA/i, "ready state must be visible on the battlefield control");
-
-    const sourceSelector = `[data-bench-side="player"] [data-card-tip-def-id="${chosen.sourceDefId}"][data-unit-id="${ready.unitId}"]`;
-    await pressKey(cdp, "Escape", "Escape");
-    await hoverSelector(cdp, sourceSelector);
-    await waitForSelector(cdp, `[data-activated-ability-intelligence="${chosen.sourceDefId}"]`, 10_000);
-    const tooltip = await evaluate(cdp, `(() => {
-      const section = document.querySelector('[data-activated-ability-intelligence="${chosen.sourceDefId}"]');
-      const detail = section?.querySelector('[data-activated-ability-detail-index="0"]');
-      return section && detail
-        ? { text: section.textContent || '', state: detail.dataset.activatedAbilityDetailState }
-        : null;
-    })()`);
-    assert.ok(tooltip, "activated ability intelligence must be rendered inside the real card tooltip");
-    assert.equal(tooltip.state, "ready", "tooltip must use the same authoritative ready state as the battlefield button");
-    assert.match(tooltip.text, /Habilidades ativadas/i);
-    assert.match(tooltip.text, /PRONTA PARA ATIVAR/i);
-    await capture(cdp, readyScreenshot);
-    await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
-    await sleep(120);
-
-    const beforeActivation = await evaluate(cdp, `(() => {
-      const playerBar = [...document.querySelectorAll('.tcg-playerbar, [class*="player-bar"], body *')].find((node) => {
-        const text = (node.textContent || '').toUpperCase();
-        return text.includes('MANA') && [...text].some((char) => char >= '0' && char <= '9');
-      });
-      const enemyBar = document.querySelectorAll('.tcg-playerbar, [class*="player-bar"]')[0];
-      return {
-        body: document.body.innerText,
-        playerBar: playerBar?.textContent || '',
-        enemyBar: enemyBar?.textContent || '',
-        boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length
-      };
-    })()`);
-
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must open for activation");
-    const abilitySelector = `[data-activated-ability-tray="${ready.unitId}"] button[data-activated-ability-index="0"][data-activated-ability-status="ready"]`;
-    assert.equal(await clickSelector(cdp, abilitySelector), true, "real battlefield activated ability button must be clickable when ready");
-
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must reopen to inspect post-activation state");
-    const used = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Já usada nesta rodada/i);
-    assert.equal(used.disabled, true, "once-per-round ability must become disabled after activation");
-    assert.match(used.text, /BLOQUEADA/i);
-    const logText = await evaluate(cdp, `document.querySelector('.tcg-log')?.textContent || ''`);
-    assert.match(logText, /ativa/i, "battle log must record the activated ability resolution");
-    await capture(cdp, usedScreenshot);
-
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
     assert.equal(runtimeExceptions.length, 0, `browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0, 3))}`);
 
+    const screenshots = ["smart-stack-01-compact.png", "smart-stack-02-expanded.png", "smart-stack-03-regrouped.png"];
     const evidence = {
       ok: true,
-      type: "activated-ability-browser-certification",
-      sourceDefId: chosen.sourceDefId,
+      type: "smart-stacks-browser-certification",
+      smartStackDefId: chosen.smartStackDefId,
       certificationDeckId: chosen.deck.id,
       certificationDeckName: chosen.deck.name,
       authoritativeSeed: Number(chosen.token.seed),
@@ -927,30 +849,22 @@ async function main() {
       tokenAttempts: chosen.attempts.length,
       predictedOpeningHand: chosen.openingHand,
       actualOpeningHand,
-      playedRound: played.round,
-      refreshedRound: refreshed.round,
-      refreshed,
-      initialAbilityState,
-      blocked,
-      ready,
-      tooltip,
-      used,
-      beforeActivation,
-      actions: played.actions,
-      screenshots: [blockedScreenshot, readyScreenshot, usedScreenshot],
+      stackFixture,
+      compact: smartStack,
+      expanded: expandedStack,
+      regrouped: true,
+      screenshots,
       gitSha: process.env.GITHUB_SHA || null,
       capturedAt: new Date().toISOString(),
     };
-
     await mkdir(outputDir, { recursive: true });
-    await writeFile(join(outputDir, evidenceName), `${JSON.stringify(evidence, null, 2)}\n`);
+    await writeFile(join(outputDir, "smart-stacks-browser-cert.json"), `${JSON.stringify(evidence, null, 2)}\n`);
     await appendManifest([
-      { stage: "activated ability blocked state", file: blockedScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.sourceDefId}: Mana insuficiente` },
-      { stage: "activated ability ready + tooltip intelligence", file: readyScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.sourceDefId}: PRONTA PARA ATIVAR` },
-      { stage: "activated ability used state", file: usedScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.sourceDefId}: Já usada nesta rodada` },
+      { stage: "Smart Stack compact", file: screenshots[0], href: `${baseUrl}/play`, evidence: `${chosen.smartStackDefId}: ${smartStack.count} creatures` },
+      { stage: "Smart Stack expanded", file: screenshots[1], href: `${baseUrl}/play`, evidence: `${chosen.smartStackDefId}: distinct instances` },
+      { stage: "Smart Stack regrouped", file: screenshots[2], href: `${baseUrl}/play`, evidence: `${chosen.smartStackDefId}: compact again` },
     ]);
-
-    console.log(`SMART STACK BROWSER CERT: PASS — ${chosen.sourceDefId} blocked → ready → used in real browser; 3 screenshots captured`);
+    console.log(`SMART STACK BROWSER CERT: PASS — ${chosen.smartStackDefId} compact → expanded → regrouped; 3 screenshots captured`);
   } finally {
     try {
       cdp?.close();
