@@ -662,14 +662,17 @@ async function capture(cdp, filename) {
 
 async function appendManifest(entries) {
   const manifestPath = join(outputDir, "manifest.json");
+  let manifest;
   try {
-    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    manifest.screenshots = Array.isArray(manifest.screenshots) ? manifest.screenshots : [];
-    manifest.screenshots.push(...entries);
-    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   } catch (error) {
-    console.warn(`SMART STACK BROWSER CERT: manifest append skipped — ${error instanceof Error ? error.message : String(error)}`);
+    if (error?.code !== "ENOENT") throw error;
+    manifest = { screenshots: [] };
   }
+  manifest.screenshots = Array.isArray(manifest.screenshots) ? manifest.screenshots : [];
+  manifest.screenshots.push(...entries);
+  await mkdir(outputDir, { recursive: true });
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 async function waitForNextPlayerMain(cdp, afterRound, protectedDefId, timeoutMs = 60_000) {
