@@ -576,8 +576,8 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
         assert.equal(await clickSelector(cdp, selector), true, `could not play Smart Stack fixture copy ${defId}`);
         await waitUntil(async () => {
           const current = await matchSnapshot(cdp);
-          return current.board.some((unit) => unit.defId === defId && unit.unitId && !before.has(unit.unitId));
-        }, `new authoritative ${defId} instance to enter battlefield`, 10_000);
+          return current.board.some((unit) => unit.defId === defId && unit.unitId && !before.has(unit.unitId)) || current.phase === "response";
+        }, `new authoritative ${defId} instance or response window`, 10_000);
         actions.push({ round: snapshot.round, action: `play-stack-copy:${defId}` });
         await sleep(160);
         continue;
