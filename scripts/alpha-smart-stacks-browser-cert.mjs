@@ -585,6 +585,11 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
           const current = await matchSnapshot(cdp);
           return current.board.some((unit) => unit.defId === defId && unit.unitId && !before.has(unit.unitId)) || current.phase !== "main" || current.hand.filter((id) => id === defId).length < snapshot.hand.filter((id) => id === defId).length;
         }, `authoritative ${defId} play to change hand, board or phase`, 10_000);
+        const afterPlay = await matchSnapshot(cdp);
+        const actualCopies = afterPlay.board.filter((unit) => unit.defId === defId && unit.unitId);
+        if (actualCopies.length <= copies.length) {
+          throw new Error(`Smart Stack play did not establish another authoritative battlefield instance: ${JSON.stringify({ defId, round: snapshot.round, before: snapshot, after: afterPlay, priorCopies: copies, actualCopies, actions: actions.slice(-20) })}`);
+        }
         actions.push({ round: snapshot.round, action: `play-stack-copy:${defId}` });
         await sleep(160);
         continue;
