@@ -731,7 +731,10 @@ async function main() {
     );
 
     const initialAbilityState = await abilityEvidence(cdp, chosen.sourceDefId);
-    const sourceTrigger = `[data-bench-side="player"] [data-activated-ability-trigger]`;
+    // Multiple creatures may expose ability icons; target the exact source instance.
+    const sourceUnitId = await evaluate(cdp, `document.querySelector('[data-bench-side="player"] [data-card-tip-def-id="${chosen.sourceDefId}"][data-unit-id]')?.dataset.unitId || null`);
+    assert.ok(sourceUnitId, "activated source must be visible on the player battlefield");
+    const sourceTrigger = `[data-bench-side="player"] [data-activated-ability-trigger="${sourceUnitId}"]`;
     assert.equal(await clickSelector(cdp, sourceTrigger), true, "battlefield ability icon must open the floating controls");
     let blocked;
     try {
