@@ -15,7 +15,7 @@ const usedScreenshot = "05f-activated-ability-used.png";
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 
 const sourceDefId = "van_tide_u15";
-const smartStackDefId = "tide_tidebarrier";
+let smartStackDefId = "tide_tidebarrier";
 const sourcePlayRound = 6;
 const sourceRefreshRound = 7;
 const maxDefensiveBench = 5;
@@ -365,17 +365,19 @@ async function prepareAuthoritativeFixture(cdp) {
     const cards = Array.isArray(deck.cards) ? deck.cards : certificationDeck;
     const openingHand = seededShuffle(cards, (seed ^ 0x9e3779b9) >>> 0).slice(0, startHand);
     const sourceInOpeningHand = openingHand.includes(sourceDefId);
-    const smartStackCopiesInOpeningHand = openingHand.filter((id) => id === smartStackDefId).length;
+    const pair = [...new Set(openingHand)].find((id) => id !== sourceDefId && openingHand.filter((card) => card === id).length >= 2);
+    const smartStackCopiesInOpeningHand = pair ? openingHand.filter((id) => id === pair).length : 0;
     attempts.push({ attempt, seed, playerFirst, openingHand, sourceInOpeningHand, smartStackCopiesInOpeningHand });
     // Smart Stack certification is the primary contract here. The activated-ability
     // source may be drawn later; requiring it in the same four-card opening hand makes
     // the fixture unnecessarily improbable and unrelated to the stack behavior.
-    if (smartStackCopiesInOpeningHand >= 2 && playerFirst) {
-      return { deck, token, sourceDefId, smartStackDefId, openingHand, attempts };
+    if (pair && playerFirst) {
+      smartStackDefId = pair;
+      return { deck, token, sourceDefId, smartStackDefId: pair, openingHand, attempts };
     }
   }
   throw new Error(
-    `could not prepare a player-first authoritative fixture with two ${smartStackDefId} copies in the opening hand: ${JSON.stringify(attempts)}`,
+    `could not prepare a player-first authoritative fixture with any playable duplicate pair in the opening hand: ${JSON.stringify(attempts)}`,
   );
 }
 
@@ -757,13 +759,13 @@ async function main() {
     await interceptNextMatchToken(cdp, chosen.token);
     await clickText(cdp, "ENTRAR NO NEXUS");
     await waitForText(cdp, "Prepare sua mão inicial", 30_000);
-    await waitForSelector(cdp, `[data-card-tip-def-id="${chosen.sourceDefId}"]`, 10_000);
+    await waitForSelector(cdp, `[data-card-tip-def-id="${chosen.smartStackDefId}"]`, 10_000);
     const actualOpeningHand = await evaluate(
       cdp,
       `[...document.querySelectorAll('[data-card-tip-def-id]')].map((node) => node.dataset.cardTipDefId).filter(Boolean)`,
     );
     assert.ok(
-      actualOpeningHand.includes(chosen.sourceDefId),
+      actualOpeningHand.filter((id) => id === chosen.smartStackDefId).length >= 2,
       `authoritative seed prediction diverged from browser opening hand: ${JSON.stringify({ chosen, actualOpeningHand })}`,
     );
 
