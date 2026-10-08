@@ -420,6 +420,11 @@ async function matchSnapshot(cdp) {
         defId: host.dataset.cardTipDefId,
         unitId: host.dataset.unitId
       })),
+      stackGroups: [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')].map((host) => ({
+        stackId: host.dataset.stackId,
+        count: Number(host.dataset.stackCount || 0),
+        visibleIds: [...host.querySelectorAll('[data-unit-id]')].map((node) => node.dataset.unitId),
+      })),
       boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length,
       manaText: manaText || null,
     };
@@ -566,7 +571,8 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
   while (Date.now() < deadline) {
     const snapshot = await matchSnapshot(cdp);
     const copies = snapshot.board.filter((unit) => unit.defId === defId && unit.unitId);
-    if (copies.length >= 2) return { snapshot, copies, actions };
+    const grouped = snapshot.stackGroups.find((group) => group.count >= 2 && group.stackId === `def:${defId}`);
+    if (copies.length >= 2 || grouped) return { snapshot, copies, grouped, actions };
     // Capture the first loss of a played copy instead of reporting only the
     // eventual game-over state. This distinguishes combat casualties from
     // missing/failed plays and gives CI an actionable battlefield snapshot.
@@ -587,7 +593,8 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
         }, `authoritative ${defId} play to change hand, board or phase`, 10_000);
         const afterPlay = await matchSnapshot(cdp);
         const actualCopies = afterPlay.board.filter((unit) => unit.defId === defId && unit.unitId);
-        if (actualCopies.length <= copies.length) {
+        const compactedCopies = afterPlay.stackGroups.some((group) => group.count >= 2 && group.stackId === `def:${defId}`);
+        if (actualCopies.length <= copies.length && !compactedCopies) {
           throw new Error(`Smart Stack play did not establish another authoritative battlefield instance: ${JSON.stringify({ defId, round: snapshot.round, before: snapshot, after: afterPlay, priorCopies: copies, actualCopies, actions: actions.slice(-20) })}`);
         }
         actions.push({ round: snapshot.round, action: `play-stack-copy:${defId}` });
@@ -792,7 +799,7 @@ async function main() {
 
     cdp.notifications.length = 0;
     const stackFixture = await driveUntilSmartStack(cdp, chosen.smartStackDefId);
-    assert.ok(stackFixture.copies.length >= 2, `fixture must establish two authoritative equal creatures before visual assertion: ${JSON.stringify(stackFixture)}`);
+    assert.ok(stackFixture.copies.length >= 2 || stackFixture.grouped?.count >= 2, `fixture must establish two authoritative equal creatures before visual assertion: ${JSON.stringify(stackFixture)}`);
 
     const smartStack = await waitUntil(async () => {
       return evaluate(cdp, `(() => {
