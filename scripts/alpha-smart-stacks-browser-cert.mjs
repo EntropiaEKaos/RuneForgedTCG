@@ -367,12 +367,15 @@ async function prepareAuthoritativeFixture(cdp) {
     const sourceInOpeningHand = openingHand.includes(sourceDefId);
     const smartStackCopiesInOpeningHand = openingHand.filter((id) => id === smartStackDefId).length;
     attempts.push({ attempt, seed, playerFirst, openingHand, sourceInOpeningHand, smartStackCopiesInOpeningHand });
-    if (sourceInOpeningHand && smartStackCopiesInOpeningHand >= 2 && playerFirst) {
+    // Smart Stack certification is the primary contract here. The activated-ability
+    // source may be drawn later; requiring it in the same four-card opening hand makes
+    // the fixture unnecessarily improbable and unrelated to the stack behavior.
+    if (smartStackCopiesInOpeningHand >= 2 && playerFirst) {
       return { deck, token, sourceDefId, smartStackDefId, openingHand, attempts };
     }
   }
   throw new Error(
-    `could not prepare a player-first authoritative fixture with ${sourceDefId} and two ${smartStackDefId} copies in the opening hand: ${JSON.stringify(attempts)}`,
+    `could not prepare a player-first authoritative fixture with two ${smartStackDefId} copies in the opening hand: ${JSON.stringify(attempts)}`,
   );
 }
 
