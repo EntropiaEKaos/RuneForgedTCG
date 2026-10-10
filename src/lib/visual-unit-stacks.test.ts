@@ -62,3 +62,42 @@ test("creatures and compatible permanents use the same grouping contract without
   assert.equal(stack.members[1].charges, 3);
   assert.notEqual(stack.members[0].instanceId, stack.members[1].instanceId);
 });
+
+test("Swarm combat preserves every attacker, blocker and independent damage value", () => {
+  const units = Array.from({ length: 24 }, (_, index) => ({
+    instanceId: `swarm-${index}`,
+    defId: "swarm-token",
+    isAttacking: index % 3 === 0,
+    isBlocking: index % 3 === 1,
+    damage: index % 4,
+    attack: 1 + (index % 2),
+    buffs: index % 2 ? ["fury"] : [],
+  }));
+  const [stack] = groupVisualUnits(units);
+  assert.equal(stack.members.length, 24);
+  assert.equal(new Set(stack.members.map(unit => unit.instanceId)).size, 24);
+  assert.deepEqual(stack.members.filter(unit => unit.isAttacking).map(unit => unit.instanceId),
+    units.filter(unit => unit.isAttacking).map(unit => unit.instanceId));
+  assert.deepEqual(stack.members.filter(unit => unit.isBlocking).map(unit => unit.instanceId),
+    units.filter(unit => unit.isBlocking).map(unit => unit.instanceId));
+  for (let index = 0; index < units.length; index++) {
+    assert.equal(stack.members[index], units[index]);
+    assert.equal(stack.members[index].damage, index % 4);
+  }
+});
+
+test("separating a combat target and regrouping restores the same authoritative instances", () => {
+  const units = [
+    { instanceId: "attacker", defId: "wolf", isAttacking: true, damage: 2 },
+    { instanceId: "blocker", defId: "wolf", isAttacking: false, damage: 1 },
+    { instanceId: "reserve", defId: "wolf", isAttacking: false, damage: 0 },
+  ];
+  const separated = groupVisualUnits(units, { separatedIds: new Set(["blocker"]) });
+  assert.deepEqual(separated.flatMap(group => group.members.map(unit => unit.instanceId)),
+    ["attacker", "reserve", "blocker"]);
+  assert.equal(separated.find(group => group.id === "unit:blocker")?.members[0], units[1]);
+  const regrouped = groupVisualUnits(units);
+  assert.deepEqual(regrouped[0].members, units);
+  assert.equal(regrouped[0].members[0].isAttacking, true);
+  assert.equal(regrouped[0].members[1].damage, 1);
+});
