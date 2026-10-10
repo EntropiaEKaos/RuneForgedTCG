@@ -7,7 +7,7 @@ import { CHROME_REMOTE_DEBUGGING_FLAG, waitForChromeDevToolsPort } from "./chrom
 
 const baseUrl = (process.env.E2E_BASE_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
 const outputDir = resolve(process.env.ALPHA_VISUAL_DIR || "artifacts/alpha-visual");
-const deckName = "Activated Ability Browser Cert";
+const deckName = "Smart Stack Browser Cert";
 const evidenceName = "05d-05f-activated-ability-browser-cert.json";
 const blockedScreenshot = "05d-activated-ability-blocked.png";
 const readyScreenshot = "05e-activated-ability-ready.png";
@@ -15,6 +15,7 @@ const usedScreenshot = "05f-activated-ability-used.png";
 const viewport = { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false };
 
 const sourceDefId = "van_tide_u15";
+let smartStackDefId = "tide_tidebarrier";
 const sourcePlayRound = 6;
 const sourceRefreshRound = 7;
 const maxDefensiveBench = 5;
@@ -364,13 +365,19 @@ async function prepareAuthoritativeFixture(cdp) {
     const cards = Array.isArray(deck.cards) ? deck.cards : certificationDeck;
     const openingHand = seededShuffle(cards, (seed ^ 0x9e3779b9) >>> 0).slice(0, startHand);
     const sourceInOpeningHand = openingHand.includes(sourceDefId);
-    attempts.push({ attempt, seed, playerFirst, openingHand, sourceInOpeningHand });
-    if (sourceInOpeningHand && playerFirst) {
-      return { deck, token, sourceDefId, openingHand, attempts };
+    const pair = [...new Set(openingHand)].find((id) => id !== sourceDefId && openingHand.filter((card) => card === id).length >= 2);
+    const smartStackCopiesInOpeningHand = pair ? openingHand.filter((id) => id === pair).length : 0;
+    attempts.push({ attempt, seed, playerFirst, openingHand, sourceInOpeningHand, smartStackCopiesInOpeningHand });
+    // Smart Stack certification is the primary contract here. The activated-ability
+    // source may be drawn later; requiring it in the same four-card opening hand makes
+    // the fixture unnecessarily improbable and unrelated to the stack behavior.
+    if (pair && playerFirst) {
+      smartStackDefId = pair;
+      return { deck, token, sourceDefId, smartStackDefId: pair, openingHand, attempts };
     }
   }
   throw new Error(
-    `could not prepare a player-first authoritative fixture with ${sourceDefId} in the opening hand: ${JSON.stringify(attempts)}`,
+    `could not prepare a player-first authoritative fixture with any playable duplicate pair in the opening hand: ${JSON.stringify(attempts)}`,
   );
 }
 
@@ -413,6 +420,11 @@ async function matchSnapshot(cdp) {
         defId: host.dataset.cardTipDefId,
         unitId: host.dataset.unitId
       })),
+      stackGroups: [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')].map((host) => ({
+        stackId: host.dataset.stackId,
+        count: Number(host.dataset.stackCount || 0),
+        visibleIds: [...host.querySelectorAll('[data-unit-id]')].map((node) => node.dataset.unitId),
+      })),
       boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length,
       manaText: manaText || null,
     };
@@ -421,7 +433,11 @@ async function matchSnapshot(cdp) {
 
 async function playDefensiveUnit(cdp, snapshot) {
   if (snapshot.boardCount >= maxDefensiveBench) return null;
-  for (const defId of defensiveUnits) {
+  // The Smart Stack fixture deliberately develops repeated Tide Barriers first and
+  // keeps them out of defensive blocks. This creates the state through legal gameplay
+  // instead of injecting DOM/game state, while preserving the generic fallback list.
+  const developmentOrder = [smartStackDefId, ...defensiveUnits.filter((defId) => defId !== smartStackDefId)];
+  for (const defId of developmentOrder) {
     const selector = `#player-hand-cards [data-card-tip-def-id="${defId}"] button[data-card-state="playable"]:not(:disabled)`;
     const playable = await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`);
     if (!playable) continue;
@@ -537,8 +553,8 @@ async function driveUntilSourcePlayed(cdp, defId, timeoutMs = 150_000) {
     }
 
     if (snapshot.phase === "combat") {
-      const blocks = await assignDefensiveBlocks(cdp);
-      actions.push({ round: snapshot.round, action: "confirm-combat", blocks });
+      const blocks = await assignDefensiveBlocks(cdp, smartStackDefId);
+      actions.push({ round: snapshot.round, action: "confirm-combat", blocks, protectedSmartStackDefId: smartStackDefId });
       await pressKey(cdp, "Enter", "Enter");
       await sleep(260);
       continue;
@@ -547,6 +563,65 @@ async function driveUntilSourcePlayed(cdp, defId, timeoutMs = 150_000) {
     await sleep(300);
   }
   throw new Error(`timed out before playing ${defId}: ${JSON.stringify(actions.slice(-20))}`);
+}
+
+async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
+  const deadline = Date.now() + timeoutMs;
+  const actions = [];
+  while (Date.now() < deadline) {
+    const snapshot = await matchSnapshot(cdp);
+    const copies = snapshot.board.filter((unit) => unit.defId === defId && unit.unitId);
+    const grouped = snapshot.stackGroups.find((group) => group.count >= 2 && group.stackId === `def:${defId}`);
+    if (copies.length >= 2 || grouped) return { snapshot, copies, grouped, actions };
+    // Capture the first loss of a played copy instead of reporting only the
+    // eventual game-over state. This distinguishes combat casualties from
+    // missing/failed plays and gives CI an actionable battlefield snapshot.
+    const playedCopies = actions.filter((action) => action.action === `play-stack-copy:${defId}`).length;
+    if (playedCopies >= 2 && copies.length < 2) {
+      throw new Error(`Smart Stack fixture lost a played copy before coexistence: ${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) })}`);
+    }
+    if (snapshot.gameover) throw new Error(`match ended before duplicate ${defId} creatures could coexist: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
+
+    if (snapshot.phase === "main") {
+      const selector = `#player-hand-cards [data-card-tip-def-id="${defId}"] button[data-card-state="playable"]:not(:disabled)`;
+      if (await evaluate(cdp, `Boolean(document.querySelector(${JSON.stringify(selector)}))`)) {
+        const before = new Set(copies.map((unit) => unit.unitId));
+        assert.equal(await clickSelector(cdp, selector), true, `could not play Smart Stack fixture copy ${defId}`);
+        await waitUntil(async () => {
+          const current = await matchSnapshot(cdp);
+          return current.board.some((unit) => unit.defId === defId && unit.unitId && !before.has(unit.unitId)) || current.phase !== "main" || current.hand.filter((id) => id === defId).length < snapshot.hand.filter((id) => id === defId).length;
+        }, `authoritative ${defId} play to change hand, board or phase`, 10_000);
+        const afterPlay = await matchSnapshot(cdp);
+        const actualCopies = afterPlay.board.filter((unit) => unit.defId === defId && unit.unitId);
+        const compactedCopies = afterPlay.stackGroups.some((group) => group.count >= 2 && group.stackId === `def:${defId}`);
+        if (actualCopies.length <= copies.length && !compactedCopies) {
+          throw new Error(`Smart Stack play did not establish another authoritative battlefield instance: ${JSON.stringify({ defId, round: snapshot.round, before: snapshot, after: afterPlay, priorCopies: copies, actualCopies, actions: actions.slice(-20) })}`);
+        }
+        actions.push({ round: snapshot.round, action: `play-stack-copy:${defId}` });
+        await sleep(160);
+        continue;
+      }
+      actions.push({ round: snapshot.round, action: "advance-for-stack-mana" });
+      await pressKey(cdp, "Escape", "Escape");
+      await pressKey(cdp, " ", "Space");
+      await sleep(260);
+      continue;
+    }
+    if (snapshot.phase === "response") {
+      await pressKey(cdp, " ", "Space");
+      await sleep(260);
+      continue;
+    }
+    if (snapshot.phase === "combat") {
+      const blocks = await assignDefensiveBlocks(cdp, defId);
+      actions.push({ round: snapshot.round, action: "protect-stack-copies-and-confirm-combat", blocks });
+      await pressKey(cdp, "Enter", "Enter");
+      await sleep(260);
+      continue;
+    }
+    await sleep(300);
+  }
+  throw new Error(`timed out before two authoritative ${defId} instances coexisted: ${JSON.stringify(actions.slice(-20))}`);
 }
 
 async function abilityEvidence(cdp, defId) {
@@ -587,14 +662,17 @@ async function capture(cdp, filename) {
 
 async function appendManifest(entries) {
   const manifestPath = join(outputDir, "manifest.json");
+  let manifest;
   try {
-    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-    manifest.screenshots = Array.isArray(manifest.screenshots) ? manifest.screenshots : [];
-    manifest.screenshots.push(...entries);
-    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   } catch (error) {
-    console.warn(`ACTIVATED ABILITY BROWSER CERT: manifest append skipped — ${error instanceof Error ? error.message : String(error)}`);
+    if (error?.code !== "ENOENT") throw error;
+    manifest = { screenshots: [] };
   }
+  manifest.screenshots = Array.isArray(manifest.screenshots) ? manifest.screenshots : [];
+  manifest.screenshots.push(...entries);
+  await mkdir(outputDir, { recursive: true });
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
 async function waitForNextPlayerMain(cdp, afterRound, protectedDefId, timeoutMs = 60_000) {
@@ -619,7 +697,7 @@ async function waitForNextPlayerMain(cdp, afterRound, protectedDefId, timeoutMs 
 }
 
 async function main() {
-  const profileDir = await mkdtemp(join(tmpdir(), "runeforge-activated-ability-cert-"));
+  const profileDir = await mkdtemp(join(tmpdir(), "runeforge-smart-stack-cert-"));
   let port = 0;
   const chromePath = findChrome();
   const chrome = spawn(chromePath, [
@@ -703,13 +781,13 @@ async function main() {
     await interceptNextMatchToken(cdp, chosen.token);
     await clickText(cdp, "ENTRAR NO NEXUS");
     await waitForText(cdp, "Prepare sua mão inicial", 30_000);
-    await waitForSelector(cdp, `[data-card-tip-def-id="${chosen.sourceDefId}"]`, 10_000);
+    await waitForSelector(cdp, `[data-card-tip-def-id="${chosen.smartStackDefId}"]`, 10_000);
     const actualOpeningHand = await evaluate(
       cdp,
       `[...document.querySelectorAll('[data-card-tip-def-id]')].map((node) => node.dataset.cardTipDefId).filter(Boolean)`,
     );
     assert.ok(
-      actualOpeningHand.includes(chosen.sourceDefId),
+      actualOpeningHand.filter((id) => id === chosen.smartStackDefId).length >= 2,
       `authoritative seed prediction diverged from browser opening hand: ${JSON.stringify({ chosen, actualOpeningHand })}`,
     );
 
@@ -723,102 +801,68 @@ async function main() {
     );
 
     cdp.notifications.length = 0;
-    const played = await driveUntilSourcePlayed(cdp, chosen.sourceDefId);
-    assert.equal(
-      played.round,
-      sourcePlayRound,
-      `cost-6 activated source must be played in round ${sourcePlayRound} for deterministic refresh proof: ${JSON.stringify(played)}`,
-    );
+    const stackFixture = await driveUntilSmartStack(cdp, chosen.smartStackDefId);
+    assert.ok(stackFixture.copies.length >= 2 || stackFixture.grouped?.count >= 2, `fixture must establish two authoritative equal creatures before visual assertion: ${JSON.stringify(stackFixture)}`);
 
-    const initialAbilityState = await abilityEvidence(cdp, chosen.sourceDefId);
-    // Multiple creatures may expose ability icons; target the exact source instance.
-    const sourceUnitId = await evaluate(cdp, `document.querySelector('[data-bench-side="player"] [data-card-tip-def-id="${chosen.sourceDefId}"][data-unit-id]')?.dataset.unitId || null`);
-    assert.ok(sourceUnitId, "activated source must be visible on the player battlefield");
-    const sourceTrigger = `[data-bench-side="player"] [data-activated-ability-trigger="${sourceUnitId}"]`;
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "battlefield ability icon must open the floating controls");
-    let blocked;
-    try {
-      blocked = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Mana insuficiente/i);
-    } catch (error) {
-      const diagnostic = {
-        stage: "activated-ability-blocked",
-        expected: "blocked: Mana insuficiente",
-        actual: await abilityEvidence(cdp, chosen.sourceDefId),
-        match: await matchSnapshot(cdp),
-        initialAbilityState,
-      };
-      await mkdir(outputDir, { recursive: true });
-      await writeFile(join(outputDir, "05d-activated-ability-blocked-diagnostic.json"), JSON.stringify(diagnostic, null, 2));
-      await capture(cdp, "05d-activated-ability-blocked-diagnostic.png");
-      throw new Error(`${error.message}; diagnostic: ${JSON.stringify(diagnostic)}`);
+    const smartStack = await waitUntil(async () => {
+      return evaluate(cdp, `(() => {
+        const stack = [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')]
+          .find((node) => Number(node.dataset.stackCount || 0) >= 2);
+        if (!stack) return null;
+        const count = Number(stack.dataset.stackCount || 0);
+        const compactIds = [...stack.querySelectorAll('[data-unit-id]')].map((node) => node.dataset.unitId).filter(Boolean);
+        const expand = [...stack.querySelectorAll('button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha'));
+        return { stackId: stack.dataset.stackId || null, count, compactIds, expandable: Boolean(expand) };
+      })()`);
+    }, "real Smart Stack with at least two equal creatures", 20_000);
+    assert.ok(smartStack.count >= 2, `Smart Stack must compact at least two equal creatures: ${JSON.stringify(smartStack)}`);
+    if (!smartStack.expandable) {
+      // Combat, targeting and response windows deliberately force individual cards
+      // to remain visible. Wait for the compact UI rather than certifying a
+      // temporary forced-expanded state as a product defect.
+      await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack compact control after interaction window", 15_000);
     }
-    assert.equal(blocked.disabled, true, "played 6-mana source must immediately expose a disabled ability after spending all 6 mana");
-    assert.match(blocked.text, /BLOQUEADA/i, "blocked state must be visible on the battlefield control");
-    await capture(cdp, blockedScreenshot);
+    await capture(cdp, "smart-stack-01-compact.png");
 
-    await pressKey(cdp, " ", "Space");
-    const refreshed = await waitForNextPlayerMain(cdp, played.round, chosen.sourceDefId);
-    assert.equal(refreshed.round, sourceRefreshRound, `player-first fixture must advance directly from round ${sourcePlayRound} to player main in round ${sourceRefreshRound}: ${JSON.stringify(refreshed)}`);
-    assert.equal(refreshed.playerTurn, true, `round-${sourceRefreshRound} refresh must visibly belong to the player: ${JSON.stringify(refreshed)}`);
-    assert.ok((refreshed.playerMana ?? 0) >= 2, `round-${sourceRefreshRound} refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`);
-
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must reopen after turn refresh");
-    const ready = await waitForAbilityState(cdp, chosen.sourceDefId, "ready", null);
-    assert.equal(ready.disabled, false, "activated ability must become usable after mana refresh");
-    assert.match(ready.text, /PRONTA/i, "ready state must be visible on the battlefield control");
-
-    const sourceSelector = `[data-bench-side="player"] [data-card-tip-def-id="${chosen.sourceDefId}"][data-unit-id="${ready.unitId}"]`;
-    await pressKey(cdp, "Escape", "Escape");
-    await hoverSelector(cdp, sourceSelector);
-    await waitForSelector(cdp, `[data-activated-ability-intelligence="${chosen.sourceDefId}"]`, 10_000);
-    const tooltip = await evaluate(cdp, `(() => {
-      const section = document.querySelector('[data-activated-ability-intelligence="${chosen.sourceDefId}"]');
-      const detail = section?.querySelector('[data-activated-ability-detail-index="0"]');
-      return section && detail
-        ? { text: section.textContent || '', state: detail.dataset.activatedAbilityDetailState }
-        : null;
+    const expanded = await evaluate(cdp, `(() => {
+      const stack = [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')]
+        .find((node) => Number(node.dataset.stackCount || 0) >= 2);
+      const button = stack && [...stack.querySelectorAll('button')].find((candidate) => (candidate.getAttribute('aria-label') || '').includes('Expandir pilha'));
+      if (!button) return false;
+      button.click();
+      return true;
     })()`);
-    assert.ok(tooltip, "activated ability intelligence must be rendered inside the real card tooltip");
-    assert.equal(tooltip.state, "ready", "tooltip must use the same authoritative ready state as the battlefield button");
-    assert.match(tooltip.text, /Habilidades ativadas/i);
-    assert.match(tooltip.text, /PRONTA PARA ATIVAR/i);
-    await capture(cdp, readyScreenshot);
-    await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });
-    await sleep(120);
+    assert.equal(expanded, true, "Smart Stack expand control must be clickable");
+    const expandedStack = await waitUntil(async () => evaluate(cdp, `(() => {
+      const stack = [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')]
+        .find((node) => Number(node.dataset.stackCount || 0) >= 2);
+      if (!stack) return null;
+      const ids = [...stack.querySelectorAll('[data-unit-id]')].map((node) => node.dataset.unitId).filter(Boolean);
+      return ids.length >= Number(stack.dataset.stackCount || 0) ? { count: Number(stack.dataset.stackCount), ids } : null;
+    })()`), "expanded Smart Stack exposing individual authoritative instances", 10_000);
+    assert.equal(new Set(expandedStack.ids).size, expandedStack.ids.length, "expanded Smart Stack must preserve distinct instanceId values");
+    await capture(cdp, "smart-stack-02-expanded.png");
 
-    const beforeActivation = await evaluate(cdp, `(() => {
-      const playerBar = [...document.querySelectorAll('.tcg-playerbar, [class*="player-bar"], body *')].find((node) => {
-        const text = (node.textContent || '').toUpperCase();
-        return text.includes('MANA') && [...text].some((char) => char >= '0' && char <= '9');
-      });
-      const enemyBar = document.querySelectorAll('.tcg-playerbar, [class*="player-bar"]')[0];
-      return {
-        body: document.body.innerText,
-        playerBar: playerBar?.textContent || '',
-        enemyBar: enemyBar?.textContent || '',
-        boardCount: document.querySelectorAll('[data-bench-side="player"] [data-unit-id]').length
-      };
+    const regrouped = await evaluate(cdp, `(() => {
+      const stack = [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')]
+        .find((node) => Number(node.dataset.stackCount || 0) >= 2);
+      const button = stack && [...stack.querySelectorAll('button')].find((candidate) => (candidate.getAttribute('aria-label') || '').includes('Recolher pilha'));
+      if (!button) return false;
+      button.click();
+      return true;
     })()`);
-
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must open for activation");
-    const abilitySelector = `[data-activated-ability-tray="${ready.unitId}"] button[data-activated-ability-index="0"][data-activated-ability-status="ready"]`;
-    assert.equal(await clickSelector(cdp, abilitySelector), true, "real battlefield activated ability button must be clickable when ready");
-
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must reopen to inspect post-activation state");
-    const used = await waitForAbilityState(cdp, chosen.sourceDefId, "blocked", /Já usada nesta rodada/i);
-    assert.equal(used.disabled, true, "once-per-round ability must become disabled after activation");
-    assert.match(used.text, /BLOQUEADA/i);
-    const logText = await evaluate(cdp, `document.querySelector('.tcg-log')?.textContent || ''`);
-    assert.match(logText, /ativa/i, "battle log must record the activated ability resolution");
-    await capture(cdp, usedScreenshot);
+    assert.equal(regrouped, true, "expanded Smart Stack must regroup");
+    await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack to return to compact mode", 10_000);
+    await capture(cdp, "smart-stack-03-regrouped.png");
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
     assert.equal(runtimeExceptions.length, 0, `browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0, 3))}`);
 
+    const screenshots = ["smart-stack-01-compact.png", "smart-stack-02-expanded.png", "smart-stack-03-regrouped.png"];
     const evidence = {
       ok: true,
-      type: "activated-ability-browser-certification",
-      sourceDefId: chosen.sourceDefId,
+      type: "smart-stacks-browser-certification",
+      smartStackDefId: chosen.smartStackDefId,
       certificationDeckId: chosen.deck.id,
       certificationDeckName: chosen.deck.name,
       authoritativeSeed: Number(chosen.token.seed),
@@ -826,30 +870,22 @@ async function main() {
       tokenAttempts: chosen.attempts.length,
       predictedOpeningHand: chosen.openingHand,
       actualOpeningHand,
-      playedRound: played.round,
-      refreshedRound: refreshed.round,
-      refreshed,
-      initialAbilityState,
-      blocked,
-      ready,
-      tooltip,
-      used,
-      beforeActivation,
-      actions: played.actions,
-      screenshots: [blockedScreenshot, readyScreenshot, usedScreenshot],
+      stackFixture,
+      compact: smartStack,
+      expanded: expandedStack,
+      regrouped: true,
+      screenshots,
       gitSha: process.env.GITHUB_SHA || null,
       capturedAt: new Date().toISOString(),
     };
-
     await mkdir(outputDir, { recursive: true });
-    await writeFile(join(outputDir, evidenceName), `${JSON.stringify(evidence, null, 2)}\n`);
+    await writeFile(join(outputDir, "smart-stacks-browser-cert.json"), `${JSON.stringify(evidence, null, 2)}\n`);
     await appendManifest([
-      { stage: "activated ability blocked state", file: blockedScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.sourceDefId}: Mana insuficiente` },
-      { stage: "activated ability ready + tooltip intelligence", file: readyScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.sourceDefId}: PRONTA PARA ATIVAR` },
-      { stage: "activated ability used state", file: usedScreenshot, href: `${baseUrl}/play`, evidence: `${chosen.sourceDefId}: Já usada nesta rodada` },
+      { stage: "Smart Stack compact", file: screenshots[0], href: `${baseUrl}/play`, evidence: `${chosen.smartStackDefId}: ${smartStack.count} creatures` },
+      { stage: "Smart Stack expanded", file: screenshots[1], href: `${baseUrl}/play`, evidence: `${chosen.smartStackDefId}: distinct instances` },
+      { stage: "Smart Stack regrouped", file: screenshots[2], href: `${baseUrl}/play`, evidence: `${chosen.smartStackDefId}: compact again` },
     ]);
-
-    console.log(`ACTIVATED ABILITY BROWSER CERT: PASS — ${chosen.sourceDefId} blocked → ready → used in real browser; 3 screenshots captured`);
+    console.log(`SMART STACK BROWSER CERT: PASS — ${chosen.smartStackDefId} compact → expanded → regrouped; 3 screenshots captured`);
   } finally {
     try {
       cdp?.close();
@@ -859,6 +895,6 @@ async function main() {
 }
 
 void main().catch((error) => {
-  console.error("ACTIVATED ABILITY BROWSER CERT: FAIL", error);
+  console.error("SMART STACK BROWSER CERT: FAIL", error);
   process.exitCode = 1;
 });
