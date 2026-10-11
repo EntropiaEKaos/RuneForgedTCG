@@ -762,7 +762,12 @@ async function main() {
     assert.equal(refreshed.playerTurn, true, `round-${sourceRefreshRound} refresh must visibly belong to the player: ${JSON.stringify(refreshed)}`);
     assert.ok((refreshed.playerMana ?? 0) >= 2, `round-${sourceRefreshRound} refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`);
 
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must reopen after turn refresh");
+    // The fixed tray can remain open across turns. Clicking an already-expanded trigger
+    // would close it, so only open the panel when it is currently collapsed.
+    const panelExpanded = await evaluate(cdp, `document.querySelector(${JSON.stringify(sourceTrigger)})?.getAttribute("aria-expanded") === "true"`);
+    if (!panelExpanded) {
+      assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must open after turn refresh");
+    }
     const ready = await waitForAbilityState(cdp, chosen.sourceDefId, "ready", null);
     assert.equal(ready.disabled, false, "activated ability must become usable after mana refresh");
     assert.match(ready.text, /PRONTA/i, "ready state must be visible on the battlefield control");
