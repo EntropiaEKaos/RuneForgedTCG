@@ -28,8 +28,9 @@ export default function CardTip({ onActivateAbility, artViewer, ...cardProps }: 
     const dismiss = () => setAbilityPanelOpen(false);
     window.addEventListener("keydown", close);
     window.addEventListener("resize", dismiss);
-    window.addEventListener("scroll", dismiss, true);
-    return () => { window.removeEventListener("keydown", close); window.removeEventListener("resize", dismiss); window.removeEventListener("scroll", dismiss, true); };
+    // The ability tray is portaled and fixed; browser automation and card tooltips may scroll
+    // the battlefield immediately after the trigger click. Do not dismiss the tray on scroll.
+    return () => { window.removeEventListener("keydown", close); window.removeEventListener("resize", dismiss); };
   }, [abilityPanelOpen]);
   const { defId, definition, unit, state, costOverride } = cardProps;
   const def = definition ?? getCard(defId);
