@@ -28,7 +28,7 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
   return <div data-hybrid-stacks={label} className="flex flex-wrap items-end justify-center gap-2">
     {groups.map(group => {
       const compact = group.members.length > 1 && !group.expanded && !forceExpanded;
-      const status = label.includes("permanent") ? null : summarizeVisualStackStatus(group.members as UnitInstance[]);
+      const status = (label === "player" || label === "ai") ? summarizeVisualStackStatus(group.members as UnitInstance[]) : null;
       const indicators = status ? ([
         ["⚔", status.attacking, "atacando"],
         ["◷", status.spentAttack, "já atacaram"],
