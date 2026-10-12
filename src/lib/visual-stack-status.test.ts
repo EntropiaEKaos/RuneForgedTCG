@@ -53,3 +53,15 @@ test("large swarm counts only living members after casualties", () => {
   });
   assert.equal(summarizeVisualStackStatus([]).total, 0);
 });
+
+test("attack, damage and negative statuses are independent across identical cards", () => {
+  const units = [
+    unit({ instanceId: "first", isAttacking: true, health: 3 }),
+    unit({ instanceId: "second", health: 2, frostbitten: true }),
+    unit({ instanceId: "third", powerBuffs: 2, hasAttackedThisTurn: true }),
+  ];
+  assert.deepEqual(summarizeVisualStackStatus(units), {
+    total: 3, attacking: 1, spentAttack: 1, damaged: 1, buffed: 1, impaired: 1,
+  });
+  assert.deepEqual(units.map(unit => unit.instanceId), ["first", "second", "third"]);
+});
