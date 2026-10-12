@@ -731,7 +731,10 @@ async function main() {
     );
 
     const initialAbilityState = await abilityEvidence(cdp, chosen.sourceDefId);
-    const sourceTrigger = `[data-bench-side="player"] [data-activated-ability-trigger]`;
+    // Multiple creatures may expose ability icons; target the exact source instance.
+    const sourceUnitId = await evaluate(cdp, `document.querySelector('[data-bench-side="player"] [data-card-tip-def-id="${chosen.sourceDefId}"][data-unit-id]')?.dataset.unitId || null`);
+    assert.ok(sourceUnitId, "activated source must be visible on the player battlefield");
+    const sourceTrigger = `[data-bench-side="player"] [data-activated-ability-trigger="${sourceUnitId}"]`;
     assert.equal(await clickSelector(cdp, sourceTrigger), true, "battlefield ability icon must open the floating controls");
     let blocked;
     try {
@@ -759,7 +762,12 @@ async function main() {
     assert.equal(refreshed.playerTurn, true, `round-${sourceRefreshRound} refresh must visibly belong to the player: ${JSON.stringify(refreshed)}`);
     assert.ok((refreshed.playerMana ?? 0) >= 2, `round-${sourceRefreshRound} refresh must provide enough regular mana for the ability: ${JSON.stringify(refreshed)}`);
 
-    assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must reopen after turn refresh");
+    // The fixed tray can remain open across turns. Clicking an already-expanded trigger
+    // would close it, so only open the panel when it is currently collapsed.
+    const panelExpanded = await evaluate(cdp, `document.querySelector(${JSON.stringify(sourceTrigger)})?.getAttribute("aria-expanded") === "true"`);
+    if (!panelExpanded) {
+      assert.equal(await clickSelector(cdp, sourceTrigger), true, "ability panel must open after turn refresh");
+    }
     const ready = await waitForAbilityState(cdp, chosen.sourceDefId, "ready", null);
     assert.equal(ready.disabled, false, "activated ability must become usable after mana refresh");
     assert.match(ready.text, /PRONTA/i, "ready state must be visible on the battlefield control");
