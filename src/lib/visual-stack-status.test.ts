@@ -33,3 +33,23 @@ test("empty stacks have zero indicators", () => {
     total: 0, attacking: 0, spentAttack: 0, damaged: 0, buffed: 0, impaired: 0,
   });
 });
+
+test("large swarm counts only living members after casualties", () => {
+  const swarm = Array.from({ length: 24 }, (_, index) => unit({
+    instanceId: `wolf-${index}`,
+    isAttacking: index < 12,
+    hasAttackedThisTurn: index < 12,
+    health: index % 4 === 0 ? 2 : 3,
+    stunned: index % 6 === 0,
+  }));
+  const survivors = swarm.filter((_, index) => index >= 3);
+  assert.deepEqual(summarizeVisualStackStatus(survivors), {
+    total: 21,
+    attacking: 9,
+    spentAttack: 9,
+    damaged: 5,
+    buffed: 0,
+    impaired: 3,
+  });
+  assert.equal(summarizeVisualStackStatus([]).total, 0);
+});
