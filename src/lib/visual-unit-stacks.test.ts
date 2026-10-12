@@ -101,3 +101,38 @@ test("separating a combat target and regrouping restores the same authoritative 
   assert.equal(regrouped[0].members[0].isAttacking, true);
   assert.equal(regrouped[0].members[1].damage, 1);
 });
+
+
+test("combat selection resolves each identical unit by instance ID even when its stack is expanded", () => {
+  const units = [
+    { instanceId: "wolf-a", defId: "wolf", isAttacking: true, exhausted: true, damage: 1, buffs: ["fury"] },
+    { instanceId: "wolf-b", defId: "wolf", isAttacking: false, exhausted: false, damage: 2, buffs: [] },
+    { instanceId: "wolf-c", defId: "wolf", isAttacking: false, exhausted: false, damage: 0, buffs: ["shield"] },
+  ];
+  const compact = groupVisualUnits(units);
+  assert.equal(compact.length, 1);
+  assert.equal(compact[0].members.length, 3);
+  const expanded = groupVisualUnits(units, { expandedIds: new Set(["def:wolf"]) });
+  assert.equal(expanded[0].expanded, true);
+  const selectedAttacker = expanded[0].members.find(unit => unit.instanceId === "wolf-a");
+  const selectedBlocker = expanded[0].members.find(unit => unit.instanceId === "wolf-b");
+  assert.equal(selectedAttacker, units[0]);
+  assert.equal(selectedBlocker, units[1]);
+  assert.equal(selectedAttacker?.isAttacking, true);
+  assert.equal(selectedBlocker?.isAttacking, false);
+  assert.deepEqual(units.map(unit => unit.damage), [1, 2, 0]);
+  assert.deepEqual(units.map(unit => unit.buffs), [["fury"], [], ["shield"]]);
+  assert.deepEqual(groupVisualUnits(units)[0].members, units);
+});
+
+test("swarm casualties do not leave phantom cards in the visual stack", () => {
+  const units = Array.from({ length: 24 }, (_, index) => ({
+    instanceId: `token-${index}`, defId: "swarm-token", damage: index % 3,
+  }));
+  const survivors = units.filter(unit => !["token-0", "token-7", "token-23"].includes(unit.instanceId));
+  const [stack] = groupVisualUnits(survivors);
+  assert.equal(stack.members.length, 21);
+  assert.deepEqual(stack.members, survivors);
+  assert.equal(new Set(stack.members.map(unit => unit.instanceId)).size, 21);
+  assert.equal(groupVisualUnits([]).length, 0);
+});
