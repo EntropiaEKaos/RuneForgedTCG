@@ -1,38 +1,22 @@
-import type { StackableUnit } from "./visual-unit-stacks";
+import type { UnitInstance } from "@/game/types";
 
-/**
- * Read-only visual summary for a group of authoritative units.
- * This module must never determine combat legality or change game state.
- */
-export type VisualCombatUnit = StackableUnit & {
-  damage?: number;
-  isAttacking?: boolean;
-  isBlocking?: boolean;
-  exhausted?: boolean;
-  buffs?: readonly unknown[];
-  debuffs?: readonly unknown[];
-};
-
+/** Read-only projection of real 1v1 engine fields. Never mutates combat state. */
 export type VisualStackStatus = {
   total: number;
   attacking: number;
-  blocking: number;
-  exhausted: number;
+  spentAttack: number;
   damaged: number;
   buffed: number;
-  debuffed: number;
+  impaired: number;
 };
 
-export function summarizeVisualStackStatus<T extends VisualCombatUnit>(
-  units: readonly T[],
-): VisualStackStatus {
+export function summarizeVisualStackStatus(units: readonly UnitInstance[]): VisualStackStatus {
   return {
     total: units.length,
-    attacking: units.filter(unit => unit.isAttacking === true).length,
-    blocking: units.filter(unit => unit.isBlocking === true).length,
-    exhausted: units.filter(unit => unit.exhausted === true).length,
-    damaged: units.filter(unit => typeof unit.damage === "number" && unit.damage > 0).length,
-    buffed: units.filter(unit => (unit.buffs?.length ?? 0) > 0).length,
-    debuffed: units.filter(unit => (unit.debuffs?.length ?? 0) > 0).length,
+    attacking: units.filter(unit => unit.isAttacking).length,
+    spentAttack: units.filter(unit => unit.hasAttackedThisTurn).length,
+    damaged: units.filter(unit => unit.health < unit.maxHealth).length,
+    buffed: units.filter(unit => unit.powerBuffs > 0 || unit.healthBuffs > 0 || (unit.auraPowerBonus ?? 0) > 0 || (unit.auraHealthBonus ?? 0) > 0).length,
+    impaired: units.filter(unit => unit.stunned || unit.frostbitten || unit.poisonCounters > 0).length,
   };
 }
