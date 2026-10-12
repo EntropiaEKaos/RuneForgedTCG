@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { groupVisualUnits, type StackableUnit } from "@/lib/visual-unit-stacks";
+import { summarizeVisualStackStatus, type VisualCombatUnit } from "@/lib/visual-stack-status";
 
 type Props<T extends StackableUnit> = {
   units: readonly T[];
@@ -26,6 +27,15 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
   return <div data-hybrid-stacks={label} className="flex flex-wrap items-end justify-center gap-2">
     {groups.map(group => {
       const compact = group.members.length > 1 && !group.expanded && !forceExpanded;
+      const status = label.includes("permanent") ? null : summarizeVisualStackStatus(group.members as VisualCombatUnit[]);
+      const indicators = status ? ([
+        ["⚔", status.attacking, "atacando"],
+        ["🛡", status.blocking, "bloqueando"],
+        ["◷", status.exhausted, "exaustas"],
+        ["♥", status.damaged, "feridas"],
+        ["✦", status.buffed, "fortalecidas"],
+        ["↓", status.debuffed, "enfraquecidas"],
+      ] as const).filter(([, count]) => count > 0) : [];
       return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-1">
         {compact ? <div className="relative">
           {renderUnit(group.members[0])}
@@ -34,6 +44,10 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
             className="absolute -right-2 -top-2 z-30 rounded-full border border-amber-300 bg-slate-950 px-2 py-1 text-xs font-black text-amber-100 shadow-lg">
             ×{group.members.length} ▾
           </button>
+          {indicators.length > 0 && <div data-stack-status={group.id} aria-label={`Estados da pilha: ${indicators.map(([, count, name]) => `${count} ${name}`).join(", ")}`}
+            className="absolute -bottom-3 left-1/2 z-30 flex max-w-[180px] -translate-x-1/2 flex-wrap justify-center gap-0.5 rounded-md border border-amber-400/40 bg-slate-950/95 px-1 py-0.5 text-[10px] text-amber-100 shadow-lg">
+            {indicators.map(([symbol, count, name]) => <span key={name} title={`${count} ${name}`} className="whitespace-nowrap rounded bg-slate-800 px-1">{symbol}{count}</span>)}
+          </div>}
         </div> : <>
           {group.members.map(unit => <div key={unit.instanceId} className="relative">
             {renderUnit(unit)}
