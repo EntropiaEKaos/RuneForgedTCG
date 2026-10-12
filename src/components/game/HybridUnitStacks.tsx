@@ -36,7 +36,7 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
         ["✦", status.buffed, "fortalecidas"],
         ["↓", status.impaired, "afetadas"],
       ] as const).filter(([, count]) => count > 0) : [];
-      return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-1">
+      return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-1 pb-5">
         {compact ? <div className="relative">
           {renderUnit(group.members[0])}
           <button type="button" aria-label={`Expandir pilha ${group.defId} com ${group.members.length} cartas`}
@@ -45,7 +45,7 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
             ×{group.members.length} ▾
           </button>
           {indicators.length > 0 && <div data-stack-status={group.id} aria-label={`Estados da pilha: ${indicators.map(([, count, name]) => `${count} ${name}`).join(", ")}`}
-            className="absolute -bottom-3 left-1/2 z-30 flex max-w-[180px] -translate-x-1/2 flex-wrap justify-center gap-0.5 rounded-md border border-amber-400/40 bg-slate-950/95 px-1 py-0.5 text-[10px] text-amber-100 shadow-lg">
+            className="absolute -bottom-2 left-1/2 z-30 flex w-max max-w-[min(180px,85vw)] -translate-x-1/2 translate-y-full flex-wrap justify-center gap-0.5 rounded-md border border-amber-400/40 bg-slate-950/95 px-1 py-0.5 text-[10px] text-amber-100 shadow-lg">
             {indicators.map(([symbol, count, name]) => <span key={name} title={`${count} ${name}`} className="whitespace-nowrap rounded bg-slate-800 px-1">{symbol}{count}</span>)}
           </div>}
         </div> : <>
