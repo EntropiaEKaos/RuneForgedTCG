@@ -2,7 +2,8 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { groupVisualUnits, type StackableUnit } from "@/lib/visual-unit-stacks";
-import { summarizeVisualStackStatus, type VisualCombatUnit } from "@/lib/visual-stack-status";
+import { summarizeVisualStackStatus } from "@/lib/visual-stack-status";
+import type { UnitInstance } from "@/game/types";
 
 type Props<T extends StackableUnit> = {
   units: readonly T[];
@@ -27,14 +28,13 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
   return <div data-hybrid-stacks={label} className="flex flex-wrap items-end justify-center gap-2">
     {groups.map(group => {
       const compact = group.members.length > 1 && !group.expanded && !forceExpanded;
-      const status = label.includes("permanent") ? null : summarizeVisualStackStatus(group.members as VisualCombatUnit[]);
+      const status = label.includes("permanent") ? null : summarizeVisualStackStatus(group.members as UnitInstance[]);
       const indicators = status ? ([
         ["⚔", status.attacking, "atacando"],
-        ["🛡", status.blocking, "bloqueando"],
-        ["◷", status.exhausted, "exaustas"],
+        ["◷", status.spentAttack, "já atacaram"],
         ["♥", status.damaged, "feridas"],
         ["✦", status.buffed, "fortalecidas"],
-        ["↓", status.debuffed, "enfraquecidas"],
+        ["↓", status.impaired, "afetadas"],
       ] as const).filter(([, count]) => count > 0) : [];
       return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-1">
         {compact ? <div className="relative">
