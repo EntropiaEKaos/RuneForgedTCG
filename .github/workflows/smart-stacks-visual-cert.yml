@@ -72,11 +72,12 @@ jobs:
             import { readFileSync } from "node:fs";
             const lane = readFileSync("src/components/game/CombatLane.tsx", "utf8");
             const model = readFileSync("src/game/client/match-model.ts", "utf8");
-            assert.match(lane, /data-attacker-id=\\{attacker\\.instanceId\\}/);
-            assert.match(lane, /data-blocker-id=\\{blocker\\?\\.instanceId/);
-            assert.match(lane, /previewCombatLane\\(attacker, blocker\\)/);
-            assert.match(model, /blocks\\[attacker\\.instanceId\\]/);
-            assert.match(model, /unit\\.instanceId === blockerId/);
+            for (const token of ["data-attacker-id={attacker.instanceId}", "data-blocker-id={blocker?.instanceId", "previewCombatLane(attacker, blocker)"]) {
+              assert.ok(lane.includes(token), "CombatLane missing: " + token);
+            }
+            for (const token of ["blocks[attacker.instanceId]", "unit.instanceId === blockerId"]) {
+              assert.ok(model.includes(token), "Combat model missing: " + token);
+            }
             console.log("Combat lane individual identity contract: PASS");
           '
       - name: Bootstrap PostgreSQL
