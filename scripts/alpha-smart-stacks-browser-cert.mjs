@@ -595,6 +595,15 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
         const actualCopies = afterPlay.board.filter((unit) => unit.defId === defId && unit.unitId);
         const compactedCopies = afterPlay.stackGroups.some((group) => group.count >= 2 && group.stackId === `def:${defId}`);
         if (actualCopies.length <= copies.length && !compactedCopies) {
+          if (afterPlay.phase === "response") {
+            // A playable card can enter the authoritative response window
+            // before it resolves onto the battlefield. Do not count a pending
+            // spell as a played creature; the response branch will pass and
+            // the next iteration will inspect the resolved state.
+            actions.push({ round: snapshot.round, action: `await-stack-response:${defId}` });
+            await sleep(160);
+            continue;
+          }
           throw new Error(`Smart Stack play did not establish another authoritative battlefield instance: ${JSON.stringify({ defId, round: snapshot.round, before: snapshot, after: afterPlay, priorCopies: copies, actualCopies, actions: actions.slice(-20) })}`);
         }
         actions.push({ round: snapshot.round, action: `play-stack-copy:${defId}` });
