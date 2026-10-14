@@ -23,15 +23,15 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
-  return <div data-hybrid-stacks={label} className="flex flex-wrap items-end justify-center gap-2">
+  return <div data-hybrid-stacks={label} className="flex w-full flex-wrap items-end justify-center gap-x-3 gap-y-4 px-2 py-3 sm:gap-x-4">
     {groups.map(group => {
       const compact = group.members.length > 1 && !group.expanded && !forceExpanded;
-      return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-1">
+      return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-2">
         {compact ? <div className="relative">
           {renderUnit(group.members[0])}
           <button type="button" aria-label={`Expandir pilha ${group.defId} com ${group.members.length} cartas`}
             aria-expanded={false} onClick={() => toggle(group.id)}
-            className="absolute -right-2 -top-2 z-30 rounded-full border border-amber-300 bg-slate-950 px-2 py-1 text-xs font-black text-amber-100 shadow-lg">
+            className="absolute -right-2 -top-3 z-30 min-h-8 rounded-full border-2 border-amber-300 bg-slate-950 px-2.5 py-1 text-xs font-black text-amber-50 shadow-lg shadow-black/70 transition-colors hover:bg-amber-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200">
             ×{group.members.length} ▾
           </button>
         </div> : <>
@@ -39,13 +39,13 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
             {renderUnit(unit)}
             {group.members.length > 1 && <button type="button" aria-label={`Separar carta ${unit.instanceId}`}
               title="Separar da pilha" onClick={() => setSeparated(previous => new Set(previous).add(unit.instanceId))}
-              className="absolute -right-1 -top-1 z-30 rounded-full bg-slate-950/95 px-1 text-[10px] text-cyan-200">↗</button>}
+              className="absolute -right-1 -top-2 z-30 min-h-7 min-w-7 rounded-full border border-cyan-300 bg-slate-950 px-1.5 text-xs font-bold text-cyan-100 shadow-md shadow-black/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200">↗</button>}
             {separated.has(unit.instanceId) && <button type="button" aria-label={`Reagrupar carta ${unit.instanceId}`}
               onClick={() => setSeparated(previous => { const next = new Set(previous); next.delete(unit.instanceId); return next; })}
-              className="absolute -right-1 -bottom-1 z-30 rounded bg-slate-950/95 px-1 text-[10px] text-cyan-200">↩</button>}
+              className="absolute -right-1 -bottom-2 z-30 min-h-7 min-w-7 rounded border border-cyan-300 bg-slate-950 px-1.5 text-xs font-bold text-cyan-100 shadow-md shadow-black/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-200">↩</button>}
           </div>)}
           {group.members.length > 1 && <button type="button" onClick={() => toggle(group.id)}
-            aria-label={`Recolher pilha ${group.defId}`} className="rounded bg-slate-900 px-2 py-1 text-xs text-amber-100">Recolher ×{group.members.length}</button>}
+            aria-label={`Recolher pilha ${group.defId}`} className="min-h-8 rounded-md border border-amber-400 bg-slate-950 px-3 py-1 text-xs font-bold text-amber-50 shadow-md shadow-black/60 hover:bg-amber-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-200">Recolher ×{group.members.length}</button>}
         </>}
       </div>;
     })}
