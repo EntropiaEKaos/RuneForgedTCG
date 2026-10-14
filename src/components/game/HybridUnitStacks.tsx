@@ -23,10 +23,10 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
     if (next.has(id)) next.delete(id); else next.add(id);
     return next;
   });
-  return <div data-hybrid-stacks={label} className="flex w-full flex-wrap items-end justify-center gap-x-3 gap-y-4 px-2 py-3 sm:gap-x-4">
+  return <div data-hybrid-stacks={label} className="flex w-full min-w-0 flex-wrap items-end justify-center gap-x-2 gap-y-4 px-1 py-3 sm:gap-x-3 lg:gap-x-4">
     {groups.map(group => {
       const compact = group.members.length > 1 && !group.expanded && !forceExpanded;
-      return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-2">
+      return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex max-w-full flex-wrap items-end justify-center gap-2">
         {compact ? <div className="relative">
           {renderUnit(group.members[0])}
           <button type="button" aria-label={`Expandir pilha ${group.defId} com ${group.members.length} cartas`}
