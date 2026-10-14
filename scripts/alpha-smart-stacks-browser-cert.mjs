@@ -802,6 +802,14 @@ async function main() {
 
     cdp.notifications.length = 0;
     const stackFixture = await driveUntilSmartStack(cdp, chosen.smartStackDefId);
+    // The fixture must reach coexistence through authoritative gameplay;
+    // never infer success solely from having issued two play commands.
+    const authoritativeIds = stackFixture.copies.map((unit) => unit.unitId).filter(Boolean);
+    assert.equal(new Set(authoritativeIds).size, authoritativeIds.length, "fixture contains duplicate authoritative unit IDs");
+    assert.ok(
+      authoritativeIds.length >= 2 || (stackFixture.grouped?.count ?? 0) >= 2,
+      "fixture must prove two surviving units coexist before UI certification",
+    );
     assert.ok(stackFixture.copies.length >= 2 || stackFixture.grouped?.count >= 2, `fixture must establish two authoritative equal creatures before visual assertion: ${JSON.stringify(stackFixture)}`);
 
     const smartStack = await waitUntil(async () => {
