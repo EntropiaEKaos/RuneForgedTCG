@@ -63,6 +63,8 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint -- --max-warnings 0
+      - name: Swarm regression (36 and 40 units)
+        run: npx --no-install tsx --test src/lib/visual-unit-stacks.test.ts
       - name: Bootstrap PostgreSQL
         run: npm run db:bootstrap
       - name: Production build
