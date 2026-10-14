@@ -72,7 +72,7 @@ jobs:
             import { readFileSync } from "node:fs";
             const lane = readFileSync("src/components/game/CombatLane.tsx", "utf8");
             const model = readFileSync("src/game/client/match-model.ts", "utf8");
-            for (const token of ["data-attacker-id={attacker.instanceId}", "data-blocker-id={blocker?.instanceId", "previewCombatLane(attacker, blocker)"]) {
+            for (const token of ["data-attacker-id={attacker.instanceId}", "data-blocker-id={blocker?.instanceId", "data-attacker-falls={preview.attackerFalls}", "data-blocker-falls={preview.blockerFalls}", "data-nexus-damage={preview.nexusDamage}", "previewCombatLane(attacker, blocker)"]) {
               assert.ok(lane.includes(token), "CombatLane missing: " + token);
             }
             for (const token of ["blocks[attacker.instanceId]", "unit.instanceId === blockerId"]) {
