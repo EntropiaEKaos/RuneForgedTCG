@@ -65,6 +65,8 @@ jobs:
         run: npm run lint -- --max-warnings 0
       - name: Swarm regression (36 and 40 units)
         run: npx --no-install tsx --test src/lib/visual-unit-stacks.test.ts
+      - name: Multiple attacker and blocker combat preview regression
+        run: npx --no-install tsx --test src/lib/combat-multiple-lanes.test.ts
       - name: Combat lane individual identity contract
         run: |
           node --input-type=module -e '
