@@ -20,7 +20,7 @@ export function CombatLane({ attacker, blocker, state, locked = false, attackerC
 }) {
   const preview = previewCombatLane(attacker, blocker);
   return (
-    <article className="combat-lane" data-attacker-id={attacker.instanceId} data-blocker-id={blocker?.instanceId ?? ""} data-outcome={preview.outcome} aria-label={`${attacker.defId}: ${OUTCOME[preview.outcome]}`}>
+    <article className="combat-lane" data-attacker-id={attacker.instanceId} data-blocker-id={blocker?.instanceId ?? ""} data-outcome={preview.outcome} data-attacker-falls={preview.attackerFalls} data-blocker-falls={preview.blockerFalls} data-nexus-damage={preview.nexusDamage} aria-label={`${attacker.defId}: ${OUTCOME[preview.outcome]}`}>
       <header><span>{locked ? "DESAFIADO" : "ATACANTE"}</span><b>{OUTCOME[preview.outcome]}</b></header>
       <CardTip defId={attacker.defId} unit={attacker} state={state} size="sm" className={attackerClassName} attacking onClick={onAttackerClick} />
       <div className="combat-lane-vector" aria-hidden="true"><i /><span>⚔</span><i /></div>
