@@ -853,6 +853,20 @@ async function main() {
     })()`);
     assert.equal(regrouped, true, "expanded Smart Stack must regroup");
     await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack to return to compact mode", 10_000);
+    const regroupedStack = await evaluate(cdp, `(() => {
+      const stack = [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')]
+        .find((node) => node.dataset.stackId === ${JSON.stringify(smartStack.stackId)});
+      if (!stack) return null;
+      return {
+        stackId: stack.dataset.stackId,
+        count: Number(stack.dataset.stackCount || 0),
+        compactIds: [...stack.querySelectorAll('[data-unit-id]')].map((node) => node.dataset.unitId).filter(Boolean),
+      };
+    })()`);
+    assert.ok(regroupedStack, "regrouped stack must keep its original stable group identity");
+    assert.equal(regroupedStack.count, expandedStack.count, "regroup must not lose or duplicate creatures");
+    assert.equal(regroupedStack.compactIds.length, 1, "regroup must show exactly one representative creature");
+    assert.ok(expandedStack.ids.includes(regroupedStack.compactIds[0]), "representative must be an original authoritative creature");
     await capture(cdp, "smart-stack-03-regrouped.png");
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
