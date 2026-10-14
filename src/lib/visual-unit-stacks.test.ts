@@ -136,3 +136,43 @@ test("swarm casualties do not leave phantom cards in the visual stack", () => {
   assert.equal(new Set(stack.members.map(unit => unit.instanceId)).size, 21);
   assert.equal(groupVisualUnits([]).length, 0);
 });
+
+
+test("large mixed Swarm retains unique targeting identities and modifiers across expand/separate/regroup", () => {
+  const units = Array.from({ length: 36 }, (_, index) => ({
+    instanceId: `unit-${index}`,
+    defId: index % 3 === 0 ? "wolf" : "swarm-token",
+    attack: 1 + index % 4,
+    damage: index % 5,
+    buffs: index % 7 === 0 ? ["fury"] : [],
+    debuffs: index % 11 === 0 ? ["slow"] : [],
+    isAttacking: index % 4 === 0,
+    isBlocking: index % 4 === 1,
+  }));
+  const original = units.map(unit => ({ ...unit, buffs: [...unit.buffs], debuffs: [...unit.debuffs] }));
+  const expanded = groupVisualUnits(units, {
+    expandedIds: new Set(["def:wolf", "def:swarm-token"]),
+    separatedIds: new Set(["unit-1", "unit-12", "unit-35"]),
+  });
+  assert.equal(expanded.flatMap(group => group.members).length, 36);
+  assert.equal(new Set(expanded.flatMap(group => group.members.map(unit => unit.instanceId))).size, 36);
+  assert.equal(expanded.find(group => group.id === "unit:unit-12")?.members[0], units[12]);
+  assert.equal(expanded.find(group => group.id === "unit:unit-35")?.members[0], units[35]);
+  const regrouped = groupVisualUnits(units);
+  assert.equal(regrouped.length, 2);
+  for (const unit of units) {
+    assert.equal(regrouped.flatMap(group => group.members).find(member => member.instanceId === unit.instanceId), unit);
+  }
+  assert.deepEqual(units, original);
+});
+
+test("Swarm visual projection handles removal, reinforcement and zero survivors", () => {
+  const initial = Array.from({ length: 40 }, (_, index) => ({ instanceId: `token-${index}`, defId: "token", damage: index % 2 }));
+  const survivors = initial.filter((_, index) => index % 4 !== 0);
+  const reinforced = [...survivors, { instanceId: "token-40", defId: "token", damage: 0 }];
+  assert.equal(groupVisualUnits(initial)[0].members.length, 40);
+  assert.equal(groupVisualUnits(survivors)[0].members.length, 30);
+  assert.equal(groupVisualUnits(reinforced)[0].members.length, 31);
+  assert.equal(groupVisualUnits([]).length, 0);
+  assert.deepEqual(groupVisualUnits(reinforced)[0].members, reinforced);
+});
