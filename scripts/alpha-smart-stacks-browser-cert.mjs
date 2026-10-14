@@ -877,6 +877,30 @@ async function main() {
     assert.ok(expandedStack.ids.includes(regroupedStack.compactIds[0]), "representative must be an original authoritative creature");
     await capture(cdp, "smart-stack-03-regrouped.png");
 
+    // Inspect any combat lanes encountered by this browser journey. This is
+    // diagnostic coverage, not a substitute for a dedicated multi-combat E2E.
+    const combatLaneAudit = await evaluate(cdp, `(() => {
+      const lanes = [...document.querySelectorAll(".combat-lane")];
+      return {
+        count: lanes.length,
+        lanes: lanes.map((lane) => ({
+          attackerId: lane.dataset.attackerId || null,
+          blockerId: lane.dataset.blockerId || null,
+          outcome: lane.dataset.outcome || null,
+          attackerFalls: lane.dataset.attackerFalls,
+          blockerFalls: lane.dataset.blockerFalls,
+          nexusDamage: lane.dataset.nexusDamage,
+        })),
+      };
+    })()`);
+    for (const lane of combatLaneAudit.lanes) {
+      assert.ok(lane.attackerId, "visible combat lane must identify its attacker");
+      assert.ok(["true", "false"].includes(lane.attackerFalls), "visible combat lane must expose attacker survival");
+      assert.ok(["true", "false"].includes(lane.blockerFalls), "visible combat lane must expose blocker survival");
+      assert.ok(Number.isFinite(Number(lane.nexusDamage)) && Number(lane.nexusDamage) >= 0, "visible combat lane must expose nonnegative nexus damage");
+      assert.ok(lane.outcome, "visible combat lane must expose an outcome");
+    }
+
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
     assert.equal(runtimeExceptions.length, 0, `browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0, 3))}`);
 
@@ -893,6 +917,7 @@ async function main() {
       predictedOpeningHand: chosen.openingHand,
       actualOpeningHand,
       stackFixture,
+      combatLaneAudit,
       compact: smartStack,
       expanded: expandedStack,
       regrouped: true,
