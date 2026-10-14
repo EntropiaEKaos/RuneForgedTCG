@@ -65,6 +65,20 @@ jobs:
         run: npm run lint -- --max-warnings 0
       - name: Swarm regression (36 and 40 units)
         run: npx --no-install tsx --test src/lib/visual-unit-stacks.test.ts
+      - name: Combat lane individual identity contract
+        run: |
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { readFileSync } from "node:fs";
+            const lane = readFileSync("src/components/game/CombatLane.tsx", "utf8");
+            const model = readFileSync("src/game/client/match-model.ts", "utf8");
+            assert.match(lane, /data-attacker-id=\\{attacker\\.instanceId\\}/);
+            assert.match(lane, /data-blocker-id=\\{blocker\\?\\.instanceId/);
+            assert.match(lane, /previewCombatLane\\(attacker, blocker\\)/);
+            assert.match(model, /blocks\\[attacker\\.instanceId\\]/);
+            assert.match(model, /unit\\.instanceId === blockerId/);
+            console.log("Combat lane individual identity contract: PASS");
+          '
       - name: Bootstrap PostgreSQL
         run: npm run db:bootstrap
       - name: Production build
