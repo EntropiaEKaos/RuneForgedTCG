@@ -900,6 +900,29 @@ async function main() {
       { stage: "Smart Stack regrouped", file: screenshots[2], href: `${baseUrl}/play`, evidence: `${chosen.smartStackDefId}: compact again` },
     ]);
     console.log(`SMART STACK BROWSER CERT: PASS — ${chosen.smartStackDefId} compact → expanded → regrouped; 3 screenshots captured`);
+  } catch (error) {
+    // Preserve browser evidence on failed fixtures too. A missing duplicate
+    // should not also erase the screenshot and runtime diagnostics from CI.
+    await mkdir(outputDir, { recursive: true });
+    const failure = {
+      ok: false,
+      type: "smart-stacks-browser-certification",
+      error: error instanceof Error ? error.message : String(error),
+      gitSha: process.env.GITHUB_SHA || null,
+      capturedAt: new Date().toISOString(),
+      runtimeExceptions: cdp?.notifications?.filter((message) => message.method === "Runtime.exceptionThrown").slice(-5) || [],
+    };
+    try {
+      if (cdp) {
+        failure.snapshot = await matchSnapshot(cdp);
+        await capture(cdp, "smart-stack-failure.png");
+        failure.screenshot = "smart-stack-failure.png";
+      }
+    } catch (captureError) {
+      failure.captureError = captureError instanceof Error ? captureError.message : String(captureError);
+    }
+    await writeFile(join(outputDir, "smart-stacks-browser-failure.json"), `${JSON.stringify(failure, null, 2)}\n`);
+    throw error;
   } finally {
     try {
       cdp?.close();
