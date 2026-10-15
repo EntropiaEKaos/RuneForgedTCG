@@ -85,3 +85,43 @@ test("Sentinela-targeted unblocked attackers do not incorrectly damage Nexus", (
   assert.equal(preview.attackerDeaths, 0);
   assert.equal(preview.blockerDeaths, 0);
 });
+
+test("mixed combat outcomes aggregate independently across six simultaneous lanes", () => {
+  const attackers = [
+    unit("a-trade", "player", 2, 2),
+    unit("a-win", "player", 5, 4),
+    unit("a-loss", "player", 1, 1),
+    unit("a-clash", "player", 1, 5),
+    unit("a-free", "player", 3, 3),
+    unit("a-overwhelm", "player", 6, 4, ["Overwhelm"]),
+  ];
+  const blockers = [
+    unit("b-trade", "ai", 2, 2),
+    unit("b-win", "ai", 1, 2),
+    unit("b-loss", "ai", 3, 4),
+    unit("b-clash", "ai", 1, 5),
+    unit("b-overwhelm", "ai", 1, 2),
+  ];
+  const blocks = {
+    "a-trade": "b-trade",
+    "a-win": "b-win",
+    "a-loss": "b-loss",
+    "a-clash": "b-clash",
+    "a-overwhelm": "b-overwhelm",
+  };
+  const state = {
+    players: { player: { bench: attackers }, ai: { bench: blockers } },
+    combat: { attackerId: "player", blocks, locked: [], sentinelaTargets: {} },
+  } as unknown as GameState;
+  const outcomes = attackers.map((a) => {
+    const blocker = blockers.find((b) => b.instanceId === blocks[a.instanceId as keyof typeof blocks]);
+    return previewCombatLane(a, blocker).outcome;
+  });
+  assert.deepEqual(outcomes, ["trade", "favorable", "danger", "clash", "unblocked", "favorable"]);
+  assert.deepEqual(previewCombat(state, blocks), {
+    nexusDamage: 7,
+    attackerDeaths: 2,
+    blockerDeaths: 3,
+    unblocked: 1,
+  });
+});
