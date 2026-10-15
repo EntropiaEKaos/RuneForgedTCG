@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { UnitInstance } from "@/game/types";
 import { summarizeVisualStackStatus } from "./visual-stack-status";
+import { groupVisualUnits } from "./visual-unit-stacks";
 
 function unit(overrides: Partial<UnitInstance> = {}): UnitInstance {
   return {
@@ -64,4 +65,27 @@ test("attack, damage and negative statuses are independent across identical card
     total: 3, attacking: 1, spentAttack: 1, damaged: 1, buffed: 1, impaired: 1,
   });
   assert.deepEqual(units.map(unit => unit.instanceId), ["first", "second", "third"]);
+});
+
+
+test("compact, expanded and separated stacks preserve combat indicators and identities", () => {
+  const units = [
+    unit({ instanceId: "wolf-a", isAttacking: true, health: 2 }),
+    unit({ instanceId: "wolf-b", stunned: true, powerBuffs: 1 }),
+    unit({ instanceId: "wolf-c", hasAttackedThisTurn: true }),
+  ];
+  const before = JSON.stringify(units);
+  const compact = groupVisualUnits(units);
+  const expanded = groupVisualUnits(units, { expandedIds: new Set(["def:wolf"]) });
+  const separated = groupVisualUnits(units, { separatedIds: new Set(["wolf-b"]) });
+  assert.equal(compact.length, 1);
+  assert.equal(expanded.length, 1);
+  assert.equal(expanded[0].expanded, true);
+  assert.equal(separated.length, 2);
+  assert.deepEqual(compact[0].members.map(member => member.instanceId), ["wolf-a", "wolf-b", "wolf-c"]);
+  assert.deepEqual(summarizeVisualStackStatus(compact[0].members), summarizeVisualStackStatus(expanded[0].members));
+  assert.equal(separated.flatMap(group => group.members).length, units.length);
+  assert.deepEqual(separated.map(group => summarizeVisualStackStatus(group.members).total), [2, 1]);
+  assert.equal(JSON.stringify(units), before);
+  assert.equal(compact[0].members[0], units[0]);
 });
