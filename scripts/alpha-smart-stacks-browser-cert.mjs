@@ -886,8 +886,9 @@ async function main() {
     assert.ok(expandedStack.ids.includes(regroupedStack.compactIds[0]), "representative must be an original authoritative creature");
     await capture(cdp, "smart-stack-03-regrouped.png");
 
-    // Inspect any combat lanes encountered by this browser journey. This is
-    // diagnostic coverage, not a substitute for a dedicated multi-combat E2E.
+    // Inspect combat lanes at this point in the Smart Stack journey.
+    // This snapshot is optional coverage: record whether lanes were actually
+    // exercised, so a green stack test cannot be mistaken for combat E2E.
     const combatLaneAudit = await evaluate(cdp, `(() => {
       const lanes = [...document.querySelectorAll(".combat-lane")];
       return {
@@ -906,6 +907,8 @@ async function main() {
         })),
       };
     })()`);
+    const combatCoverage = { observed: combatLaneAudit.count > 0, laneCount: combatLaneAudit.count, multiLaneObserved: combatLaneAudit.count >= 2, blockedLaneCount: combatLaneAudit.lanes.filter((lane) => Boolean(lane.blockerId)).length };
+    console.log(`COMBAT BROWSER COVERAGE: ${JSON.stringify(combatCoverage)}`);
     // In a single combat view, each attacker must own exactly one lane and
     // each assigned blocker may appear in at most one lane. Repeated card
     // definitions are fine; repeated authoritative instance IDs are not.
@@ -944,6 +947,7 @@ async function main() {
       actualOpeningHand,
       stackFixture,
       combatLaneAudit,
+      combatCoverage,
       compact: smartStack,
       expanded: expandedStack,
       regrouped: true,
