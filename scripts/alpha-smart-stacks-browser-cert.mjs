@@ -489,6 +489,7 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
       .filter(Boolean),
   }))()`);
   const blockCount = Math.min(layout?.blockers?.length || 0, layout?.attackers?.length || 0);
+  const requestedAssignments = [];
   for (let index = 0; index < blockCount; index++) {
     const blockerId = layout.blockers[index];
     const attackerId = layout.attackers[index];
@@ -497,6 +498,7 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
     assert.equal(await clickSelector(cdp, blockerSelector), true, `could not select defensive blocker ${blockerId}`);
     await sleep(80);
     assert.equal(await clickSelector(cdp, attackerSelector), true, `could not assign blocker ${blockerId} to attacker ${attackerId}`);
+    requestedAssignments.push({ attackerId, blockerId });
     await sleep(80);
   }
   if (blockCount > 0) {
@@ -515,10 +517,14 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
     assert.equal(new Set(assignedLanes.map(lane => lane.attackerId)).size, assignedLanes.length, "defensive lanes must not duplicate attackers");
     assert.equal(new Set(assignedLanes.map(lane => lane.blockerId)).size, assignedLanes.length, "defensive lanes must not duplicate blockers");
     const assignments = assignedLanes.map(lane => ({ attackerId: lane.attackerId, blockerId: lane.blockerId, outcome: lane.outcome }));
+    for (const expected of requestedAssignments) {
+      assert.ok(assignments.some(actual => actual.attackerId === expected.attackerId && actual.blockerId === expected.blockerId), `defensive combat lane lost requested blocker assignment: ${JSON.stringify(expected)}`);
+    }
     await mkdir(outputDir, { recursive: true });
     await writeFile(join(outputDir, "combat-defense-assignments.json"), JSON.stringify({
       type: "combat-defense-assignment-evidence",
       blockCount,
+      requestedAssignments,
       assignments,
       laneIdentities,
     }, null, 2) + "\\n");
