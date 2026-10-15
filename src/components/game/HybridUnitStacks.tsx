@@ -2,18 +2,18 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { groupVisualUnits, type StackableUnit } from "@/lib/visual-unit-stacks";
-import { summarizeVisualStackStatus } from "@/lib/visual-stack-status";
-import type { UnitInstance } from "@/game/types";
+import type { VisualStackStatus } from "@/lib/visual-stack-status";
 
 type Props<T extends StackableUnit> = {
   units: readonly T[];
   renderUnit: (unit: T) => ReactNode;
   label?: string;
+  summarizeStatus?: (units: readonly T[]) => VisualStackStatus;
   forceExpanded?: boolean;
 };
 
 /** Presentation-only wrapper: every expanded card still uses its original instance and handler. */
-export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, label = "Criaturas", forceExpanded = false }: Props<T>) {
+export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, label = "Criaturas", summarizeStatus, forceExpanded = false }: Props<T>) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const [separated, setSeparated] = useState<ReadonlySet<string>>(() => new Set());
   const groups = useMemo(() => groupVisualUnits(units, {
@@ -28,7 +28,7 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
   return <div data-hybrid-stacks={label} className="flex flex-wrap items-end justify-center gap-2">
     {groups.map(group => {
       const compact = group.members.length > 1 && !group.expanded && !forceExpanded;
-      const status = (label === "player" || label === "ai") ? summarizeVisualStackStatus(group.members as UnitInstance[]) : null;
+      const status = summarizeStatus ? summarizeStatus(group.members) : null;
       const indicators = status ? ([
         ["⚔", status.attacking, "atacando"],
         ["◷", status.spentAttack, "já atacaram"],
