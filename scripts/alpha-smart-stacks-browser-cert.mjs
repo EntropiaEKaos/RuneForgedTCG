@@ -933,6 +933,14 @@ async function main() {
     })()`);
     const combatCoverage = { observed: combatLaneAudit.count > 0, laneCount: combatLaneAudit.count, multiLaneObserved: combatLaneAudit.count >= 2, blockedLaneCount: combatLaneAudit.lanes.filter((lane) => Boolean(lane.blockerId)).length };
     console.log(`COMBAT BROWSER COVERAGE: ${JSON.stringify(combatCoverage)}`);
+    // Dedicated combat certification can opt into a hard coverage gate.
+    // Keep the Smart Stack smoke test independent until a deterministic
+    // multi-combat fixture is wired to this browser journey.
+    if (process.env.REQUIRE_MULTI_COMBAT_BROWSER === "1") {
+      assert.ok(combatCoverage.multiLaneObserved && combatCoverage.blockedLaneCount >= 2,
+        `required multi-combat browser coverage missing: ${JSON.stringify(combatCoverage)}`);
+    }
+
     await mkdir(outputDir, { recursive: true });
     await writeFile(join(outputDir, "combat-browser-coverage.json"), JSON.stringify({
       type: "combat-browser-coverage",
