@@ -928,6 +928,20 @@ async function main() {
       assert.ok(["true", "false"].includes(lane.blockerFalls), "visible combat lane must expose blocker survival");
       assert.ok(Number.isFinite(Number(lane.nexusDamage)) && Number(lane.nexusDamage) >= 0, "visible combat lane must expose nonnegative nexus damage");
       assert.ok(lane.outcome, "visible combat lane must expose an outcome");
+      // Validate the damage projection directly from rendered lane metadata.
+      // Only compare rules that are unambiguous from the available DOM fields;
+      // Barrier, Tough, Deathtouch and Overwhelm need explicit keyword data.
+      if (!lane.blockerId) {
+        assert.equal(Number(lane.nexusDamage), Math.max(0, Number(lane.attackerPower)), "unblocked lane must project its attacker power to Nexus");
+        assert.equal(lane.outcome, "unblocked", "unblocked lane must have unblocked outcome");
+        assert.equal(lane.attackerFalls, "false", "unblocked lane must not predict attacker death");
+        assert.equal(lane.blockerFalls, "false", "unblocked lane must not predict blocker death");
+      } else {
+        assert.ok(["trade", "favorable", "danger", "clash"].includes(lane.outcome), "blocked lane must expose a blocked outcome");
+        const expectedOutcome = lane.attackerFalls === "true" && lane.blockerFalls === "true"
+          ? "trade" : lane.blockerFalls === "true" ? "favorable" : lane.attackerFalls === "true" ? "danger" : "clash";
+        assert.equal(lane.outcome, expectedOutcome, "blocked lane outcome must match projected deaths");
+      }
     }
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
