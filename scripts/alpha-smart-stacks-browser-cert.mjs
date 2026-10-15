@@ -896,6 +896,10 @@ async function main() {
           attackerId: lane.dataset.attackerId || null,
           blockerId: lane.dataset.blockerId || null,
           outcome: lane.dataset.outcome || null,
+          attackerPower: lane.dataset.attackerPower,
+          attackerHealth: lane.dataset.attackerHealth,
+          blockerPower: lane.dataset.blockerPower,
+          blockerHealth: lane.dataset.blockerHealth,
           attackerFalls: lane.dataset.attackerFalls,
           blockerFalls: lane.dataset.blockerFalls,
           nexusDamage: lane.dataset.nexusDamage,
@@ -904,6 +908,12 @@ async function main() {
     })()`);
     for (const lane of combatLaneAudit.lanes) {
       assert.ok(lane.attackerId, "visible combat lane must identify its attacker");
+      assert.ok(Number.isFinite(Number(lane.attackerPower)) && Number(lane.attackerPower) >= 0, "combat lane must expose nonnegative attacker power");
+      assert.ok(Number.isFinite(Number(lane.attackerHealth)), "combat lane must expose attacker health");
+      if (lane.blockerId) {
+        assert.ok(Number.isFinite(Number(lane.blockerPower)) && Number(lane.blockerPower) >= 0, "blocked lane must expose blocker power");
+        assert.ok(Number.isFinite(Number(lane.blockerHealth)), "blocked lane must expose blocker health");
+      }
       assert.ok(["true", "false"].includes(lane.attackerFalls), "visible combat lane must expose attacker survival");
       assert.ok(["true", "false"].includes(lane.blockerFalls), "visible combat lane must expose blocker survival");
       assert.ok(Number.isFinite(Number(lane.nexusDamage)) && Number(lane.nexusDamage) >= 0, "visible combat lane must expose nonnegative nexus damage");
