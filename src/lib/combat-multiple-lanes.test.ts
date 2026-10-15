@@ -44,3 +44,22 @@ test("unblocked and Overwhelm lanes contribute nexus damage without losing indiv
   assert.equal(previewCombatLane(attackers[0], blockers[0]).nexusDamage, 3);
   assert.equal(previewCombatLane(attackers[1]).nexusDamage, 3);
 });
+
+test("combat lanes honor Barrier, Tough, Deathtouch and independent attacker identities", () => {
+  const protectedAttacker = unit("a-barrier", "player", 2, 2);
+  protectedAttacker.barrier = true;
+  const toughBlocker = unit("b-tough", "ai", 3, 2, ["Tough"]);
+  const protectedLane = previewCombatLane(protectedAttacker, toughBlocker);
+  assert.equal(protectedLane.attackerDamage, 0);
+  assert.equal(protectedLane.blockerDamage, 1);
+  assert.equal(protectedLane.attackerFalls, false);
+  assert.equal(protectedLane.blockerFalls, false);
+
+  const lethalAttacker = unit("a-deathtouch", "player", 1, 4, ["Deathtouch"]);
+  const largeBlocker = unit("b-large", "ai", 3, 8);
+  const lethalLane = previewCombatLane(lethalAttacker, largeBlocker);
+  assert.equal(lethalLane.blockerDamage, 1);
+  assert.equal(lethalLane.blockerFalls, true);
+  assert.equal(lethalLane.attackerFalls, false);
+  assert.notEqual(protectedAttacker.instanceId, lethalAttacker.instanceId);
+});
