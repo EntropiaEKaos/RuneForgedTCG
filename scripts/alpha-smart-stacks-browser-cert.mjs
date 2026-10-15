@@ -906,6 +906,13 @@ async function main() {
         })),
       };
     })()`);
+    // In a single combat view, each attacker must own exactly one lane and
+    // each assigned blocker may appear in at most one lane. Repeated card
+    // definitions are fine; repeated authoritative instance IDs are not.
+    const laneAttackerIds = combatLaneAudit.lanes.map((lane) => lane.attackerId).filter(Boolean);
+    const laneBlockerIds = combatLaneAudit.lanes.map((lane) => lane.blockerId).filter(Boolean);
+    assert.equal(new Set(laneAttackerIds).size, laneAttackerIds.length, "combat UI duplicated an attacker across lanes");
+    assert.equal(new Set(laneBlockerIds).size, laneBlockerIds.length, "combat UI assigned a blocker to multiple lanes");
     for (const lane of combatLaneAudit.lanes) {
       assert.ok(lane.attackerId, "visible combat lane must identify its attacker");
       assert.ok(Number.isFinite(Number(lane.attackerPower)) && Number(lane.attackerPower) >= 0, "combat lane must expose nonnegative attacker power");
