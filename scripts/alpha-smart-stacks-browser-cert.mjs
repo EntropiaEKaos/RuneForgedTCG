@@ -505,6 +505,16 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
       return { lanes: lanes.length, blocked: lanes.filter(lane => lane.querySelectorAll('[data-card-tip-def-id]').length >= 2).length };
     })()`);
     assert.ok(assigned?.blocked > 0, `selected blockers must render inside actual defensive combat lanes: ${JSON.stringify(assigned)}`);
+    const laneIdentities = await evaluate(cdp, `(() => [...document.querySelectorAll('.combat-lanes[data-combat-side="defense"] .combat-lane')].map(lane => ({
+      attackerId: lane.dataset.attackerId,
+      blockerId: lane.dataset.blockerId,
+      outcome: lane.dataset.outcome,
+    })))()`);
+    const assignedLanes = laneIdentities.filter(lane => lane.blockerId);
+    assert.equal(assignedLanes.length, blockCount, "defensive lanes must show every assigned blocker");
+    assert.equal(new Set(assignedLanes.map(lane => lane.attackerId)).size, assignedLanes.length, "defensive lanes must not duplicate attackers");
+    assert.equal(new Set(assignedLanes.map(lane => lane.blockerId)).size, assignedLanes.length, "defensive lanes must not duplicate blockers");
+    console.log(`COMBAT DEFENSE ASSIGNMENT: ${JSON.stringify({ blockCount, laneIdentities })}`);
     await capture(cdp, "12-combat-blocker-assigned.png");
     console.log(`COMBAT BROWSER EVIDENCE: captured 12-combat-blocker-assigned.png — ${assigned.blocked} assigned blockers`);
   }
