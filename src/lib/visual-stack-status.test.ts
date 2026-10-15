@@ -89,3 +89,23 @@ test("compact, expanded and separated stacks preserve combat indicators and iden
   assert.equal(JSON.stringify(units), before);
   assert.equal(compact[0].members[0], units[0]);
 });
+
+
+test("swarm casualty and regrouping recalculate badges from surviving unit instances", () => {
+  const units = [
+    unit({ instanceId: "a", isAttacking: true, health: 1 }),
+    unit({ instanceId: "b", stunned: true }),
+    unit({ instanceId: "c", powerBuffs: 2 }),
+    unit({ instanceId: "d", hasAttackedThisTurn: true, poisonCounters: 1 }),
+  ];
+  const before = summarizeVisualStackStatus(groupVisualUnits(units)[0].members);
+  assert.deepEqual(before, { total: 4, attacking: 1, spentAttack: 1, damaged: 1, buffed: 1, impaired: 2 });
+  const survivors = units.filter(member => member.instanceId !== "a" && member.instanceId !== "b");
+  const regrouped = groupVisualUnits(survivors, { separatedIds: new Set(["b"]) });
+  assert.equal(regrouped.length, 1);
+  assert.deepEqual(regrouped[0].members.map(member => member.instanceId), ["c", "d"]);
+  assert.deepEqual(summarizeVisualStackStatus(regrouped[0].members), {
+    total: 2, attacking: 0, spentAttack: 1, damaged: 0, buffed: 1, impaired: 1,
+  });
+  assert.equal(units.length, 4);
+});
