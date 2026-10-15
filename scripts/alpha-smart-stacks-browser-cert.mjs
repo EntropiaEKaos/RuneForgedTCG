@@ -514,6 +514,14 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
     assert.equal(assignedLanes.length, blockCount, "defensive lanes must show every assigned blocker");
     assert.equal(new Set(assignedLanes.map(lane => lane.attackerId)).size, assignedLanes.length, "defensive lanes must not duplicate attackers");
     assert.equal(new Set(assignedLanes.map(lane => lane.blockerId)).size, assignedLanes.length, "defensive lanes must not duplicate blockers");
+    const assignments = assignedLanes.map(lane => ({ attackerId: lane.attackerId, blockerId: lane.blockerId, outcome: lane.outcome }));
+    await mkdir(outputDir, { recursive: true });
+    await writeFile(join(outputDir, "combat-defense-assignments.json"), JSON.stringify({
+      type: "combat-defense-assignment-evidence",
+      blockCount,
+      assignments,
+      laneIdentities,
+    }, null, 2) + "\\n");
     console.log(`COMBAT DEFENSE ASSIGNMENT: ${JSON.stringify({ blockCount, laneIdentities })}`);
     await capture(cdp, "12-combat-blocker-assigned.png");
     console.log(`COMBAT BROWSER EVIDENCE: captured 12-combat-blocker-assigned.png — ${assigned.blocked} assigned blockers`);
