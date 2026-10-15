@@ -371,7 +371,7 @@ async function prepareAuthoritativeFixture(cdp) {
     // Smart Stack certification is the primary contract here. The activated-ability
     // source may be drawn later; requiring it in the same four-card opening hand makes
     // the fixture unnecessarily improbable and unrelated to the stack behavior.
-    if (pair && playerFirst) {
+    if (pair && playerFirst && (pair === "tide_tidebarrier" || pair === "tide_guard")) {
       smartStackDefId = pair;
       return { deck, token, sourceDefId, smartStackDefId: pair, openingHand, attempts };
     }
