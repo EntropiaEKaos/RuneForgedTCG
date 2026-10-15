@@ -63,3 +63,25 @@ test("combat lanes honor Barrier, Tough, Deathtouch and independent attacker ide
   assert.equal(lethalLane.attackerFalls, false);
   assert.notEqual(protectedAttacker.instanceId, lethalAttacker.instanceId);
 });
+
+test("Sentinela-targeted unblocked attackers do not incorrectly damage Nexus", () => {
+  const attackers = [
+    unit("a-sentinela", "player", 5, 3),
+    unit("a-nexus", "player", 2, 3),
+    unit("a-blocked", "player", 4, 3),
+  ];
+  const blockers = [unit("b-blocked", "ai", 1, 5)];
+  const blocks = { "a-blocked": "b-blocked" };
+  const state = {
+    players: { player: { bench: attackers }, ai: { bench: blockers } },
+    combat: {
+      attackerId: "player", blocks, locked: [],
+      sentinelaTargets: { "a-sentinela": "sentinela-target-1" },
+    },
+  } as unknown as GameState;
+  const preview = previewCombat(state, blocks);
+  assert.equal(preview.nexusDamage, 2);
+  assert.equal(preview.unblocked, 2);
+  assert.equal(preview.attackerDeaths, 0);
+  assert.equal(preview.blockerDeaths, 0);
+});
