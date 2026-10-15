@@ -2,9 +2,9 @@ name: Smart Stacks Visual Cert
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/1v1-hybrid-smart-stacks]
   push:
-    branches: [main]
+    branches: [main, feat/1v1-battlefield-2-visual-polish]
 
 permissions:
   contents: read
@@ -63,6 +63,25 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint -- --max-warnings 0
+      - name: Swarm regression (36 and 40 units)
+        run: npx --no-install tsx --test src/lib/visual-unit-stacks.test.ts
+      - name: Multiple attacker and blocker combat preview regression
+        run: npx --no-install tsx --test src/lib/combat-multiple-lanes.test.ts
+      - name: Combat lane individual identity contract
+        run: |
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { readFileSync } from "node:fs";
+            const lane = readFileSync("src/components/game/CombatLane.tsx", "utf8");
+            const model = readFileSync("src/game/client/match-model.ts", "utf8");
+            for (const token of ["data-attacker-id={attacker.instanceId}", "data-blocker-id={blocker?.instanceId", "data-attacker-falls={preview.attackerFalls}", "data-blocker-falls={preview.blockerFalls}", "data-nexus-damage={preview.nexusDamage}", "previewCombatLane(attacker, blocker)"]) {
+              assert.ok(lane.includes(token), "CombatLane missing: " + token);
+            }
+            for (const token of ["blocks[attacker.instanceId]", "unit.instanceId === blockerId"]) {
+              assert.ok(model.includes(token), "Combat model missing: " + token);
+            }
+            console.log("Combat lane individual identity contract: PASS");
+          '
       - name: Bootstrap PostgreSQL
         run: npm run db:bootstrap
       - name: Production build

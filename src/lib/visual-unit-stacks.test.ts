@@ -136,3 +136,67 @@ test("swarm casualties do not leave phantom cards in the visual stack", () => {
   assert.equal(new Set(stack.members.map(unit => unit.instanceId)).size, 21);
   assert.equal(groupVisualUnits([]).length, 0);
 });
+
+
+test("large mixed Swarm retains unique targeting identities and modifiers across expand/separate/regroup", () => {
+  const units = Array.from({ length: 36 }, (_, index) => ({
+    instanceId: `unit-${index}`,
+    defId: index % 3 === 0 ? "wolf" : "swarm-token",
+    attack: 1 + index % 4,
+    damage: index % 5,
+    buffs: index % 7 === 0 ? ["fury"] : [],
+    debuffs: index % 11 === 0 ? ["slow"] : [],
+    isAttacking: index % 4 === 0,
+    isBlocking: index % 4 === 1,
+  }));
+  const original = units.map(unit => ({ ...unit, buffs: [...unit.buffs], debuffs: [...unit.debuffs] }));
+  const expanded = groupVisualUnits(units, {
+    expandedIds: new Set(["def:wolf", "def:swarm-token"]),
+    separatedIds: new Set(["unit-1", "unit-12", "unit-35"]),
+  });
+  assert.equal(expanded.flatMap(group => group.members).length, 36);
+  assert.equal(new Set(expanded.flatMap(group => group.members.map(unit => unit.instanceId))).size, 36);
+  assert.equal(expanded.find(group => group.id === "unit:unit-12")?.members[0], units[12]);
+  assert.equal(expanded.find(group => group.id === "unit:unit-35")?.members[0], units[35]);
+  const regrouped = groupVisualUnits(units);
+  assert.equal(regrouped.length, 2);
+  for (const unit of units) {
+    assert.equal(regrouped.flatMap(group => group.members).find(member => member.instanceId === unit.instanceId), unit);
+  }
+  assert.deepEqual(units, original);
+});
+
+test("Swarm visual projection handles removal, reinforcement and zero survivors", () => {
+  const initial = Array.from({ length: 40 }, (_, index) => ({ instanceId: `token-${index}`, defId: "token", damage: index % 2 }));
+  const survivors = initial.filter((_, index) => index % 4 !== 0);
+  const reinforced = [...survivors, { instanceId: "token-40", defId: "token", damage: 0 }];
+  assert.equal(groupVisualUnits(initial)[0].members.length, 40);
+  assert.equal(groupVisualUnits(survivors)[0].members.length, 30);
+  assert.equal(groupVisualUnits(reinforced)[0].members.length, 31);
+  assert.equal(groupVisualUnits([]).length, 0);
+  assert.deepEqual(groupVisualUnits(reinforced)[0].members, reinforced);
+});
+
+
+test("multiple combat lanes retain distinct attacker/blocker assignments across identical cards", () => {
+  const attackers = Array.from({ length: 12 }, (_, index) => ({
+    instanceId: `attacker-${index}`, defId: "wolf", isAttacking: true, damage: index % 3,
+  }));
+  const blockers = Array.from({ length: 12 }, (_, index) => ({
+    instanceId: `blocker-${index}`, defId: "wolf", isBlocking: true, damage: index % 2,
+  }));
+  const assignments = new Map(attackers.map((attacker, index) => [attacker.instanceId, blockers[11 - index].instanceId]));
+  const attackerStack = groupVisualUnits(attackers, { expandedIds: new Set(["def:wolf"]) });
+  const blockerStack = groupVisualUnits(blockers, { expandedIds: new Set(["def:wolf"]) });
+  const attackerById = new Map(attackerStack.flatMap(group => group.members).map(unit => [unit.instanceId, unit]));
+  const blockerById = new Map(blockerStack.flatMap(group => group.members).map(unit => [unit.instanceId, unit]));
+  assert.equal(attackerById.size, 12);
+  assert.equal(blockerById.size, 12);
+  for (const [attackerId, blockerId] of assignments) {
+    assert.equal(attackerById.get(attackerId), attackers[Number(attackerId.split("-")[1])]);
+    assert.equal(blockerById.get(blockerId), blockers[Number(blockerId.split("-")[1])]);
+  }
+  assert.equal(new Set(assignments.values()).size, 12);
+  assert.deepEqual(attackers.map(unit => unit.damage), Array.from({ length: 12 }, (_, i) => i % 3));
+  assert.deepEqual(blockers.map(unit => unit.damage), Array.from({ length: 12 }, (_, i) => i % 2));
+});

@@ -371,7 +371,7 @@ async function prepareAuthoritativeFixture(cdp) {
     // Smart Stack certification is the primary contract here. The activated-ability
     // source may be drawn later; requiring it in the same four-card opening hand makes
     // the fixture unnecessarily improbable and unrelated to the stack behavior.
-    if (pair && playerFirst) {
+    if (pair && playerFirst && (pair === "tide_tidebarrier" || pair === "tide_guard")) {
       smartStackDefId = pair;
       return { deck, token, sourceDefId, smartStackDefId: pair, openingHand, attempts };
     }
@@ -489,6 +489,7 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
       .filter(Boolean),
   }))()`);
   const blockCount = Math.min(layout?.blockers?.length || 0, layout?.attackers?.length || 0);
+  const requestedAssignments = [];
   for (let index = 0; index < blockCount; index++) {
     const blockerId = layout.blockers[index];
     const attackerId = layout.attackers[index];
@@ -497,6 +498,7 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
     assert.equal(await clickSelector(cdp, blockerSelector), true, `could not select defensive blocker ${blockerId}`);
     await sleep(80);
     assert.equal(await clickSelector(cdp, attackerSelector), true, `could not assign blocker ${blockerId} to attacker ${attackerId}`);
+    requestedAssignments.push({ attackerId, blockerId });
     await sleep(80);
   }
   if (blockCount > 0) {
@@ -505,6 +507,28 @@ async function assignDefensiveBlocks(cdp, protectedDefId = null) {
       return { lanes: lanes.length, blocked: lanes.filter(lane => lane.querySelectorAll('[data-card-tip-def-id]').length >= 2).length };
     })()`);
     assert.ok(assigned?.blocked > 0, `selected blockers must render inside actual defensive combat lanes: ${JSON.stringify(assigned)}`);
+    const laneIdentities = await evaluate(cdp, `(() => [...document.querySelectorAll('.combat-lanes[data-combat-side="defense"] .combat-lane')].map(lane => ({
+      attackerId: lane.dataset.attackerId,
+      blockerId: lane.dataset.blockerId,
+      outcome: lane.dataset.outcome,
+    })))()`);
+    const assignedLanes = laneIdentities.filter(lane => lane.blockerId);
+    assert.equal(assignedLanes.length, blockCount, "defensive lanes must show every assigned blocker");
+    assert.equal(new Set(assignedLanes.map(lane => lane.attackerId)).size, assignedLanes.length, "defensive lanes must not duplicate attackers");
+    assert.equal(new Set(assignedLanes.map(lane => lane.blockerId)).size, assignedLanes.length, "defensive lanes must not duplicate blockers");
+    const assignments = assignedLanes.map(lane => ({ attackerId: lane.attackerId, blockerId: lane.blockerId, outcome: lane.outcome }));
+    for (const expected of requestedAssignments) {
+      assert.ok(assignments.some(actual => actual.attackerId === expected.attackerId && actual.blockerId === expected.blockerId), `defensive combat lane lost requested blocker assignment: ${JSON.stringify(expected)}`);
+    }
+    await mkdir(outputDir, { recursive: true });
+    await writeFile(join(outputDir, "combat-defense-assignments.json"), JSON.stringify({
+      type: "combat-defense-assignment-evidence",
+      blockCount,
+      requestedAssignments,
+      assignments,
+      laneIdentities,
+    }, null, 2) + "\\n");
+    console.log(`COMBAT DEFENSE ASSIGNMENT: ${JSON.stringify({ blockCount, laneIdentities })}`);
     await capture(cdp, "12-combat-blocker-assigned.png");
     console.log(`COMBAT BROWSER EVIDENCE: captured 12-combat-blocker-assigned.png — ${assigned.blocked} assigned blockers`);
   }
@@ -595,6 +619,15 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
         const actualCopies = afterPlay.board.filter((unit) => unit.defId === defId && unit.unitId);
         const compactedCopies = afterPlay.stackGroups.some((group) => group.count >= 2 && group.stackId === `def:${defId}`);
         if (actualCopies.length <= copies.length && !compactedCopies) {
+          if (afterPlay.phase === "response") {
+            // A playable card can enter the authoritative response window
+            // before it resolves onto the battlefield. Do not count a pending
+            // spell as a played creature; the response branch will pass and
+            // the next iteration will inspect the resolved state.
+            actions.push({ round: snapshot.round, action: `await-stack-response:${defId}` });
+            await sleep(160);
+            continue;
+          }
           throw new Error(`Smart Stack play did not establish another authoritative battlefield instance: ${JSON.stringify({ defId, round: snapshot.round, before: snapshot, after: afterPlay, priorCopies: copies, actualCopies, actions: actions.slice(-20) })}`);
         }
         actions.push({ round: snapshot.round, action: `play-stack-copy:${defId}` });
@@ -802,6 +835,14 @@ async function main() {
 
     cdp.notifications.length = 0;
     const stackFixture = await driveUntilSmartStack(cdp, chosen.smartStackDefId);
+    // The fixture must reach coexistence through authoritative gameplay;
+    // never infer success solely from having issued two play commands.
+    const authoritativeIds = stackFixture.copies.map((unit) => unit.unitId).filter(Boolean);
+    assert.equal(new Set(authoritativeIds).size, authoritativeIds.length, "fixture contains duplicate authoritative unit IDs");
+    assert.ok(
+      authoritativeIds.length >= 2 || (stackFixture.grouped?.count ?? 0) >= 2,
+      "fixture must prove two surviving units coexist before UI certification",
+    );
     assert.ok(stackFixture.copies.length >= 2 || stackFixture.grouped?.count >= 2, `fixture must establish two authoritative equal creatures before visual assertion: ${JSON.stringify(stackFixture)}`);
 
     const smartStack = await waitUntil(async () => {
@@ -853,7 +894,95 @@ async function main() {
     })()`);
     assert.equal(regrouped, true, "expanded Smart Stack must regroup");
     await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack to return to compact mode", 10_000);
+    const regroupedStack = await evaluate(cdp, `(() => {
+      const stack = [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')]
+        .find((node) => node.dataset.stackId === ${JSON.stringify(smartStack.stackId)});
+      if (!stack) return null;
+      return {
+        stackId: stack.dataset.stackId,
+        count: Number(stack.dataset.stackCount || 0),
+        compactIds: [...stack.querySelectorAll('[data-unit-id]')].map((node) => node.dataset.unitId).filter(Boolean),
+      };
+    })()`);
+    assert.ok(regroupedStack, "regrouped stack must keep its original stable group identity");
+    assert.equal(regroupedStack.count, expandedStack.count, "regroup must not lose or duplicate creatures");
+    assert.equal(regroupedStack.compactIds.length, 1, "regroup must show exactly one representative creature");
+    assert.ok(expandedStack.ids.includes(regroupedStack.compactIds[0]), "representative must be an original authoritative creature");
     await capture(cdp, "smart-stack-03-regrouped.png");
+
+    // Inspect combat lanes at this point in the Smart Stack journey.
+    // This snapshot is optional coverage: record whether lanes were actually
+    // exercised, so a green stack test cannot be mistaken for combat E2E.
+    const combatLaneAudit = await evaluate(cdp, `(() => {
+      const lanes = [...document.querySelectorAll(".combat-lane")];
+      return {
+        count: lanes.length,
+        lanes: lanes.map((lane) => ({
+          attackerId: lane.dataset.attackerId || null,
+          blockerId: lane.dataset.blockerId || null,
+          outcome: lane.dataset.outcome || null,
+          attackerPower: lane.dataset.attackerPower,
+          attackerHealth: lane.dataset.attackerHealth,
+          blockerPower: lane.dataset.blockerPower,
+          blockerHealth: lane.dataset.blockerHealth,
+          attackerFalls: lane.dataset.attackerFalls,
+          blockerFalls: lane.dataset.blockerFalls,
+          nexusDamage: lane.dataset.nexusDamage,
+        })),
+      };
+    })()`);
+    const combatCoverage = { observed: combatLaneAudit.count > 0, laneCount: combatLaneAudit.count, multiLaneObserved: combatLaneAudit.count >= 2, blockedLaneCount: combatLaneAudit.lanes.filter((lane) => Boolean(lane.blockerId)).length };
+    console.log(`COMBAT BROWSER COVERAGE: ${JSON.stringify(combatCoverage)}`);
+    // Dedicated combat certification can opt into a hard coverage gate.
+    // Keep the Smart Stack smoke test independent until a deterministic
+    // multi-combat fixture is wired to this browser journey.
+    if (process.env.REQUIRE_MULTI_COMBAT_BROWSER === "1") {
+      assert.ok(combatCoverage.multiLaneObserved && combatCoverage.blockedLaneCount >= 2,
+        `required multi-combat browser coverage missing: ${JSON.stringify(combatCoverage)}`);
+    }
+
+    await mkdir(outputDir, { recursive: true });
+    await writeFile(join(outputDir, "combat-browser-coverage.json"), JSON.stringify({
+      type: "combat-browser-coverage",
+      status: combatCoverage.multiLaneObserved ? "multi-lane-observed" : combatCoverage.observed ? "single-lane-only" : "not-exercised",
+      ...combatCoverage,
+      lanes: combatLaneAudit.lanes,
+      limitation: "Smart Stack certification does not require combat; this is not a multi-combat E2E pass.",
+    }, null, 2) + "\n");
+    // In a single combat view, each attacker must own exactly one lane and
+    // each assigned blocker may appear in at most one lane. Repeated card
+    // definitions are fine; repeated authoritative instance IDs are not.
+    const laneAttackerIds = combatLaneAudit.lanes.map((lane) => lane.attackerId).filter(Boolean);
+    const laneBlockerIds = combatLaneAudit.lanes.map((lane) => lane.blockerId).filter(Boolean);
+    assert.equal(new Set(laneAttackerIds).size, laneAttackerIds.length, "combat UI duplicated an attacker across lanes");
+    assert.equal(new Set(laneBlockerIds).size, laneBlockerIds.length, "combat UI assigned a blocker to multiple lanes");
+    for (const lane of combatLaneAudit.lanes) {
+      assert.ok(lane.attackerId, "visible combat lane must identify its attacker");
+      assert.ok(Number.isFinite(Number(lane.attackerPower)) && Number(lane.attackerPower) >= 0, "combat lane must expose nonnegative attacker power");
+      assert.ok(Number.isFinite(Number(lane.attackerHealth)), "combat lane must expose attacker health");
+      if (lane.blockerId) {
+        assert.ok(Number.isFinite(Number(lane.blockerPower)) && Number(lane.blockerPower) >= 0, "blocked lane must expose blocker power");
+        assert.ok(Number.isFinite(Number(lane.blockerHealth)), "blocked lane must expose blocker health");
+      }
+      assert.ok(["true", "false"].includes(lane.attackerFalls), "visible combat lane must expose attacker survival");
+      assert.ok(["true", "false"].includes(lane.blockerFalls), "visible combat lane must expose blocker survival");
+      assert.ok(Number.isFinite(Number(lane.nexusDamage)) && Number(lane.nexusDamage) >= 0, "visible combat lane must expose nonnegative nexus damage");
+      assert.ok(lane.outcome, "visible combat lane must expose an outcome");
+      // Validate the damage projection directly from rendered lane metadata.
+      // Only compare rules that are unambiguous from the available DOM fields;
+      // Barrier, Tough, Deathtouch and Overwhelm need explicit keyword data.
+      if (!lane.blockerId) {
+        assert.equal(Number(lane.nexusDamage), Math.max(0, Number(lane.attackerPower)), "unblocked lane must project its attacker power to Nexus");
+        assert.equal(lane.outcome, "unblocked", "unblocked lane must have unblocked outcome");
+        assert.equal(lane.attackerFalls, "false", "unblocked lane must not predict attacker death");
+        assert.equal(lane.blockerFalls, "false", "unblocked lane must not predict blocker death");
+      } else {
+        assert.ok(["trade", "favorable", "danger", "clash"].includes(lane.outcome), "blocked lane must expose a blocked outcome");
+        const expectedOutcome = lane.attackerFalls === "true" && lane.blockerFalls === "true"
+          ? "trade" : lane.blockerFalls === "true" ? "favorable" : lane.attackerFalls === "true" ? "danger" : "clash";
+        assert.equal(lane.outcome, expectedOutcome, "blocked lane outcome must match projected deaths");
+      }
+    }
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
     assert.equal(runtimeExceptions.length, 0, `browser runtime exceptions detected: ${JSON.stringify(runtimeExceptions.slice(0, 3))}`);
@@ -871,6 +1000,8 @@ async function main() {
       predictedOpeningHand: chosen.openingHand,
       actualOpeningHand,
       stackFixture,
+      combatLaneAudit,
+      combatCoverage,
       compact: smartStack,
       expanded: expandedStack,
       regrouped: true,
@@ -886,6 +1017,29 @@ async function main() {
       { stage: "Smart Stack regrouped", file: screenshots[2], href: `${baseUrl}/play`, evidence: `${chosen.smartStackDefId}: compact again` },
     ]);
     console.log(`SMART STACK BROWSER CERT: PASS — ${chosen.smartStackDefId} compact → expanded → regrouped; 3 screenshots captured`);
+  } catch (error) {
+    // Preserve browser evidence on failed fixtures too. A missing duplicate
+    // should not also erase the screenshot and runtime diagnostics from CI.
+    await mkdir(outputDir, { recursive: true });
+    const failure = {
+      ok: false,
+      type: "smart-stacks-browser-certification",
+      error: error instanceof Error ? error.message : String(error),
+      gitSha: process.env.GITHUB_SHA || null,
+      capturedAt: new Date().toISOString(),
+      runtimeExceptions: cdp?.notifications?.filter((message) => message.method === "Runtime.exceptionThrown").slice(-5) || [],
+    };
+    try {
+      if (cdp) {
+        failure.snapshot = await matchSnapshot(cdp);
+        await capture(cdp, "smart-stack-failure.png");
+        failure.screenshot = "smart-stack-failure.png";
+      }
+    } catch (captureError) {
+      failure.captureError = captureError instanceof Error ? captureError.message : String(captureError);
+    }
+    await writeFile(join(outputDir, "smart-stacks-browser-failure.json"), `${JSON.stringify(failure, null, 2)}\n`);
+    throw error;
   } finally {
     try {
       cdp?.close();
