@@ -933,6 +933,14 @@ async function main() {
     })()`);
     const combatCoverage = { observed: combatLaneAudit.count > 0, laneCount: combatLaneAudit.count, multiLaneObserved: combatLaneAudit.count >= 2, blockedLaneCount: combatLaneAudit.lanes.filter((lane) => Boolean(lane.blockerId)).length };
     console.log(`COMBAT BROWSER COVERAGE: ${JSON.stringify(combatCoverage)}`);
+    await mkdir(outputDir, { recursive: true });
+    await writeFile(join(outputDir, "combat-browser-coverage.json"), JSON.stringify({
+      type: "combat-browser-coverage",
+      status: combatCoverage.multiLaneObserved ? "multi-lane-observed" : combatCoverage.observed ? "single-lane-only" : "not-exercised",
+      ...combatCoverage,
+      lanes: combatLaneAudit.lanes,
+      limitation: "Smart Stack certification does not require combat; this is not a multi-combat E2E pass.",
+    }, null, 2) + "\n");
     // In a single combat view, each attacker must own exactly one lane and
     // each assigned blocker may appear in at most one lane. Repeated card
     // definitions are fine; repeated authoritative instance IDs are not.
