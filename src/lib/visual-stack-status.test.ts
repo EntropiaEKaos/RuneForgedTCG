@@ -140,3 +140,29 @@ test("24-creature mixed-status swarm remains consistent through expansion, separ
   assert.ok(regrouped.every(group => group.members.every(member => survivors.includes(member))));
   assert.equal(JSON.stringify(swarm), original, "visual grouping must not mutate authoritative units");
 });
+
+test("simultaneous attackers and blockers keep distinct visual identities across both benches", () => {
+  const attackers = Array.from({ length: 8 }, (_, index) => unit({
+    instanceId: `attacker-${index}`, owner: "player", isAttacking: true,
+    hasAttackedThisTurn: index % 2 === 0, health: index % 3 === 0 ? 2 : 3,
+  }));
+  const blockers = Array.from({ length: 12 }, (_, index) => unit({
+    instanceId: `blocker-${index}`, owner: "ai", isAttacking: false,
+    stunned: index % 4 === 0, powerBuffs: index % 3 === 0 ? 1 : 0,
+  }));
+  const beforeAttackers = JSON.stringify(attackers);
+  const beforeBlockers = JSON.stringify(blockers);
+  const attackGroups = groupVisualUnits(attackers, { expandedIds: new Set(["def:wolf"]) });
+  const blockGroups = groupVisualUnits(blockers, { separatedIds: new Set(["blocker-2", "blocker-7"]) });
+  const attackIds = attackGroups.flatMap(group => group.members.map(member => member.instanceId));
+  const blockIds = blockGroups.flatMap(group => group.members.map(member => member.instanceId));
+  assert.equal(attackIds.length, 8);
+  assert.equal(blockIds.length, 12);
+  assert.equal(new Set([...attackIds, ...blockIds]).size, 20);
+  assert.equal(summarizeVisualStackStatus(attackGroups.flatMap(group => group.members)).attacking, 8);
+  assert.equal(summarizeVisualStackStatus(blockGroups.flatMap(group => group.members)).attacking, 0);
+  assert.equal(summarizeVisualStackStatus(blockGroups.flatMap(group => group.members)).buffed, 4);
+  assert.equal(summarizeVisualStackStatus(blockGroups.flatMap(group => group.members)).impaired, 3);
+  assert.equal(JSON.stringify(attackers), beforeAttackers);
+  assert.equal(JSON.stringify(blockers), beforeBlockers);
+});
