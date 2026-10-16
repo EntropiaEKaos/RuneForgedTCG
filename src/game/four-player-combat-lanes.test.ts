@@ -5,6 +5,7 @@ import {
   declareFourPlayerAttacker,
   declareFourPlayerBlocker,
   blockersForFourPlayerAttacker,
+  planFourPlayerBlockerDamage,
   cleanupFourPlayerCombatForElimination,
 } from "./four-player-combat";
 
@@ -46,4 +47,13 @@ test("lane projection preserves order without mutating future multi-block declar
     blockersForFourPlayerAttacker(cleanupFourPlayerCombatForElimination(futureDeclarations, "p2"), "attacker-a"),
     [],
   );
+});
+
+test("ordered damage planner assigns lethal damage before spillover", () => {
+  assert.deepEqual(planFourPlayerBlockerDamage([3, 2, 4], 7), { assigned: [3, 2, 2], remaining: 0 });
+  assert.deepEqual(planFourPlayerBlockerDamage([3, 2, 4], 12), { assigned: [3, 2, 4], remaining: 3 });
+  assert.deepEqual(planFourPlayerBlockerDamage([3, 2, 4], 2, true), { assigned: [1, 1, 0], remaining: 0 });
+  assert.deepEqual(planFourPlayerBlockerDamage([], 5), { assigned: [], remaining: 5 });
+  assert.throws(() => planFourPlayerBlockerDamage([0], 3), /positive integer/);
+  assert.throws(() => planFourPlayerBlockerDamage([2], -1), /nonnegative integer/);
 });
