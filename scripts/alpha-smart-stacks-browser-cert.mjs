@@ -853,6 +853,26 @@ async function main() {
     })()`);
     assert.equal(regrouped, true, "expanded Smart Stack must regroup");
     await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack to return to compact mode", 10_000);
+    const regroupedStack = await evaluate(cdp, `(() => {
+      const stack = [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')]
+        .find((node) => node.dataset.stackId === ${JSON.stringify(expandedStack.stackId || smartStack.stackId)});
+      if (!stack) return null;
+      const visibleIds = [...stack.querySelectorAll('[data-unit-id]')].map((node) => node.dataset.unitId).filter(Boolean);
+      const status = stack.querySelector('[data-stack-status]');
+      const statusRect = status?.getBoundingClientRect();
+      const stackRect = stack.getBoundingClientRect();
+      return {
+        count: Number(stack.dataset.stackCount || 0),
+        visibleIds,
+        statusLabel: status?.getAttribute('aria-label') || null,
+        statusWithinStack: !statusRect || (statusRect.left >= stackRect.left - 1 && statusRect.right <= stackRect.right + 1),
+      };
+    })()`);
+    assert.ok(regroupedStack, "regrouped Smart Stack must retain its original group identity");
+    assert.equal(regroupedStack.count, expandedStack.count, "expanding and regrouping must not change the authoritative unit count");
+    assert.ok(regroupedStack.visibleIds.every((id) => expandedStack.ids.includes(id)), "regrouping must not introduce or replace unit identities");
+    assert.equal(regroupedStack.statusWithinStack, true, "compact stack status indicators must fit within their layout container");
+    if (regroupedStack.statusLabel) assert.match(regroupedStack.statusLabel, /^Estados da pilha:/, "stack status badges must expose accessible descriptions");
     await capture(cdp, "smart-stack-03-regrouped.png");
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
