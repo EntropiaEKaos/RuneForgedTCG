@@ -109,3 +109,34 @@ test("swarm casualty and regrouping recalculate badges from surviving unit insta
   });
   assert.equal(units.length, 4);
 });
+
+test("24-creature mixed-status swarm remains consistent through expansion, separation and casualties", () => {
+  const swarm = Array.from({ length: 24 }, (_, index) => unit({
+    instanceId: `swarm-${index}`,
+    isAttacking: index % 2 === 0,
+    hasAttackedThisTurn: index % 3 === 0,
+    health: index % 4 === 0 ? 1 : 3,
+    powerBuffs: index % 5 === 0 ? 1 : 0,
+    stunned: index % 6 === 0,
+    poisonCounters: index % 7 === 0 ? 1 : 0,
+  }));
+  const original = JSON.stringify(swarm);
+  const compact = groupVisualUnits(swarm);
+  const expanded = groupVisualUnits(swarm, { expandedIds: new Set(["def:wolf"]) });
+  const separatedIds = new Set(["swarm-1", "swarm-6", "swarm-13"]);
+  const separated = groupVisualUnits(swarm, { separatedIds });
+  assert.equal(compact.length, 1);
+  assert.equal(compact[0].members.length, 24);
+  assert.equal(expanded[0].expanded, true);
+  assert.deepEqual(summarizeVisualStackStatus(compact[0].members), summarizeVisualStackStatus(expanded[0].members));
+  assert.equal(separated.flatMap(group => group.members).length, 24);
+  assert.equal(new Set(separated.flatMap(group => group.members.map(member => member.instanceId))).size, 24);
+  const survivors = swarm.filter((_, index) => index % 4 !== 0);
+  const regrouped = groupVisualUnits(survivors, { separatedIds });
+  const flattened = regrouped.flatMap(group => group.members);
+  assert.equal(flattened.length, 18);
+  assert.equal(new Set(flattened.map(member => member.instanceId)).size, 18);
+  assert.deepEqual(summarizeVisualStackStatus(flattened), summarizeVisualStackStatus(survivors));
+  assert.ok(regrouped.every(group => group.members.every(member => survivors.includes(member))));
+  assert.equal(JSON.stringify(swarm), original, "visual grouping must not mutate authoritative units");
+});
