@@ -98,6 +98,18 @@ export function cleanupFourPlayerCombatForElimination(
   return { ...state, attackers, blockers, eliminatedSeats };
 }
 
+/**
+ * Read-only ordered projection of declarations for a combat lane.
+ * This does not enable multi-block damage resolution; declarations remain capped
+ * at one blocker per attacker until the resolver supports ordered exchanges.
+ */
+export function blockersForFourPlayerAttacker(
+  state: FourPlayerCombatState,
+  attackerId: string,
+): FourPlayerBlocker[] {
+  return state.blockers.filter((blocker) => blocker.attackerId === attackerId);
+}
+
 export function attackersForDefender(state: FourPlayerCombatState, seat: FourPlayerSeat): FourPlayerAttacker[] {
   return state.attackers.filter((attacker) => attacker.defendingSeat === seat);
 }
