@@ -110,6 +110,32 @@ export function blockersForFourPlayerAttacker(
   return state.blockers.filter((blocker) => blocker.attackerId === attackerId);
 }
 
+/**
+ * Deterministic combat damage assignment plan for one attacking unit.
+ * Pure projection: damage is assigned in declaration order and is never applied here.
+ * The resolver must integrate this plan before multi-block declarations are enabled.
+ */
+export function planFourPlayerBlockerDamage(
+  blockerHealth: readonly number[],
+  attackerPower: number,
+  deathtouch = false,
+): { assigned: number[]; remaining: number } {
+  if (!Number.isFinite(attackerPower) || attackerPower < 0 || !Number.isInteger(attackerPower)) {
+    throw new Error("Attacker power must be a nonnegative integer.");
+  }
+  if (blockerHealth.some((health) => !Number.isInteger(health) || health <= 0)) {
+    throw new Error("Blocker health must be a positive integer.");
+  }
+  let remaining = attackerPower;
+  const assigned = blockerHealth.map((health) => {
+    const lethal = deathtouch ? 1 : health;
+    const damage = Math.min(remaining, lethal);
+    remaining -= damage;
+    return damage;
+  });
+  return { assigned, remaining };
+}
+
 export function attackersForDefender(state: FourPlayerCombatState, seat: FourPlayerSeat): FourPlayerAttacker[] {
   return state.attackers.filter((attacker) => attacker.defendingSeat === seat);
 }
