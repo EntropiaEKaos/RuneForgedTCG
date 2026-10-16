@@ -24,3 +24,26 @@ test("Commander blocker lane projection preserves declaration and ownership", ()
   assert.deepEqual(blockersForFourPlayerAttacker(eliminated, "attacker-a"), []);
   assert.deepEqual(blockersForFourPlayerAttacker(eliminated, "attacker-b").map((blocker) => blocker.unitId), ["blocker-b"]);
 });
+
+test("lane projection preserves order without mutating future multi-block declarations", () => {
+  let combat = createFourPlayerCombatState("P1");
+  combat = declareFourPlayerAttacker(combat, "attacker-a", "P2");
+  const futureDeclarations = {
+    ...combat,
+    blockers: [
+      { unitId: "blocker-1", controller: "P2" as const, attackerId: "attacker-a" },
+      { unitId: "blocker-2", controller: "P2" as const, attackerId: "attacker-a" },
+      { unitId: "blocker-3", controller: "P2" as const, attackerId: "attacker-a" },
+    ],
+  };
+  const before = JSON.stringify(futureDeclarations);
+  assert.deepEqual(
+    blockersForFourPlayerAttacker(futureDeclarations, "attacker-a").map((blocker) => blocker.unitId),
+    ["blocker-1", "blocker-2", "blocker-3"],
+  );
+  assert.equal(JSON.stringify(futureDeclarations), before);
+  assert.deepEqual(
+    blockersForFourPlayerAttacker(cleanupFourPlayerCombatForElimination(futureDeclarations, "P2"), "attacker-a"),
+    [],
+  );
+});
