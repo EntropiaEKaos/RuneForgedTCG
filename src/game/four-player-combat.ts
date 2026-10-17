@@ -136,6 +136,37 @@ export function planFourPlayerBlockerDamage(
   return { assigned, remaining };
 }
 
+/**
+ * Plans one simultaneous multi-block combat exchange without mutating game state.
+ * All living blockers deal their full power to the attacker in the same strike
+ * window, even if the attacker assigns lethal damage to them.
+ * This is a calculation helper, not an authoritative damage application:
+ * barrier, on-hit triggers, lifesteal and destruction are resolved elsewhere.
+ */
+export function planFourPlayerSimultaneousBlockExchange(
+  attackerPower: number,
+  blockerHealth: readonly number[],
+  blockerPower: readonly number[],
+  deathtouch = false,
+): { assignedToBlockers: number[]; attackerIncomingDamage: number; unassignedAttackerDamage: number } {
+  if (blockerHealth.length !== blockerPower.length) {
+    throw new Error("Blocker health and power arrays must have matching lengths.");
+  }
+  if (blockerPower.some((power) => !Number.isSafeInteger(power) || power < 0)) {
+    throw new Error("Blocker power must be a nonnegative safe integer.");
+  }
+  const planned = planFourPlayerBlockerDamage(blockerHealth, attackerPower, deathtouch);
+  const incoming = blockerPower.reduce((total, power) => total + power, 0);
+  if (!Number.isSafeInteger(incoming)) {
+    throw new Error("Total blocker damage exceeds safe integer range.");
+  }
+  return {
+    assignedToBlockers: planned.assigned,
+    attackerIncomingDamage: incoming,
+    unassignedAttackerDamage: planned.remaining,
+  };
+}
+
 export function attackersForDefender(state: FourPlayerCombatState, seat: FourPlayerSeat): FourPlayerAttacker[] {
   return state.attackers.filter((attacker) => attacker.defendingSeat === seat);
 }
