@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Cinzel, Manrope } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import CatalogBootstrap from "@/components/CatalogBootstrap";
 import RecoveryKeyNotice from "@/components/RecoveryKeyNotice";
 import { PRODUCT_BRAND } from "@/lib/product-brand";
@@ -70,6 +71,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="bg-slate-950 text-slate-100 antialiased">
         <CatalogBootstrap>{children}</CatalogBootstrap>
         <RecoveryKeyNotice />
+        <Analytics />
       </body>
     </html>
   );
