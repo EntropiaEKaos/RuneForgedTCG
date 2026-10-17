@@ -120,10 +120,10 @@ export function planFourPlayerBlockerDamage(
   attackerPower: number,
   deathtouch = false,
 ): { assigned: number[]; remaining: number } {
-  if (!Number.isFinite(attackerPower) || attackerPower < 0 || !Number.isInteger(attackerPower)) {
+  if (!Number.isSafeInteger(attackerPower) || attackerPower < 0) {
     throw new Error("Attacker power must be a nonnegative integer.");
   }
-  if (blockerHealth.some((health) => !Number.isInteger(health) || health <= 0)) {
+  if (blockerHealth.some((health) => !Number.isSafeInteger(health) || health <= 0)) {
     throw new Error("Blocker health must be a positive integer.");
   }
   let remaining = attackerPower;
