@@ -914,7 +914,7 @@ async function main() {
   }
 }
 
-void main().catch((error) => {
+void main().catch(async (error) => {
   console.error("SMART STACK BROWSER CERT: FAIL", error);
   await mkdir(outputDir, { recursive: true }).then(() => writeFile(join(outputDir, "smart-stacks-browser-failure.txt"), String(error?.stack || error))).catch((writeError) => console.error("Could not preserve Smart Stack failure evidence:", writeError));
   process.exitCode = 1;
