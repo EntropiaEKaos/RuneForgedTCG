@@ -7,6 +7,7 @@ import {
 } from "./four-player-battlefield";
 import {
   createFourPlayerCombatState,
+  blockersForFourPlayerAttacker,
   type FourPlayerCombatResolutionCursor,
 } from "./four-player-combat";
 import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
@@ -443,7 +444,7 @@ export function advanceFourPlayerCombatStep(match: FourPlayerMatchState): FourPl
       }
 
       const attacker = livingBody(battlefield, assignment.unitId)!;
-      const block = current.combat.blockers.find((entry) => entry.attackerId === assignment.unitId);
+      const block = blockersForFourPlayerAttacker(current.combat, assignment.unitId)[0];
       const blocker = block ? livingBody(battlefield, block.unitId) : undefined;
 
       if (!blocker) {
