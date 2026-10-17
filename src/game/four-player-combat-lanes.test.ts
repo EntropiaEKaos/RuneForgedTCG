@@ -84,6 +84,8 @@ test("multi-block planning handles zero attack, lethal deathtouch and excess dam
   assert.throws(() => planFourPlayerBlockerDamage([2.5], 4), /positive integer/);
   assert.throws(() => planFourPlayerBlockerDamage([2], Number.POSITIVE_INFINITY), /nonnegative integer/);
   assert.throws(() => planFourPlayerBlockerDamage([2], 1.5), /nonnegative integer/);
+  assert.throws(() => planFourPlayerBlockerDamage([2], Number.MAX_SAFE_INTEGER + 1), /nonnegative integer/);
+  assert.throws(() => planFourPlayerBlockerDamage([Number.MAX_SAFE_INTEGER + 1], 3), /positive integer/);
 });
 
 test("simultaneous blocker exchange preserves damage from every blocker", () => {
