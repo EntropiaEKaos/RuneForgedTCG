@@ -98,6 +98,75 @@ export function cleanupFourPlayerCombatForElimination(
   return { ...state, attackers, blockers, eliminatedSeats };
 }
 
+/**
+ * Read-only ordered projection of declarations for a combat lane.
+ * This does not enable multi-block damage resolution; declarations remain capped
+ * at one blocker per attacker until the resolver supports ordered exchanges.
+ */
+export function blockersForFourPlayerAttacker(
+  state: FourPlayerCombatState,
+  attackerId: string,
+): FourPlayerBlocker[] {
+  return state.blockers.filter((blocker) => blocker.attackerId === attackerId);
+}
+
+/**
+ * Deterministic combat damage assignment plan for one attacking unit.
+ * Pure projection: damage is assigned in declaration order and is never applied here.
+ * The resolver must integrate this plan before multi-block declarations are enabled.
+ */
+export function planFourPlayerBlockerDamage(
+  blockerHealth: readonly number[],
+  attackerPower: number,
+  deathtouch = false,
+): { assigned: number[]; remaining: number } {
+  if (!Number.isSafeInteger(attackerPower) || attackerPower < 0) {
+    throw new Error("Attacker power must be a nonnegative integer.");
+  }
+  if (blockerHealth.some((health) => !Number.isSafeInteger(health) || health <= 0)) {
+    throw new Error("Blocker health must be a positive integer.");
+  }
+  let remaining = attackerPower;
+  const assigned = blockerHealth.map((health) => {
+    const lethal = deathtouch ? 1 : health;
+    const damage = Math.min(remaining, lethal);
+    remaining -= damage;
+    return damage;
+  });
+  return { assigned, remaining };
+}
+
+/**
+ * Plans one simultaneous multi-block combat exchange without mutating game state.
+ * All living blockers deal their full power to the attacker in the same strike
+ * window, even if the attacker assigns lethal damage to them.
+ * This is a calculation helper, not an authoritative damage application:
+ * barrier, on-hit triggers, lifesteal and destruction are resolved elsewhere.
+ */
+export function planFourPlayerSimultaneousBlockExchange(
+  attackerPower: number,
+  blockerHealth: readonly number[],
+  blockerPower: readonly number[],
+  deathtouch = false,
+): { assignedToBlockers: number[]; attackerIncomingDamage: number; unassignedAttackerDamage: number } {
+  if (blockerHealth.length !== blockerPower.length) {
+    throw new Error("Blocker health and power arrays must have matching lengths.");
+  }
+  if (blockerPower.some((power) => !Number.isSafeInteger(power) || power < 0)) {
+    throw new Error("Blocker power must be a nonnegative safe integer.");
+  }
+  const planned = planFourPlayerBlockerDamage(blockerHealth, attackerPower, deathtouch);
+  const incoming = blockerPower.reduce((total, power) => total + power, 0);
+  if (!Number.isSafeInteger(incoming)) {
+    throw new Error("Total blocker damage exceeds safe integer range.");
+  }
+  return {
+    assignedToBlockers: planned.assigned,
+    attackerIncomingDamage: incoming,
+    unassignedAttackerDamage: planned.remaining,
+  };
+}
+
 export function attackersForDefender(state: FourPlayerCombatState, seat: FourPlayerSeat): FourPlayerAttacker[] {
   return state.attackers.filter((attacker) => attacker.defendingSeat === seat);
 }

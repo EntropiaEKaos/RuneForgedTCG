@@ -578,6 +578,8 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
     // missing/failed plays and gives CI an actionable battlefield snapshot.
     const playedCopies = actions.filter((action) => action.action === `play-stack-copy:${defId}`).length;
     if (playedCopies >= 2 && copies.length < 2) {
+      await mkdir(outputDir, { recursive: true });
+      await writeFile(join(outputDir, "smart-stack-coexistence-failure.json"), `${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) }, null, 2)}\n`);
       throw new Error(`Smart Stack fixture lost a played copy before coexistence: ${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) })}`);
     }
     if (snapshot.gameover) throw new Error(`match ended before duplicate ${defId} creatures could coexist: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
@@ -591,7 +593,17 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
           const current = await matchSnapshot(cdp);
           return current.board.some((unit) => unit.defId === defId && unit.unitId && !before.has(unit.unitId)) || current.phase !== "main" || current.hand.filter((id) => id === defId).length < snapshot.hand.filter((id) => id === defId).length;
         }, `authoritative ${defId} play to change hand, board or phase`, 10_000);
-        const afterPlay = await matchSnapshot(cdp);
+        let afterPlay = await matchSnapshot(cdp);
+        // Playing a unit may first open the opponent response window. Resolve
+        // priority before asserting that the authoritative unit exists.
+        if (afterPlay.phase === "response") {
+          await waitUntil(async () => {
+            await pressKey(cdp, " ", "Space");
+            const current = await matchSnapshot(cdp);
+            return current.phase !== "response";
+          }, `response window after playing ${defId}`, 10_000);
+          afterPlay = await matchSnapshot(cdp);
+        }
         const actualCopies = afterPlay.board.filter((unit) => unit.defId === defId && unit.unitId);
         const compactedCopies = afterPlay.stackGroups.some((group) => group.count >= 2 && group.stackId === `def:${defId}`);
         if (actualCopies.length <= copies.length && !compactedCopies) {
@@ -853,6 +865,26 @@ async function main() {
     })()`);
     assert.equal(regrouped, true, "expanded Smart Stack must regroup");
     await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack to return to compact mode", 10_000);
+    const regroupedStack = await evaluate(cdp, `(() => {
+      const stack = [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')]
+        .find((node) => node.dataset.stackId === ${JSON.stringify(expandedStack.stackId || smartStack.stackId)});
+      if (!stack) return null;
+      const visibleIds = [...stack.querySelectorAll('[data-unit-id]')].map((node) => node.dataset.unitId).filter(Boolean);
+      const status = stack.querySelector('[data-stack-status]');
+      const statusRect = status?.getBoundingClientRect();
+      const stackRect = stack.getBoundingClientRect();
+      return {
+        count: Number(stack.dataset.stackCount || 0),
+        visibleIds,
+        statusLabel: status?.getAttribute('aria-label') || null,
+        statusWithinStack: !statusRect || (statusRect.left >= stackRect.left - 1 && statusRect.right <= stackRect.right + 1),
+      };
+    })()`);
+    assert.ok(regroupedStack, "regrouped Smart Stack must retain its original group identity");
+    assert.equal(regroupedStack.count, expandedStack.count, "expanding and regrouping must not change the authoritative unit count");
+    assert.ok(regroupedStack.visibleIds.every((id) => expandedStack.ids.includes(id)), "regrouping must not introduce or replace unit identities");
+    assert.equal(regroupedStack.statusWithinStack, true, "compact stack status indicators must fit within their layout container");
+    if (regroupedStack.statusLabel) assert.match(regroupedStack.statusLabel, /^Estados da pilha:/, "stack status badges must expose accessible descriptions");
     await capture(cdp, "smart-stack-03-regrouped.png");
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
@@ -894,7 +926,8 @@ async function main() {
   }
 }
 
-void main().catch((error) => {
+void main().catch(async (error) => {
   console.error("SMART STACK BROWSER CERT: FAIL", error);
+  await mkdir(outputDir, { recursive: true }).then(() => writeFile(join(outputDir, "smart-stacks-browser-failure.txt"), String(error?.stack || error))).catch((writeError) => console.error("Could not preserve Smart Stack failure evidence:", writeError));
   process.exitCode = 1;
 });

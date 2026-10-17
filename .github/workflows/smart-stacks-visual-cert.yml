@@ -2,9 +2,9 @@ name: Smart Stacks Visual Cert
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/1v1-hybrid-smart-stacks]
   push:
-    branches: [main]
+    branches: [main, feat/battlefield-2-0-stack-status]
 
 permissions:
   contents: read
@@ -63,6 +63,8 @@ jobs:
         run: npm run typecheck
       - name: Lint
         run: npm run lint -- --max-warnings 0
+      - name: Behavioral regressions (including stack statuses)
+        run: npm run test:behavior
       - name: Bootstrap PostgreSQL
         run: npm run db:bootstrap
       - name: Production build
