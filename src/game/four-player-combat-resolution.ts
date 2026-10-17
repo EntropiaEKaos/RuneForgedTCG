@@ -444,7 +444,11 @@ export function advanceFourPlayerCombatStep(match: FourPlayerMatchState): FourPl
       }
 
       const attacker = livingBody(battlefield, assignment.unitId)!;
-      const block = blockersForFourPlayerAttacker(current.combat, assignment.unitId)[0];
+      const blockerLane = blockersForFourPlayerAttacker(current.combat, assignment.unitId);
+      if (blockerLane.length > 1) {
+        throw new Error(`4P combat cannot resolve ${blockerLane.length} blockers for attacker ${assignment.unitId} until ordered multi-block damage is implemented.`);
+      }
+      const block = blockerLane[0];
       const blocker = block ? livingBody(battlefield, block.unitId) : undefined;
 
       if (!blocker) {
