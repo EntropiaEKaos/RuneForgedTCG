@@ -6,6 +6,7 @@ import {
   declareFourPlayerBlocker,
   blockersForFourPlayerAttacker,
   planFourPlayerBlockerDamage,
+  planFourPlayerSimultaneousBlockExchange,
   cleanupFourPlayerCombatForElimination,
 } from "./four-player-combat";
 
@@ -83,4 +84,30 @@ test("multi-block planning handles zero attack, lethal deathtouch and excess dam
   assert.throws(() => planFourPlayerBlockerDamage([2.5], 4), /positive integer/);
   assert.throws(() => planFourPlayerBlockerDamage([2], Number.POSITIVE_INFINITY), /nonnegative integer/);
   assert.throws(() => planFourPlayerBlockerDamage([2], 1.5), /nonnegative integer/);
+});
+
+test("simultaneous blocker exchange preserves damage from every blocker", () => {
+  const health = [2, 3, 4];
+  const power = [4, 2, 1];
+  const result = planFourPlayerSimultaneousBlockExchange(6, health, power);
+  assert.deepEqual(result, {
+    assignedToBlockers: [2, 3, 1],
+    attackerIncomingDamage: 7,
+    unassignedAttackerDamage: 0,
+  });
+  assert.deepEqual(health, [2, 3, 4]);
+  assert.deepEqual(power, [4, 2, 1]);
+  assert.deepEqual(planFourPlayerSimultaneousBlockExchange(4, [8, 8], [2, 3], true), {
+    assignedToBlockers: [1, 1],
+    attackerIncomingDamage: 5,
+    unassignedAttackerDamage: 2,
+  });
+  assert.deepEqual(planFourPlayerSimultaneousBlockExchange(5, [], []), {
+    assignedToBlockers: [],
+    attackerIncomingDamage: 0,
+    unassignedAttackerDamage: 5,
+  });
+  assert.throws(() => planFourPlayerSimultaneousBlockExchange(5, [2], []), /matching lengths/);
+  assert.throws(() => planFourPlayerSimultaneousBlockExchange(5, [2], [-1]), /nonnegative safe integer/);
+  assert.throws(() => planFourPlayerSimultaneousBlockExchange(5, [2], [1.5]), /nonnegative safe integer/);
 });
