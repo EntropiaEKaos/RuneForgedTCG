@@ -74,3 +74,13 @@ test("damage planning remains deterministic across mixed defender health and pow
     }
   }
 });
+
+test("multi-block planning handles zero attack, lethal deathtouch and excess damage", () => {
+  assert.deepEqual(planFourPlayerBlockerDamage([5, 3, 2], 0), { assigned: [0, 0, 0], remaining: 0 });
+  assert.deepEqual(planFourPlayerBlockerDamage([5, 3, 2], 2, true), { assigned: [1, 1, 0], remaining: 0 });
+  assert.deepEqual(planFourPlayerBlockerDamage([5, 3, 2], 4, true), { assigned: [1, 1, 1], remaining: 1 });
+  assert.deepEqual(planFourPlayerBlockerDamage([5, 3, 2], 20), { assigned: [5, 3, 2], remaining: 10 });
+  assert.throws(() => planFourPlayerBlockerDamage([2.5], 4), /positive integer/);
+  assert.throws(() => planFourPlayerBlockerDamage([2], Number.POSITIVE_INFINITY), /nonnegative integer/);
+  assert.throws(() => planFourPlayerBlockerDamage([2], 1.5), /nonnegative integer/);
+});
