@@ -593,7 +593,17 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
           const current = await matchSnapshot(cdp);
           return current.board.some((unit) => unit.defId === defId && unit.unitId && !before.has(unit.unitId)) || current.phase !== "main" || current.hand.filter((id) => id === defId).length < snapshot.hand.filter((id) => id === defId).length;
         }, `authoritative ${defId} play to change hand, board or phase`, 10_000);
-        const afterPlay = await matchSnapshot(cdp);
+        let afterPlay = await matchSnapshot(cdp);
+        // Playing a unit may first open the opponent response window. Resolve
+        // priority before asserting that the authoritative unit exists.
+        if (afterPlay.phase === "response") {
+          await waitUntil(async () => {
+            await pressKey(cdp, " ", "Space");
+            const current = await matchSnapshot(cdp);
+            return current.phase !== "response";
+          }, `response window after playing ${defId}`, 10_000);
+          afterPlay = await matchSnapshot(cdp);
+        }
         const actualCopies = afterPlay.board.filter((unit) => unit.defId === defId && unit.unitId);
         const compactedCopies = afterPlay.stackGroups.some((group) => group.count >= 2 && group.stackId === `def:${defId}`);
         if (actualCopies.length <= copies.length && !compactedCopies) {
