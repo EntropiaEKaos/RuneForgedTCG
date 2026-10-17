@@ -578,6 +578,8 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
     // missing/failed plays and gives CI an actionable battlefield snapshot.
     const playedCopies = actions.filter((action) => action.action === `play-stack-copy:${defId}`).length;
     if (playedCopies >= 2 && copies.length < 2) {
+      await mkdir(outputDir, { recursive: true });
+      await writeFile(join(outputDir, "smart-stack-coexistence-failure.json"), `${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) }, null, 2)}\n`);
       throw new Error(`Smart Stack fixture lost a played copy before coexistence: ${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) })}`);
     }
     if (snapshot.gameover) throw new Error(`match ended before duplicate ${defId} creatures could coexist: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
