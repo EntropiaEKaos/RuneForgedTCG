@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import CardTip from "@/components/CardTip";
+import { MobileLandscapeGate } from "@/components/game/MobileLandscapeGate";
 import { HybridUnitStacks } from "@/components/game/HybridUnitStacks";
 import { summarizeVisualStackStatus } from "@/lib/visual-stack-status";
 import { PlayerBar, Row, EmptyHint } from "@/components/GameUI";
@@ -161,6 +162,7 @@ export function BattleView(props: BattleViewProps) {
       data-performance={performanceTier}
       className={["tcg-arena min-h-screen text-slate-100", shaking ? "animate-shake" : "", hitStop && fxMode === "full" ? "combat-hit-stop" : ""].join(" ")}
     >
+      <MobileLandscapeGate />
       <ArenaIdentity region={battlefieldRegion} regions={battlefieldRegions} />
       <div className="arena-ambient arena-ambient-a" aria-hidden="true" />
       <div className="arena-ambient arena-ambient-b" aria-hidden="true" />
