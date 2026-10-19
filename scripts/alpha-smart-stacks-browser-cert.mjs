@@ -840,6 +840,49 @@ async function main() {
       // temporary forced-expanded state as a product defect.
       await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack compact control after interaction window", 15_000);
     }
+    // Certify the actual player battlefield across short and tall desktop windows.
+    // A row below the fold is acceptable only when it can be scrolled into view;
+    // invisible, zero-size or clipped cards are never acceptable.
+    const desktopViewports = [
+      { width: 1280, height: 720 },
+      { width: 1366, height: 768 },
+      { width: 1440, height: 900 },
+      { width: 1920, height: 1080 },
+    ];
+    for (const desktopViewport of desktopViewports) {
+      await cdp.call("Emulation.setDeviceMetricsOverride", { ...desktopViewport, deviceScaleFactor: 1, mobile: false });
+      await sleep(180);
+      const evidence = await evaluate(cdp, `(() => {
+        const row = document.querySelector('[data-bench-side="player"]');
+        const card = row?.querySelector('[data-unit-id]');
+        if (!row || !card) return { error: 'missing player row or summoned card' };
+        row.scrollIntoView({ block: 'center', inline: 'nearest' });
+        const rect = card.getBoundingClientRect();
+        const style = getComputedStyle(card);
+        const rowStyle = getComputedStyle(row);
+        return {
+          width: innerWidth, height: innerHeight,
+          cardWidth: rect.width, cardHeight: rect.height,
+          cardTop: rect.top, cardBottom: rect.bottom,
+          visibility: style.visibility, display: style.display, opacity: style.opacity,
+          rowVisibility: rowStyle.visibility, rowDisplay: rowStyle.display,
+          scrollY, documentHeight: document.documentElement.scrollHeight,
+        };
+      })()`);
+      assert.ok(!evidence.error, `Desktop ${desktopViewport.width}x${desktopViewport.height}: ${JSON.stringify(evidence)}`);
+      assert.ok(evidence.cardWidth > 10 && evidence.cardHeight > 10 && evidence.visibility === "visible" && evidence.display !== "none" && Number(evidence.opacity) > 0 && evidence.rowVisibility === "visible" && evidence.rowDisplay !== "none", `Summoned card hidden at desktop ${desktopViewport.width}x${desktopViewport.height}: ${JSON.stringify(evidence)}`);
+      await sleep(120);
+      const visible = await evaluate(cdp, `(() => {
+        const card = document.querySelector('[data-bench-side="player"] [data-unit-id]');
+        if (!card) return false;
+        const r = card.getBoundingClientRect();
+        return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+      })()`);
+      assert.equal(visible, true, `Summoned player card cannot be brought into viewport at ${desktopViewport.width}x${desktopViewport.height}`);
+      await capture(cdp, `smart-stack-desktop-${desktopViewport.width}x${desktopViewport.height}.png`);
+    }
+    await cdp.call("Emulation.setDeviceMetricsOverride", { width: viewport.width, height: viewport.height, deviceScaleFactor: 1, mobile: false });
+    await sleep(150);
     await capture(cdp, "smart-stack-01-compact.png");
 
     const expanded = await evaluate(cdp, `(() => {
