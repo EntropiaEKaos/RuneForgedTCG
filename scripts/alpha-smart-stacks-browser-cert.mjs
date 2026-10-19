@@ -577,10 +577,16 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
     // eventual game-over state. This distinguishes combat casualties from
     // missing/failed plays and gives CI an actionable battlefield snapshot.
     const playedCopies = actions.filter((action) => action.action === `play-stack-copy:${defId}`).length;
-    if (playedCopies >= 2 && copies.length < 2) {
+    // A played creature can legitimately die between turns. Count surviving
+    // authoritative instances, not historical plays, as proof of a stack.
+    // Continue attempting coexistence; the timeout remains a hard failure.
+    if (playedCopies >= 2 && copies.length < 2 && !actions.some((action) => action.action === "coexistence-retry")) {
+      actions.push({ round: snapshot.round, action: "coexistence-retry", playedCopies, survivingCopies: copies.length });
+    }
+    if (playedCopies >= 3 && copies.length < 2 && snapshot.hand.filter((id) => id === defId).length === 0) {
       await mkdir(outputDir, { recursive: true });
       await writeFile(join(outputDir, "smart-stack-coexistence-failure.json"), `${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) }, null, 2)}\n`);
-      throw new Error(`Smart Stack fixture lost a played copy before coexistence: ${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) })}`);
+      throw new Error(`Smart Stack fixture exhausted duplicate plays without establishing coexistence: ${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) })}`);
     }
     if (snapshot.gameover) throw new Error(`match ended before duplicate ${defId} creatures could coexist: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
 
