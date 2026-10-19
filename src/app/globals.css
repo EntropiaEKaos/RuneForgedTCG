@@ -229,80 +229,42 @@ h1, h2, h3, .font-display {
   .forged-mobile-landscape-gate__icon { display: grid; place-items: center; width: 92px; height: 92px; border: 2px solid #fbbf24; border-radius: 20px; font-size: 4rem; color: #fbbf24; transform: rotate(-90deg); }
 }
 
-/* FORGED 1v1 landscape phone: compact legacy DOM board while Phaser
-   presentation is progressively integrated. No game rules are modified. */
-@media (orientation: landscape) and (pointer: coarse) and (max-height: 600px) and (max-width: 1100px) {
-  .tcg-arena {
-    --rf-v4-board-card-w: clamp(52px, 12dvh, 76px);
-    --rf-v4-board-card-h: clamp(72px, 17dvh, 106px);
-    --rf-v4-hand-card-w: clamp(58px, 14dvh, 82px);
-    --rf-v4-hand-card-h: clamp(82px, 19dvh, 116px);
-    height: 100dvh;
-    min-height: 100dvh;
-    max-height: 100dvh;
-    overflow: hidden;
-  }
-  .tcg-arena > .mx-auto {
-    height: 100%;
-    min-height: 0 !important;
-    max-height: 100%;
-    overflow: hidden;
-    padding-inline: max(6px, env(safe-area-inset-left)) max(6px, env(safe-area-inset-right));
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .tcg-arena .board-status-strip,
-  .tcg-arena .archetype-tracker,
-  .tcg-arena .tcg-opponent-hand { display: none; }
-  .tcg-arena .tcg-match-header,
-  .tcg-arena .match-command-rail { min-height: 26px; max-height: 32px; padding-block: 2px; }
-  .tcg-arena .tcg-playerbar { min-height: 32px; max-height: 38px; padding-block: 2px; }
-  .tcg-arena .tcg-avatar { width: 26px; height: 26px; }
-  .tcg-arena .tcg-row {
-    min-height: 0 !important;
-    height: calc(var(--rf-v4-board-card-h) + 8px);
-    flex: 0 0 calc(var(--rf-v4-board-card-h) + 8px);
+/* Hotfix: reserve a visible lane for the player's summoned cards.
+   Never let the hand drawer or center panel paint over the player bench. */
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 700px) and (max-width: 1100px) {
+  .tcg-arena .tcg-row[data-bench-side="player"] {
+    position: relative;
+    z-index: 5;
+    display: flex !important;
+    visibility: visible !important;
+    min-height: calc(var(--rf-v43-board-card-h, 84px) + 8px) !important;
+    height: calc(var(--rf-v43-board-card-h, 84px) + 8px) !important;
+    flex: 0 0 calc(var(--rf-v43-board-card-h, 84px) + 8px) !important;
     overflow-x: auto;
     overflow-y: hidden;
-    overscroll-behavior-inline: contain;
+    isolation: isolate;
     -webkit-overflow-scrolling: touch;
   }
-  .tcg-arena .tcg-row .card-shell {
-    width: var(--rf-v4-board-card-w);
-    height: var(--rf-v4-board-card-h);
+  .tcg-arena .tcg-row[data-bench-side="player"] .card-shell {
+    position: relative;
+    z-index: 1;
   }
-  .tcg-arena .player-hand-shell {
-    min-height: 0 !important;
-    height: calc(var(--rf-v4-hand-card-h) + 4px);
-    flex: 0 0 calc(var(--rf-v4-hand-card-h) + 4px) !important;
-    overflow: hidden;
+  .tcg-arena .player-hand-shell:not(.expanded) {
+    position: relative !important;
+    z-index: 2 !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    flex: 0 0 38px !important;
+    overflow: hidden !important;
   }
-  .tcg-arena .mobile-hand-toggle { display: none; }
-  .tcg-arena .tcg-hand {
-    height: 100% !important;
-    padding: 2px 10px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    justify-content: flex-start;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-inline: contain;
+  .tcg-arena .player-hand-shell:not(.expanded) .tcg-hand {
+    display: none !important;
   }
-  .tcg-arena .tcg-hand .card-shell {
-    width: var(--rf-v4-hand-card-w);
-    height: var(--rf-v4-hand-card-h);
+  .tcg-arena .player-hand-shell.expanded {
+    z-index: 64;
   }
-  .tcg-arena .tcg-hand-card { flex: 0 0 auto; }
-  .tcg-arena .tcg-actions {
-    flex-wrap: nowrap !important;
-    min-height: 40px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-  .tcg-arena .tcg-actions button,
-  .tcg-arena .tcg-hand button,
-  .tcg-arena [data-hybrid-stacks] button {
-    min-height: 36px;
-    min-width: 36px;
-    touch-action: manipulation;
+  .tcg-arena .tcg-row[data-bench-side="ai"] + .relative.flex-1 {
+    min-height: 24px !important;
+    flex: 1 1 24px !important;
   }
 }
