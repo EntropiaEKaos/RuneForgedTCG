@@ -268,3 +268,36 @@ h1, h2, h3, .font-display {
     flex: 1 1 24px !important;
   }
 }
+
+/* Emergency desktop 1v1 visibility fix.
+   The player's deployment row must never flex-shrink behind the hand or
+   the center combat panel. Scope to desktop so touch layouts are unchanged. */
+@media (min-width: 901px) {
+  .tcg-arena .tcg-row[data-bench-side="player"] {
+    position: relative;
+    z-index: 3;
+    flex-shrink: 0 !important;
+    min-height: max(104px, calc(var(--rf-v4-board-card-h, 104px) + 8px)) !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    isolation: isolate;
+  }
+  .tcg-arena .tcg-row[data-bench-side="player"] [data-hybrid-stacks],
+  .tcg-arena .tcg-row[data-bench-side="player"] .card-shell {
+    visibility: visible;
+  }
+  .tcg-arena .tcg-row[data-bench-side="ai"] + .relative.flex-1 {
+    min-height: 24px !important;
+    flex-shrink: 1 !important;
+  }
+}
+@media (min-width: 901px) and (max-height: 900px) {
+  .tcg-arena .tcg-row[data-bench-side="player"] {
+    height: calc(var(--rf-v4-board-card-h) + 8px) !important;
+    flex: 0 0 calc(var(--rf-v4-board-card-h) + 8px) !important;
+  }
+  .tcg-arena .player-hand-shell {
+    flex-shrink: 1 !important;
+    min-height: 60px !important;
+  }
+}
