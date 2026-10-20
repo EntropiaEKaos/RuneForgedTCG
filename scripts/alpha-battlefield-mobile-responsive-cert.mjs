@@ -319,7 +319,7 @@ async function main() {
         await ensureHandState(cdp, false);
       }
       await writeFile(join(outputDir, "visual-4-3-mobile-report.json"), `${JSON.stringify({ ok: true, report, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() }, null, 2)}\n`);
-      console.log(`VISUAL 4.3 MOBILE RESPONSIVE: PASS — ${JSON.stringify(report.map((entry) => ({ viewport: entry.viewport.name, document: entry.collapsed.document, hand: entry.collapsed.hand, actions: entry.collapsed.actionsRect })))}`);
+      console.log(`VISUAL 4.3 MOBILE RESPONSIVE: PASS — ${JSON.stringify(report.map((entry) => entry.rotationGate ? ({ viewport: entry.viewport.name, rotationGate: entry.rotationGate }) : ({ viewport: entry.viewport.name, document: entry.collapsed.document, hand: entry.collapsed.hand, actions: entry.collapsed.actionsRect })))}`);
     } catch (error) {
       await writeFailureEvidence(cdp, error);
       throw error;
