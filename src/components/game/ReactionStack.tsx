@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import CardInfo from "@/components/CardInfo";
 import { getCardArt } from "@/game/card-art";
 import { getCard } from "@/game/cards";
+import { canCastReaction, effectiveCost } from "@/game/engine";
 import {
   reactionActivatedAbilityOptions,
   validateReactionActivatedAbilityActivation,
@@ -187,17 +188,19 @@ function ReactionActivatedPicker({ reaction }: { reaction: ReactionPending }) {
   );
 }
 
-export function ReactionStack({ reaction, timeLeft, targetName, onResolve }: {
+export function ReactionStack({ reaction, timeLeft, targetName, onResolve, onCardClick }: {
   reaction: ReactionPending;
   timeLeft: number;
   targetName: string | null;
   onResolve: () => void;
+  onCardClick: (instanceId: string, defId: string) => void;
 }) {
   const frames = [reaction.action, ...(reaction.pendingHuman ? [reaction.pendingHuman] : [])];
   const progress = Math.max(0, Math.min(100, (timeLeft / 10_000) * 100));
   const respondingTo = frames[frames.length - 1];
   const respondingCard = getCard(respondingTo.defId);
   const respondingArt = getCardArt(respondingTo.defId)?.url ?? respondingCard.art;
+  const availableResponses = reaction.pendingHuman ? [] : reaction.baseState.players.player.hand.filter((card) => canCastReaction(reaction.baseState, "player", card.instanceId, respondingTo.kind));
   const panel = (
     <section className="reaction-stack" aria-label="Pilha de respostas" aria-live="polite" data-reaction-window="true">
       <div className="reaction-stack-heading">
@@ -232,6 +235,32 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve }: {
             </div>
           );
         })}
+      </div>
+      <div className="mt-2 rounded-xl border border-cyan-300/20 bg-slate-950/50 p-2" data-reaction-playable-cards="true">
+        <div className="flex items-center justify-between gap-2">
+          <strong className="text-[11px] uppercase tracking-wide text-cyan-100">Cartas disponíveis para responder</strong>
+          <span className="text-[10px] text-slate-400">{availableResponses.length} disponível(is)</span>
+        </div>
+        {availableResponses.length ? (
+          <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
+            {availableResponses.map((card) => {
+              const definition = getCard(card.defId);
+              const art = getCardArt(card.defId)?.url ?? definition.art;
+              return (
+                <button key={card.instanceId} type="button" data-reaction-playable-card={card.instanceId}
+                  onClick={() => onCardClick(card.instanceId, card.defId)}
+                  className="flex min-w-24 max-w-28 shrink-0 flex-col overflow-hidden rounded-lg border border-cyan-400/40 bg-slate-900 text-left transition hover:border-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+                  title={`Usar ${definition.name} como resposta`} aria-label={`Usar ${definition.name} como resposta`}>
+                  {art && <span className="h-16 w-full bg-cover bg-center" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />}
+                  <span className="w-full p-1.5">
+                    <span className="block truncate text-[10px] font-bold text-white">{definition.name}</span>
+                    <span className="text-[10px] text-cyan-200">Custo {effectiveCost(reaction.baseState, "player", definition)} · Usar ↗</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : <p className="mt-1 text-[11px] text-slate-400">Nenhuma carta da mão pode responder agora. Use uma habilidade disponível ou passe.</p>}
       </div>
       <ReactionActivatedPicker reaction={reaction} />
       <button type="button" onClick={onResolve} className="btn-primary" aria-keyshortcuts="Space">✓ Passar prioridade e resolver</button>
