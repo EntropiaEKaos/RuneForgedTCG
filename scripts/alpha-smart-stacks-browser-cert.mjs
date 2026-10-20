@@ -867,6 +867,14 @@ async function main() {
           visibility: style.visibility, display: style.display, opacity: style.opacity,
           rowVisibility: rowStyle.visibility, rowDisplay: rowStyle.display,
           scrollY, documentHeight: document.documentElement.scrollHeight,
+          handTop: document.querySelector('.player-hand-shell')?.getBoundingClientRect().top ?? null,
+          cardHitVisible: (() => {
+            const cx = Math.max(0, Math.min(innerWidth - 1, rect.left + rect.width / 2));
+            const cy = Math.max(0, Math.min(innerHeight - 1, rect.top + rect.height / 2));
+            if (cy < 0 || cy >= innerHeight) return false;
+            const hit = document.elementFromPoint(cx, cy);
+            return Boolean(hit && (card.contains(hit) || hit === card));
+          })(),
         };
       })()`);
       assert.ok(!evidence.error, `Desktop ${desktopViewport.width}x${desktopViewport.height}: ${JSON.stringify(evidence)}`);
@@ -879,6 +887,7 @@ async function main() {
         return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
       })()`);
       assert.equal(visible, true, `Summoned player card cannot be brought into viewport at ${desktopViewport.width}x${desktopViewport.height}`);
+      assert.equal(evidence.cardHitVisible, true, `Summoned card is obstructed by another desktop UI layer at ${desktopViewport.width}x${desktopViewport.height}: ${JSON.stringify(evidence)}`);
       await capture(cdp, `smart-stack-desktop-${desktopViewport.width}x${desktopViewport.height}.png`);
     }
     await cdp.call("Emulation.setDeviceMetricsOverride", { width: viewport.width, height: viewport.height, deviceScaleFactor: 1, mobile: false });
