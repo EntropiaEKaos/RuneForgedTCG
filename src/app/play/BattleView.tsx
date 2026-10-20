@@ -225,7 +225,7 @@ export function BattleView(props: BattleViewProps) {
           </div>
           <div className="match-last-action" aria-live="polite"><span>ÚLTIMA AÇÃO</span><p>{state.log.at(-1) ?? "A batalha está pronta."}</p></div>
           <TargetingHud mode={targetingMode} onCancel={cancelTargeting} />
-          {reaction && <ReactionStack reaction={reaction} timeLeft={timeLeft} targetName={reactionTargetName} onResolve={() => finishReaction()} />}
+          {reaction && <ReactionStack reaction={reaction} timeLeft={timeLeft} targetName={reactionTargetName} onResolve={() => finishReaction()} onCardClick={handleHandClick} />}
           {pvpWaitingForOpponent && pvpReaction && (
             <div data-pvp-priority-waiting="true" className="mx-auto my-3 max-w-xl rounded-xl border border-cyan-300/20 bg-cyan-950/25 px-4 py-3 text-center text-xs text-cyan-100">
               <b>Prioridade com o adversário.</b> Sua ação está comprometida, mas ainda não resolveu. O servidor liberará a partida após resposta, passe ou timeout.
