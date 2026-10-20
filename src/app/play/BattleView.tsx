@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import CardTip from "@/components/CardTip";
+import { HybridUnitStacks } from "@/components/game/HybridUnitStacks";
 import { PlayerBar, Row, EmptyHint } from "@/components/GameUI";
 import { AttackForecast, FirstMatchGuide, TurnRail, matchGuidance, type MatchPhase } from "@/components/MatchExperience";
 import { MatchResult, type MatchReward } from "@/components/game/MatchResult";
@@ -186,11 +187,11 @@ export function BattleView(props: BattleViewProps) {
 
         <Row label="CAMPO RIVAL" side="ai">
           {ai.bench.length === 0 && ai.permanents.length === 0 && <EmptyHint text="Sem unidades ou permanentes inimigos" />}
-          {ai.permanents.map((permanent) => {
+          <HybridUnitStacks label="ai-permanents" units={ai.permanents} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility)} renderUnit={(permanent: PermanentInstance) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "permanent", perm: permanent, owner: "ai" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("ai", { kind: "permanent" }));
             return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} />;
-          })}
+          }} />
           {ai.sentinelas.map((sentinela) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: "ai" });
             const attackTarget = normalActionsOpen && isPlayerMain && canAttackNow;
@@ -200,7 +201,7 @@ export function BattleView(props: BattleViewProps) {
               </div>
             );
           })}
-          {ai.bench.map((unit) => {
+          <HybridUnitStacks label="ai" units={ai.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking || (normalActionsOpen && isPlayerMain && canAttackNow))} renderUnit={(unit: UnitInstance) => {
             const challenged = Object.values(challenges).includes(unit.instanceId);
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "ai" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || (reaction && !!pendingReaction && reactionTargetOk("ai")) || (isPlayerBlocking && unit.isAttacking) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0);
@@ -209,7 +210,7 @@ export function BattleView(props: BattleViewProps) {
                 targetable={abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || !!(reaction && pendingReaction && reactionTargetOk("ai")) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0)}
                 selected={challenged || (isPlayerBlocking && unit.isAttacking && !!blockAssignments[unit.instanceId])} onClick={clickable ? () => handleUnitClick(unit) : undefined} />
             );
-          })}
+          }} />
         </Row>
 
         <div className="relative flex-1 border-y border-white/10 bg-black/20 px-3 py-2">
@@ -250,11 +251,11 @@ export function BattleView(props: BattleViewProps) {
 
         <Row label="SEU CAMPO" side="player">
           {player.bench.length === 0 && player.permanents.length === 0 && <EmptyHint text="Jogue unidades ou permanentes" />}
-          {player.permanents.map((permanent) => {
+          <HybridUnitStacks label="player-permanents" units={player.permanents} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility)} renderUnit={(permanent: PermanentInstance) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "permanent", perm: permanent, owner: "player" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player", { kind: "permanent" })) || !!(reaction && pendingReaction && reactionTargetOk("player", { kind: "permanent" }));
             return <CardTip key={permanent.instanceId} defId={permanent.defId} unit={permanentAsUnit(permanent)} state={state} size="sm" targetable={clickable} onClick={clickable ? () => handlePermanentClick(permanent) : undefined} onActivateAbility={(index, modeId) => handleSentinelaActivate(permanent.instanceId, index, modeId)} />;
-          })}
+          }} />
           {player.sentinelas.map((sentinela) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "sentinela", sen: sentinela, owner: "player" });
             return (
@@ -263,7 +264,7 @@ export function BattleView(props: BattleViewProps) {
               </div>
             );
           })}
-          {player.bench.map((unit) => {
+          <HybridUnitStacks label="player" units={player.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit: UnitInstance) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "player" });
             const selectable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || (reaction && !!pendingReaction && reactionTargetOk("player")) || (normalActionsOpen && isPlayerMain && canAttackNow) || isPlayerBlocking;
             return (
@@ -273,7 +274,7 @@ export function BattleView(props: BattleViewProps) {
                 onClick={selectable ? () => handleUnitClick(unit) : undefined}
                 onActivateAbility={(index, modeId) => handleSentinelaActivate(unit.instanceId, index, modeId)} />
             );
-          })}
+          }} />
         </Row>
 
         <div className="tcg-divider" aria-hidden="true" />

@@ -818,8 +818,9 @@ async function main(){
     await capture(counterBrowser,"67-commander-4p-reaction-window-p2.png","Commander P2 authoritative reaction window",manifest);
     await waitForEnabledButton(counterBrowser.cdp,loadout.reaction.counter.name,15_000);
     await clickText(counterBrowser.cdp,loadout.reaction.counter.name);
-    await waitForEnabledButton(counterBrowser.cdp,loadout.reaction.source.name,15_000);
-    await clickText(counterBrowser.cdp,loadout.reaction.source.name);
+    // Target the explicit stack-top control, not another button containing the spell name.
+    await waitForEnabledButton(counterBrowser.cdp,"TOPO · "+loadout.reaction.source.name,15_000);
+    await clickText(counterBrowser.cdp,"TOPO · "+loadout.reaction.source.name);
 
     responses=await waitForAllRoomVersion(browsers,roomCode,sourceRevision+1,20_000);
     rooms=validateFourClientProjection(responses,"after Commander Burst counter",[4,4,5,5]);
