@@ -28,7 +28,7 @@ import { readFileSync } from "node:fs";
  * frozen. Full CI, notebook/mobile browser certificates and the complete Alpha
  * Visual Journey are mandatory before this client-shell candidate is promoted.
  *
- * Battlefield HUD Safety + Turn Timer break-glass 2026-10-06: BattleView.tsx is
+ * Battlefield 2.0 + Smart Stacks release candidate break-glass 2026-10-19:\n * BattleView.tsx integrates hybrid bench stacks and stack status presentation.\n * This updates only the reviewed frozen blob reference; production promotion still\n * requires full CI, desktop/mobile browser certification and regression evidence.\n *\n * Battlefield HUD Safety + Turn Timer break-glass 2026-10-06: BattleView.tsx is
  * intentionally recertified to expose the 60-second turn countdown in the
  * battlefield header. Tooltip collision avoidance, hand/graveyard stacking and
  * timer state live outside the frozen structural presentation contract. Full CI,
@@ -45,7 +45,7 @@ import { readFileSync } from "node:fs";
  */
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
   "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
-  "src/app/play/BattleView.tsx": "9ebbe78f8aeea8a06b6b90e2999e32f53c850ba0",
+  "src/app/play/BattleView.tsx": "5815f22f4a3c4d913e4466ed4b022e476cde4149",
   "src/components/CardView.tsx": "edd582233b063110d7ca07028b83229236a74553",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
   "src/app/styles/visual-3-0-battlefield-cinematic.css": "3bf86d3b3729265db77b7ec8c92f58ae8a6bb04b",
