@@ -963,3 +963,34 @@
     min-height: calc(var(--rf-v4-hand-card-h, 124px) + 6px) !important;
   }
 }
+
+/* Desktop safety fallback: never clip the hand or primary turn controls when
+   browser chrome, zoom or an extra mode panel consumes the height budget.
+   The internal battlefield stays compact, but the page can scroll to actions. */
+@media (min-width: 901px) and (max-height: 900px) {
+  .tcg-arena {
+    height: auto;
+    min-height: 100dvh;
+    max-height: none;
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .tcg-arena > .mx-auto {
+    height: auto;
+    min-height: 100dvh !important;
+    max-height: none;
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .tcg-arena .tcg-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 65;
+    background: rgba(4, 10, 20, .97);
+    border-top: 1px solid rgba(103, 232, 249, .22);
+  }
+}

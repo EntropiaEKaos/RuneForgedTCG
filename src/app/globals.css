@@ -206,13 +206,14 @@ h1, h2, h3, .font-display {
 
 /* FORGED 1v1: portrait phones cannot operate the landscape battlefield.
    CSS-only gating avoids resetting React match state on rotation. */
-.forged-mobile-landscape-gate { display: none; }
+/* Keep the rotation gate hidden even when generic arena child layout rules set display. */
+.tcg-arena > .forged-mobile-landscape-gate { display: none !important; }
 @media (orientation: portrait) and (max-width: 900px) and (pointer: coarse) {
   .tcg-arena .forged-mobile-landscape-gate {
     position: fixed;
     inset: 0;
     z-index: 2147483647;
-    display: grid;
+    display: grid !important;
     place-items: center;
     overflow: auto;
     padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
