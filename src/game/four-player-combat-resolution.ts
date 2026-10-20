@@ -7,6 +7,7 @@ import {
 } from "./four-player-battlefield";
 import {
   createFourPlayerCombatState,
+  blockersForFourPlayerAttacker,
   type FourPlayerCombatResolutionCursor,
 } from "./four-player-combat";
 import type { FourPlayerEffectZoneAction } from "./four-player-effect-resolution";
@@ -443,7 +444,11 @@ export function advanceFourPlayerCombatStep(match: FourPlayerMatchState): FourPl
       }
 
       const attacker = livingBody(battlefield, assignment.unitId)!;
-      const block = current.combat.blockers.find((entry) => entry.attackerId === assignment.unitId);
+      const blockerLane = blockersForFourPlayerAttacker(current.combat, assignment.unitId);
+      if (blockerLane.length > 1) {
+        throw new Error(`4P combat cannot resolve ${blockerLane.length} blockers for attacker ${assignment.unitId} until ordered multi-block damage is implemented.`);
+      }
+      const block = blockerLane[0];
       const blocker = block ? livingBody(battlefield, block.unitId) : undefined;
 
       if (!blocker) {

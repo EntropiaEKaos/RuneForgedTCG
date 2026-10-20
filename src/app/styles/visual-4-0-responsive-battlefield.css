@@ -862,3 +862,104 @@
     transition: none !important;
   }
 }
+
+/* Battlefield 2.0 viewport safety overrides, extracted from globals.css. */
+/* Hotfix: reserve a visible lane for the player's summoned cards.
+   Never let the hand drawer or center panel paint over the player bench. */
+@media (orientation: landscape) and (pointer: coarse) and (max-height: 700px) and (max-width: 1100px) {
+  .tcg-arena .tcg-row[data-bench-side="player"] {
+    position: relative;
+    z-index: 5;
+    display: flex !important;
+    visibility: visible !important;
+    min-height: calc(var(--rf-v43-board-card-h, 84px) + 8px) !important;
+    height: calc(var(--rf-v43-board-card-h, 84px) + 8px) !important;
+    flex: 0 0 calc(var(--rf-v43-board-card-h, 84px) + 8px) !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    isolation: isolate;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tcg-arena .tcg-row[data-bench-side="player"] .card-shell {
+    position: relative;
+    z-index: 1;
+  }
+  .tcg-arena .player-hand-shell:not(.expanded) {
+    position: relative !important;
+    z-index: 2 !important;
+    min-height: 38px !important;
+    height: 38px !important;
+    flex: 0 0 38px !important;
+    overflow: hidden !important;
+  }
+  .tcg-arena .player-hand-shell:not(.expanded) .tcg-hand {
+    display: none !important;
+  }
+  .tcg-arena .player-hand-shell.expanded {
+    z-index: 64;
+  }
+  .tcg-arena .tcg-row[data-bench-side="ai"] + .relative.flex-1 {
+    min-height: 24px !important;
+    flex: 1 1 24px !important;
+  }
+}
+
+/* Emergency desktop 1v1 visibility fix.
+   The player's deployment row must never flex-shrink behind the hand or
+   the center combat panel. Scope to desktop so touch layouts are unchanged. */
+@media (min-width: 901px) {
+  .tcg-arena .tcg-row[data-bench-side="player"] {
+    position: relative;
+    z-index: 3;
+    flex-shrink: 0 !important;
+    min-height: max(104px, calc(var(--rf-v4-board-card-h, 104px) + 8px)) !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    isolation: isolate;
+  }
+  .tcg-arena .tcg-row[data-bench-side="player"] [data-hybrid-stacks],
+  .tcg-arena .tcg-row[data-bench-side="player"] .card-shell {
+    visibility: visible;
+  }
+  .tcg-arena .tcg-row[data-bench-side="ai"] + .relative.flex-1 {
+    min-height: 24px !important;
+    flex-shrink: 1 !important;
+  }
+}
+@media (min-width: 901px) and (max-height: 900px) {
+  .tcg-arena .tcg-row[data-bench-side="player"] {
+    height: calc(var(--rf-v4-board-card-h) + 8px) !important;
+    flex: 0 0 calc(var(--rf-v4-board-card-h) + 8px) !important;
+  }
+  .tcg-arena .player-hand-shell {
+    flex-shrink: 1 !important;
+    min-height: 60px !important;
+  }
+}
+
+/* Desktop height-aware fallback: on short windows, do not clip the lower
+   battlefield. Scroll the arena vertically rather than hiding summoned units.
+   This intentionally does not affect normal-height desktop or mobile. */
+@media (min-width: 901px) and (max-height: 760px) and (pointer: fine) {
+  .tcg-arena {
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto !important;
+    overscroll-behavior-y: contain;
+  }
+  .tcg-arena > .mx-auto {
+    height: auto !important;
+    min-height: 100dvh !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .tcg-arena .tcg-row[data-bench-side="player"] {
+    min-height: calc(var(--rf-v4-board-card-h, 102px) + 12px) !important;
+    flex-shrink: 0 !important;
+  }
+  .tcg-arena .player-hand-shell {
+    flex-shrink: 0 !important;
+    min-height: calc(var(--rf-v4-hand-card-h, 124px) + 6px) !important;
+  }
+}
