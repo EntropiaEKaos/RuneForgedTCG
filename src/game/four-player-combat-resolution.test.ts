@@ -81,4 +81,23 @@ assert.equal(generalResolved.match.generals.p1.location,"general_zone");
 assert.equal(generalResolved.match.battlefield?.objects.some((object)=>object.id==="general:p1:1"),false);
 assert.equal(generalResolved.destroyed.find((entry)=>entry.id==="general:p1:1")?.destination,"general_zone");
 
+// An imported/corrupted multi-block state must never silently discard a blocker.
+let invalidMatch = { ...createFourPlayerMatchState("p1"), phase: "combat" as const };
+let invalidBoard = invalidMatch.battlefield!;
+invalidBoard = putFourPlayerBattlefieldObject(invalidBoard, { id: "multi-attacker", defId: "multi-attacker", kind: "unit", ownerSeat: "p1", enteredTurn: 0, combat: body(5, 5) });
+invalidBoard = putFourPlayerBattlefieldObject(invalidBoard, { id: "multi-blocker-1", defId: "multi-blocker-1", kind: "unit", ownerSeat: "p2", enteredTurn: 0, combat: body(2, 2) });
+invalidBoard = putFourPlayerBattlefieldObject(invalidBoard, { id: "multi-blocker-2", defId: "multi-blocker-2", kind: "unit", ownerSeat: "p2", enteredTurn: 0, combat: body(2, 2) });
+let invalidCombat = createFourPlayerCombatState("p1");
+invalidCombat = declareFourPlayerAttacker(invalidCombat, "multi-attacker", "p2");
+invalidCombat = declareFourPlayerBlocker(invalidCombat, "p2", "multi-blocker-1", "multi-attacker");
+invalidCombat = {
+  ...invalidCombat,
+  blockers: [...invalidCombat.blockers, { ...invalidCombat.blockers[0], unitId: "multi-blocker-2" }],
+};
+invalidMatch = { ...invalidMatch, battlefield: invalidBoard, combat: invalidCombat };
+assert.throws(
+  () => resolveFourPlayerCombat(invalidMatch),
+  /cannot resolve 2 blockers for attacker multi-attacker/,
+);
+
 console.log("FOUR PLAYER COMBAT RESOLUTION: PASS — split Nexus damage, blockers, graveyard destinations, poison/lifesteal and General return");

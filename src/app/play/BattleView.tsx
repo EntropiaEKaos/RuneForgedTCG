@@ -2,7 +2,9 @@
 
 import type { Dispatch, SetStateAction } from "react";
 import CardTip from "@/components/CardTip";
+import { MobileLandscapeGate } from "@/components/game/MobileLandscapeGate";
 import { HybridUnitStacks } from "@/components/game/HybridUnitStacks";
+import { summarizeVisualStackStatus } from "@/lib/visual-stack-status";
 import { PlayerBar, Row, EmptyHint } from "@/components/GameUI";
 import { AttackForecast, FirstMatchGuide, TurnRail, matchGuidance, type MatchPhase } from "@/components/MatchExperience";
 import { MatchResult, type MatchReward } from "@/components/game/MatchResult";
@@ -160,6 +162,7 @@ export function BattleView(props: BattleViewProps) {
       data-performance={performanceTier}
       className={["tcg-arena min-h-screen text-slate-100", shaking ? "animate-shake" : "", hitStop && fxMode === "full" ? "combat-hit-stop" : ""].join(" ")}
     >
+      <MobileLandscapeGate />
       <ArenaIdentity region={battlefieldRegion} regions={battlefieldRegions} />
       <div className="arena-ambient arena-ambient-a" aria-hidden="true" />
       <div className="arena-ambient arena-ambient-b" aria-hidden="true" />
@@ -201,7 +204,7 @@ export function BattleView(props: BattleViewProps) {
               </div>
             );
           })}
-          <HybridUnitStacks label="ai" units={ai.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking || (normalActionsOpen && isPlayerMain && canAttackNow))} renderUnit={(unit: UnitInstance) => {
+          <HybridUnitStacks label="ai" units={ai.bench} summarizeStatus={summarizeVisualStackStatus} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking || (normalActionsOpen && isPlayerMain && canAttackNow))} renderUnit={(unit: UnitInstance) => {
             const challenged = Object.values(challenges).includes(unit.instanceId);
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "ai" });
             const clickable = abilityTarget || (!!pendingSpell && isValidSpellTarget("ai")) || (reaction && !!pendingReaction && reactionTargetOk("ai")) || (isPlayerBlocking && unit.isAttacking) || (normalActionsOpen && isPlayerMain && canAttackNow && selectedChallengers.length > 0);
@@ -264,7 +267,7 @@ export function BattleView(props: BattleViewProps) {
               </div>
             );
           })}
-          <HybridUnitStacks label="player" units={player.bench} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit: UnitInstance) => {
+          <HybridUnitStacks label="player" units={player.bench} summarizeStatus={summarizeVisualStackStatus} forceExpanded={Boolean(pendingSpell || pendingReaction || pendingSentinelaAbility || selectedChallengers.length || isPlayerBlocking)} renderUnit={(unit: UnitInstance) => {
             const abilityTarget = !!pendingSentinelaAbility && activatedTargetOk({ kind: "unit", unit, owner: "player" });
             const selectable = abilityTarget || (!!pendingSpell && isValidSpellTarget("player")) || (reaction && !!pendingReaction && reactionTargetOk("player")) || (normalActionsOpen && isPlayerMain && canAttackNow) || isPlayerBlocking;
             return (

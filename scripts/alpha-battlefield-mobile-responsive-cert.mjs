@@ -294,6 +294,18 @@ async function main() {
       const report = [];
       for (const viewport of viewports) {
         await setViewport(cdp, viewport);
+        // Portrait intentionally shows a rotation gate. Validate the gate itself;
+        // do not require interaction with controls that are correctly blocked behind it.
+        if (viewport.name === "portrait") {
+          const gate = await evaluate(cdp, `(()=>{const e=document.querySelector('.forged-mobile-landscape-gate');if(!e)return{present:false};const r=e.getBoundingClientRect();const h=document.elementFromPoint(innerWidth/2,innerHeight/2);return{present:true,visible:getComputedStyle(e).display!=='none',coversViewport:r.left<=1&&r.top<=1&&r.right>=innerWidth-1&&r.bottom>=innerHeight-1,interceptsTouch:h===e||e.contains(h)}})()`);
+          assert.equal(gate.present, true, "portrait: rotation gate must exist");
+          assert.equal(gate.visible, true, "portrait: rotation gate must be visible");
+          assert.equal(gate.coversViewport, true, "portrait: rotation gate must cover the battlefield");
+          assert.equal(gate.interceptsTouch, true, "portrait: rotation gate must intercept touches");
+          await capture(cdp, `battlefield-mobile-${viewport.name}-rotation-gate-${viewport.width}x${viewport.height}.png`);
+          report.push({ viewport, rotationGate: gate });
+          continue;
+        }
         await ensureHandState(cdp, false);
         const collapsed = await collectEvidence(cdp);
         assertCollapsedEvidence(collapsed, viewport);
@@ -307,7 +319,7 @@ async function main() {
         await ensureHandState(cdp, false);
       }
       await writeFile(join(outputDir, "visual-4-3-mobile-report.json"), `${JSON.stringify({ ok: true, report, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() }, null, 2)}\n`);
-      console.log(`VISUAL 4.3 MOBILE RESPONSIVE: PASS — ${JSON.stringify(report.map((entry) => ({ viewport: entry.viewport.name, document: entry.collapsed.document, hand: entry.collapsed.hand, actions: entry.collapsed.actionsRect })))}`);
+      console.log(`VISUAL 4.3 MOBILE RESPONSIVE: PASS — ${JSON.stringify(report.map((entry) => entry.rotationGate ? ({ viewport: entry.viewport.name, rotationGate: entry.rotationGate }) : ({ viewport: entry.viewport.name, document: entry.collapsed.document, hand: entry.collapsed.hand, actions: entry.collapsed.actionsRect })))}`);
     } catch (error) {
       await writeFailureEvidence(cdp, error);
       throw error;

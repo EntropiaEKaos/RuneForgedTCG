@@ -577,8 +577,16 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
     // eventual game-over state. This distinguishes combat casualties from
     // missing/failed plays and gives CI an actionable battlefield snapshot.
     const playedCopies = actions.filter((action) => action.action === `play-stack-copy:${defId}`).length;
-    if (playedCopies >= 2 && copies.length < 2) {
-      throw new Error(`Smart Stack fixture lost a played copy before coexistence: ${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) })}`);
+    // A played creature can legitimately die between turns. Count surviving
+    // authoritative instances, not historical plays, as proof of a stack.
+    // Continue attempting coexistence; the timeout remains a hard failure.
+    if (playedCopies >= 2 && copies.length < 2 && !actions.some((action) => action.action === "coexistence-retry")) {
+      actions.push({ round: snapshot.round, action: "coexistence-retry", playedCopies, survivingCopies: copies.length });
+    }
+    if (playedCopies >= 3 && copies.length < 2 && snapshot.hand.filter((id) => id === defId).length === 0) {
+      await mkdir(outputDir, { recursive: true });
+      await writeFile(join(outputDir, "smart-stack-coexistence-failure.json"), `${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) }, null, 2)}\n`);
+      throw new Error(`Smart Stack fixture exhausted duplicate plays without establishing coexistence: ${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) })}`);
     }
     if (snapshot.gameover) throw new Error(`match ended before duplicate ${defId} creatures could coexist: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
 
@@ -591,7 +599,17 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
           const current = await matchSnapshot(cdp);
           return current.board.some((unit) => unit.defId === defId && unit.unitId && !before.has(unit.unitId)) || current.phase !== "main" || current.hand.filter((id) => id === defId).length < snapshot.hand.filter((id) => id === defId).length;
         }, `authoritative ${defId} play to change hand, board or phase`, 10_000);
-        const afterPlay = await matchSnapshot(cdp);
+        let afterPlay = await matchSnapshot(cdp);
+        // Playing a unit may first open the opponent response window. Resolve
+        // priority before asserting that the authoritative unit exists.
+        if (afterPlay.phase === "response") {
+          await waitUntil(async () => {
+            await pressKey(cdp, " ", "Space");
+            const current = await matchSnapshot(cdp);
+            return current.phase !== "response";
+          }, `response window after playing ${defId}`, 10_000);
+          afterPlay = await matchSnapshot(cdp);
+        }
         const actualCopies = afterPlay.board.filter((unit) => unit.defId === defId && unit.unitId);
         const compactedCopies = afterPlay.stackGroups.some((group) => group.count >= 2 && group.stackId === `def:${defId}`);
         if (actualCopies.length <= copies.length && !compactedCopies) {
@@ -822,6 +840,58 @@ async function main() {
       // temporary forced-expanded state as a product defect.
       await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack compact control after interaction window", 15_000);
     }
+    // Certify the actual player battlefield across short and tall desktop windows.
+    // A row below the fold is acceptable only when it can be scrolled into view;
+    // invisible, zero-size or clipped cards are never acceptable.
+    const desktopViewports = [
+      { width: 1280, height: 720 },
+      { width: 1366, height: 768 },
+      { width: 1440, height: 900 },
+      { width: 1920, height: 1080 },
+    ];
+    for (const desktopViewport of desktopViewports) {
+      await cdp.call("Emulation.setDeviceMetricsOverride", { ...desktopViewport, deviceScaleFactor: 1, mobile: false });
+      await sleep(180);
+      const evidence = await evaluate(cdp, `(() => {
+        const row = document.querySelector('[data-bench-side="player"]');
+        const card = row?.querySelector('[data-unit-id]');
+        if (!row || !card) return { error: 'missing player row or summoned card' };
+        row.scrollIntoView({ block: 'center', inline: 'nearest' });
+        const rect = card.getBoundingClientRect();
+        const style = getComputedStyle(card);
+        const rowStyle = getComputedStyle(row);
+        return {
+          width: innerWidth, height: innerHeight,
+          cardWidth: rect.width, cardHeight: rect.height,
+          cardTop: rect.top, cardBottom: rect.bottom,
+          visibility: style.visibility, display: style.display, opacity: style.opacity,
+          rowVisibility: rowStyle.visibility, rowDisplay: rowStyle.display,
+          scrollY, documentHeight: document.documentElement.scrollHeight,
+          handTop: document.querySelector('.player-hand-shell')?.getBoundingClientRect().top ?? null,
+          cardHitVisible: (() => {
+            const cx = Math.max(0, Math.min(innerWidth - 1, rect.left + rect.width / 2));
+            const cy = Math.max(0, Math.min(innerHeight - 1, rect.top + rect.height / 2));
+            if (cy < 0 || cy >= innerHeight) return false;
+            const hit = document.elementFromPoint(cx, cy);
+            return Boolean(hit && (card.contains(hit) || hit === card));
+          })(),
+        };
+      })()`);
+      assert.ok(!evidence.error, `Desktop ${desktopViewport.width}x${desktopViewport.height}: ${JSON.stringify(evidence)}`);
+      assert.ok(evidence.cardWidth > 10 && evidence.cardHeight > 10 && evidence.visibility === "visible" && evidence.display !== "none" && Number(evidence.opacity) > 0 && evidence.rowVisibility === "visible" && evidence.rowDisplay !== "none", `Summoned card hidden at desktop ${desktopViewport.width}x${desktopViewport.height}: ${JSON.stringify(evidence)}`);
+      await sleep(120);
+      const visible = await evaluate(cdp, `(() => {
+        const card = document.querySelector('[data-bench-side="player"] [data-unit-id]');
+        if (!card) return false;
+        const r = card.getBoundingClientRect();
+        return r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+      })()`);
+      assert.equal(visible, true, `Summoned player card cannot be brought into viewport at ${desktopViewport.width}x${desktopViewport.height}`);
+      assert.equal(evidence.cardHitVisible, true, `Summoned card is obstructed by another desktop UI layer at ${desktopViewport.width}x${desktopViewport.height}: ${JSON.stringify(evidence)}`);
+      await capture(cdp, `smart-stack-desktop-${desktopViewport.width}x${desktopViewport.height}.png`);
+    }
+    await cdp.call("Emulation.setDeviceMetricsOverride", { width: viewport.width, height: viewport.height, deviceScaleFactor: 1, mobile: false });
+    await sleep(150);
     await capture(cdp, "smart-stack-01-compact.png");
 
     const expanded = await evaluate(cdp, `(() => {
@@ -853,6 +923,26 @@ async function main() {
     })()`);
     assert.equal(regrouped, true, "expanded Smart Stack must regroup");
     await waitUntil(async () => evaluate(cdp, `Boolean([...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"] button')].find((button) => (button.getAttribute('aria-label') || '').includes('Expandir pilha')))`), "Smart Stack to return to compact mode", 10_000);
+    const regroupedStack = await evaluate(cdp, `(() => {
+      const stack = [...document.querySelectorAll('[data-hybrid-stacks="player"] [data-stack-kind="unit"]')]
+        .find((node) => node.dataset.stackId === ${JSON.stringify(expandedStack.stackId || smartStack.stackId)});
+      if (!stack) return null;
+      const visibleIds = [...stack.querySelectorAll('[data-unit-id]')].map((node) => node.dataset.unitId).filter(Boolean);
+      const status = stack.querySelector('[data-stack-status]');
+      const statusRect = status?.getBoundingClientRect();
+      const stackRect = stack.getBoundingClientRect();
+      return {
+        count: Number(stack.dataset.stackCount || 0),
+        visibleIds,
+        statusLabel: status?.getAttribute('aria-label') || null,
+        statusWithinStack: !statusRect || (statusRect.left >= stackRect.left - 1 && statusRect.right <= stackRect.right + 1),
+      };
+    })()`);
+    assert.ok(regroupedStack, "regrouped Smart Stack must retain its original group identity");
+    assert.equal(regroupedStack.count, expandedStack.count, "expanding and regrouping must not change the authoritative unit count");
+    assert.ok(regroupedStack.visibleIds.every((id) => expandedStack.ids.includes(id)), "regrouping must not introduce or replace unit identities");
+    assert.equal(regroupedStack.statusWithinStack, true, "compact stack status indicators must fit within their layout container");
+    if (regroupedStack.statusLabel) assert.match(regroupedStack.statusLabel, /^Estados da pilha:/, "stack status badges must expose accessible descriptions");
     await capture(cdp, "smart-stack-03-regrouped.png");
 
     const runtimeExceptions = cdp.notifications.filter((message) => message.method === "Runtime.exceptionThrown");
@@ -894,7 +984,8 @@ async function main() {
   }
 }
 
-void main().catch((error) => {
+void main().catch(async (error) => {
   console.error("SMART STACK BROWSER CERT: FAIL", error);
+  await mkdir(outputDir, { recursive: true }).then(() => writeFile(join(outputDir, "smart-stacks-browser-failure.txt"), String(error?.stack || error))).catch((writeError) => console.error("Could not preserve Smart Stack failure evidence:", writeError));
   process.exitCode = 1;
 });
