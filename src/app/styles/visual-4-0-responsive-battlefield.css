@@ -972,14 +972,18 @@
     height: auto;
     min-height: 100dvh;
     max-height: none;
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .tcg-arena > .mx-auto {
     height: auto;
     min-height: 100dvh !important;
     max-height: none;
-    overflow: visible;
+    max-width: 100%;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   .tcg-arena .tcg-actions {
