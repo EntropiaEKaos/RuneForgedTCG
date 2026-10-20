@@ -375,7 +375,7 @@ export default function CommanderClient(){
               </article>
             })}
           </div>
-          {room.state==="playing"&&<div className="mt-5 border border-white/10 p-4">
+          {(room.state==="playing"||combat?.status==="completed")&&<div className="mt-5 border border-white/10 p-4">
             {combat?<><CommanderBattlefield4P
               room={room}
               combat={combat}
