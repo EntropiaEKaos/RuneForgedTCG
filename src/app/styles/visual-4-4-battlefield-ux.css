@@ -367,3 +367,24 @@
 @media (max-width: 900px) {
   .tcg-arena div:has(> .combat-lanes) > .combat-lanes { justify-content: flex-start; }
 }
+
+/* Battlefield 2.0 — combat lane ownership cues (desktop paint only).
+   Preserve the existing compact paired layout, scroll and hitboxes. */
+@media (min-width: 901px) and (pointer: fine) {
+  .tcg-arena[data-match-phase="combat"] .combat-lanes[data-combat-side="attack"] .combat-lane {
+    background: linear-gradient(180deg, rgba(251, 146, 60, .085), rgba(251, 146, 60, .018));
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px rgba(251, 146, 60, .19);
+  }
+
+  .tcg-arena[data-match-phase="combat"] .combat-lanes[data-combat-side="defense"] .combat-lane {
+    background: linear-gradient(180deg, rgba(139, 233, 255, .085), rgba(139, 233, 255, .018));
+    border-radius: 10px;
+    box-shadow: inset 0 0 0 1px rgba(139, 233, 255, .2);
+  }
+
+  .tcg-arena[data-match-phase="combat"] .combat-lane :is(button, [role="button"]):focus-visible {
+    outline: 2px solid #8be9ff;
+    outline-offset: 2px;
+  }
+}
