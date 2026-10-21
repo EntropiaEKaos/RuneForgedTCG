@@ -994,3 +994,48 @@
     border-top: 1px solid rgba(103, 232, 249, .22);
   }
 }
+
+/* Battlefield 2.0 — desktop command rail visual hierarchy.
+   Presentation only: no interaction, turn state, or 1v1 engine changes. */
+@media (min-width: 901px) and (pointer: fine) {
+  .tcg-arena .tcg-actions {
+    isolation: isolate;
+    border-radius: 12px;
+    border: 1px solid rgba(173, 205, 224, .22);
+    background: linear-gradient(180deg, rgba(20, 35, 51, .96), rgba(5, 12, 23, .98));
+    box-shadow: 0 10px 26px rgba(0, 0, 0, .38), inset 0 1px 0 rgba(255, 255, 255, .07);
+  }
+
+  .tcg-arena .tcg-actions button {
+    position: relative;
+    transition: border-color .16s ease, box-shadow .16s ease, filter .16s ease;
+  }
+
+  .tcg-arena .tcg-actions button:not(:disabled):hover {
+    filter: brightness(1.13);
+    box-shadow: 0 0 0 1px rgba(173, 205, 224, .3), 0 4px 16px rgba(0, 0, 0, .3);
+  }
+
+  .tcg-arena .tcg-actions button:focus-visible {
+    outline: 2px solid #8be9ff;
+    outline-offset: 2px;
+  }
+
+  .tcg-arena .tcg-actions button:disabled {
+    filter: saturate(.65);
+    cursor: not-allowed;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 900px) {
+  .tcg-arena .tcg-actions {
+    border-radius: 8px 8px 0 0;
+    margin-inline: 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena .tcg-actions button {
+    transition: none;
+  }
+}
