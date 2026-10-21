@@ -285,6 +285,13 @@ export function BattleView(props: BattleViewProps) {
         <PlayerHand state={state} reaction={reaction} pendingSpell={pendingSpell} pendingReaction={pendingReaction} isPlayerMain={normalActionsOpen && isPlayerMain} expanded={handExpanded} onToggle={() => setHandExpanded((value) => !value)} onCardClick={handleHandClick} />
 
         <div className="tcg-actions flex flex-wrap items-center justify-center gap-3 border-t border-white/10 px-3 py-3">
+          {(isPlayerBlocking || (normalActionsOpen && isPlayerMain && canAttackNow && selectedAttackers.length > 0)) && (
+            <p className="combat-selection-guidance" role="status" aria-live="polite">
+              {isPlayerBlocking
+                ? `🛡️ ${Object.keys(blockAssignments).length} confronto(s) atribuído(s). Selecione um bloqueador e depois o atacante; confirme quando terminar.`
+                : `⚔️ ${selectedAttackers.length} atacante(s) selecionado(s). Revise a previsão e confirme o ataque.`}
+            </p>
+          )}
           <AttackForecast state={state} selectedIds={selectedAttackers} />
           {isPlayerBlocking && <CombatOutcomePreview state={state} blocks={{ ...lockedBlocks, ...blockAssignments }} />}
           {gameover ? <span className="text-sm font-semibold text-amber-200">Partida concluída</span>
