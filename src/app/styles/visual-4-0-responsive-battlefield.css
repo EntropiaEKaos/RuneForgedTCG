@@ -1070,3 +1070,37 @@
     transition: none;
   }
 }
+
+/* Battlefield 2.0 — combat and reaction legibility, without layout/logic changes. */
+@media (min-width: 901px) and (pointer: fine) {
+  .tcg-arena .reaction-stack {
+    border-color: rgba(145, 204, 228, .35);
+    background-image: linear-gradient(145deg, rgba(18, 38, 57, .22), rgba(5, 11, 24, .12));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .26), inset 0 1px 0 rgba(255, 255, 255, .06);
+  }
+
+  .tcg-arena .reaction-stack button {
+    transition: filter .15s ease, box-shadow .15s ease;
+  }
+
+  .tcg-arena .reaction-stack button:not(:disabled):hover {
+    filter: brightness(1.12);
+    box-shadow: 0 0 0 1px rgba(139, 233, 255, .35);
+  }
+
+  .tcg-arena .reaction-stack button:focus-visible {
+    outline: 2px solid #8be9ff;
+    outline-offset: 2px;
+  }
+
+  .tcg-arena .attack-forecast strong {
+    color: #f7dfad;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, .45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena .reaction-stack button {
+    transition: none;
+  }
+}
