@@ -448,3 +448,30 @@
     color: #93c5fd;
   }
 }
+
+/* Battlefield 2.0 — improve existing combat damage forecast readability.
+   Pure typography and color; no layout, hitbox, or combat calculation changes. */
+@media (min-width: 901px) and (pointer: fine) {
+  .tcg-arena[data-match-phase="combat"] .combat-lane > footer {
+    color: #e2e8f0;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .65);
+  }
+  .tcg-arena[data-match-phase="combat"] .combat-lane[data-outcome="danger"] > footer {
+    color: #fecdd3;
+  }
+  .tcg-arena[data-match-phase="combat"] .combat-lane[data-outcome="favorable"] > footer {
+    color: #d1fae5;
+  }
+  .tcg-arena[data-match-phase="combat"] .combat-lane[data-outcome="trade"] > footer {
+    color: #fef3c7;
+  }
+  .tcg-arena[data-match-phase="combat"] .combat-lane > footer strong {
+    color: #fbbf5a;
+    font-weight: 800;
+  }
+  .tcg-arena[data-match-phase="combat"] .combat-nexus-target > b {
+    color: #fef3c7;
+    text-shadow: 0 1px 8px rgba(251, 191, 90, .42);
+  }
+}
