@@ -389,19 +389,15 @@
   }
 }
 
-/* Battlefield 2.0 — compact, accessible selection status in the action rail. */
-.tcg-arena .combat-selection-guidance {
-  flex: 1 1 100%;
-  margin: 0;
-  padding: 5px 10px;
-  text-align: center;
-  font-size: 12px;
-  line-height: 1.45;
-  color: rgba(226, 242, 255, .94);
-  border: 1px solid rgba(139, 233, 255, .2);
-  border-radius: 8px;
-  background: rgba(12, 30, 42, .5);
-}
-@media (prefers-reduced-motion: reduce) {
-  .tcg-arena .combat-selection-guidance { transition: none; }
+/* Battlefield 2.0 — emphasize existing combat confirmation without touching frozen JSX. */
+@media (min-width: 901px) and (pointer: fine) {
+  .tcg-arena[data-match-phase="combat"] .tcg-actions :is(.btn-attack, .btn-primary):not(:disabled) {
+    outline: 1px solid rgba(251, 191, 90, .28);
+    outline-offset: 2px;
+    text-shadow: 0 1px 10px rgba(251, 191, 90, .24);
+  }
+  .tcg-arena[data-match-phase="combat"] .tcg-actions :is(.btn-attack, .btn-primary):focus-visible {
+    outline: 2px solid #fbbf5a;
+    outline-offset: 3px;
+  }
 }
