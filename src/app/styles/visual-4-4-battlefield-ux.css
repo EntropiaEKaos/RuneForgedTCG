@@ -388,3 +388,16 @@
     outline-offset: 2px;
   }
 }
+
+/* Battlefield 2.0 — emphasize existing combat confirmation without touching frozen JSX. */
+@media (min-width: 901px) and (pointer: fine) {
+  .tcg-arena[data-match-phase="combat"] .tcg-actions :is(.btn-attack, .btn-primary):not(:disabled) {
+    outline: 1px solid rgba(251, 191, 90, .28);
+    outline-offset: 2px;
+    text-shadow: 0 1px 10px rgba(251, 191, 90, .24);
+  }
+  .tcg-arena[data-match-phase="combat"] .tcg-actions :is(.btn-attack, .btn-primary):focus-visible {
+    outline: 2px solid #fbbf5a;
+    outline-offset: 3px;
+  }
+}
