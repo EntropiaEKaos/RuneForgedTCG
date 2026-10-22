@@ -401,3 +401,22 @@
     outline-offset: 3px;
   }
 }
+
+/* Battlefield 2.0 — make existing card states legible in combat, paint only.
+   The engine and CardView remain the sole source of selection/target legality. */
+@media (min-width: 901px) and (pointer: fine) {
+  .tcg-arena[data-match-phase="combat"] .card-shell[data-card-state="selected"] {
+    box-shadow: 0 0 0 2px rgba(251, 191, 90, .85), 0 0 18px rgba(251, 146, 60, .32);
+    filter: brightness(1.09);
+  }
+  .tcg-arena[data-match-phase="combat"] .card-shell[data-card-state="targetable"] {
+    box-shadow: 0 0 0 2px rgba(139, 233, 255, .8), 0 0 16px rgba(139, 233, 255, .24);
+  }
+  .tcg-arena[data-match-phase="combat"] .card-shell[data-card-state="attacking"] {
+    box-shadow: 0 0 0 2px rgba(251, 113, 133, .8), 0 0 16px rgba(251, 113, 133, .24);
+  }
+  .tcg-arena[data-match-phase="combat"] .card-shell.card-interactive:focus-visible {
+    outline: 3px solid #8be9ff;
+    outline-offset: 3px;
+  }
+}
