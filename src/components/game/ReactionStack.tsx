@@ -205,11 +205,13 @@ export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction,
   const availableResponses = reaction.pendingHuman ? [] : reaction.baseState.players.player.hand.filter((card) => canCastReaction(reaction.baseState, "player", card.instanceId, respondingTo.kind));
   const reactionTargets = pendingReaction ? (["player", "ai"] as const).flatMap((owner) => {
     const type = pendingReaction.targetType;
-    const unitAllowed = type === "anyUnit" || type === (owner === "player" ? "allyUnit" : "enemyUnit");
-    const permanentAllowed = type === "anyPermanent" || type === (owner === "player" ? "allyPermanent" : "enemyPermanent");
+    const unitAllowed = type === "anyUnit" || type === "anyBoard" || type === (owner === "player" ? "allyUnit" : "enemyUnit");
+    const permanentAllowed = type === "anyPermanent" || type === "anyBoard" || type === (owner === "player" ? "allyPermanent" : "enemyPermanent");
+    const sentinelaAllowed = type === "anySentinela" || type === (owner === "player" ? "allySentinela" : "enemySentinela");
     return [
       ...(unitAllowed ? reaction.baseState.players[owner].bench.map((unit) => ({ id: unit.instanceId, defId: unit.defId, owner })) : []),
       ...(permanentAllowed ? reaction.baseState.players[owner].permanents.map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
+      ...(sentinelaAllowed ? reaction.baseState.players[owner].sentinelas.map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
     ];
   }) : [];
   const panel = (
