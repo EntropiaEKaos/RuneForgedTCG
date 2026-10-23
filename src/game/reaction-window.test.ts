@@ -465,4 +465,26 @@ if (!(inWindowResolved.players.player.graveyard ?? []).some((card) => card.defId
   throw new Error("Counter resolution must move both response and countered spell to their owners' graveyards");
 }
 
+// A counterspell shown in the response picker must be affordable. The engine
+// must reject the same response when mana is no longer sufficient.
+const insufficientCounterMana = createCustomGame("Unaffordable In-Window Counter", deck, deck, {
+  skipMulligan: true,
+  playerGoesFirst: false,
+  playerStartingHand: 0,
+  aiStartingHand: 0,
+  playerStartingMana: 0,
+  aiStartingMana: 10,
+  seed: 909091,
+});
+insufficientCounterMana.phase = "main";
+insufficientCounterMana.activePlayer = "ai";
+insufficientCounterMana.players.player.mana = 0;
+insufficientCounterMana.players.player.spellMana = 0;
+insufficientCounterMana.players.player.hand = [{ instanceId: "unaffordable-deny", defId: "tide_deny" }];
+if (canReactWithCard(insufficientCounterMana, "player", "unaffordable-deny", {
+  kind: "spell", player: "ai", instanceId: "unaffordable-bolt", defId: "ember_bolt",
+})) {
+  throw new Error("Reaction picker offered an unaffordable counterspell");
+}
+
 console.log("Reaction-window regression tests passed — universal/specific counters, uncounterable protection, committed-card lifecycle, follow-ups and player-facing semantics certified.");
