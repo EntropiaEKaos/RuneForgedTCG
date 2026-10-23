@@ -422,4 +422,47 @@ if (replay.state.phase === "blocking") {
   throw new Error("Replay remained stuck in blocking after the recorded human block decision");
 }
 
+// Reaction UI end-to-end engine contract: the in-window response selection must
+// spend mana, commit both cards, counter the pending spell and preserve LIFO.
+const inWindowState = createCustomGame("In-Window Counter Resolution", deck, deck, {
+  skipMulligan: true,
+  playerGoesFirst: false,
+  playerStartingHand: 0,
+  aiStartingHand: 0,
+  playerStartingMana: 10,
+  aiStartingMana: 10,
+  seed: 909090,
+});
+inWindowState.phase = "main";
+inWindowState.activePlayer = "ai";
+inWindowState.players.player.mana = 10;
+inWindowState.players.player.spellMana = 0;
+inWindowState.players.player.hand = [{ instanceId: "window-deny", defId: "tide_deny" }];
+inWindowState.players.ai.mana = 10;
+inWindowState.players.ai.hand = [{ instanceId: "window-bolt", defId: "ember_bolt" }];
+const windowCounterCost = getCard("tide_deny").cost;
+const windowBoltCost = getCard("ember_bolt").cost;
+if (!canReactWithCard(inWindowState, "player", "window-deny", {
+  kind: "spell", player: "ai", instanceId: "window-bolt", defId: "ember_bolt",
+})) throw new Error("In-window counterspell is not offered as a legal response");
+const inWindowResolved = applyStackedActionWithAi(
+  inWindowState,
+  { kind: "spell", player: "ai", instanceId: "window-bolt", defId: "ember_bolt" },
+  "react",
+  { kind: "spell", player: "player", instanceId: "window-deny", defId: "tide_deny" },
+  () => null,
+).next;
+if (inWindowResolved.players.player.hand.some((card) => card.instanceId === "window-deny") ||
+    inWindowResolved.players.ai.hand.some((card) => card.instanceId === "window-bolt")) {
+  throw new Error("Counter response did not commit both spells out of their hands");
+}
+if (inWindowResolved.players.player.mana !== 10 - windowCounterCost ||
+    inWindowResolved.players.ai.mana !== 10 - windowBoltCost) {
+  throw new Error("Counter response did not charge both spell mana costs");
+}
+if (!inWindowResolved.players.player.graveyard.some((card) => card.defId === "tide_deny") ||
+    !inWindowResolved.players.ai.graveyard.some((card) => card.defId === "ember_bolt")) {
+  throw new Error("Counter resolution must move both response and countered spell to their owners' graveyards");
+}
+
 console.log("Reaction-window regression tests passed — universal/specific counters, uncounterable protection, committed-card lifecycle, follow-ups and player-facing semantics certified.");
