@@ -17,6 +17,10 @@ assert.ok(gameClient.includes("<GraveyardTray") && gameClient.includes("handleGr
 assert.ok(gameClient.includes("targetInstanceId: entry.instanceId"), "graveyard targeting must send the authoritative zone instance id");
 assert.ok(gameClient.includes("graveyardOverlayVisible") && gameClient.includes('graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"'), "idle/empty graveyard UI must not intercept normal battlefield or hand interaction");
 assert.ok(tray.includes("data-graveyard-entry") && tray.includes("isValidGraveyardTarget"), "graveyard tray must expose targetable authoritative entries");
+assert.ok(tray.includes("aria-expanded={showEntries}") && tray.includes("setExpanded"), "graveyard dock must toggle its expanded content accessibly");
+assert.ok(tray.includes("const showEntries = targeting || expanded"), "graveyard targeting must automatically reveal entries even when dock is collapsed");
+assert.ok(gameClient.includes("bottom-[112px] left-3") && gameClient.includes("top-[72px]"), "graveyard docks must stay in separate corners clear of bottom actions and top HUD");
+assert.ok(gameClient.includes('data-graveyard-overlay="true"') && gameClient.includes("pointer-events-none fixed inset-0"), "graveyard overlay must not block battlefield interactions");
 assert.ok(launcher.includes("seedStudioSandboxGraveyards"), "Studio sandbox must seed physical graveyard cards for live mechanic testing");
 
 console.log("GRAVEYARD EFFECTS 1.0 UI CONTRACT: PASS (Studio vocabulary + fail-closed speed + public non-blocking tray + authoritative click target + seeded sandbox)");
