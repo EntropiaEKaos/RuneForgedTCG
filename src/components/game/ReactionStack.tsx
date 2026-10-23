@@ -188,13 +188,14 @@ function ReactionActivatedPicker({ reaction }: { reaction: ReactionPending }) {
   );
 }
 
-export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction, onResolve, onCardClick, onTargetClick }: {
+export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction, onResolve, onCancelSelection, onCardClick, onTargetClick }: {
   reaction: ReactionPending;
   timeLeft: number;
   targetName: string | null;
   pendingReaction: PendingSpell | null;
   onTargetClick: (targetId: string) => void;
   onResolve: () => void;
+  onCancelSelection: () => void;
   onCardClick: (instanceId: string, defId: string) => void;
 }) {
   const frames = [reaction.action, ...(reaction.pendingHuman ? [reaction.pendingHuman] : [])];
@@ -290,8 +291,9 @@ export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction,
           </div>
         </div>
       )}
+      {pendingReaction && <button type="button" data-reaction-change-card="true" onClick={onCancelSelection} className="mt-2 rounded-lg border border-cyan-300/40 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-300/10">← Voltar e escolher outra magia</button>}
       <ReactionActivatedPicker reaction={reaction} />
-      <button type="button" onClick={onResolve} className="btn-primary" aria-keyshortcuts="Space">{pendingReaction ? "Cancelar seleção e passar" : "✓ Passar prioridade e resolver"}</button>
+      <button type="button" onClick={onResolve} className="btn-primary" aria-keyshortcuts="Space">✓ Passar prioridade e resolver</button>
     </section>
   );
   return typeof document === "undefined" ? null : createPortal(
