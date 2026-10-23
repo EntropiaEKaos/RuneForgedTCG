@@ -545,10 +545,10 @@ export default function GameClient() {
           data-graveyard-targeting={graveyardTargeting ? "true" : "false"}
           className={`pointer-events-none fixed inset-0 ${graveyardTargeting ? "z-[70]" : "z-30"}`}
         >
-          <div className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} absolute bottom-3 left-3 w-[min(240px,44vw)]`}>
+          <div className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} absolute bottom-[112px] left-3 w-[min(240px,44vw)]`}>
             <div className="pointer-events-auto"><GraveyardTray state={state} owner="player" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
           </div>
-          <div className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} absolute right-3 ${graveyardTargeting ? "bottom-3" : "top-3"} w-[min(240px,44vw)]`}>
+          <div className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} absolute right-3 ${graveyardTargeting ? "bottom-[112px]" : "top-[72px]"} w-[min(240px,44vw)]`}>
             <div className="pointer-events-auto"><GraveyardTray state={state} owner="ai" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
           </div>
         </div>
