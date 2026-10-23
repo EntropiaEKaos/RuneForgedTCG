@@ -12,7 +12,7 @@ import {
   type CardAction,
   type ReactionActivatedAbilityOption,
 } from "@/game/engine";
-import type { ReactionPending } from "@/game/client/match-model";
+import type { PendingSpell, ReactionPending } from "@/game/client/match-model";
 import {
   REACTION_ACTIVATED_SUBMIT_EVENT,
   type ReactionActivatedSubmitDetail,
@@ -188,10 +188,12 @@ function ReactionActivatedPicker({ reaction }: { reaction: ReactionPending }) {
   );
 }
 
-export function ReactionStack({ reaction, timeLeft, targetName, onResolve, onCardClick }: {
+export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction, onResolve, onCardClick, onTargetClick }: {
   reaction: ReactionPending;
   timeLeft: number;
   targetName: string | null;
+  pendingReaction: PendingSpell | null;
+  onTargetClick: (targetId: string) => void;
   onResolve: () => void;
   onCardClick: (instanceId: string, defId: string) => void;
 }) {
@@ -201,6 +203,15 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve, onCar
   const respondingCard = getCard(respondingTo.defId);
   const respondingArt = getCardArt(respondingTo.defId)?.url ?? respondingCard.art;
   const availableResponses = reaction.pendingHuman ? [] : reaction.baseState.players.player.hand.filter((card) => canCastReaction(reaction.baseState, "player", card.instanceId, respondingTo.kind));
+  const reactionTargets = pendingReaction ? (["player", "ai"] as const).flatMap((owner) => {
+    const type = pendingReaction.targetType;
+    const unitAllowed = type === "anyUnit" || type === (owner === "player" ? "allyUnit" : "enemyUnit");
+    const permanentAllowed = type === "anyPermanent" || type === (owner === "player" ? "allyPermanent" : "enemyPermanent");
+    return [
+      ...(unitAllowed ? reaction.baseState.players[owner].bench.map((unit) => ({ id: unit.instanceId, defId: unit.defId, owner })) : []),
+      ...(permanentAllowed ? reaction.baseState.players[owner].permanents.map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
+    ];
+  }) : [];
   const panel = (
     <section className="reaction-stack" aria-label="Pilha de respostas" aria-live="polite" data-reaction-window="true">
       <div className="reaction-stack-heading">
@@ -262,8 +273,23 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve, onCar
           </div>
         ) : <p className="mt-1 text-[11px] text-slate-400">Nenhuma carta da mão pode responder agora. Use uma habilidade disponível ou passe.</p>}
       </div>
+      {pendingReaction && (
+        <div data-reaction-target-picker="true" className="mt-2 rounded-xl border border-amber-300/40 bg-amber-950/30 p-2">
+          <strong className="text-[11px] uppercase tracking-wide text-amber-100">2. Escolha o alvo da sua resposta</strong>
+          <p className="mt-1 text-[11px] text-slate-300">Carta selecionada: {getCard(pendingReaction.defId).name}. Clique no alvo para conjurar.</p>
+          <div className="mt-2 flex max-h-36 flex-wrap gap-2 overflow-y-auto">
+            {reactionTargets.map((target) => (
+              <button key={target.id} type="button" data-reaction-target={target.id} onClick={() => onTargetClick(target.id)}
+                className="rounded-lg border border-amber-300/50 bg-slate-900 px-2 py-1.5 text-left text-xs text-white hover:bg-amber-300/15">
+                {target.owner === "player" ? "Aliado" : "Rival"} · {getCard(target.defId).name}
+              </button>
+            ))}
+            {!reactionTargets.length && <span className="text-xs text-amber-200">Nenhum alvo válido disponível.</span>}
+          </div>
+        </div>
+      )}
       <ReactionActivatedPicker reaction={reaction} />
-      <button type="button" onClick={onResolve} className="btn-primary" aria-keyshortcuts="Space">✓ Passar prioridade e resolver</button>
+      <button type="button" onClick={onResolve} className="btn-primary" aria-keyshortcuts="Space">{pendingReaction ? "Cancelar seleção e passar" : "✓ Passar prioridade e resolver"}</button>
     </section>
   );
   return typeof document === "undefined" ? null : createPortal(
