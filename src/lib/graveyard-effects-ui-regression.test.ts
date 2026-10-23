@@ -35,4 +35,5 @@ assert.ok(reactionStack.includes('data-reaction-target-picker="true"') && reacti
 assert.ok(battleView.includes("onTargetClick={(targetId)") && battleView.includes("finishReaction({ instanceId: pendingReaction.instanceId, targetId })"), "reaction window target choice must use authoritative stack resolver");
 assert.ok(reactionStack.includes('data-reaction-change-card="true"') && reactionStack.includes("onClick={onCancelSelection}"), "reaction picker must let players change their spell without passing priority");
 assert.ok(battleView.includes("onCancelSelection={() => setPendingReaction(null)}"), "changing reaction card must clear only the pending selection, not resolve the stack");
+assert.ok(reactionStack.includes("graveyardEntries(reaction.baseState, owner)") && reactionStack.includes('isValidGraveyardTarget(reaction.baseState, "player", type, entry)'), "reaction target picker must use physical graveyard zone ids and authoritative target legality");
 console.log("GRAVEYARD EFFECTS 1.0 UI CONTRACT: PASS (Studio vocabulary + fail-closed speed + public non-blocking tray + authoritative click target + seeded sandbox)");
