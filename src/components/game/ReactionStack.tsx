@@ -287,7 +287,7 @@ export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction,
             {reactionTargets.map((target) => (
               <button key={target.id} type="button" data-reaction-target={target.id} onClick={() => onTargetClick(target.id)}
                 className="rounded-lg border border-amber-300/50 bg-slate-900 px-2 py-1.5 text-left text-xs text-white hover:bg-amber-300/15">
-                {target.owner === "player" ? "Aliado" : "Rival"} · {getCard(target.defId).name}
+                {target.owner === "player" ? "Aliado" : "Rival"} · {target.id.startsWith("gy_") ? "☠ Cemitério · " : ""}{getCard(target.defId).name}
               </button>
             ))}
             {!reactionTargets.length && <span className="text-xs text-amber-200">Nenhum alvo válido disponível.</span>}
