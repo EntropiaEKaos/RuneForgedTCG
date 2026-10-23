@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import CardInfo from "@/components/CardInfo";
 import { getCardArt } from "@/game/card-art";
 import { getCard } from "@/game/cards";
+import { graveyardEntries } from "@/game/graveyard";
+import { isGraveyardTargetKind, isValidGraveyardTarget } from "@/game/graveyard-effects";
 import { canCastReaction, effectiveCost, isValidTarget } from "@/game/engine";
 import {
   reactionActivatedAbilityOptions,
@@ -210,6 +212,7 @@ export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction,
     const permanentAllowed = type === "anyPermanent" || type === "anyBoard" || type === (owner === "player" ? "allyPermanent" : "enemyPermanent");
     const sentinelaAllowed = type === "anySentinela" || type === (owner === "player" ? "allySentinela" : "enemySentinela");
     return [
+      ...(isGraveyardTargetKind(type) ? graveyardEntries(reaction.baseState, owner).filter((entry) => isValidGraveyardTarget(reaction.baseState, "player", type, entry)).map((entry) => ({ id: entry.instanceId, defId: entry.defId, owner })) : []),
       ...(unitAllowed ? reaction.baseState.players[owner].bench.filter((unit) => isValidTarget(reaction.baseState, "player", type, { kind: "unit", unit, owner })).map((unit) => ({ id: unit.instanceId, defId: unit.defId, owner })) : []),
       ...(permanentAllowed ? reaction.baseState.players[owner].permanents.filter((perm) => isValidTarget(reaction.baseState, "player", type, { kind: "permanent", perm, owner })).map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
       ...(sentinelaAllowed ? reaction.baseState.players[owner].sentinelas.filter((sen) => isValidTarget(reaction.baseState, "player", type, { kind: "sentinela", sen, owner })).map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
