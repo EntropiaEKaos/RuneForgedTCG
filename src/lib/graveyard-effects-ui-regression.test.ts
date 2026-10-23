@@ -3,6 +3,8 @@ import fs from "node:fs";
 
 const gameClient = fs.readFileSync("src/app/play/GameClient.tsx", "utf8");
 const tray = fs.readFileSync("src/components/game/GraveyardTray.tsx", "utf8");
+const reactionStack = fs.readFileSync("src/components/game/ReactionStack.tsx", "utf8");
+const battleView = fs.readFileSync("src/app/play/BattleView.tsx", "utf8");
 const launcher = fs.readFileSync("src/app/play/hooks/useMatchLauncher.ts", "utf8");
 const authoring = fs.readFileSync("src/game/card-authoring.ts", "utf8");
 
@@ -26,4 +28,6 @@ assert.ok(tray.includes("entries.map((entry)") && !tray.includes("entries.slice(
 assert.ok(tray.includes("overflow-y-auto") && tray.includes("max-h-"), "expanded graveyard must scroll without covering the full battlefield");
 assert.ok(launcher.includes("seedStudioSandboxGraveyards"), "Studio sandbox must seed physical graveyard cards for live mechanic testing");
 
+assert.ok(reactionStack.includes('data-reaction-target-picker="true"') && reactionStack.includes("onTargetClick(target.id)"), "reaction spell targets must be selectable within the reaction window");
+assert.ok(battleView.includes("onTargetClick={(targetId)") && battleView.includes("finishReaction({ instanceId: pendingReaction.instanceId, targetId })"), "reaction window target choice must use authoritative stack resolver");
 console.log("GRAVEYARD EFFECTS 1.0 UI CONTRACT: PASS (Studio vocabulary + fail-closed speed + public non-blocking tray + authoritative click target + seeded sandbox)");
