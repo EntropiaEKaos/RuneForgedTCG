@@ -29,7 +29,8 @@ assert.ok(tray.includes("overflow-y-auto") && tray.includes("max-h-"), "expanded
 assert.ok(launcher.includes("seedStudioSandboxGraveyards"), "Studio sandbox must seed physical graveyard cards for live mechanic testing");
 
 assert.ok(gameClient.includes('tt === "spellOnStack") finishReaction({ instanceId })'), "counterspells targeting the stack must cast directly without a board-target picker");
-assert.ok(reactionStack.includes('type === "anyBoard"') && reactionStack.includes('type === "anySentinela"') && reactionStack.includes('players[owner].sentinelas.map'), "reaction picker must include board and sentinela targets when legal");
+assert.ok(reactionStack.includes('isValidTarget(reaction.baseState, "player", type, { kind: "unit", unit, owner })'), "reaction target picker must respect engine target legality, including Hexproof");
+assert.ok(reactionStack.includes('type === "anyBoard"') && reactionStack.includes('type === "anySentinela"') && reactionStack.includes('players[owner].sentinelas.filter'), "reaction picker must include board and sentinela targets when legal");
 assert.ok(reactionStack.includes('data-reaction-target-picker="true"') && reactionStack.includes("onTargetClick(target.id)"), "reaction spell targets must be selectable within the reaction window");
 assert.ok(battleView.includes("onTargetClick={(targetId)") && battleView.includes("finishReaction({ instanceId: pendingReaction.instanceId, targetId })"), "reaction window target choice must use authoritative stack resolver");
 console.log("GRAVEYARD EFFECTS 1.0 UI CONTRACT: PASS (Studio vocabulary + fail-closed speed + public non-blocking tray + authoritative click target + seeded sandbox)");
