@@ -30,7 +30,6 @@ export function GraveyardTray({
   onEntryClick?: (entry: GraveyardEntry) => void;
 }) {
   const entries = [...graveyardEntries(state, owner)].reverse();
-  const visible = entries.slice(0, 8);
   const targeting = Boolean(targetKind && isGraveyardTargetKind(targetKind));
   const [expanded, setExpanded] = useState(false);
   const showEntries = targeting || expanded;
@@ -46,11 +45,11 @@ export function GraveyardTray({
         <span className="rounded-md border border-violet-300/20 bg-violet-300/10 px-1.5 py-0.5 tabular-nums">{entries.length}</span>
         <span aria-hidden="true">{showEntries ? "▴" : "▾"}</span>
       </button>
-      {showEntries && (visible.length === 0 ? (
+      {showEntries && (entries.length === 0 ? (
         <div className="text-[11px] text-slate-500">Nenhuma carta no cemitério.</div>
       ) : (
-        <div className="flex flex-wrap gap-1.5">
-          {visible.map((entry) => {
+        <div className="flex max-h-[min(42vh,280px)] flex-wrap content-start gap-1.5 overflow-y-auto overscroll-contain p-1">
+          {entries.map((entry) => {
             const def = getCard(entry.defId);
             const targetable = Boolean(
               targeting &&
@@ -78,9 +77,6 @@ export function GraveyardTray({
               </button>
             );
           })}
-          {entries.length > visible.length && (
-            <span className="self-center text-[10px] text-slate-500">+{entries.length - visible.length}</span>
-          )}
         </div>
       ))}
     </div>
