@@ -33,4 +33,6 @@ assert.ok(reactionStack.includes('isValidTarget(reaction.baseState, "player", ty
 assert.ok(reactionStack.includes('type === "anyBoard"') && reactionStack.includes('type === "anySentinela"') && reactionStack.includes('players[owner].sentinelas.filter'), "reaction picker must include board and sentinela targets when legal");
 assert.ok(reactionStack.includes('data-reaction-target-picker="true"') && reactionStack.includes("onTargetClick(target.id)"), "reaction spell targets must be selectable within the reaction window");
 assert.ok(battleView.includes("onTargetClick={(targetId)") && battleView.includes("finishReaction({ instanceId: pendingReaction.instanceId, targetId })"), "reaction window target choice must use authoritative stack resolver");
+assert.ok(reactionStack.includes('data-reaction-change-card="true"') && reactionStack.includes("onClick={onCancelSelection}"), "reaction picker must let players change their spell without passing priority");
+assert.ok(battleView.includes("onCancelSelection={() => setPendingReaction(null)}"), "changing reaction card must clear only the pending selection, not resolve the stack");
 console.log("GRAVEYARD EFFECTS 1.0 UI CONTRACT: PASS (Studio vocabulary + fail-closed speed + public non-blocking tray + authoritative click target + seeded sandbox)");
