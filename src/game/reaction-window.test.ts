@@ -460,8 +460,8 @@ if (inWindowResolved.players.player.mana !== 10 - windowCounterCost ||
     inWindowResolved.players.ai.mana !== 10 - windowBoltCost) {
   throw new Error("Counter response did not charge both spell mana costs");
 }
-if (!inWindowResolved.players.player.graveyard.some((card) => card.defId === "tide_deny") ||
-    !inWindowResolved.players.ai.graveyard.some((card) => card.defId === "ember_bolt")) {
+if (!(inWindowResolved.players.player.graveyard ?? []).some((card) => card.defId === "tide_deny") ||
+    !(inWindowResolved.players.ai.graveyard ?? []).some((card) => card.defId === "ember_bolt")) {
   throw new Error("Counter resolution must move both response and countered spell to their owners' graveyards");
 }
 
