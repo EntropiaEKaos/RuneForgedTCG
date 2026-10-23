@@ -307,7 +307,7 @@ export default function GameClient() {
         if (!top || reaction.pendingHuman) return;
         if (!canCastReaction(reaction.baseState, "player", instanceId, top.kind)) return;
         const tt = spellNeedsTarget(defId);
-        if (!tt) finishReaction({ instanceId });
+        if (!tt || tt === "spellOnStack") finishReaction({ instanceId });
         else setPendingReaction({ instanceId, defId, targetType: tt });
         return;
       }
