@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import CardInfo from "@/components/CardInfo";
 import { getCardArt } from "@/game/card-art";
 import { getCard } from "@/game/cards";
-import { canCastReaction, effectiveCost } from "@/game/engine";
+import { canCastReaction, effectiveCost, isValidTarget } from "@/game/engine";
 import {
   reactionActivatedAbilityOptions,
   validateReactionActivatedAbilityActivation,
@@ -209,9 +209,9 @@ export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction,
     const permanentAllowed = type === "anyPermanent" || type === "anyBoard" || type === (owner === "player" ? "allyPermanent" : "enemyPermanent");
     const sentinelaAllowed = type === "anySentinela" || type === (owner === "player" ? "allySentinela" : "enemySentinela");
     return [
-      ...(unitAllowed ? reaction.baseState.players[owner].bench.map((unit) => ({ id: unit.instanceId, defId: unit.defId, owner })) : []),
-      ...(permanentAllowed ? reaction.baseState.players[owner].permanents.map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
-      ...(sentinelaAllowed ? reaction.baseState.players[owner].sentinelas.map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
+      ...(unitAllowed ? reaction.baseState.players[owner].bench.filter((unit) => isValidTarget(reaction.baseState, "player", type, { kind: "unit", unit, owner })).map((unit) => ({ id: unit.instanceId, defId: unit.defId, owner })) : []),
+      ...(permanentAllowed ? reaction.baseState.players[owner].permanents.filter((perm) => isValidTarget(reaction.baseState, "player", type, { kind: "permanent", perm, owner })).map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
+      ...(sentinelaAllowed ? reaction.baseState.players[owner].sentinelas.filter((sen) => isValidTarget(reaction.baseState, "player", type, { kind: "sentinela", sen, owner })).map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
     ];
   }) : [];
   const panel = (
