@@ -21,6 +21,8 @@ assert.ok(tray.includes("aria-expanded={showEntries}") && tray.includes("setExpa
 assert.ok(tray.includes("const showEntries = targeting || expanded"), "graveyard targeting must automatically reveal entries even when dock is collapsed");
 assert.ok(gameClient.includes("bottom-[112px] left-3") && gameClient.includes("top-[72px]"), "graveyard docks must stay in separate corners clear of bottom actions and top HUD");
 assert.ok(gameClient.includes('data-graveyard-overlay="true"') && gameClient.includes("pointer-events-none fixed inset-0"), "graveyard overlay must not block battlefield interactions");
+assert.ok(tray.includes("entries.map((entry)") && !tray.includes("entries.slice(0, 8)"), "all graveyard entries must remain accessible, including older targetable cards");
+assert.ok(tray.includes("overflow-y-auto") && tray.includes("max-h-"), "expanded graveyard must scroll without covering the full battlefield");
 assert.ok(launcher.includes("seedStudioSandboxGraveyards"), "Studio sandbox must seed physical graveyard cards for live mechanic testing");
 
 console.log("GRAVEYARD EFFECTS 1.0 UI CONTRACT: PASS (Studio vocabulary + fail-closed speed + public non-blocking tray + authoritative click target + seeded sandbox)");
