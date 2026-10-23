@@ -40,7 +40,7 @@ export function GraveyardTray({
       data-graveyard-count={entries.length}
       className="rounded-xl border border-violet-300/20 bg-slate-950/90 p-1.5 text-violet-100 shadow-lg shadow-black/30 backdrop-blur-md"
     >
-      <button type="button" aria-expanded={showEntries} aria-label={`Abrir cemitério ${owner === "player" ? "aliado" : "rival"} com ${entries.length} cartas`} onClick={() => setExpanded((current) => !current)} className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-violet-100 transition hover:bg-violet-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300">
+      <button type="button" aria-expanded={showEntries} aria-label={`${showEntries ? "Recolher" : "Abrir"} cemitério ${owner === "player" ? "aliado" : "rival"} com ${entries.length} cartas`} onClick={() => setExpanded((current) => !current)} className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-violet-100 transition hover:bg-violet-400/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-300">
         <span>☠ {owner === "player" ? "Meu cemitério" : "Cemitério rival"}</span>
         <span className="rounded-md border border-violet-300/20 bg-violet-300/10 px-1.5 py-0.5 tabular-nums">{entries.length}</span>
         <span aria-hidden="true">{showEntries ? "▴" : "▾"}</span>
