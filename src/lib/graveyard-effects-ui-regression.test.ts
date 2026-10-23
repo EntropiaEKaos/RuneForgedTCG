@@ -19,6 +19,7 @@ assert.ok(gameClient.includes("graveyardOverlayVisible") && gameClient.includes(
 assert.ok(tray.includes("data-graveyard-entry") && tray.includes("isValidGraveyardTarget"), "graveyard tray must expose targetable authoritative entries");
 assert.ok(tray.includes("aria-expanded={showEntries}") && tray.includes("setExpanded"), "graveyard dock must toggle its expanded content accessibly");
 assert.ok(tray.includes("const showEntries = targeting || expanded"), "graveyard targeting must automatically reveal entries even when dock is collapsed");
+assert.ok(tray.includes('showEntries ? "Recolher" : "Abrir"'), "graveyard toggle must announce the correct action to assistive technology");
 assert.ok(gameClient.includes("bottom-[112px] left-3") && gameClient.includes("top-[72px]"), "graveyard docks must stay in separate corners clear of bottom actions and top HUD");
 assert.ok(gameClient.includes('data-graveyard-overlay="true"') && gameClient.includes("pointer-events-none fixed inset-0"), "graveyard overlay must not block battlefield interactions");
 assert.ok(tray.includes("entries.map((entry)") && !tray.includes("entries.slice(0, 8)"), "all graveyard entries must remain accessible, including older targetable cards");
