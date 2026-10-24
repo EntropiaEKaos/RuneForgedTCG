@@ -186,6 +186,27 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.ok(!graveyardEntries(next, "ai").some((entry) => entry.instanceId === theirs.instanceId));
 }
 
+// Ownership and card-type restrictions are enforced before paying mana or moving zones.
+{
+  let state = game();
+  const enemyUnit = putInGraveyard(state, "ai", target.defId, "discard")!;
+  const ownUnit = putInGraveyard(state, "player", target.defId, "discard")!;
+  const ownSpell = putInGraveyard(state, "player", recover.defId, "discard")!;
+  state = addCardsToHand(state, "player", [reanimate.defId, banish.defId]);
+  const reanimateSpell = state.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const banishSpell = state.players.player.hand.find((card) => card.defId === banish.defId)!;
+  for (const [spellId, targetId] of [
+    [reanimateSpell.instanceId, enemyUnit.instanceId],
+    [reanimateSpell.instanceId, ownSpell.instanceId],
+    [banishSpell.instanceId, ownUnit.instanceId],
+  ]) {
+    const next = castSpell(state, "player", spellId, targetId);
+    assert.strictEqual(next, state, "illegal graveyard owner or type must reject the cast atomically");
+  }
+  assert.equal(graveyardEntries(state, "player").length, 2);
+  assert.equal(graveyardEntries(state, "ai").length, 1);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
