@@ -242,6 +242,24 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.ok(!graveyardEntries(rejected, "ai").some((entry) => entry.instanceId === firstGrave.instanceId));
 }
 
+// Distinct physical copies of the same card must remain independently targetable.
+{
+  let state = game();
+  const firstCopy = putInGraveyard(state, "player", small.defId, "discard")!;
+  const secondCopy = putInGraveyard(state, "player", small.defId, "discard")!;
+  assert.notEqual(firstCopy.instanceId, secondCopy.instanceId);
+  state = addCardsToHand(state, "player", [recover.defId, recover.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const once = castSpell(state, "player", firstSpell.instanceId, firstCopy.instanceId);
+  assert.ok(!graveyardEntries(once, "player").some((entry) => entry.instanceId === firstCopy.instanceId));
+  assert.ok(graveyardEntries(once, "player").some((entry) => entry.instanceId === secondCopy.instanceId), "same-definition second copy must survive");
+  const secondSpell = once.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const twice = castSpell(once, "player", secondSpell.instanceId, secondCopy.instanceId);
+  assert.ok(!graveyardEntries(twice, "player").some((entry) => entry.instanceId === secondCopy.instanceId));
+  assert.equal(twice.players.player.hand.filter((card) => card.defId === small.defId).length, 2, "both physical copies are independently recovered");
+  assert.equal(graveyardHasUniqueIds(twice), true);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
