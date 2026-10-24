@@ -282,6 +282,27 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.equal(graveyardHasUniqueIds(twice), true);
 }
 
+// Once a physical card has been recovered to hand, its former graveyard id
+// must remain invalid even if a new copy of the same definition enters the zone.
+{
+  let state = game();
+  const original = putInGraveyard(state, "player", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, recover.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const recovered = castSpell(state, "player", firstSpell.instanceId, original.instanceId);
+  assert.notStrictEqual(recovered, state);
+  const replacement = putInGraveyard(recovered, "player", small.defId, "discard")!;
+  assert.notEqual(replacement.instanceId, original.instanceId, "new graveyard object needs a fresh id");
+  const secondSpell = recovered.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const manaBefore = recovered.players.player.mana;
+  const rejected = castSpell(recovered, "player", secondSpell.instanceId, original.instanceId);
+  assert.strictEqual(rejected, recovered, "stale id must never alias a later copy of the same card");
+  assert.equal(rejected.players.player.mana, manaBefore);
+  assert.ok(graveyardEntries(rejected, "player").some((entry) => entry.instanceId === replacement.instanceId));
+  assert.ok(rejected.players.player.hand.some((card) => card.instanceId === secondSpell.instanceId));
+  assert.equal(graveyardHasUniqueIds(rejected), true);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
