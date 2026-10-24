@@ -223,6 +223,25 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.equal(afterSecond.players.player.hand.filter((card) => card.defId === small.defId).length, 1, "consumed target must never duplicate");
 }
 
+// Once a card is banished, a second banish cannot spend mana or erase another card.
+{
+  let state = game();
+  const firstGrave = putInGraveyard(state, "ai", small.defId, "discard")!;
+  const survivingGrave = putInGraveyard(state, "ai", target.defId, "discard")!;
+  state = addCardsToHand(state, "player", [banish.defId, banish.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const resolved = castSpell(state, "player", firstSpell.instanceId, firstGrave.instanceId);
+  assert.notStrictEqual(resolved, state, "first banishment must resolve");
+  const secondSpell = resolved.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const remainingMana = resolved.players.player.mana;
+  const rejected = castSpell(resolved, "player", secondSpell.instanceId, firstGrave.instanceId);
+  assert.strictEqual(rejected, resolved, "banished graveyard id must not resolve again");
+  assert.equal(rejected.players.player.mana, remainingMana, "invalid second banish must not charge mana");
+  assert.ok(rejected.players.player.hand.some((card) => card.instanceId === secondSpell.instanceId));
+  assert.ok(graveyardEntries(rejected, "ai").some((entry) => entry.instanceId === survivingGrave.instanceId));
+  assert.ok(!graveyardEntries(rejected, "ai").some((entry) => entry.instanceId === firstGrave.instanceId));
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
