@@ -303,6 +303,28 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.equal(graveyardHasUniqueIds(rejected), true);
 }
 
+// Cross-effect integrity: recovery removes a physical card from the graveyard,
+// so a later reanimation must not target its former graveyard id.
+{
+  let state = game();
+  const grave = putInGraveyard(state, "player", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, reanimate.defId]);
+  const recoverSpell = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const afterRecovery = castSpell(state, "player", recoverSpell.instanceId, grave.instanceId);
+  assert.notStrictEqual(afterRecovery, state, "recovery must resolve before cross-effect rejection");
+  assert.ok(afterRecovery.players.player.hand.some((card) => card.defId === small.defId));
+  const reanimateSpell = afterRecovery.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const manaBefore = afterRecovery.players.player.mana;
+  const summonsBefore = afterRecovery.players.player.stats.alliesSummoned;
+  const rejected = castSpell(afterRecovery, "player", reanimateSpell.instanceId, grave.instanceId);
+  assert.strictEqual(rejected, afterRecovery, "reanimation cannot reuse an object recovered to hand");
+  assert.equal(rejected.players.player.mana, manaBefore);
+  assert.equal(rejected.players.player.stats.alliesSummoned, summonsBefore);
+  assert.ok(rejected.players.player.hand.some((card) => card.instanceId === reanimateSpell.instanceId));
+  assert.ok(!rejected.players.player.bench.some((unit) => unit.defId === small.defId));
+  assert.equal(graveyardHasUniqueIds(rejected), true);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
