@@ -207,6 +207,22 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.equal(graveyardEntries(state, "ai").length, 1);
 }
 
+// A resolved graveyard object cannot be consumed again by a second spell.
+{
+  let state = game();
+  const grave = putInGraveyard(state, "player", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, recover.defId]);
+  const first = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const afterFirst = castSpell(state, "player", first.instanceId, grave.instanceId);
+  assert.notStrictEqual(afterFirst, state, "first recovery must resolve");
+  assert.ok(!graveyardEntries(afterFirst, "player").some((entry) => entry.instanceId === grave.instanceId));
+  const second = afterFirst.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const afterSecond = castSpell(afterFirst, "player", second.instanceId, grave.instanceId);
+  assert.strictEqual(afterSecond, afterFirst, "second recovery of consumed id must fail closed");
+  assert.ok(afterSecond.players.player.hand.some((card) => card.instanceId === second.instanceId));
+  assert.equal(afterSecond.players.player.hand.filter((card) => card.defId === small.defId).length, 1, "consumed target must never duplicate");
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
