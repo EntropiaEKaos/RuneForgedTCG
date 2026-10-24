@@ -307,7 +307,7 @@ export default function GameClient() {
         if (!top || reaction.pendingHuman) return;
         if (!canCastReaction(reaction.baseState, "player", instanceId, top.kind)) return;
         const tt = spellNeedsTarget(defId);
-        if (!tt) finishReaction({ instanceId });
+        if (!tt || tt === "spellOnStack") finishReaction({ instanceId });
         else setPendingReaction({ instanceId, defId, targetType: tt });
         return;
       }
@@ -543,10 +543,14 @@ export default function GameClient() {
         <div
           data-graveyard-overlay="true"
           data-graveyard-targeting={graveyardTargeting ? "true" : "false"}
-          className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} ${graveyardTargeting ? "z-[70]" : "z-30"} fixed inset-x-2 bottom-2 mx-auto gap-2 ${graveyardTargeting ? "grid max-w-5xl md:grid-cols-2" : "flex max-w-5xl justify-between [&>div]:min-w-0 [&>div]:max-w-[min(22vw,220px)]"}`}
+          className={`pointer-events-none fixed inset-0 ${graveyardTargeting ? "z-[70]" : "z-30"}`}
         >
-          <div className={graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"}><GraveyardTray state={state} owner="player" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
-          <div className={graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"}><GraveyardTray state={state} owner="ai" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
+          <div className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} absolute bottom-[112px] left-3 w-[min(240px,44vw)]`}>
+            <div className="pointer-events-auto"><GraveyardTray state={state} owner="player" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
+          </div>
+          <div className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} absolute right-3 ${graveyardTargeting ? "bottom-[112px]" : "top-[72px]"} w-[min(240px,44vw)]`}>
+            <div className="pointer-events-auto"><GraveyardTray state={state} owner="ai" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
+          </div>
         </div>
       )}
       {pendingActivatedDiscard && <ActivatedDiscardPicker state={state} pending={pendingActivatedDiscard} onToggle={toggleActivatedDiscard} onConfirm={confirmActivatedDiscard} onCancel={cancelActivatedDiscard} />}

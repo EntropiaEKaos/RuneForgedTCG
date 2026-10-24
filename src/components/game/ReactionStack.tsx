@@ -5,14 +5,16 @@ import { createPortal } from "react-dom";
 import CardInfo from "@/components/CardInfo";
 import { getCardArt } from "@/game/card-art";
 import { getCard } from "@/game/cards";
-import { canCastReaction, effectiveCost } from "@/game/engine";
+import { graveyardEntries } from "@/game/graveyard";
+import { isGraveyardTargetKind, isValidGraveyardTarget } from "@/game/graveyard-effects";
+import { canCastReaction, effectiveCost, isValidTarget } from "@/game/engine";
 import {
   reactionActivatedAbilityOptions,
   validateReactionActivatedAbilityActivation,
   type CardAction,
   type ReactionActivatedAbilityOption,
 } from "@/game/engine";
-import type { ReactionPending } from "@/game/client/match-model";
+import type { PendingSpell, ReactionPending } from "@/game/client/match-model";
 import {
   REACTION_ACTIVATED_SUBMIT_EVENT,
   type ReactionActivatedSubmitDetail,
@@ -188,11 +190,14 @@ function ReactionActivatedPicker({ reaction }: { reaction: ReactionPending }) {
   );
 }
 
-export function ReactionStack({ reaction, timeLeft, targetName, onResolve, onCardClick }: {
+export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction, onResolve, onCancelSelection, onCardClick, onTargetClick }: {
   reaction: ReactionPending;
   timeLeft: number;
   targetName: string | null;
+  pendingReaction: PendingSpell | null;
+  onTargetClick: (targetId: string) => void;
   onResolve: () => void;
+  onCancelSelection: () => void;
   onCardClick: (instanceId: string, defId: string) => void;
 }) {
   const frames = [reaction.action, ...(reaction.pendingHuman ? [reaction.pendingHuman] : [])];
@@ -201,6 +206,18 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve, onCar
   const respondingCard = getCard(respondingTo.defId);
   const respondingArt = getCardArt(respondingTo.defId)?.url ?? respondingCard.art;
   const availableResponses = reaction.pendingHuman ? [] : reaction.baseState.players.player.hand.filter((card) => canCastReaction(reaction.baseState, "player", card.instanceId, respondingTo.kind));
+  const reactionTargets = pendingReaction ? (["player", "ai"] as const).flatMap((owner) => {
+    const type = pendingReaction.targetType;
+    const unitAllowed = type === "anyUnit" || type === "anyBoard" || type === (owner === "player" ? "allyUnit" : "enemyUnit");
+    const permanentAllowed = type === "anyPermanent" || type === "anyBoard" || type === (owner === "player" ? "allyPermanent" : "enemyPermanent");
+    const sentinelaAllowed = type === "anySentinela" || type === (owner === "player" ? "allySentinela" : "enemySentinela");
+    return [
+      ...(isGraveyardTargetKind(type) ? graveyardEntries(reaction.baseState, owner).filter((entry) => isValidGraveyardTarget(reaction.baseState, "player", type, entry)).map((entry) => ({ id: entry.instanceId, defId: entry.defId, owner })) : []),
+      ...(unitAllowed ? reaction.baseState.players[owner].bench.filter((unit) => isValidTarget(reaction.baseState, "player", type, { kind: "unit", unit, owner })).map((unit) => ({ id: unit.instanceId, defId: unit.defId, owner })) : []),
+      ...(permanentAllowed ? reaction.baseState.players[owner].permanents.filter((perm) => isValidTarget(reaction.baseState, "player", type, { kind: "permanent", perm, owner })).map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
+      ...(sentinelaAllowed ? reaction.baseState.players[owner].sentinelas.filter((sen) => isValidTarget(reaction.baseState, "player", type, { kind: "sentinela", sen, owner })).map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
+    ];
+  }) : [];
   const panel = (
     <section className="reaction-stack" aria-label="Pilha de respostas" aria-live="polite" data-reaction-window="true">
       <div className="reaction-stack-heading">
@@ -262,6 +279,22 @@ export function ReactionStack({ reaction, timeLeft, targetName, onResolve, onCar
           </div>
         ) : <p className="mt-1 text-[11px] text-slate-400">Nenhuma carta da mão pode responder agora. Use uma habilidade disponível ou passe.</p>}
       </div>
+      {pendingReaction && (
+        <div data-reaction-target-picker="true" className="mt-2 rounded-xl border border-amber-300/40 bg-amber-950/30 p-2">
+          <strong className="text-[11px] uppercase tracking-wide text-amber-100">2. Escolha o alvo da sua resposta</strong>
+          <p className="mt-1 text-[11px] text-slate-300">Carta selecionada: {getCard(pendingReaction.defId).name}. Clique no alvo para conjurar.</p>
+          <div className="mt-2 flex max-h-36 flex-wrap gap-2 overflow-y-auto">
+            {reactionTargets.map((target) => (
+              <button key={target.id} type="button" data-reaction-target={target.id} onClick={() => onTargetClick(target.id)}
+                className="rounded-lg border border-amber-300/50 bg-slate-900 px-2 py-1.5 text-left text-xs text-white hover:bg-amber-300/15">
+                {target.owner === "player" ? "Aliado" : "Rival"} · {target.id.startsWith("gy_") ? "☠ Cemitério · " : ""}{getCard(target.defId).name}
+              </button>
+            ))}
+            {!reactionTargets.length && <span className="text-xs text-amber-200">Nenhum alvo válido disponível.</span>}
+          </div>
+        </div>
+      )}
+      {pendingReaction && <button type="button" data-reaction-change-card="true" onClick={onCancelSelection} className="mt-2 rounded-lg border border-cyan-300/40 px-3 py-2 text-xs text-cyan-100 hover:bg-cyan-300/10">← Voltar e escolher outra magia</button>}
       <ReactionActivatedPicker reaction={reaction} />
       <button type="button" onClick={onResolve} className="btn-primary" aria-keyshortcuts="Space">✓ Passar prioridade e resolver</button>
     </section>
