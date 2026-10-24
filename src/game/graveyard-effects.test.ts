@@ -260,6 +260,28 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.equal(graveyardHasUniqueIds(twice), true);
 }
 
+// Reanimation must not revive the same physical graveyard entry twice.
+// A rejected second cast must preserve mana, the remaining spell, and the bench.
+{
+  let state = game();
+  const grave = putInGraveyard(state, "player", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [reanimate.defId, reanimate.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const once = castSpell(state, "player", firstSpell.instanceId, grave.instanceId);
+  assert.notStrictEqual(once, state, "first reanimation must resolve");
+  assert.equal(once.players.player.bench.filter((unit) => unit.defId === small.defId).length, 1);
+  const secondSpell = once.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const manaBefore = once.players.player.mana;
+  const summonsBefore = once.players.player.stats.alliesSummoned;
+  const twice = castSpell(once, "player", secondSpell.instanceId, grave.instanceId);
+  assert.strictEqual(twice, once, "consumed reanimation target must fail closed");
+  assert.equal(twice.players.player.mana, manaBefore, "rejected reanimation must not spend mana");
+  assert.equal(twice.players.player.stats.alliesSummoned, summonsBefore);
+  assert.ok(twice.players.player.hand.some((card) => card.instanceId === secondSpell.instanceId));
+  assert.equal(twice.players.player.bench.filter((unit) => unit.defId === small.defId).length, 1, "no duplicated creature");
+  assert.equal(graveyardHasUniqueIds(twice), true);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
