@@ -325,6 +325,27 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.equal(graveyardHasUniqueIds(rejected), true);
 }
 
+// Cross-effect integrity: banishing a physical enemy card invalidates its old
+// graveyard id, even when a new same-definition copy enters that graveyard.
+{
+  let state = game();
+  const grave = putInGraveyard(state, "ai", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [banish.defId, banish.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const afterBanish = castSpell(state, "player", firstSpell.instanceId, grave.instanceId);
+  assert.notStrictEqual(afterBanish, state, "first banish should resolve");
+  const replacement = putInGraveyard(afterBanish, "ai", small.defId, "discard")!;
+  assert.notEqual(replacement.instanceId, grave.instanceId);
+  const secondSpell = afterBanish.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const manaBefore = afterBanish.players.player.mana;
+  const rejected = castSpell(afterBanish, "player", secondSpell.instanceId, grave.instanceId);
+  assert.strictEqual(rejected, afterBanish, "banished physical id must never target another copy");
+  assert.equal(rejected.players.player.mana, manaBefore);
+  assert.ok(rejected.players.player.hand.some((card) => card.instanceId === secondSpell.instanceId));
+  assert.ok(graveyardEntries(rejected, "ai").some((entry) => entry.instanceId === replacement.instanceId));
+  assert.equal(graveyardHasUniqueIds(rejected), true);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
