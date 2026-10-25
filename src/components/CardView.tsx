@@ -61,10 +61,10 @@ export function KeywordChips({ keywords, compact = false }: { keywords: Keyword[
 }
 
 export interface CardViewProps {
-  defId: string; definition?: CardDef; collection?: CardCollectionIdentity | null; unit?: UnitInstance; state?: GameState; size?: "sm" | "md" | "lg"; selected?: boolean; dimmed?: boolean; targetable?: boolean; attacking?: boolean; count?: number; costOverride?: number; className?: string; onClick?: () => void;
+  defId: string; definition?: CardDef; collection?: CardCollectionIdentity | null; unit?: UnitInstance; state?: GameState; size?: "sm" | "md" | "lg"; selected?: boolean; dimmed?: boolean; targetable?: boolean; attacking?: boolean; count?: number; costOverride?: number; className?: string; presentation?: "classic" | "full-art"; onClick?: () => void;
 }
 
-function CardView({ defId, definition, collection: collectionOverride, unit, state, size = "md", selected, dimmed, targetable, attacking, count, costOverride, className, onClick }: CardViewProps) {
+function CardView({ defId, definition, collection: collectionOverride, unit, state, size = "md", selected, dimmed, targetable, attacking, count, costOverride, className, presentation = "classic", onClick }: CardViewProps) {
   useCatalogRevision();
   const def: CardDef = definition ?? getCard(defId);
   const collection = collectionOverride === undefined ? getCardCollection(def.defId) : collectionOverride;
@@ -120,6 +120,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
       data-card-role={role.id}
       data-card-collection={collection?.code.toLowerCase() || "unassigned"}
       data-card-state={cardState}
+      data-card-presentation={presentation}
       data-card-variant={appearance.variantId}
       data-card-frame={appearance.frameId}
       data-card-finish={appearance.finish}
@@ -137,15 +138,15 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
       <div className="card-inner relative z-10 flex h-full flex-col p-1.5">
         <div className="card-topline">
           <div className={["card-cost", costOverride !== undefined && costOverride < def.cost ? "card-cost-reduced" : ""].join(" ")}>{costOverride ?? def.cost}</div>
-          {collection && <div className="card-collection" title={`Coleção: ${collection.name}`}><CollectionSymbolMark symbol={collection.symbol} name={collection.name} className="h-3 w-3 rounded-full object-cover" />{size !== "sm" && collection.code}</div>}
-          <div className="card-region" title={identity.name}><span className="card-region-sigil">{identity.sigils}</span>{size !== "sm" && identity.name}</div>
+          {presentation === "classic" && collection && <div className="card-collection" title={`Coleção: ${collection.name}`}><CollectionSymbolMark symbol={collection.symbol} name={collection.name} className="h-3 w-3 rounded-full object-cover" />{size !== "sm" && collection.code}</div>}
+          <div className="card-region" title={identity.name}><span className="card-region-sigil">{identity.sigils}</span>{presentation === "classic" && size !== "sm" && identity.name}</div>
           {isChamp && <div className="card-champion" title={leveled ? "Campeão evoluído" : "Campeão"}>{leveled ? "✦" : "★"}</div>}
         </div>
 
         <div className="card-nameplate">
           <div className="card-name-line"><span className="card-name-gem">◆</span><p className="truncate font-black leading-tight text-white drop-shadow-lg">{def.name}</p></div>
-          {size !== "sm" && <p className="card-type">{semanticCardTypeLabel(def)}{def.race ? ` · ${def.race}` : ""}<span>{rarityLabel}</span></p>}
-          {size !== "sm" && <span className={`card-role card-role-${role.id}`} title="Função estratégica da carta"><i>{role.icon}</i>{role.label}</span>}
+          {presentation === "classic" && size !== "sm" && <p className="card-type">{semanticCardTypeLabel(def)}{def.race ? ` · ${def.race}` : ""}<span>{rarityLabel}</span></p>}
+          {presentation === "classic" && size !== "sm" && <span className={`card-role card-role-${role.id}`} title="Função estratégica da carta"><i>{role.icon}</i>{role.label}</span>}
         </div>
 
         <div className="min-h-0 flex-1" />
@@ -154,10 +155,10 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
           <div className="card-progress-wrap"><span>{prog.current}/{prog.goal}</span><div className="card-progress"><div style={{ width: `${Math.min(100, Math.round((prog.current / prog.goal) * 100))}%` }} /></div></div>
         )}
 
-        {size !== "sm" && <div className="card-textbox"><p className="line-clamp-4 text-[8px] leading-[1.15] text-white/95">{rulesDescription}</p>{size === "lg" && def.flavor && <p className="mt-1 line-clamp-2 border-t border-white/10 pt-1 text-[7px] italic leading-tight text-white/55">“{def.flavor}”</p>}{masteryText && <p className="card-mastery">{masteryText}</p>}</div>}
+        {presentation === "classic" && size !== "sm" && <div className="card-textbox"><p className="line-clamp-4 text-[8px] leading-[1.15] text-white/95">{rulesDescription}</p>{size === "lg" && def.flavor && <p className="mt-1 line-clamp-2 border-t border-white/10 pt-1 text-[7px] italic leading-tight text-white/55">“{def.flavor}”</p>}{masteryText && <p className="card-mastery">{masteryText}</p>}</div>}
 
         <div className="card-bottom">
-          <KeywordChips keywords={keywords} compact={size === "sm"} />
+          <KeywordChips keywords={keywords} compact={presentation === "full-art" || size === "sm"} />
           {def.type === "Unit" && <div className="card-stats"><span className="stat-power">{power}</span><span className={damaged ? "stat-health damaged" : "stat-health"}>{health}</span></div>}
           {def.type === "Spell" && <span className="card-speed"><b>✦</b>{def.speed === "Fast" ? "RÁPIDO" : def.speed === "Burst" ? "EXPLOSÃO" : "FEITIÇO"}</span>}
         </div>
