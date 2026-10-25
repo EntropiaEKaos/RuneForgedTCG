@@ -399,6 +399,28 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.equal(graveyardHasUniqueIds(final), true);
 }
 
+// Reanimating one of two same-definition physical cards must leave the other
+// available for a separate legal reanimation, without duplicating either id.
+{
+  let state = game();
+  const firstCopy = putInGraveyard(state, "player", small.defId, "discard")!;
+  const secondCopy = putInGraveyard(state, "player", small.defId, "discard")!;
+  assert.notEqual(firstCopy.instanceId, secondCopy.instanceId);
+  state = addCardsToHand(state, "player", [reanimate.defId, reanimate.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const once = castSpell(state, "player", firstSpell.instanceId, firstCopy.instanceId);
+  assert.notStrictEqual(once, state);
+  assert.ok(!graveyardEntries(once, "player").some((entry) => entry.instanceId === firstCopy.instanceId));
+  assert.ok(graveyardEntries(once, "player").some((entry) => entry.instanceId === secondCopy.instanceId));
+  const secondSpell = once.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const twice = castSpell(once, "player", secondSpell.instanceId, secondCopy.instanceId);
+  assert.notStrictEqual(twice, once);
+  assert.equal(twice.players.player.bench.filter((unit) => unit.defId === small.defId).length, 2);
+  assert.ok(!graveyardEntries(twice, "player").some((entry) => entry.instanceId === secondCopy.instanceId));
+  assert.equal(twice.players.player.stats.alliesSummoned, state.players.player.stats.alliesSummoned + 2);
+  assert.equal(graveyardHasUniqueIds(twice), true);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
