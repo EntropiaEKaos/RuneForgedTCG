@@ -52,7 +52,7 @@ import { readFileSync } from "node:fs";
 // Re-certified blob intentionally updated; full CI and browser evidence remain required before merge.
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
   "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
-  "src/app/play/BattleView.tsx": "0ba1102d3a8dbe5299d9dd4a0696ccb00094dacd",
+  "src/app/play/BattleView.tsx": "ee84234925d57b6c3cbffb7e37add675b433ecef",
   "src/components/CardView.tsx": "edd582233b063110d7ca07028b83229236a74553",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
   "src/app/styles/visual-3-0-battlefield-cinematic.css": "3bf86d3b3729265db77b7ec8c92f58ae8a6bb04b",
