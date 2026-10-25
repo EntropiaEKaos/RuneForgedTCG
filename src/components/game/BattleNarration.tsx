@@ -25,7 +25,7 @@ export function BattleNarration({ events }: { events: BattleNarrationEvent[] }) 
     if (!active) return;
     const timer = window.setTimeout(() => setQueue((current) => current[0]?.id === active.id ? current.slice(1) : current), 2400);
     return () => window.clearTimeout(timer);
-  }, [active?.id]);
+  }, [active]);
   if (!active) return null;
   const tone = /ANULADA|DESTRUÍDO|EXILADO/.test(active.heading)
     ? "border-rose-400/70 bg-rose-950/95 shadow-rose-500/20"
