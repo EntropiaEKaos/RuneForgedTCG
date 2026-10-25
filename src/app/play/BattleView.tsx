@@ -141,7 +141,7 @@ export function BattleView(props: BattleViewProps) {
   };
   const recentCombatEvents = state.log.slice(-5).map((message, index) => ({
     message, heading: combatEventHeading(message), id: state.log.length - Math.min(5, state.log.length) + index,
-  })).filter((event): event is { message: string; heading: string; id: number } => event.heading !== null).slice(-2);
+  })).filter((event): event is { message: string; heading: string; id: number } => event.heading !== null).slice(-5);
   const aiAttackers = ai.bench.filter((unit) => unit.isAttacking);
   const playerAttackers = player.bench.filter((unit) => unit.isAttacking);
   const levelFxBusy = new Set(fx.filter((event) => event.type === "levelup").map((event) => event.unitId));
