@@ -588,7 +588,14 @@ async function driveUntilSmartStack(cdp, defId, timeoutMs = 90_000) {
       await writeFile(join(outputDir, "smart-stack-coexistence-failure.json"), `${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) }, null, 2)}\n`);
       throw new Error(`Smart Stack fixture exhausted duplicate plays without establishing coexistence: ${JSON.stringify({ defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-20) })}`);
     }
-    if (snapshot.gameover) throw new Error(`match ended before duplicate ${defId} creatures could coexist: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
+    if (snapshot.gameover) {
+      // Preserve a machine-readable failure artifact for intermittent combat
+      // casualties, so a rerun cannot erase the evidence of the first attempt.
+      await mkdir(outputDir, { recursive: true });
+      await writeFile(join(outputDir, "smart-stack-coexistence-failure.json"),
+        `${JSON.stringify({ reason: "gameover-before-coexistence", defId, playedCopies, survivingCopies: copies, snapshot, actions: actions.slice(-30) }, null, 2)}\\n`);
+      throw new Error(`match ended before duplicate ${defId} creatures could coexist: ${JSON.stringify({ snapshot, actions: actions.slice(-20) })}`);
+    }
 
     if (snapshot.phase === "main") {
       const selector = `#player-hand-cards [data-card-tip-def-id="${defId}"] button[data-card-state="playable"]:not(:disabled)`;

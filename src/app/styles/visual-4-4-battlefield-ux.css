@@ -302,6 +302,57 @@
 @media (max-width: 1100px) { .tcg-arena.reaction-portal .reaction-card-details[open] .reaction-card-tooltip { left: auto; right: 0; top: calc(100% + 8px); } }
 @media (max-height: 650px) { .tcg-arena.reaction-portal .reaction-stack[data-reaction-window="true"] { padding: 8px 12px; } .tcg-arena.reaction-portal .reaction-stack .reaction-guidance { display: none; } .tcg-arena.reaction-portal .reaction-card-art { width: 42px; height: 58px; flex-basis: 42px; } }
 
+/* Reaction window final containment: compact, readable and viewport-safe.
+   The portal remains outside the clipped battlefield and does not modify rules. */
+.tcg-arena.reaction-portal .reaction-stack[data-reaction-window="true"] {
+  width: min(480px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  background: linear-gradient(160deg, rgba(18,25,43,.89), rgba(7,12,25,.85));
+}
+.tcg-arena.reaction-portal .reaction-stack-heading h3 { font-size: 15px; line-height: 1.2; }
+.tcg-arena.reaction-portal .reaction-stack .reaction-guidance { font-size: 10px; line-height: 1.25; }
+.tcg-arena.reaction-portal .reaction-card-art { width: 48px; height: 66px; flex-basis: 48px; }
+.tcg-arena.reaction-portal .reaction-card-preview { gap: 8px; }
+.tcg-arena.reaction-portal .reaction-card-summary > strong { font-size: 13px; }
+.tcg-arena.reaction-portal [data-reaction-playable-cards="true"] > div:nth-child(2) {
+  flex-wrap: wrap;
+  overflow-x: visible;
+  max-height: none;
+}
+.tcg-arena.reaction-portal [data-reaction-playable-cards="true"] button[data-reaction-playable-card] {
+  min-width: 88px;
+  max-width: 104px;
+  flex: 1 1 88px;
+}
+.tcg-arena.reaction-portal .reaction-card-details { position: relative; }
+.tcg-arena.reaction-portal .reaction-card-details[open] .reaction-card-tooltip {
+  position: fixed;
+  z-index: 230;
+  top: 12px;
+  right: 12px;
+  left: auto;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  box-shadow: 0 18px 48px rgba(0,0,0,.65);
+}
+@media (max-width: 900px) {
+  .tcg-arena.reaction-portal .reaction-card-details[open] .reaction-card-tooltip {
+    position: static;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+    box-shadow: none;
+  }
+}
+@media (max-height: 600px) {
+  .tcg-arena.reaction-portal .reaction-stack[data-reaction-window="true"] { top: 12px !important; transform: translateX(-50%) !important; }
+  .tcg-arena.reaction-portal .reaction-stack .reaction-guidance { display: none; }
+}
+
 /* Combat preview: compact horizontal pairs inside the existing neutral battlefield.
    The short-desktop foundation gives this region only ~64px; combat needs a
    bounded overlay so previews never push into either deployment row. */

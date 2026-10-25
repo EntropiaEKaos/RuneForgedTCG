@@ -186,6 +186,241 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.ok(!graveyardEntries(next, "ai").some((entry) => entry.instanceId === theirs.instanceId));
 }
 
+// Ownership and card-type restrictions are enforced before paying mana or moving zones.
+{
+  let state = game();
+  const enemyUnit = putInGraveyard(state, "ai", target.defId, "discard")!;
+  const ownUnit = putInGraveyard(state, "player", target.defId, "discard")!;
+  const ownSpell = putInGraveyard(state, "player", recover.defId, "discard")!;
+  state = addCardsToHand(state, "player", [reanimate.defId, banish.defId]);
+  const reanimateSpell = state.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const banishSpell = state.players.player.hand.find((card) => card.defId === banish.defId)!;
+  for (const [spellId, targetId] of [
+    [reanimateSpell.instanceId, enemyUnit.instanceId],
+    [reanimateSpell.instanceId, ownSpell.instanceId],
+    [banishSpell.instanceId, ownUnit.instanceId],
+  ]) {
+    const next = castSpell(state, "player", spellId, targetId);
+    assert.strictEqual(next, state, "illegal graveyard owner or type must reject the cast atomically");
+  }
+  assert.equal(graveyardEntries(state, "player").length, 2);
+  assert.equal(graveyardEntries(state, "ai").length, 1);
+}
+
+// A resolved graveyard object cannot be consumed again by a second spell.
+{
+  let state = game();
+  const grave = putInGraveyard(state, "player", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, recover.defId]);
+  const first = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const afterFirst = castSpell(state, "player", first.instanceId, grave.instanceId);
+  assert.notStrictEqual(afterFirst, state, "first recovery must resolve");
+  assert.ok(!graveyardEntries(afterFirst, "player").some((entry) => entry.instanceId === grave.instanceId));
+  const second = afterFirst.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const afterSecond = castSpell(afterFirst, "player", second.instanceId, grave.instanceId);
+  assert.strictEqual(afterSecond, afterFirst, "second recovery of consumed id must fail closed");
+  assert.ok(afterSecond.players.player.hand.some((card) => card.instanceId === second.instanceId));
+  assert.equal(afterSecond.players.player.hand.filter((card) => card.defId === small.defId).length, 1, "consumed target must never duplicate");
+}
+
+// Once a card is banished, a second banish cannot spend mana or erase another card.
+{
+  let state = game();
+  const firstGrave = putInGraveyard(state, "ai", small.defId, "discard")!;
+  const survivingGrave = putInGraveyard(state, "ai", target.defId, "discard")!;
+  state = addCardsToHand(state, "player", [banish.defId, banish.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const resolved = castSpell(state, "player", firstSpell.instanceId, firstGrave.instanceId);
+  assert.notStrictEqual(resolved, state, "first banishment must resolve");
+  const secondSpell = resolved.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const remainingMana = resolved.players.player.mana;
+  const rejected = castSpell(resolved, "player", secondSpell.instanceId, firstGrave.instanceId);
+  assert.strictEqual(rejected, resolved, "banished graveyard id must not resolve again");
+  assert.equal(rejected.players.player.mana, remainingMana, "invalid second banish must not charge mana");
+  assert.ok(rejected.players.player.hand.some((card) => card.instanceId === secondSpell.instanceId));
+  assert.ok(graveyardEntries(rejected, "ai").some((entry) => entry.instanceId === survivingGrave.instanceId));
+  assert.ok(!graveyardEntries(rejected, "ai").some((entry) => entry.instanceId === firstGrave.instanceId));
+}
+
+// Distinct physical copies of the same card must remain independently targetable.
+{
+  let state = game();
+  const firstCopy = putInGraveyard(state, "player", small.defId, "discard")!;
+  const secondCopy = putInGraveyard(state, "player", small.defId, "discard")!;
+  assert.notEqual(firstCopy.instanceId, secondCopy.instanceId);
+  state = addCardsToHand(state, "player", [recover.defId, recover.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const once = castSpell(state, "player", firstSpell.instanceId, firstCopy.instanceId);
+  assert.ok(!graveyardEntries(once, "player").some((entry) => entry.instanceId === firstCopy.instanceId));
+  assert.ok(graveyardEntries(once, "player").some((entry) => entry.instanceId === secondCopy.instanceId), "same-definition second copy must survive");
+  const secondSpell = once.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const twice = castSpell(once, "player", secondSpell.instanceId, secondCopy.instanceId);
+  assert.ok(!graveyardEntries(twice, "player").some((entry) => entry.instanceId === secondCopy.instanceId));
+  assert.equal(twice.players.player.hand.filter((card) => card.defId === small.defId).length, 2, "both physical copies are independently recovered");
+  assert.equal(graveyardHasUniqueIds(twice), true);
+}
+
+// Reanimation must not revive the same physical graveyard entry twice.
+// A rejected second cast must preserve mana, the remaining spell, and the bench.
+{
+  let state = game();
+  const grave = putInGraveyard(state, "player", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [reanimate.defId, reanimate.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const once = castSpell(state, "player", firstSpell.instanceId, grave.instanceId);
+  assert.notStrictEqual(once, state, "first reanimation must resolve");
+  assert.equal(once.players.player.bench.filter((unit) => unit.defId === small.defId).length, 1);
+  const secondSpell = once.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const manaBefore = once.players.player.mana;
+  const summonsBefore = once.players.player.stats.alliesSummoned;
+  const twice = castSpell(once, "player", secondSpell.instanceId, grave.instanceId);
+  assert.strictEqual(twice, once, "consumed reanimation target must fail closed");
+  assert.equal(twice.players.player.mana, manaBefore, "rejected reanimation must not spend mana");
+  assert.equal(twice.players.player.stats.alliesSummoned, summonsBefore);
+  assert.ok(twice.players.player.hand.some((card) => card.instanceId === secondSpell.instanceId));
+  assert.equal(twice.players.player.bench.filter((unit) => unit.defId === small.defId).length, 1, "no duplicated creature");
+  assert.equal(graveyardHasUniqueIds(twice), true);
+}
+
+// Once a physical card has been recovered to hand, its former graveyard id
+// must remain invalid even if a new copy of the same definition enters the zone.
+{
+  let state = game();
+  const original = putInGraveyard(state, "player", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, recover.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const recovered = castSpell(state, "player", firstSpell.instanceId, original.instanceId);
+  assert.notStrictEqual(recovered, state);
+  const replacement = putInGraveyard(recovered, "player", small.defId, "discard")!;
+  assert.notEqual(replacement.instanceId, original.instanceId, "new graveyard object needs a fresh id");
+  const secondSpell = recovered.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const manaBefore = recovered.players.player.mana;
+  const rejected = castSpell(recovered, "player", secondSpell.instanceId, original.instanceId);
+  assert.strictEqual(rejected, recovered, "stale id must never alias a later copy of the same card");
+  assert.equal(rejected.players.player.mana, manaBefore);
+  assert.ok(graveyardEntries(rejected, "player").some((entry) => entry.instanceId === replacement.instanceId));
+  assert.ok(rejected.players.player.hand.some((card) => card.instanceId === secondSpell.instanceId));
+  assert.equal(graveyardHasUniqueIds(rejected), true);
+}
+
+// Cross-effect integrity: recovery removes a physical card from the graveyard,
+// so a later reanimation must not target its former graveyard id.
+{
+  let state = game();
+  const grave = putInGraveyard(state, "player", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, reanimate.defId]);
+  const recoverSpell = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const afterRecovery = castSpell(state, "player", recoverSpell.instanceId, grave.instanceId);
+  assert.notStrictEqual(afterRecovery, state, "recovery must resolve before cross-effect rejection");
+  assert.ok(afterRecovery.players.player.hand.some((card) => card.defId === small.defId));
+  const reanimateSpell = afterRecovery.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const manaBefore = afterRecovery.players.player.mana;
+  const summonsBefore = afterRecovery.players.player.stats.alliesSummoned;
+  const rejected = castSpell(afterRecovery, "player", reanimateSpell.instanceId, grave.instanceId);
+  assert.strictEqual(rejected, afterRecovery, "reanimation cannot reuse an object recovered to hand");
+  assert.equal(rejected.players.player.mana, manaBefore);
+  assert.equal(rejected.players.player.stats.alliesSummoned, summonsBefore);
+  assert.ok(rejected.players.player.hand.some((card) => card.instanceId === reanimateSpell.instanceId));
+  assert.ok(!rejected.players.player.bench.some((unit) => unit.defId === small.defId));
+  assert.equal(graveyardHasUniqueIds(rejected), true);
+}
+
+// Cross-effect integrity: banishing a physical enemy card invalidates its old
+// graveyard id, even when a new same-definition copy enters that graveyard.
+{
+  let state = game();
+  const grave = putInGraveyard(state, "ai", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [banish.defId, banish.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const afterBanish = castSpell(state, "player", firstSpell.instanceId, grave.instanceId);
+  assert.notStrictEqual(afterBanish, state, "first banish should resolve");
+  const replacement = putInGraveyard(afterBanish, "ai", small.defId, "discard")!;
+  assert.notEqual(replacement.instanceId, grave.instanceId);
+  const secondSpell = afterBanish.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const manaBefore = afterBanish.players.player.mana;
+  const rejected = castSpell(afterBanish, "player", secondSpell.instanceId, grave.instanceId);
+  assert.strictEqual(rejected, afterBanish, "banished physical id must never target another copy");
+  assert.equal(rejected.players.player.mana, manaBefore);
+  assert.ok(rejected.players.player.hand.some((card) => card.instanceId === secondSpell.instanceId));
+  assert.ok(graveyardEntries(rejected, "ai").some((entry) => entry.instanceId === replacement.instanceId));
+  assert.equal(graveyardHasUniqueIds(rejected), true);
+}
+
+// A mixed sequence resolves only the selected physical targets across both
+// graveyards: recover our scout, reanimate our colossus, banish their scout.
+{
+  let state = game();
+  const ownScout = putInGraveyard(state, "player", small.defId, "discard")!;
+  const ownColossus = putInGraveyard(state, "player", target.defId, "discard")!;
+  const enemyScout = putInGraveyard(state, "ai", small.defId, "discard")!;
+  const enemyColossus = putInGraveyard(state, "ai", target.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, reanimate.defId, banish.defId]);
+  const initialMana = state.players.player.mana;
+  const recoverSpell = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const recovered = castSpell(state, "player", recoverSpell.instanceId, ownScout.instanceId);
+  assert.notStrictEqual(recovered, state);
+  const reanimateSpell = recovered.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const revived = castSpell(recovered, "player", reanimateSpell.instanceId, ownColossus.instanceId);
+  assert.notStrictEqual(revived, recovered);
+  const banishSpell = revived.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const final = castSpell(revived, "player", banishSpell.instanceId, enemyScout.instanceId);
+  assert.notStrictEqual(final, revived);
+  assert.equal(final.players.player.mana, initialMana - recover.cost - reanimate.cost - banish.cost);
+  assert.equal(final.players.player.hand.filter((card) => card.defId === small.defId).length, 1);
+  assert.equal(final.players.player.bench.filter((unit) => unit.defId === target.defId).length, 1);
+  assert.ok(!graveyardEntries(final, "player").some((entry) => entry.instanceId === ownScout.instanceId || entry.instanceId === ownColossus.instanceId));
+  assert.ok(!graveyardEntries(final, "ai").some((entry) => entry.instanceId === enemyScout.instanceId));
+  assert.ok(graveyardEntries(final, "ai").some((entry) => entry.instanceId === enemyColossus.instanceId));
+  assert.equal(graveyardHasUniqueIds(final), true);
+}
+
+// A rejected stale cast after a mixed sequence must leave the complete
+// authoritative state untouched, including both players' remaining zones.
+{
+  let state = game();
+  const consumed = putInGraveyard(state, "player", small.defId, "discard")!;
+  const surviving = putInGraveyard(state, "player", target.defId, "discard")!;
+  const enemy = putInGraveyard(state, "ai", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, reanimate.defId, banish.defId]);
+  const recovery = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const afterRecovery = castSpell(state, "player", recovery.instanceId, consumed.instanceId);
+  assert.notStrictEqual(afterRecovery, state);
+  const reanimation = afterRecovery.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const rejected = castSpell(afterRecovery, "player", reanimation.instanceId, consumed.instanceId);
+  assert.strictEqual(rejected, afterRecovery, "invalid cross-effect target must preserve entire state");
+  const validReanimation = castSpell(rejected, "player", reanimation.instanceId, surviving.instanceId);
+  assert.notStrictEqual(validReanimation, rejected, "a failed cast must not block later legal actions");
+  const banishment = validReanimation.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const final = castSpell(validReanimation, "player", banishment.instanceId, enemy.instanceId);
+  assert.notStrictEqual(final, validReanimation);
+  assert.ok(!graveyardEntries(final, "ai").some((entry) => entry.instanceId === enemy.instanceId));
+  assert.equal(final.players.player.bench.filter((unit) => unit.defId === target.defId).length, 1);
+  assert.equal(final.players.player.hand.filter((card) => card.defId === small.defId).length, 1);
+  assert.equal(graveyardHasUniqueIds(final), true);
+}
+
+// Reanimating one of two same-definition physical cards must leave the other
+// available for a separate legal reanimation, without duplicating either id.
+{
+  let state = game();
+  const firstCopy = putInGraveyard(state, "player", small.defId, "discard")!;
+  const secondCopy = putInGraveyard(state, "player", small.defId, "discard")!;
+  assert.notEqual(firstCopy.instanceId, secondCopy.instanceId);
+  state = addCardsToHand(state, "player", [reanimate.defId, reanimate.defId]);
+  const firstSpell = state.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const once = castSpell(state, "player", firstSpell.instanceId, firstCopy.instanceId);
+  assert.notStrictEqual(once, state);
+  assert.ok(!graveyardEntries(once, "player").some((entry) => entry.instanceId === firstCopy.instanceId));
+  assert.ok(graveyardEntries(once, "player").some((entry) => entry.instanceId === secondCopy.instanceId));
+  const secondSpell = once.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const twice = castSpell(once, "player", secondSpell.instanceId, secondCopy.instanceId);
+  assert.notStrictEqual(twice, once);
+  assert.equal(twice.players.player.bench.filter((unit) => unit.defId === small.defId).length, 2);
+  assert.ok(!graveyardEntries(twice, "player").some((entry) => entry.instanceId === secondCopy.instanceId));
+  assert.equal(twice.players.player.stats.alliesSummoned, state.players.player.stats.alliesSummoned + 2);
+  assert.equal(graveyardHasUniqueIds(twice), true);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {

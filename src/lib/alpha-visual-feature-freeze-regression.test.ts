@@ -43,11 +43,16 @@ import { readFileSync } from "node:fs";
  * CI/browser artifacts and representative battlefield visual inspection are
  * mandatory before this candidate can be promoted.
  */
+// Reaction target picker break-glass 2026-10-23: BattleView forwards the
+// selected legal target from the in-window reaction picker into finishReaction.
+// This is a deliberate usability correction for targeted counterplay; rules and
+// authoritative stack resolution remain unchanged. Re-run complete CI and
+// desktop/mobile visual browser evidence before promotion.
 // Reaction-window click-to-use integration: BattleView forwards the existing hand-click handler.
 // Re-certified blob intentionally updated; full CI and browser evidence remain required before merge.
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
   "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
-  "src/app/play/BattleView.tsx": "ede266afea8c1fc1d9db95fa11fd52638a298ccf",
+  "src/app/play/BattleView.tsx": "4ccd1340ce43c1392dccbe7eef3717c6ecde10b3",
   "src/components/CardView.tsx": "edd582233b063110d7ca07028b83229236a74553",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
   "src/app/styles/visual-3-0-battlefield-cinematic.css": "3bf86d3b3729265db77b7ec8c92f58ae8a6bb04b",
