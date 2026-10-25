@@ -346,6 +346,34 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.equal(graveyardHasUniqueIds(rejected), true);
 }
 
+// A mixed sequence resolves only the selected physical targets across both
+// graveyards: recover our scout, reanimate our colossus, banish their scout.
+{
+  let state = game();
+  const ownScout = putInGraveyard(state, "player", small.defId, "discard")!;
+  const ownColossus = putInGraveyard(state, "player", target.defId, "discard")!;
+  const enemyScout = putInGraveyard(state, "ai", small.defId, "discard")!;
+  const enemyColossus = putInGraveyard(state, "ai", target.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, reanimate.defId, banish.defId]);
+  const initialMana = state.players.player.mana;
+  const recoverSpell = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const recovered = castSpell(state, "player", recoverSpell.instanceId, ownScout.instanceId);
+  assert.notStrictEqual(recovered, state);
+  const reanimateSpell = recovered.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const revived = castSpell(recovered, "player", reanimateSpell.instanceId, ownColossus.instanceId);
+  assert.notStrictEqual(revived, recovered);
+  const banishSpell = revived.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const final = castSpell(revived, "player", banishSpell.instanceId, enemyScout.instanceId);
+  assert.notStrictEqual(final, revived);
+  assert.equal(final.players.player.mana, initialMana - recover.cost - reanimate.cost - banish.cost);
+  assert.equal(final.players.player.hand.filter((card) => card.defId === small.defId).length, 1);
+  assert.equal(final.players.player.bench.filter((unit) => unit.defId === target.defId).length, 1);
+  assert.ok(!graveyardEntries(final, "player").some((entry) => entry.instanceId === ownScout.instanceId || entry.instanceId === ownColossus.instanceId));
+  assert.ok(!graveyardEntries(final, "ai").some((entry) => entry.instanceId === enemyScout.instanceId));
+  assert.ok(graveyardEntries(final, "ai").some((entry) => entry.instanceId === enemyColossus.instanceId));
+  assert.equal(graveyardHasUniqueIds(final), true);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
