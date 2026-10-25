@@ -280,8 +280,27 @@ async function main() {
       await settle(cdp);
       const evidence = await collectStressEvidence(cdp);
       assertStressEvidence(evidence);
+      // Certify the real /play desktop card renderer, not just a studio preview.
+      const fullArt = await evaluate(cdp, `(() => {
+        const cards = [...document.querySelectorAll('.tcg-arena .card-shell')];
+        const counts = cards.reduce((result, card) => {
+          const presentation = card.getAttribute('data-card-presentation') || 'missing';
+          result[presentation] = (result[presentation] || 0) + 1;
+          return result;
+        }, {});
+        const sample = cards.find(card => card.getAttribute('data-card-presentation') === 'full-art');
+        return { pathname: location.pathname, total: cards.length, counts,
+          sampleBorderWidth: sample ? getComputedStyle(sample).borderTopWidth : null,
+          sampleBorderColor: sample ? getComputedStyle(sample).borderTopColor : null };
+      })()`);
+      assert.equal(fullArt.pathname, "/play", "Full Art cert must run on real 1v1 /play");
+      assert.ok(fullArt.total > 0, "Full Art cert found no rendered battlefield cards");
+      assert.equal(fullArt.counts["full-art"], fullArt.total,
+        `1v1 desktop cards must all use Full Art: ${JSON.stringify(fullArt)}`);
+      assert.ok(parseFloat(fullArt.sampleBorderWidth) >= 3,
+        `Full Art frame border not visibly applied: ${JSON.stringify(fullArt)}`);
       await capture(cdp, "battlefield-density-stress-1280x720.png");
-      const report = { ok: true, viewport, fixture, hoverTarget, evidence, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() };
+      const report = { ok: true, viewport, fixture, hoverTarget, evidence, fullArt, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() };
       await writeFile(join(outputDir, "battlefield-density-stress-1280x720.json"), `${JSON.stringify(report, null, 2)}\n`);
       console.log(`VISUAL 4.2 NOTEBOOK DENSITY STRESS: PASS — ${JSON.stringify({ hoverTarget, evidence })}`);
     } catch (error) {
