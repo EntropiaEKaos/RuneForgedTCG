@@ -28,14 +28,31 @@ import { readFileSync } from "node:fs";
  * frozen. Full CI, notebook/mobile browser certificates and the complete Alpha
  * Visual Journey are mandatory before this client-shell candidate is promoted.
  *
- * Battlefield 2.0 + Smart Stacks release candidate break-glass 2026-10-19:\n * BattleView.tsx integrates hybrid bench stacks and stack status presentation.\n * This updates only the reviewed frozen blob reference; production promotion still\n * requires full CI, desktop/mobile browser certification and regression evidence.\n *\n * Battlefield HUD Safety + Turn Timer break-glass 2026-10-06: BattleView.tsx is
+ * Battlefield 2.0 + Smart Stacks release candidate break-glass 2026-10-19:
+ * BattleView.tsx integrates hybrid bench stacks and stack status presentation.
+ * This updates only the reviewed frozen blob reference; production promotion still
+ * requires full CI, desktop/mobile browser certification and regression evidence.
+ *
+ * Battlefield HUD Safety + Turn Timer break-glass 2026-10-06: BattleView.tsx is
  * intentionally recertified to expose the 60-second turn countdown in the
  * battlefield header. Tooltip collision avoidance, hand/graveyard stacking and
  * timer state live outside the frozen structural presentation contract. Full CI,
  * notebook/mobile browser certificates and Alpha Visual Journey remain mandatory
  * before promotion.
  *
- * Frames & Rarity Runtime break-glass 2026-09-18: CardView.tsx is intentionally\n * recertified to consume the already-certified cardRarityPresentationContract.\n * This exposes rarity id/rank/FX semantics and shared ornament classes on the\n * live card while leaving CardDef rarity, gameplay stats/rules, ownership, pack\n * probability and economy authority unchanged. Full CI/browser evidence is\n * mandatory before promotion.\n *\n * Smart Stacks 1v1 break-glass 2026-10-06: BattleView.tsx deliberately integrates\n * presentation-only hybrid grouping on creature and compatible permanent benches. Individual\n * instance IDs, card handlers, targeting and authoritative game rules remain\n * unchanged. Re-run complete CI, browser E2E and visual evidence before merge.\n *\n * Battlefield Premium 1.6 break-glass 2026-09-17: layout.tsx is intentionally
+ * Frames & Rarity Runtime break-glass 2026-09-18: CardView.tsx is intentionally
+ * recertified to consume the already-certified cardRarityPresentationContract.
+ * This exposes rarity id/rank/FX semantics and shared ornament classes on the
+ * live card while leaving CardDef rarity, gameplay stats/rules, ownership, pack
+ * probability and economy authority unchanged. Full CI/browser evidence is
+ * mandatory before promotion.
+ *
+ * Smart Stacks 1v1 break-glass 2026-10-06: BattleView.tsx deliberately integrates
+ * presentation-only hybrid grouping on creature and compatible permanent benches. Individual
+ * instance IDs, card handlers, targeting and authoritative game rules remain
+ * unchanged. Re-run complete CI, browser E2E and visual evidence before merge.
+ *
+ * Battlefield Premium 1.6 break-glass 2026-09-17: layout.tsx is intentionally
  * recertified only to mount forged-battlefield-premium-1-6.css immediately after
  * the certified Visual 4.4 battlefield UX layer. This is a presentation-only CSS
  * layer; BattleView.tsx, CardView.tsx, ArenaIdentity.tsx, engine/rules/APIs/state
@@ -43,14 +60,22 @@ import { readFileSync } from "node:fs";
  * CI/browser artifacts and representative battlefield visual inspection are
  * mandatory before this candidate can be promoted.
  */
-// Transient overlay break-glass 2026-10-25: visual feedback no longer shifts board layout.\n// Combat event narration break-glass 2026-10-25: BattleView reads only engine-confirmed\n// log entries to display combat outcomes; no changes to gameplay, stack or authority.\n// Full CI and browser visual evidence are required before merge.\n// Reaction target picker break-glass 2026-10-23: BattleView forwards the
+// Transient overlay break-glass 2026-10-25: visual feedback no longer shifts board layout.
+// Combat event narration break-glass 2026-10-25: BattleView reads only engine-confirmed
+// log entries to display combat outcomes; no changes to gameplay, stack or authority.
+// Full CI and browser visual evidence are required before merge.
+// Reaction target picker break-glass 2026-10-23: BattleView forwards the
 // selected legal target from the in-window reaction picker into finishReaction.
 // This is a deliberate usability correction for targeted counterplay; rules and
 // authoritative stack resolution remain unchanged. Re-run complete CI and
 // desktop/mobile visual browser evidence before promotion.
 // Reaction-window click-to-use integration: BattleView forwards the existing hand-click handler.
 // Re-certified blob intentionally updated; full CI and browser evidence remain required before merge.
-// Card Design 2.0 break-glass 2026-10-25: CardView adds an opt-in full-art\n// presentation that removes secondary text from the face, retaining stats and\n// state indicators. CardTip retains its always-visible ⚡ activated-ability trigger.\n// No gameplay changes. Full CI and real browser screenshot evidence required.\nconst FROZEN_VISUAL_BLOBS: Record<string, string> = {
+// Card Design 2.0 break-glass 2026-10-25: CardView adds an opt-in full-art
+// presentation that removes secondary text from the face, retaining stats and
+// state indicators. CardTip retains its always-visible ⚡ activated-ability trigger.
+// No gameplay changes. Full CI and real browser screenshot evidence required.
+const FROZEN_VISUAL_BLOBS: Record<string, string> = {
   "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
   "src/app/play/BattleView.tsx": "96f43e9be73c1a309c5273cc877e50c1ddf08960",
   "src/components/CardView.tsx": "286bbe8bf6e273111c867c654c6b0f0cd463da6b",
@@ -149,7 +174,8 @@ for (const layer of orderedPresentationLayers) {
 }
 
 assert.equal(
-  /visual-3-[3-9][^\n]*\.css/.test(layout),
+  /visual-3-[3-9][^
+]*\.css/.test(layout),
   false,
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
