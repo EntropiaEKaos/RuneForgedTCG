@@ -260,3 +260,33 @@ body:has(.match-result-backdrop) .tcg-arena > .pointer-events-none.fixed {
     animation: none !important;
   }
 }
+
+
+/* Short, cosmetic battlefield energy trails: never move cards or intercept input. */
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography-impact::after,
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography-dmg::after,
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography-heal::after {
+  content: "";
+  position: absolute;
+  inset: auto 15% -7px;
+  height: 2px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, .95), transparent);
+  transform-origin: left center;
+  animation: forged-cinematic-trail 650ms ease-out both;
+}
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography-dmg::after {
+  background: linear-gradient(90deg, transparent, rgba(248, 113, 113, .95), transparent);
+}
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography-heal::after {
+  background: linear-gradient(90deg, transparent, rgba(52, 211, 153, .95), transparent);
+}
+@keyframes forged-cinematic-trail {
+  from { opacity: 0; transform: scaleX(.05); }
+  45% { opacity: 1; }
+  to { opacity: 0; transform: scaleX(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena .combat-choreography[data-cinematic-cue="true"]::after { animation: none !important; }
+}
