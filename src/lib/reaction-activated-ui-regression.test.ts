@@ -39,4 +39,15 @@ assert.match(transport, /publishPvpReactionState/, "polling and action responses
 assert.match(battleView, /data-pvp-reaction-priority/, "battlefield exposes persistent priority state for browser certification");
 assert.match(battleView, /data-pvp-priority-waiting="true"/, "action owner receives an explicit wait state while opponent holds priority");
 
+const reactionCss = read("src/app/styles/visual-4-4-battlefield-ux.css");
+assert.match(stack, /createPortal\(/, "reaction window escapes clipped battlefield layers through a portal");
+assert.match(stack, /data-reaction-card-preview=/, "reaction panel exposes a card preview");
+assert.match(stack, /<CardInfo defId=\{respondingTo\.defId\}/, "reaction preview retains complete card details");
+assert.match(stack, /data-reaction-target-picker="true"/, "reaction target picker remains accessible");
+assert.match(stack, /data-reaction-playable-cards="true"/, "reaction hand responses remain accessible");
+assert.match(reactionCss, /width: min\(480px, calc\(100vw - 24px\)\)/, "reaction window remains compact");
+assert.match(reactionCss, /max-height: calc\(100dvh - 24px\) !important/, "reaction window stays inside the viewport");
+assert.match(reactionCss, /overscroll-behavior: contain/, "reaction window prevents page-level scroll chaining");
+assert.match(reactionCss, /background: linear-gradient\(160deg, rgba\(18,25,43,\.89\), rgba\(7,12,25,\.85\)\)/, "reaction window remains translucent");
+
 console.log("REACTION ACTIVATED UI REGRESSION: PASS — authoritative picker + persistent PvP priority transport/UI certified");
