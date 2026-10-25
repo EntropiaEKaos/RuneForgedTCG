@@ -50,7 +50,7 @@ export default function CardTip({ onActivateAbility, artViewer, ...cardProps }: 
           rarity={def.rarity}
           className={`relative inline-flex flex-col items-stretch gap-1 align-top ${restoreCollectionPointerEvents ? "pointer-events-auto" : ""}`}
         >
-          <CardView {...cardProps} />
+          <CardView {...cardProps} presentation="full-art" />
           {abilities.length > 0 && unit && state && <button
             ref={abilityButtonRef}
             type="button"
