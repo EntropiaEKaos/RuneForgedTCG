@@ -174,8 +174,7 @@ for (const layer of orderedPresentationLayers) {
 }
 
 assert.equal(
-  /visual-3-[3-9][^
-]*\.css/.test(layout),
+  /visual-3-[3-9][^\n]*\.css/.test(layout),
   false,
   "Alpha Visual Feature Freeze forbids another structural Visual 3.x pass before release; ship editorial art or use the documented break-glass process instead",
 );
