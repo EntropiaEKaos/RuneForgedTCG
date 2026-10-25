@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type BattleNarrationEvent = { id: number; heading: string; message: string };
 
@@ -34,12 +35,14 @@ export function BattleNarration({ events }: { events: BattleNarrationEvent[] }) 
       : /RESSUSCITADO|RECUPERADO|EVOLUÇÃO/.test(active.heading)
         ? "border-emerald-300/70 bg-emerald-950/95 shadow-emerald-500/20"
         : "border-amber-300/60 bg-slate-950/95 shadow-amber-500/10";
-  return (
-    <div role="status" aria-live="polite" data-combat-event-feedback="true" data-combat-event-id={active.id} className="pointer-events-none absolute inset-x-2 top-12 z-30 flex justify-center">
+  // Render above the arena rails, outside their stacking and clipping contexts.
+  return createPortal(
+    <div role="status" aria-live="polite" data-combat-event-feedback="true" data-combat-event-id={active.id} className="pointer-events-none fixed inset-x-2 top-[18%] z-[9999] flex justify-center">
       <div key={active.id} className={`animate-pop max-w-sm rounded-xl border px-4 py-2 text-center shadow-lg ${tone}`}>
         <strong className="block text-sm font-black tracking-wider text-white">{active.heading}</strong>
         <p className="mt-1 text-xs text-white/90">{active.message}</p>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
