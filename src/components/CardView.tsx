@@ -158,7 +158,7 @@ function CardView({ defId, definition, collection: collectionOverride, unit, sta
         {presentation === "classic" && size !== "sm" && <div className="card-textbox"><p className="line-clamp-4 text-[8px] leading-[1.15] text-white/95">{rulesDescription}</p>{size === "lg" && def.flavor && <p className="mt-1 line-clamp-2 border-t border-white/10 pt-1 text-[7px] italic leading-tight text-white/55">“{def.flavor}”</p>}{masteryText && <p className="card-mastery">{masteryText}</p>}</div>}
 
         <div className="card-bottom">
-          <KeywordChips keywords={keywords} compact={presentation === "full-art" || size === "sm"} />
+          <KeywordChips keywords={keywords} compact={size === "sm"} />
           {def.type === "Unit" && <div className="card-stats"><span className="stat-power">{power}</span><span className={damaged ? "stat-health damaged" : "stat-health"}>{health}</span></div>}
           {def.type === "Spell" && <span className="card-speed"><b>✦</b>{def.speed === "Fast" ? "RÁPIDO" : def.speed === "Burst" ? "EXPLOSÃO" : "FEITIÇO"}</span>}
         </div>
