@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { groupVisualUnits, type StackableUnit } from "@/lib/visual-unit-stacks";
 import type { VisualStackStatus } from "@/lib/visual-stack-status";
 
@@ -20,6 +20,16 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
     expandedIds: expanded,
     separatedIds: separated,
   }), [units, expanded, separated]);
+  useEffect(() => {
+    if (!forceExpanded) return;
+    // Targeting should expose every individual instance, even if the stack was collapsed.
+    // Clear stale manual separation only when cards have left the board.
+    const ids = new Set(units.map((unit) => unit.instanceId));
+    setSeparated((previous) => {
+      const next = new Set([...previous].filter((id) => ids.has(id)));
+      return next.size === previous.size ? previous : next;
+    });
+  }, [forceExpanded, units]);
   const toggle = (id: string) => setExpanded(previous => {
     const next = new Set(previous);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -37,7 +47,7 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
         ["↓", status.impaired, "afetadas"],
       ] as const).filter(([, count]) => count > 0) : [];
       return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-1">
-        {compact ? <div className="relative flex flex-col items-center gap-1">
+        {compact ? <div className="relative flex flex-col items-center gap-1" title={`Pilha com ${group.members.length} cartas. Clique na quantidade para escolher uma carta individualmente.`}>
           {renderUnit(group.members[0])}
           <button type="button" aria-label={`Expandir pilha ${group.defId} com ${group.members.length} cartas`}
             aria-expanded={false} onClick={() => toggle(group.id)}
