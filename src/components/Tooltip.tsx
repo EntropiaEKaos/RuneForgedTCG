@@ -16,12 +16,15 @@ const LONG_PRESS_MS = 320;
 const MOVE_CANCEL_PX = 12;
 const VIEWPORT_GUTTER = 12;
 const HOVER_CLOSE_MS = 100;
+const HOVER_OPEN_MS = 2000;
 
 export default function Tooltip({ content, children, disabled, panelWidth = 280, panelHeightEstimate = 260 }: TooltipProps) {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const [touchPinned, setTouchPinned] = useState(false);
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverPoint = useRef<{ x: number; y: number } | null>(null);
   const touchOrigin = useRef<{ x: number; y: number } | null>(null);
   const suppressNextClick = useRef(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -40,11 +43,18 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
     }
   }, []);
 
+  const clearHoverTimer = useCallback(() => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = null;
+    hoverPoint.current = null;
+  }, []);
+
   const close = useCallback(() => {
+    clearHoverTimer();
     clearCloseTimer();
     setPos(null);
     setTouchPinned(false);
-  }, [clearCloseTimer]);
+  }, [clearCloseTimer, clearHoverTimer]);
 
   const scheduleClose = useCallback(() => {
     if (touchPinned) return;
@@ -72,7 +82,8 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
   useEffect(() => () => {
     clearPressTimer();
     clearCloseTimer();
-  }, [clearCloseTimer, clearPressTimer]);
+    clearHoverTimer();
+  }, [clearCloseTimer, clearHoverTimer, clearPressTimer]);
 
   if (disabled) return <>{children}</>;
 
@@ -136,9 +147,20 @@ export default function Tooltip({ content, children, disabled, panelWidth = 280,
     <div
       ref={rootRef}
       className="contents"
-      onMouseMove={(event) => { if (!touchPinned) setPos({ x: event.clientX, y: event.clientY }); }}
-      onMouseEnter={clearCloseTimer}
-      onMouseLeave={scheduleClose}
+      onMouseMove={(event) => {
+        if (!touchPinned && hoverTimer.current) hoverPoint.current = { x: event.clientX, y: event.clientY };
+        else if (!touchPinned && pos) setPos({ x: event.clientX, y: event.clientY });
+      }}
+      onMouseEnter={(event) => {
+        clearCloseTimer();
+        if (touchPinned || pos || hoverTimer.current) return;
+        hoverPoint.current = { x: event.clientX, y: event.clientY };
+        hoverTimer.current = setTimeout(() => {
+          hoverTimer.current = null;
+          if (hoverPoint.current) setPos(hoverPoint.current);
+        }, HOVER_OPEN_MS);
+      }}
+      onMouseLeave={() => { clearHoverTimer(); scheduleClose(); }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={endTouch}
