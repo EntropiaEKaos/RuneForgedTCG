@@ -267,3 +267,25 @@
   .tcg-arena .tcg-hand .card-nameplate { clip-path: none; }
   .tcg-arena .tcg-row .card-frame-ornament { opacity: .55; }
 }
+
+
+/* Card Design 2.0 preview: full-art keeps combat stats and activation affordances. */
+.card-shell[data-card-presentation="full-art"] .card-art { filter: saturate(1.09) contrast(1.04); }
+.card-shell[data-card-presentation="full-art"] .card-inner { padding: 5px; }
+.card-shell[data-card-presentation="full-art"] .card-nameplate {
+  margin-top: 2px;
+  padding: 3px 4px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, rgba(4,7,13,.88), rgba(4,7,13,.30));
+  backdrop-filter: blur(2px);
+}
+.card-shell[data-card-presentation="full-art"] .card-bottom {
+  margin-top: auto;
+  padding: 3px;
+  border-radius: 5px;
+  background: linear-gradient(0deg, rgba(4,7,13,.90), rgba(4,7,13,.36));
+}
+.card-shell[data-card-presentation="full-art"] .card-region { font-size: 0; }
+.card-shell[data-card-presentation="full-art"] .card-region-sigil { font-size: 12px; }
+.card-shell[data-card-presentation="full-art"] .card-keyword { font-size: 9px; }
+.card-shell[data-card-presentation="full-art"][data-card-rarity="legend"] .card-frame-ornament { opacity: .9; }
