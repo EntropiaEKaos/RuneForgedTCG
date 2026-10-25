@@ -122,6 +122,10 @@ export function BattleView(props: BattleViewProps) {
               : canAttackNow ? selectedChallengers.length > 0 ? "Selecione rivais para desafiá-los e então ataque." : "Seu turno — jogue cartas ou selecione atacantes."
                 : "Seu turno — jogue cartas (sem Token de Ataque)."
             : "⏳ O adversário está planejando…";
+  // Narrate only events already recorded by the game engine; never infer an outcome from a click.
+  const latestCombatEvent = [...state.log].reverse().find((line) => /anulad|counter|congel|freeze|destru|cemit[eé]rio|ressusc|retorn|bloque|negad|exil|dano|habilidade|efeito/i.test(line));
+  const latestCombatIsCurrent = latestCombatEvent === state.log.at(-1);
+  const combatEventHeading = latestCombatEvent && /anulad|counter|negad/i.test(latestCombatEvent) ? "⛔ EFEITO ANULADO" : latestCombatEvent && /congel|freeze/i.test(latestCombatEvent) ? "❄️ CONGELAMENTO" : latestCombatEvent && /destru/i.test(latestCombatEvent) ? "💥 DESTRUIÇÃO" : latestCombatEvent && /ressusc|retorn/i.test(latestCombatEvent) ? "✨ RETORNO" : latestCombatEvent && /bloque/i.test(latestCombatEvent) ? "🛡️ BLOQUEIO" : latestCombatEvent && /cemit[eé]rio|exil/i.test(latestCombatEvent) ? "☠️ CEMITÉRIO" : "⚡ EFEITO DE COMBATE";
   const aiAttackers = ai.bench.filter((unit) => unit.isAttacking);
   const playerAttackers = player.bench.filter((unit) => unit.isAttacking);
   const levelFxBusy = new Set(fx.filter((event) => event.type === "levelup").map((event) => event.unitId));
@@ -223,6 +227,7 @@ export function BattleView(props: BattleViewProps) {
             <p className="text-center text-sm font-bold text-amber-200 drop-shadow">{banner}</p>
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🎴 {player.deckName}</span>
           </div>
+          {latestCombatIsCurrent && latestCombatEvent && <div key={state.log.length} role="status" data-combat-event-feedback="true" className="mx-auto my-2 max-w-xl rounded-xl border border-amber-300/50 bg-slate-950/90 px-4 py-2 text-center shadow-lg shadow-amber-500/10"><strong className="block text-sm font-black tracking-wider text-amber-200">{combatEventHeading}</strong><p className="mt-1 text-xs text-white">{latestCombatEvent}</p></div>}
           <div className="match-last-action" aria-live="polite"><span>ÚLTIMA AÇÃO</span><p>{state.log.at(-1) ?? "A batalha está pronta."}</p></div>
           <TargetingHud mode={targetingMode} onCancel={cancelTargeting} />
           {reaction && <ReactionStack reaction={reaction} timeLeft={timeLeft} targetName={reactionTargetName} pendingReaction={pendingReaction} onCancelSelection={() => setPendingReaction(null)} onResolve={() => { setPendingReaction(null); finishReaction(); }} onCardClick={handleHandClick} onTargetClick={(targetId) => { if (pendingReaction) finishReaction({ instanceId: pendingReaction.instanceId, targetId }); }} />}
