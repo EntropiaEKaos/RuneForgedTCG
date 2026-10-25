@@ -30,3 +30,14 @@ test("small unit stat badges retain fixed room inside card", () => {
   assert.match(css, /min-width: max-content/);
   assert.match(css, /\.tcg-arena \.card-shell \.stat-power/);
 });
+
+test("cinematic choreography derives cues from confirmed FX without changing game authority", () => {
+  const choreography = source("src/components/game/CombatChoreography.tsx");
+  for (const event of ["impact", "summon", "death", "levelup", "dmg", "heal", "barrier", "barrierbreak", "frost", "stun", "poison", "nexushit"]) {
+    assert.match(choreography, new RegExp(`\\b${event}: \\{ kicker:`));
+  }
+  assert.match(choreography, /data-cinematic-cue="true"/);
+  assert.match(choreography, /data-pace=\{pace\}/);
+  assert.match(choreography, /events\]\.reverse\(\)\.find/);
+  assert.doesNotMatch(choreography, /dispatch\(|setState\(|fetch\(/);
+});
