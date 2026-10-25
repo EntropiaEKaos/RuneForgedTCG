@@ -232,3 +232,31 @@ body:has(.match-result-backdrop) .tcg-arena > .pointer-events-none.fixed {
   font-size: 10px;
   line-height: 1;
 }
+
+
+/* Combat Flow 3.0: cosmetic cues only; never cover or capture gameplay input. */
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography[data-cinematic-cue="true"] {
+  pointer-events: none;
+  filter: drop-shadow(0 0 18px rgba(251, 191, 36, .26));
+}
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography[data-cinematic-cue="true"] > span {
+  animation: forged-cinematic-rune 850ms ease-out both;
+}
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography-dmg,
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography-nexushit {
+  filter: drop-shadow(0 0 18px rgba(248, 113, 113, .45));
+}
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography-heal,
+.tcg-arena[data-combat-pace="cinematic"][data-fx="full"] .combat-choreography-barrier {
+  filter: drop-shadow(0 0 18px rgba(52, 211, 153, .4));
+}
+@keyframes forged-cinematic-rune {
+  0% { opacity: 0; transform: scale(.65); }
+  45% { opacity: 1; transform: scale(1.16); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tcg-arena .combat-choreography[data-cinematic-cue="true"] > span {
+    animation: none !important;
+  }
+}
