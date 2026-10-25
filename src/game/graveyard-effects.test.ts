@@ -374,6 +374,31 @@ assert.equal(validateAuthorableCard({ ...small, trigger: { when: "onSummon", eff
   assert.equal(graveyardHasUniqueIds(final), true);
 }
 
+// A rejected stale cast after a mixed sequence must leave the complete
+// authoritative state untouched, including both players' remaining zones.
+{
+  let state = game();
+  const consumed = putInGraveyard(state, "player", small.defId, "discard")!;
+  const surviving = putInGraveyard(state, "player", target.defId, "discard")!;
+  const enemy = putInGraveyard(state, "ai", small.defId, "discard")!;
+  state = addCardsToHand(state, "player", [recover.defId, reanimate.defId, banish.defId]);
+  const recovery = state.players.player.hand.find((card) => card.defId === recover.defId)!;
+  const afterRecovery = castSpell(state, "player", recovery.instanceId, consumed.instanceId);
+  assert.notStrictEqual(afterRecovery, state);
+  const reanimation = afterRecovery.players.player.hand.find((card) => card.defId === reanimate.defId)!;
+  const rejected = castSpell(afterRecovery, "player", reanimation.instanceId, consumed.instanceId);
+  assert.strictEqual(rejected, afterRecovery, "invalid cross-effect target must preserve entire state");
+  const validReanimation = castSpell(rejected, "player", reanimation.instanceId, surviving.instanceId);
+  assert.notStrictEqual(validReanimation, rejected, "a failed cast must not block later legal actions");
+  const banishment = validReanimation.players.player.hand.find((card) => card.defId === banish.defId)!;
+  const final = castSpell(validReanimation, "player", banishment.instanceId, enemy.instanceId);
+  assert.notStrictEqual(final, validReanimation);
+  assert.ok(!graveyardEntries(final, "ai").some((entry) => entry.instanceId === enemy.instanceId));
+  assert.equal(final.players.player.bench.filter((unit) => unit.defId === target.defId).length, 1);
+  assert.equal(final.players.player.hand.filter((card) => card.defId === small.defId).length, 1);
+  assert.equal(graveyardHasUniqueIds(final), true);
+}
+
 // AI treats the graveyard as a resource and deterministically selects the
 // highest-value legal reanimation target.
 {
