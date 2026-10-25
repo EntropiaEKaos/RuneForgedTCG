@@ -21,6 +21,7 @@ import { MatchCinematics } from "@/components/game/MatchCinematics";
 import { MechanicCue } from "@/components/game/MechanicCue";
 import { BoardStatusStrip } from "@/components/game/BoardStatusStrip";
 import { CombatFeedback } from "@/components/game/CombatFeedback";
+import { BattleNarration } from "@/components/game/BattleNarration";
 import { ArchetypeTracker } from "@/components/game/ArchetypeTracker";
 import { EncounterBanner } from "@/components/game/EncounterBanner";
 import { CombatChoreography } from "@/components/game/CombatChoreography";
@@ -242,7 +243,7 @@ export function BattleView(props: BattleViewProps) {
             <p className="text-center text-sm font-bold text-amber-200 drop-shadow">{banner}</p>
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🎴 {player.deckName}</span>
           </div>
-          {recentCombatEvents.length > 0 && <div role="status" data-combat-event-feedback="true" className="mx-auto my-2 flex max-w-xl flex-col gap-1.5">{recentCombatEvents.map((event) => <div key={event.id} className={`animate-pop rounded-xl border px-4 py-2 text-center shadow-lg ${/ANULADA|DESTRUÍDO|EXILADO/.test(event.heading) ? "border-rose-400/70 bg-rose-950/90 shadow-rose-500/20" : /CONGELADO|ATORDOADO/.test(event.heading) ? "border-sky-300/70 bg-sky-950/90 shadow-sky-500/20" : /RESSUSCITADO|RECUPERADO|EVOLUÇÃO/.test(event.heading) ? "border-emerald-300/70 bg-emerald-950/90 shadow-emerald-500/20" : "border-amber-300/60 bg-slate-950/90 shadow-amber-500/10"}`}><strong className="block text-sm font-black tracking-wider text-white">{event.heading}</strong><p className="mt-1 text-xs text-white">{event.message}</p></div>)}</div>}
+          <BattleNarration events={recentCombatEvents} />
           <div className="match-last-action" aria-live="polite"><span>ÚLTIMA AÇÃO</span><p>{state.log.at(-1) ?? "A batalha está pronta."}</p></div>
           <TargetingHud mode={targetingMode} onCancel={cancelTargeting} />
           {reaction && <ReactionStack reaction={reaction} timeLeft={timeLeft} targetName={reactionTargetName} pendingReaction={pendingReaction} onCancelSelection={() => setPendingReaction(null)} onResolve={() => { setPendingReaction(null); finishReaction(); }} onCardClick={handleHandClick} onTargetClick={(targetId) => { if (pendingReaction) finishReaction({ instanceId: pendingReaction.instanceId, targetId }); }} />}
