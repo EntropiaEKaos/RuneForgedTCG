@@ -122,10 +122,25 @@ export function BattleView(props: BattleViewProps) {
               : canAttackNow ? selectedChallengers.length > 0 ? "Selecione rivais para desafiá-los e então ataque." : "Seu turno — jogue cartas ou selecione atacantes."
                 : "Seu turno — jogue cartas (sem Token de Ataque)."
             : "⏳ O adversário está planejando…";
-  // Narrate only events already recorded by the game engine; never infer an outcome from a click.
-  const latestCombatEvent = [...state.log].reverse().find((line) => /anulad|counter|congel|freeze|destru|cemit[eé]rio|ressusc|retorn|bloque|negad|exil|dano|habilidade|efeito/i.test(line));
-  const latestCombatIsCurrent = latestCombatEvent === state.log.at(-1);
-  const combatEventHeading = latestCombatEvent && /anulad|counter|negad/i.test(latestCombatEvent) ? "⛔ EFEITO ANULADO" : latestCombatEvent && /congel|freeze/i.test(latestCombatEvent) ? "❄️ CONGELAMENTO" : latestCombatEvent && /destru/i.test(latestCombatEvent) ? "💥 DESTRUIÇÃO" : latestCombatEvent && /ressusc|retorn/i.test(latestCombatEvent) ? "✨ RETORNO" : latestCombatEvent && /bloque/i.test(latestCombatEvent) ? "🛡️ BLOQUEIO" : latestCombatEvent && /cemit[eé]rio|exil/i.test(latestCombatEvent) ? "☠️ CEMITÉRIO" : "⚡ EFEITO DE COMBATE";
+  // Presentation only: classify the engine's actual log lines, including its English messages.
+  // Check negation before generic destruction/return wording to avoid false labels.
+  const combatEventHeading = (line: string): string | null => {
+    if (/was negated|negates |anulad|countered|negad/i.test(line)) return "⛔ MAGIA ANULADA";
+    if (/frostbitten|congelad|freeze/i.test(line)) return "❄️ CONGELADO";
+    if (/stunned|atordoad/i.test(line)) return "✦ ATORDOADO";
+    if (/is destroyed|foi destruíd|destruíd/i.test(line)) return "💥 DESTRUÍDO";
+    if (/reanimates|ressuscit|reviv/i.test(line)) return "✨ RESSUSCITADO";
+    if (/returns .*graveyard|retorn.*cemit[eé]rio/i.test(line)) return "↩️ RECUPERADO DO CEMITÉRIO";
+    if (/is banished|exilad|banid/i.test(line)) return "☠️ EXILADO";
+    if (/recalled to hand|recalled but|devolvid.*mão/i.test(line)) return "↩️ DEVOLVIDO À MÃO";
+    if (/barrier.*break|barreira.*quebr/i.test(line)) return "🛡️ BARREIRA QUEBRADA";
+    if (/bloquead|blocked/i.test(line)) return "🛡️ BLOQUEADO";
+    if (/level[s]? up|evoluiu/i.test(line)) return "✨ EVOLUÇÃO";
+    return null;
+  };
+  const recentCombatEvents = state.log.slice(-5).map((message, index) => ({
+    message, heading: combatEventHeading(message), id: state.log.length - Math.min(5, state.log.length) + index,
+  })).filter((event): event is { message: string; heading: string; id: number } => event.heading !== null).slice(-2);
   const aiAttackers = ai.bench.filter((unit) => unit.isAttacking);
   const playerAttackers = player.bench.filter((unit) => unit.isAttacking);
   const levelFxBusy = new Set(fx.filter((event) => event.type === "levelup").map((event) => event.unitId));
@@ -227,7 +242,7 @@ export function BattleView(props: BattleViewProps) {
             <p className="text-center text-sm font-bold text-amber-200 drop-shadow">{banner}</p>
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🎴 {player.deckName}</span>
           </div>
-          {latestCombatIsCurrent && latestCombatEvent && <div key={state.log.length} role="status" data-combat-event-feedback="true" className="mx-auto my-2 max-w-xl rounded-xl border border-amber-300/50 bg-slate-950/90 px-4 py-2 text-center shadow-lg shadow-amber-500/10"><strong className="block text-sm font-black tracking-wider text-amber-200">{combatEventHeading}</strong><p className="mt-1 text-xs text-white">{latestCombatEvent}</p></div>}
+          {recentCombatEvents.length > 0 && <div role="status" data-combat-event-feedback="true" className="mx-auto my-2 flex max-w-xl flex-col gap-1.5">{recentCombatEvents.map((event) => <div key={event.id} className="rounded-xl border border-amber-300/50 bg-slate-950/90 px-4 py-2 text-center shadow-lg shadow-amber-500/10"><strong className="block text-sm font-black tracking-wider text-amber-200">{event.heading}</strong><p className="mt-1 text-xs text-white">{event.message}</p></div>)}</div>}
           <div className="match-last-action" aria-live="polite"><span>ÚLTIMA AÇÃO</span><p>{state.log.at(-1) ?? "A batalha está pronta."}</p></div>
           <TargetingHud mode={targetingMode} onCancel={cancelTargeting} />
           {reaction && <ReactionStack reaction={reaction} timeLeft={timeLeft} targetName={reactionTargetName} pendingReaction={pendingReaction} onCancelSelection={() => setPendingReaction(null)} onResolve={() => { setPendingReaction(null); finishReaction(); }} onCardClick={handleHandClick} onTargetClick={(targetId) => { if (pendingReaction) finishReaction({ instanceId: pendingReaction.instanceId, targetId }); }} />}
