@@ -285,7 +285,14 @@ export default function GameClient() {
   );
 
   const handleGraveyardClick = useCallback((entry: GraveyardEntry) => {
-    if (!state || !pendingSpell) return;
+    if (!state) return;
+    if (reaction && pendingReaction) {
+      if (isValidGraveyardTarget(reaction.baseState, "player", pendingReaction.targetType, entry)) {
+        finishReaction({ instanceId: pendingReaction.instanceId, targetId: entry.instanceId });
+      }
+      return;
+    }
+    if (!pendingSpell) return;
     if (!isValidGraveyardTarget(state, "player", pendingSpell.targetType, entry)) return;
     const pendingDef = getCard(pendingSpell.defId);
     if (pendingDef.type !== "Spell") return;
@@ -296,7 +303,7 @@ export default function GameClient() {
       targetInstanceId: entry.instanceId,
     }));
     setPendingSpell(null);
-  }, [state, pendingSpell, applyWithAiReaction]);
+  }, [state, reaction, pendingReaction, pendingSpell, finishReaction, applyWithAiReaction]);
 
   const handleHandClick = useCallback(
     (instanceId: string, defId: string) => {
@@ -518,7 +525,7 @@ export default function GameClient() {
     }} />;
   }
 
-  const graveyardTargeting = Boolean(pendingSpell && isGraveyardTargetKind(pendingSpell.targetType));
+  const graveyardTargeting = Boolean((pendingSpell && isGraveyardTargetKind(pendingSpell.targetType)) || (reaction && pendingReaction && isGraveyardTargetKind(pendingReaction.targetType)));
   const graveyardOverlayVisible = graveyardTargeting ||
     (state.players.player.graveyard?.length ?? 0) > 0 ||
     (state.players.ai.graveyard?.length ?? 0) > 0;
@@ -546,10 +553,10 @@ export default function GameClient() {
           className={`pointer-events-none fixed inset-0 ${graveyardTargeting ? "z-[70]" : "z-30"}`}
         >
           <div className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} absolute bottom-[112px] left-3 w-[min(240px,44vw)]`}>
-            <div className="pointer-events-auto"><GraveyardTray state={state} owner="player" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
+            <div className="pointer-events-auto"><GraveyardTray state={state} owner="player" targetKind={pendingReaction?.targetType ?? pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
           </div>
           <div className={`${graveyardTargeting ? "pointer-events-auto" : "pointer-events-none"} absolute right-3 ${graveyardTargeting ? "bottom-[112px]" : "top-[72px]"} w-[min(240px,44vw)]`}>
-            <div className="pointer-events-auto"><GraveyardTray state={state} owner="ai" targetKind={pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
+            <div className="pointer-events-auto"><GraveyardTray state={state} owner="ai" targetKind={pendingReaction?.targetType ?? pendingSpell?.targetType} onEntryClick={handleGraveyardClick} /></div>
           </div>
         </div>
       )}
