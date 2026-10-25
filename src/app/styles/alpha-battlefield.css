@@ -196,3 +196,39 @@ body:has(.match-result-backdrop) .tcg-arena > .pointer-events-none.fixed {
     margin-right: 250px;
   }
 }
+
+/* Battlefield readability: turn announcements should not black out target selection. */
+.tcg-arena .match-cinematic {
+  background: linear-gradient(135deg, rgba(15, 23, 42, .76), rgba(3, 7, 12, .82)) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .22) !important;
+  backdrop-filter: none !important;
+}
+.tcg-arena .match-cinematic::before,
+.tcg-arena .match-cinematic::after {
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+}
+/* Keep power/resistance fully inside small cards, even in narrow stacks. */
+.tcg-arena .card-shell .card-bottom {
+  min-width: 0;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+.tcg-arena .card-shell .card-keywords { min-width: 0; flex: 1 1 auto; }
+.tcg-arena .card-shell .card-stats {
+  flex: 0 0 auto;
+  min-width: max-content;
+  margin-left: auto;
+  gap: 2px;
+  padding-right: 2px;
+}
+.tcg-arena .card-shell .stat-power,
+.tcg-arena .card-shell .stat-health {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  min-width: 21px;
+  width: 21px;
+  height: 21px;
+  font-size: 10px;
+  line-height: 1;
+}

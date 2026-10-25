@@ -21,6 +21,7 @@ import { MatchCinematics } from "@/components/game/MatchCinematics";
 import { MechanicCue } from "@/components/game/MechanicCue";
 import { BoardStatusStrip } from "@/components/game/BoardStatusStrip";
 import { CombatFeedback } from "@/components/game/CombatFeedback";
+import { BattleNarration } from "@/components/game/BattleNarration";
 import { ArchetypeTracker } from "@/components/game/ArchetypeTracker";
 import { EncounterBanner } from "@/components/game/EncounterBanner";
 import { CombatChoreography } from "@/components/game/CombatChoreography";
@@ -122,6 +123,25 @@ export function BattleView(props: BattleViewProps) {
               : canAttackNow ? selectedChallengers.length > 0 ? "Selecione rivais para desafiá-los e então ataque." : "Seu turno — jogue cartas ou selecione atacantes."
                 : "Seu turno — jogue cartas (sem Token de Ataque)."
             : "⏳ O adversário está planejando…";
+  // Presentation only: classify the engine's actual log lines, including its English messages.
+  // Check negation before generic destruction/return wording to avoid false labels.
+  const combatEventHeading = (line: string): string | null => {
+    if (/was negated|negates |anulad|countered|negad/i.test(line)) return "⛔ MAGIA ANULADA";
+    if (/frostbitten|congelad|freeze/i.test(line)) return "❄️ CONGELADO";
+    if (/stunned|atordoad/i.test(line)) return "✦ ATORDOADO";
+    if (/is destroyed|foi destruíd|destruíd/i.test(line)) return "💥 DESTRUÍDO";
+    if (/reanimates|ressuscit|reviv/i.test(line)) return "✨ RESSUSCITADO";
+    if (/returns .*graveyard|retorn.*cemit[eé]rio/i.test(line)) return "↩️ RECUPERADO DO CEMITÉRIO";
+    if (/is banished|exilad|banid/i.test(line)) return "☠️ EXILADO";
+    if (/recalled to hand|recalled but|devolvid.*mão/i.test(line)) return "↩️ DEVOLVIDO À MÃO";
+    if (/barrier.*break|barreira.*quebr/i.test(line)) return "🛡️ BARREIRA QUEBRADA";
+    if (/bloquead|blocked/i.test(line)) return "🛡️ BLOQUEADO";
+    if (/level[s]? up|evoluiu/i.test(line)) return "✨ EVOLUÇÃO";
+    return null;
+  };
+  const recentCombatEvents = state.log.slice(-5).map((message, index) => ({
+    message, heading: combatEventHeading(message), id: state.log.length - Math.min(5, state.log.length) + index,
+  })).filter((event): event is { message: string; heading: string; id: number } => event.heading !== null).slice(-5);
   const aiAttackers = ai.bench.filter((unit) => unit.isAttacking);
   const playerAttackers = player.bench.filter((unit) => unit.isAttacking);
   const levelFxBusy = new Set(fx.filter((event) => event.type === "levelup").map((event) => event.unitId));
@@ -223,6 +243,7 @@ export function BattleView(props: BattleViewProps) {
             <p className="text-center text-sm font-bold text-amber-200 drop-shadow">{banner}</p>
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold">🎴 {player.deckName}</span>
           </div>
+          <BattleNarration events={recentCombatEvents} />
           <div className="match-last-action" aria-live="polite"><span>ÚLTIMA AÇÃO</span><p>{state.log.at(-1) ?? "A batalha está pronta."}</p></div>
           <TargetingHud mode={targetingMode} onCancel={cancelTargeting} />
           {reaction && <ReactionStack reaction={reaction} timeLeft={timeLeft} targetName={reactionTargetName} pendingReaction={pendingReaction} onCancelSelection={() => setPendingReaction(null)} onResolve={() => { setPendingReaction(null); finishReaction(); }} onCardClick={handleHandClick} onTargetClick={(targetId) => { if (pendingReaction) finishReaction({ instanceId: pendingReaction.instanceId, targetId }); }} />}

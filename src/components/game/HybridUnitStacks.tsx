@@ -37,7 +37,7 @@ export function HybridUnitStacks<T extends StackableUnit>({ units, renderUnit, l
         ["↓", status.impaired, "afetadas"],
       ] as const).filter(([, count]) => count > 0) : [];
       return <div key={group.id} data-stack-id={group.id} data-stack-count={group.members.length} data-stack-kind={label.includes("permanent") ? "permanent" : "unit"} className="relative flex flex-wrap items-end justify-center gap-1">
-        {compact ? <div className="relative flex flex-col items-center gap-1">
+        {compact ? <div className="relative flex flex-col items-center gap-1" title={`Pilha com ${group.members.length} cartas. Clique na quantidade para escolher uma carta individualmente.`}>
           {renderUnit(group.members[0])}
           <button type="button" aria-label={`Expandir pilha ${group.defId} com ${group.members.length} cartas`}
             aria-expanded={false} onClick={() => toggle(group.id)}

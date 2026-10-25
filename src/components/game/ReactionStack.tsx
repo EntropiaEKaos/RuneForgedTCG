@@ -218,6 +218,7 @@ export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction,
       ...(sentinelaAllowed ? reaction.baseState.players[owner].sentinelas.filter((sen) => isValidTarget(reaction.baseState, "player", type, { kind: "sentinela", sen, owner })).map((card) => ({ id: card.instanceId, defId: card.defId, owner })) : []),
     ];
   }) : [];
+  const selectedReactionName = pendingReaction ? getCard(pendingReaction.defId).name : null;
   const panel = (
     <section className="reaction-stack" aria-label="Pilha de respostas" aria-live="polite" data-reaction-window="true">
       <div className="reaction-stack-heading">
@@ -225,6 +226,9 @@ export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction,
         <strong aria-label={`Tempo restante: ${Math.ceil(timeLeft / 1000)} segundos`}>{Math.ceil(timeLeft / 1000)}s</strong>
       </div>
       <div className="reaction-timer"><i style={{ width: `${progress}%` }} /></div>
+      <div role="status" data-reaction-feedback={pendingReaction ? "select-target" : reaction.pendingHuman ? "response-queued" : "choose-response"} className={`mt-2 rounded-lg border px-3 py-2 text-xs font-semibold ${pendingReaction ? "border-amber-300/70 bg-amber-400/15 text-amber-100" : reaction.pendingHuman ? "border-emerald-300/60 bg-emerald-400/15 text-emerald-100" : "border-cyan-300/40 bg-cyan-400/10 text-cyan-100"}`}>
+        {pendingReaction ? `✓ ${selectedReactionName} selecionada — escolha um alvo abaixo para confirmar.` : reaction.pendingHuman ? "✓ Resposta registrada na pilha. Aguardando resolução." : "1. Escolha uma carta para responder ou passe a prioridade."}
+      </div>
       {targetName && <p className="reaction-target">Alvo atual: <b>{targetName}</b></p>}
       <div className="reaction-card-preview" data-reaction-card-preview={respondingTo.defId}>
         {respondingArt && <div className="reaction-card-art" style={{ backgroundImage: `url("${respondingArt}")` }} role="img" aria-label={`Arte de ${respondingCard.name}`} />}
@@ -266,12 +270,13 @@ export function ReactionStack({ reaction, timeLeft, targetName, pendingReaction,
               return (
                 <button key={card.instanceId} type="button" data-reaction-playable-card={card.instanceId}
                   onClick={() => onCardClick(card.instanceId, card.defId)}
-                  className="flex min-w-24 max-w-28 shrink-0 flex-col overflow-hidden rounded-lg border border-cyan-400/40 bg-slate-900 text-left transition hover:border-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300"
+                  aria-pressed={pendingReaction?.instanceId === card.instanceId}
+                  className={`flex min-w-24 max-w-28 shrink-0 flex-col overflow-hidden rounded-lg border bg-slate-900 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 ${pendingReaction?.instanceId === card.instanceId ? "border-amber-300 ring-2 ring-amber-300/70 shadow-[0_0_20px_rgba(252,211,77,.3)]" : "border-cyan-400/40 hover:border-cyan-200"}`}
                   title={`Usar ${definition.name} como resposta`} aria-label={`Usar ${definition.name} como resposta`}>
                   {art && <span className="h-16 w-full bg-cover bg-center" style={{ backgroundImage: `url("${art}")` }} aria-hidden="true" />}
                   <span className="w-full p-1.5">
                     <span className="block truncate text-[10px] font-bold text-white">{definition.name}</span>
-                    <span className="text-[10px] text-cyan-200">Custo {effectiveCost(reaction.baseState, "player", definition)} · Usar ↗</span>
+                    <span className="text-[10px] text-cyan-200">{pendingReaction?.instanceId === card.instanceId ? "✓ Selecionada" : `Custo ${effectiveCost(reaction.baseState, "player", definition)} · Usar ↗`}</span>
                   </span>
                 </button>
               );

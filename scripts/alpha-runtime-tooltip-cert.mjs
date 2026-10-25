@@ -289,7 +289,9 @@ async function runtimeEvidence(cdp) {
   const units = await evalJs(cdp, `(()=>[...document.querySelectorAll('[data-bench-side="player"] [data-unit-id]')].map(h=>({defId:h.dataset.cardTipDefId,unitId:h.dataset.unitId})).filter(x=>x.unitId))()`);
   for (const item of units) {
     if (!(await hover(cdp, `[data-bench-side="player"] [data-unit-id="${item.unitId}"]`))) continue;
-    await sleep(220);
+    // Tooltip intentionally opens after a 2s mouse-hover dwell. Wait for the real
+    // panel instead of sampling after 220ms, which falsely fails the E2E cert.
+    await waitSel(cdp, '[data-tooltip-panel="true"]', 4000);
     const panel = await evalJs(cdp, `(()=>{const n=document.querySelector('[data-card-intelligence-panel="true"]'),h=document.querySelector('[data-tooltip-panel="true"]');if(!n||!h)return null;const r=h.getBoundingClientRect();return{text:n.textContent||'',left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,viewportWidth:innerWidth,viewportHeight:innerHeight};})()`);
     if (!panel || !runtimeBuffPattern.test(panel.text)) {
       await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });

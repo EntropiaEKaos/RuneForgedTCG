@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect } from "react";
+
 export type TargetingMode = "spell" | "reaction" | "sentinela" | "challenge" | "block";
 
 const COPY: Record<TargetingMode, { icon: string; kicker: string; title: string; detail: string }> = {
@@ -9,6 +13,16 @@ const COPY: Record<TargetingMode, { icon: string; kicker: string; title: string;
 };
 
 export function TargetingHud({ mode, onCancel }: { mode: TargetingMode | null; onCancel: () => void }) {
+  useEffect(() => {
+    if (!mode) return;
+    const cancelOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      onCancel();
+    };
+    window.addEventListener("keydown", cancelOnEscape);
+    return () => window.removeEventListener("keydown", cancelOnEscape);
+  }, [mode, onCancel]);
   if (!mode) return null;
   const copy = COPY[mode];
   return (
