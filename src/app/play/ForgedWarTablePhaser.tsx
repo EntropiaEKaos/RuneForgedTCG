@@ -8,13 +8,14 @@ export default function ForgedWarTablePhaser({ phase }: { phase: string }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let disposed = false;
-    let game: { destroy: (removeCanvas?: boolean) => void } | undefined;
+    let game: import("phaser").Game | undefined;
     const element = host.current;
     if (!element) return;
     void import("phaser").then(({ default: Phaser }) => {
       if (disposed || !element.isConnected) return;
-      const scene = new Phaser.Scene("ForgedWarTable");
-      scene.create = function () {
+      class ForgedWarTableScene extends Phaser.Scene {
+        constructor() { super("ForgedWarTable"); }
+        create() {
         const g = this.add.graphics();
         const w = 1600, h = 900;
         // Solid carved basalt, aged bronze rails and a volcanic fissure.
@@ -60,7 +61,8 @@ export default function ForgedWarTablePhaser({ phase }: { phase: string }) {
             if (spark.sprite.y < 0) spark.sprite.y = h;
           }
         });
-      };
+        }
+      }
       game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: element,
@@ -70,7 +72,7 @@ export default function ForgedWarTablePhaser({ phase }: { phase: string }) {
         backgroundColor: "#10100e",
         scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
         render: { antialias: true },
-        scene,
+        scene: ForgedWarTableScene,
         audio: { noAudio: true },
       });
     }).catch(() => { /* CSS battlefield remains available if WebGL fails. */ });
