@@ -71,13 +71,17 @@ import { readFileSync } from "node:fs";
 // desktop/mobile visual browser evidence before promotion.
 // Reaction-window click-to-use integration: BattleView forwards the existing hand-click handler.
 // Re-certified blob intentionally updated; full CI and browser evidence remain required before merge.
+// Battlefield 3.0 experimental break-glass 2026-10-26: BattleView mounts a
+// pointer-transparent decorative Phaser basalt war table. React retains all
+// card input, game state and targeting authority. Re-certify with full CI,
+// notebook screenshots and mobile regression before any merge.
 // Card Design 2.0 break-glass 2026-10-25: CardView adds an opt-in full-art
 // presentation that removes secondary text from the face, retaining stats and
 // state indicators. CardTip retains its always-visible ⚡ activated-ability trigger.
 // No gameplay changes. Full CI and real browser screenshot evidence required.
 const FROZEN_VISUAL_BLOBS: Record<string, string> = {
   "src/app/layout.tsx": "b493e6b387d741db8ba168501183d3d0e379b7e1",
-  "src/app/play/BattleView.tsx": "96f43e9be73c1a309c5273cc877e50c1ddf08960",
+  "src/app/play/BattleView.tsx": "55778e196435e4c8666116a12eb3ed6912ea3fe8",
   "src/components/CardView.tsx": "8cc4b0fb728da1dad64662078032f5b8f17051cc",
   "src/components/game/ArenaIdentity.tsx": "6cf2a95b90f6fa49ed3ebd6b90938e07f1368cbb",
   "src/app/styles/visual-3-0-battlefield-cinematic.css": "3bf86d3b3729265db77b7ec8c92f58ae8a6bb04b",
