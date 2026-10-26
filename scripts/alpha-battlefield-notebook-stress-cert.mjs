@@ -300,7 +300,31 @@ async function main() {
       assert.ok(parseFloat(fullArt.sampleBorderWidth) >= 3,
         `Full Art frame border not visibly applied: ${JSON.stringify(fullArt)}`);
       await capture(cdp, "battlefield-density-stress-1280x720.png");
-      const report = { ok: true, viewport, fixture, hoverTarget, evidence, fullArt, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() };
+      // Capture the same real, populated 1v1 battlefield at all Alpha desktop
+      // acceptance sizes. Keep the 1280x720 stress assertion above intact.
+      const desktopViewports = [{ width: 1440, height: 900 }, { width: 1920, height: 1080 }];
+      const desktopEvidence = [{ width: viewport.width, height: viewport.height, fullArt }];
+      for (const size of desktopViewports) {
+        await cdp.call("Emulation.setDeviceMetricsOverride", { ...viewport, ...size });
+        await settle(cdp);
+        const inspected = await evaluate(cdp, `(() => {
+          const cards = [...document.querySelectorAll('.tcg-arena .card-shell')];
+          const fullArtCards = cards.filter(card => card.dataset.cardPresentation === 'full-art');
+          const borderWidths = fullArtCards.map(card => parseFloat(getComputedStyle(card).borderTopWidth));
+          const arena = document.querySelector('.tcg-arena');
+          const rect = arena?.getBoundingClientRect();
+          return { total: cards.length, fullArtCount: fullArtCards.length,
+            minBorderWidth: borderWidths.length ? Math.min(...borderWidths) : null,
+            arenaWidth: rect?.width ?? null, viewportWidth: innerWidth, viewportHeight: innerHeight };
+        })()`);
+        assert.ok(inspected.total > 0 && inspected.fullArtCount === inspected.total,
+          `Full Art must render on every card at ${size.width}x${size.height}: ${JSON.stringify(inspected)}`);
+        assert.ok(inspected.minBorderWidth >= 3,
+          `Full Art borders must remain visible at ${size.width}x${size.height}: ${JSON.stringify(inspected)}`);
+        await capture(cdp, `battlefield-density-stress-${size.width}x${size.height}.png`);
+        desktopEvidence.push({ ...size, fullArt: inspected });
+      }
+      const report = { ok: true, viewport, fixture, hoverTarget, evidence, fullArt, desktopEvidence, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() };
       await writeFile(join(outputDir, "battlefield-density-stress-1280x720.json"), `${JSON.stringify(report, null, 2)}\n`);
       console.log(`VISUAL 4.2 NOTEBOOK DENSITY STRESS: PASS — ${JSON.stringify({ hoverTarget, evidence })}`);
     } catch (error) {
