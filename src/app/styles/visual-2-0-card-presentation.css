@@ -465,3 +465,67 @@
     text-shadow: 0 2px 5px #080605, 0 0 12px rgba(188,122,45,.35);
   }
 }
+
+/* Battlefield 3.1 / OBSIDIAN ALTAR — radical visual-only desktop reskin.
+   No pointer, sizing, positioning or game state changes. Scoped to Full Art 1v1. */
+@media (min-width: 901px) {
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) {
+    background:
+      radial-gradient(ellipse at 50% 47%, rgba(227,144,48,.23) 0%, rgba(103,52,23,.12) 21%, transparent 51%),
+      radial-gradient(ellipse at 13% 23%, rgba(161,74,37,.18), transparent 37%),
+      radial-gradient(ellipse at 85% 76%, rgba(170,104,42,.16), transparent 38%),
+      repeating-linear-gradient(116deg, transparent 0 150px, rgba(222,169,89,.035) 151px 152px, transparent 154px 294px),
+      linear-gradient(140deg, #21180f, #171310 32%, #292017 52%, #0f1213 76%, #26180f) !important;
+    box-shadow: inset 0 0 0 3px #59402a, inset 0 0 0 7px #100c09, inset 0 0 100px rgba(0,0,0,.65) !important;
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .arena-scanlines,
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .arena-backdrop {
+    opacity: 0 !important;
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .arena-convergence {
+    opacity: .58 !important;
+    filter: sepia(.55) saturate(1.55) hue-rotate(-17deg) drop-shadow(0 0 20px rgba(245,151,52,.3));
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .tcg-row,
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .tcg-row[data-bench-side="player"],
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .tcg-row[data-bench-side="ai"] {
+    background:
+      linear-gradient(90deg, #130f0c 0%, transparent 8%, transparent 92%, #130f0c 100%),
+      repeating-linear-gradient(104deg, transparent 0 68px, rgba(230,172,89,.04) 69px 70px, transparent 71px 144px),
+      linear-gradient(180deg, #38291b 0%, #241b14 17%, #161412 48%, #2b2119 83%, #38281a 100%) !important;
+    border-top: 3px solid #a97942 !important;
+    border-bottom: 3px solid #090807 !important;
+    box-shadow: inset 0 2px 0 rgba(255,212,137,.27), inset 0 18px 25px rgba(0,0,0,.3), inset 0 -13px 23px rgba(0,0,0,.35), 0 7px 20px rgba(0,0,0,.6) !important;
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .tcg-row::before {
+    background:
+      repeating-linear-gradient(90deg, transparent 0 115px, rgba(245,191,104,.12) 116px 117px, transparent 118px 119px),
+      radial-gradient(ellipse at 50% 50%, rgba(203,130,48,.13), transparent 68%) !important;
+    border: 1px solid rgba(215,165,89,.45) !important;
+    box-shadow: inset 0 0 0 2px rgba(8,7,6,.55), inset 0 0 24px rgba(0,0,0,.55) !important;
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .tcg-playerbar {
+    background: linear-gradient(180deg, #382719, #120f0d 47%, #302217) !important;
+    border-color: rgba(224,169,86,.48) !important;
+    box-shadow: inset 0 1px rgba(255,221,154,.2), 0 4px 20px rgba(0,0,0,.55) !important;
+    backdrop-filter: none !important;
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .tcg-actions {
+    background: linear-gradient(180deg, #261b13, #0e0e0e 60%, #302015) !important;
+    border-color: rgba(206,151,77,.42) !important;
+    backdrop-filter: none !important;
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .tcg-row[data-bench-side="ai"] + .relative.flex-1 {
+    background: radial-gradient(ellipse at center, rgba(232,139,49,.19), rgba(16,14,12,.18) 65%, transparent) !important;
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .card-shell[data-card-presentation="full-art"] {
+    border: 2px solid #d7a45c !important;
+    box-shadow: 0 0 0 2px #21140a, 0 0 0 4px rgba(226,175,90,.5), 0 8px 24px #050403, 0 0 26px rgba(227,146,47,.24), inset 0 0 0 1px rgba(255,228,168,.4) !important;
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .card-shell[data-card-presentation="full-art"][data-card-state="targetable"] {
+    box-shadow: 0 0 0 3px #ffe26b, 0 0 26px rgba(255,218,74,.5) !important;
+  }
+  .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .forged-phaser-war-table {
+    opacity: 1 !important;
+  }
+}
