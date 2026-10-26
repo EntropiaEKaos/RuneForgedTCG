@@ -154,7 +154,7 @@ class Cdp {
 async function evalJs(cdp, expression) {
   const result = await cdp.call("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, userGesture: true });
   if (result.exceptionDetails) {
-    throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Runtime evaluation failed");
+    throw new Error(`${result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Runtime evaluation failed"}\nCDP expression: ${expression.slice(0, 1600)}`);
   }
   return result.result?.value;
 }
