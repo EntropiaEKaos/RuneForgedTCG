@@ -315,7 +315,10 @@ async function main() {
           const rect = arena?.getBoundingClientRect();
           return { total: cards.length, fullArtCount: fullArtCards.length,
             minBorderWidth: borderWidths.length ? Math.min(...borderWidths) : null,
-            arenaWidth: rect?.width ?? null, viewportWidth: innerWidth, viewportHeight: innerHeight };
+            arenaWidth: rect?.width ?? null, viewportWidth: innerWidth, viewportHeight: innerHeight,
+            boardBackground: arena ? getComputedStyle(arena).backgroundImage : null,
+            nameplateBackground: fullArtCards[0] ? getComputedStyle(fullArtCards[0].querySelector('.card-nameplate') || fullArtCards[0]).backgroundImage : null,
+            artFilter: fullArtCards[0] ? getComputedStyle(fullArtCards[0].querySelector('.card-art') || fullArtCards[0]).filter : null };
         })()`);
         assert.ok(inspected.total > 0 && inspected.fullArtCount === inspected.total,
           `Full Art must render on every card at ${size.width}x${size.height}: ${JSON.stringify(inspected)}`);
