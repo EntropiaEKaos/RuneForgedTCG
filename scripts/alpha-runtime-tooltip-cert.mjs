@@ -154,7 +154,7 @@ class Cdp {
 async function evalJs(cdp, expression) {
   const result = await cdp.call("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true, userGesture: true });
   if (result.exceptionDetails) {
-    throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Runtime evaluation failed");
+    throw new Error(`${result.exceptionDetails.exception?.description || result.exceptionDetails.text || "Runtime evaluation failed"}\nCDP expression: ${expression.slice(0, 1600)}`);
   }
   return result.result?.value;
 }
@@ -291,7 +291,25 @@ async function runtimeEvidence(cdp) {
     if (!(await hover(cdp, `[data-bench-side="player"] [data-unit-id="${item.unitId}"]`))) continue;
     // Tooltip intentionally opens after a 2s mouse-hover dwell. Wait for the real
     // panel instead of sampling after 220ms, which falsely fails the E2E cert.
-    await waitSel(cdp, '[data-tooltip-panel="true"]', 4000);
+    try {
+      await waitSel(cdp, '[data-tooltip-panel="true"]', 5000);
+    } catch (error) {
+      // Record the actual pointer hit target and mounted card/tooltip state.
+      // Do not silently pass: a missing live tooltip is an Alpha regression.
+      const diagnostic = await evalJs(cdp, `(() => {
+        const unit = document.querySelector("[data-bench-side=\"player\"] [data-unit-id=\"${item.unitId}\"]");
+        if (!unit) return { unitMissing: true };
+        const r = unit.getBoundingClientRect();
+        const x = r.left + r.width / 2, y = r.top + r.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        return { unitId: unit.dataset.unitId, defId: unit.dataset.cardTipDefId,
+          rect: { x: r.x, y: r.y, width: r.width, height: r.height },
+          hitTag: hit?.tagName || null, hitClass: String(hit?.className || '').slice(0, 200),
+          hitInsideUnit: unit.contains(hit), presentation: unit.querySelector('[data-card-presentation]')?.getAttribute('data-card-presentation') || null,
+          tooltipCount: document.querySelectorAll('[data-tooltip-panel="true"]').length };
+      })()`);
+      throw new Error(`Runtime tooltip did not open after hover: ${JSON.stringify(diagnostic)}; ${String(error)}`);
+    }
     const panel = await evalJs(cdp, `(()=>{const n=document.querySelector('[data-card-intelligence-panel="true"]'),h=document.querySelector('[data-tooltip-panel="true"]');if(!n||!h)return null;const r=h.getBoundingClientRect();return{text:n.textContent||'',left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,viewportWidth:innerWidth,viewportHeight:innerHeight};})()`);
     if (!panel || !runtimeBuffPattern.test(panel.text)) {
       await cdp.call("Input.dispatchMouseEvent", { type: "mouseMoved", x: 2, y: 2 });

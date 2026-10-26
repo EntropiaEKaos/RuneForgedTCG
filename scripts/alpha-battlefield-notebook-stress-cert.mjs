@@ -280,8 +280,54 @@ async function main() {
       await settle(cdp);
       const evidence = await collectStressEvidence(cdp);
       assertStressEvidence(evidence);
+      // Certify the real /play desktop card renderer, not just a studio preview.
+      const fullArt = await evaluate(cdp, `(() => {
+        const cards = [...document.querySelectorAll('.tcg-arena .card-shell')];
+        const counts = cards.reduce((result, card) => {
+          const presentation = card.getAttribute('data-card-presentation') || 'missing';
+          result[presentation] = (result[presentation] || 0) + 1;
+          return result;
+        }, {});
+        const sample = cards.find(card => card.getAttribute('data-card-presentation') === 'full-art');
+        return { pathname: location.pathname, total: cards.length, counts,
+          sampleBorderWidth: sample ? getComputedStyle(sample).borderTopWidth : null,
+          sampleBorderColor: sample ? getComputedStyle(sample).borderTopColor : null };
+      })()`);
+      assert.equal(fullArt.pathname, "/play", "Full Art cert must run on real 1v1 /play");
+      assert.ok(fullArt.total > 0, "Full Art cert found no rendered battlefield cards");
+      assert.equal(fullArt.counts["full-art"], fullArt.total,
+        `1v1 desktop cards must all use Full Art: ${JSON.stringify(fullArt)}`);
+      assert.ok(parseFloat(fullArt.sampleBorderWidth) >= 3,
+        `Full Art frame border not visibly applied: ${JSON.stringify(fullArt)}`);
       await capture(cdp, "battlefield-density-stress-1280x720.png");
-      const report = { ok: true, viewport, fixture, hoverTarget, evidence, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() };
+      // Capture the same real, populated 1v1 battlefield at all Alpha desktop
+      // acceptance sizes. Keep the 1280x720 stress assertion above intact.
+      const desktopViewports = [{ width: 1440, height: 900 }, { width: 1920, height: 1080 }];
+      const desktopEvidence = [{ width: viewport.width, height: viewport.height, fullArt }];
+      for (const size of desktopViewports) {
+        await cdp.call("Emulation.setDeviceMetricsOverride", { ...viewport, ...size });
+        await settle(cdp);
+        const inspected = await evaluate(cdp, `(() => {
+          const cards = [...document.querySelectorAll('.tcg-arena .card-shell')];
+          const fullArtCards = cards.filter(card => card.dataset.cardPresentation === 'full-art');
+          const borderWidths = fullArtCards.map(card => parseFloat(getComputedStyle(card).borderTopWidth));
+          const arena = document.querySelector('.tcg-arena');
+          const rect = arena?.getBoundingClientRect();
+          return { total: cards.length, fullArtCount: fullArtCards.length,
+            minBorderWidth: borderWidths.length ? Math.min(...borderWidths) : null,
+            arenaWidth: rect?.width ?? null, viewportWidth: innerWidth, viewportHeight: innerHeight,
+            boardBackground: arena ? getComputedStyle(arena).backgroundImage : null,
+            nameplateBackground: fullArtCards[0] ? getComputedStyle(fullArtCards[0].querySelector('.card-nameplate') || fullArtCards[0]).backgroundImage : null,
+            artFilter: fullArtCards[0] ? getComputedStyle(fullArtCards[0].querySelector('.card-art') || fullArtCards[0]).filter : null };
+        })()`);
+        assert.ok(inspected.total > 0 && inspected.fullArtCount === inspected.total,
+          `Full Art must render on every card at ${size.width}x${size.height}: ${JSON.stringify(inspected)}`);
+        assert.ok(inspected.minBorderWidth >= 3,
+          `Full Art borders must remain visible at ${size.width}x${size.height}: ${JSON.stringify(inspected)}`);
+        await capture(cdp, `battlefield-density-stress-${size.width}x${size.height}.png`);
+        desktopEvidence.push({ ...size, fullArt: inspected });
+      }
+      const report = { ok: true, viewport, fixture, hoverTarget, evidence, fullArt, desktopEvidence, gitSha: process.env.GITHUB_SHA || null, capturedAt: new Date().toISOString() };
       await writeFile(join(outputDir, "battlefield-density-stress-1280x720.json"), `${JSON.stringify(report, null, 2)}\n`);
       console.log(`VISUAL 4.2 NOTEBOOK DENSITY STRESS: PASS — ${JSON.stringify({ hoverTarget, evidence })}`);
     } catch (error) {

@@ -138,6 +138,7 @@ export default function CardCosmeticsTab({ model, role }: { model: any; role: st
   const [form, setForm] = useState<FormState>({ ...EMPTY, artCrop: { ...EMPTY.artCrop } });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [previewMode, setPreviewMode] = useState<"full-art" | "classic">("full-art");
 
   const patch = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((current) => ({ ...current, [key]: value }));
   const patchCrop = <K extends keyof FormState["artCrop"]>(key: K, value: number) => setForm((current) => ({ ...current, artCrop: { ...current.artCrop, [key]: value } }));
@@ -359,8 +360,9 @@ export default function CardCosmeticsTab({ model, role }: { model: any; role: st
       </div>
 
       <aside className="space-y-4">
-        <Panel title="Visual Preview" eyebrow="ART + FRAME + FINISH">
-          <div className={`card-shell card-frame-${framePresetSlug(form.frameId)} relative mx-auto aspect-[2/3] w-full max-w-[290px] overflow-hidden rounded-[24px] border-2 bg-slate-900 shadow-2xl ${form.kind === "foil" ? "border-cyan-200/70" : form.kind === "serialized" ? "border-amber-200/80" : "border-white/25"}`} data-studio-cosmetic-preview="true" data-cosmetic-prestige={prestige.id} data-preview-frame={form.frameId}>
+        <Panel title="Visual Preview" eyebrow="CARD DESIGN 2.0 · ART + FRAME + FINISH">
+          <div className="mb-3 flex gap-2" role="group" aria-label="Apresentação da carta"><button type="button" aria-pressed={previewMode === "full-art"} className="btn-secondary text-xs" onClick={() => setPreviewMode("full-art")}>Full Art 2.0</button><button type="button" aria-pressed={previewMode === "classic"} className="btn-secondary text-xs" onClick={() => setPreviewMode("classic")}>Clássica</button></div>
+          <div className={`card-shell card-frame-${framePresetSlug(form.frameId)} relative mx-auto aspect-[2/3] w-full max-w-[290px] overflow-hidden rounded-[24px] border-2 bg-slate-900 shadow-2xl ${form.kind === "foil" ? "border-cyan-200/70" : form.kind === "serialized" ? "border-amber-200/80" : "border-white/25"}`} data-studio-cosmetic-preview="true" data-card-presentation={previewMode} data-cosmetic-prestige={prestige.id} data-preview-frame={form.frameId}>
             <div className="card-art absolute inset-0 bg-cover" style={previewStyle} />
             <div className="card-frame-ornament absolute inset-0" aria-hidden="true"><i/><i/><i/><i/></div>
             <div className="card-sheen absolute inset-0" aria-hidden="true" />
