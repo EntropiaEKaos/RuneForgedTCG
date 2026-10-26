@@ -519,7 +519,7 @@
     background: radial-gradient(ellipse at center, rgba(232,139,49,.19), rgba(16,14,12,.18) 65%, transparent) !important;
   }
   .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .card-shell[data-card-presentation="full-art"] {
-    border: 2px solid #d7a45c !important;
+    border: 3px solid #d7a45c !important;
     box-shadow: 0 0 0 2px #21140a, 0 0 0 4px rgba(226,175,90,.5), 0 8px 24px #050403, 0 0 26px rgba(227,146,47,.24), inset 0 0 0 1px rgba(255,228,168,.4) !important;
   }
   .tcg-arena:has(.card-shell[data-card-presentation="full-art"]) .card-shell[data-card-presentation="full-art"][data-card-state="targetable"] {
