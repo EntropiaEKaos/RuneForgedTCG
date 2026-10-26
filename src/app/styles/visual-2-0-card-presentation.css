@@ -294,7 +294,10 @@
    Opt-in only: classic cards, Commander and mobile remain unchanged. */
 @media (min-width: 901px) {
   .tcg-arena .card-shell[data-card-presentation="full-art"] {
-    border: 3px solid #8d6632;
+    /* Beat later hand/row density rules and inline cosmetic border styling. */
+    border-width: 3px !important;
+    border-style: solid !important;
+    border-color: #8d6632 !important;
     border-radius: 13px;
     background: #0d1014;
     box-shadow: 0 0 0 1px #1b1008, 0 0 0 3px rgba(220,174,89,.42),
